@@ -11,9 +11,10 @@ const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-change-me';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');
 const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || 'accioneducativaspa@gmail.com').toLowerCase();
-const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || '';
+const SUPERADMIN_PASSWORD_HASH = process.env.SUPERADMIN_PASSWORD_HASH || '0b357512f032de5d5557d0d9fc7f0e0e1d1e6b3c3451c1cd6fcbc257b8b3b59ed218cf6061aed6aa726bf6a9f2ee48b063872412f71e6943529cadde122d4c3d';
+const SUPERADMIN_SALT = 'mec-idps-superadmin-v1';
 const SURVEY_URL = process.env.SURVEY_URL || 'https://diagnostico-idps-material-educativo.onrender.com';
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const upload = multer({storage: multer.memoryStorage(), limits:{fileSize: 5 * 1024 * 1024}});
@@ -157,8 +158,10 @@ app.get('/superadmin',(req,res)=>{
  res.send(layout('Superadministrador',`${msg}<div class="card" style="max-width:560px;margin:auto"><h1>Superadministrador</h1><p class="muted">Acceso exclusivo de Acción Educativa SPA.</p><form method="post" action="/superadmin/login"><div class="field"><label>Correo</label><input name="email" type="email" value="accioneducativaspa@gmail.com" required></div><div class="field"><label>Contraseña</label><input name="password" type="password" required></div><button class="btn primary">Ingresar</button></form></div>`,`<a href="/">Inicio</a>`));
 });
 app.post('/superadmin/login',loginLimiter,(req,res)=>{
- const okEmail=clean(req.body.email).toLowerCase()===SUPERADMIN_EMAIL; const a=Buffer.from(clean(req.body.password)); const b=Buffer.from(SUPERADMIN_PASSWORD);
- const okPass=SUPERADMIN_PASSWORD && a.length===b.length && crypto.timingSafeEqual(a,b);
+ const okEmail=clean(req.body.email).toLowerCase()===SUPERADMIN_EMAIL;
+ const candidate=crypto.scryptSync(clean(req.body.password),SUPERADMIN_SALT,64).toString('hex');
+ const a=Buffer.from(candidate,'hex'), b=Buffer.from(SUPERADMIN_PASSWORD_HASH,'hex');
+ const okPass=a.length===b.length && crypto.timingSafeEqual(a,b);
  if(!okEmail||!okPass) return res.redirect('/superadmin?err=1&msg='+encodeURIComponent('Credenciales incorrectas.'));
  res.cookie('idps_session',token({role:'superadmin'}),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:8*60*60*1000}); res.redirect('/superadmin/dashboard');
 });

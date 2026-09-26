@@ -1,10 +1,10 @@
 {
   "name": "idps-multiestablecimiento",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "type": "commonjs",
   "engines": {"node": ">=18"},
-  "scripts": {"start": "node ./patch-access.js && node ./patch-runtime-v3.js && node -r ./branding.js server.js"},
+  "scripts": {"start": "node ./patch-access.js && node ./patch-runtime-v3.js && node ./patch-runtime-v4.js && node -r ./branding.js server.js"},
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",

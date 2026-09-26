@@ -10,18 +10,13 @@ function mustReplace(from, to, label){
   s = s.replace(from, to);
 }
 
-// Render Free bloquea tráfico SMTP (25/465/587). Evitamos que la aprobación quede esperando
-// un timeout largo: si Gmail no conecta, el panel vuelve en pocos segundos y conserva el PIN.
+// Render Free bloquea tráfico SMTP (25/465/587). Reducimos el tiempo de espera para que
+// aprobar o regenerar PIN nunca deje el panel aparentemente cargando por largo tiempo.
 mustReplace(
   "const transporter = nodemailer.createTransport({service:'gmail', auth:{user:'accioneducativaspa@gmail.com', pass}});",
   "const transporter = nodemailer.createTransport({service:'gmail', auth:{user:'accioneducativaspa@gmail.com', pass}, connectionTimeout:4000, greetingTimeout:4000, socketTimeout:6000}); /* MEC_RUNTIME_PATCH_V4 */",
   'timeout corto de Gmail'
 );
-
-// Mejora visual al tocar Aprobar/Rechazar/Regenerar: evita doble toque y muestra progreso.
-const oldClose = "</body></html>`;";
-const newClose = `<script>(function(){document.addEventListener('submit',function(e){const f=e.target;if(!f||!f.matches('form'))return;const b=f.querySelector('button');if(!b)return;if(b.dataset.busy==='1'){e.preventDefault();return;}b.dataset.busy='1';b.disabled=true;const t=(b.textContent||'').trim();if(/Aprobar/i.test(t))b.textContent='Aprobando…';else if(/Regenerar/i.test(t))b.textContent='Generando…';else if(/Rechazar/i.test(t))b.textContent='Procesando…';});})();</script></body></html>`;`;
-mustReplace(oldClose, newClose, 'estado visual botones');
 
 fs.writeFileSync(file, s);
 console.log('MEC runtime patch v4 aplicado');

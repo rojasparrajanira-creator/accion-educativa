@@ -101,6 +101,14 @@ async function listEstablishments(){
   return mem.establishments.map(({pin_hash,...x})=>x);
 }
 
+async function resetPin(eid){
+ const est=pool?(await pool.query('SELECT * FROM idps_establishments WHERE id=$1',[eid])).rows[0]:mem.establishments.find(x=>x.id===eid);
+ if(!est) throw new Error('Establecimiento no encontrado');
+ const generatedPin=pin6(), pinHash=await bcrypt.hash(generatedPin,10);
+ if(pool) await pool.query('UPDATE idps_establishments SET pin_hash=$1 WHERE id=$2',[pinHash,eid]); else est.pin_hash=pinHash;
+ return {est,generatedPin};
+}
+
 async function sendActivation(est,pin){
   const apiKey = String(process.env.RESEND_API_KEY || '').trim();
   if(!apiKey) return {sent:false, reason:'RESEND_API_KEY pendiente'};

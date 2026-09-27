@@ -102,15 +102,25 @@ async function listEstablishments(){
 }
 
 async function sendActivation(est,pin){
-  const pass = process.env.GMAIL_APP_PASSWORD;
-  if(!pass) return {sent:false, reason:'GMAIL_APP_PASSWORD pendiente'};
-  const transporter = nodemailer.createTransport({service:'gmail', auth:{user:'accioneducativaspa@gmail.com', pass}});
-  await transporter.sendMail({
-    from:'Acción Educativa SPA <accioneducativaspa@gmail.com>', to:est.email,
-    subject:'Cuenta activada · Diagnóstico IDPS Material Educativo Chile',
-    html:`<div style="font-family:Arial,sans-serif;color:#0F2D52"><h2>Cuenta activada</h2><p>Estimado/a ${est.contact_name||'responsable'}:</p><p>La cuenta de <b>${est.name}</b> ha sido aprobada.</p><p><b>RBD:</b> ${est.rbd}<br><b>PIN de acceso:</b> ${pin}</p><p>Acceso: <a href="${process.env.PUBLIC_URL||''}">${process.env.PUBLIC_URL||'Plataforma Diagnóstico IDPS'}</a></p><p>Por seguridad, conserve este PIN solo para el equipo autorizado.</p><p>Saludos cordiales,<br><b>Acción Educativa SPA</b></p></div>`
+  const apiKey = String(process.env.RESEND_API_KEY || '').trim();
+  if(!apiKey) return {sent:false, reason:'RESEND_API_KEY pendiente'};
+  const accessUrl = process.env.PUBLIC_URL || 'https://idps-gestion-material-educativo.onrender.com';
+  const subject = 'Cuenta activada · Diagnóstico IDPS Material Educativo Chile';
+  const expiry = est.expires_at ? new Date(est.expires_at).toLocaleDateString('es-CL') : '';
+  const html = '<div style="font-family:Arial,sans-serif;color:#0F2D52"><h2>Cuenta activada</h2><p>Estimado/a '+(est.contact_name||'responsable')+':</p><p>La cuenta de <b>'+est.name+'</b> ha sido aprobada.</p><p><b>RBD:</b> '+est.rbd+'<br><b>PIN de acceso:</b> '+pin+'<br><b>Vigencia:</b> '+expiry+'</p><p>Acceso: '+accessUrl+'</p><p>Por seguridad, conserve este PIN solo para el equipo autorizado.</p><p>Saludos cordiales,<br><b>Acción Educativa SPA</b></p></div>';
+  const response = await fetch('https://api.resend.com/emails', {
+    method:'POST',
+    headers:{Authorization:'Bearer '+apiKey,'Content-Type':'application/json'},
+    body:JSON.stringify({
+      from:process.env.RESEND_FROM || 'Acción Educativa SPA <onboarding@resend.dev>',
+      to:[est.email],
+      subject,
+      html
+    })
   });
-  return {sent:true};
+  const body = await response.text();
+  if(!response.ok) throw new Error('Resend HTTP '+response.status+': '+body.slice(0,240));
+  return {sent:true, provider:'resend'};
 }
 
 const css = `

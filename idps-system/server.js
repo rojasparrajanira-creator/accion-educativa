@@ -71,7 +71,7 @@ async function findRequest(rid){
 async function approveRequest(rid){
   const r = await findRequest(rid); if(!r) throw new Error('Solicitud no encontrada');
   const generatedPin = pin6(); const pinHash = await bcrypt.hash(generatedPin, 10);
-  const est = {id:id(), rbd:r.rbd, rbd_norm:r.rbd_norm, name:r.establishment_name, commune:r.commune, contact_name:r.contact_name, email:r.email, pin_hash:pinHash, status:'active', created_at:new Date().toISOString(), expires_at:new Date(Date.now()+365*86400000).toISOString()};
+  const est = {id:id(), rbd:r.rbd, rbd_norm:r.rbd_norm, name:r.establishment_name, commune:r.commune, contact_name:r.contact_name, email:r.email, pin_hash:pinHash, status:'active', created_at:new Date().toISOString(), expires_at:new Date(Date.now()+30*86400000).toISOString()};
   if(pool){
     await pool.query('BEGIN');
     try{

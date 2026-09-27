@@ -136,6 +136,17 @@ async function sendActivation(est,pin){
   return {sent:true, provider:'resend'};
 }
 
+async function gmailToken(){
+ if(!pool) return null;
+ await pool.query("CREATE TABLE IF NOT EXISTS idps_settings (key text PRIMARY KEY, value text NOT NULL)");
+ const q=await pool.query("SELECT value FROM idps_settings WHERE key='gmail_refresh_token'");
+ return q.rows[0]?.value||null;
+}
+async function saveGmailToken(v){
+ await pool.query("CREATE TABLE IF NOT EXISTS idps_settings (key text PRIMARY KEY, value text NOT NULL)");
+ await pool.query("INSERT INTO idps_settings(key,value) VALUES('gmail_refresh_token',$1) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",[v]);
+}
+
 function googleRedirect(){return (process.env.PUBLIC_URL||'https://idps-gestion-material-educativo.onrender.com')+'/auth/google/callback';}
 app.get('/auth/google',requireSuper,(req,res)=>{
  const q=new URLSearchParams({client_id:process.env.GOOGLE_CLIENT_ID||'',redirect_uri:googleRedirect(),response_type:'code',scope:'https://www.googleapis.com/auth/gmail.send',access_type:'offline',prompt:'consent'});
@@ -144,8 +155,9 @@ app.get('/auth/google',requireSuper,(req,res)=>{
 app.get('/auth/google/callback',requireSuper,async(req,res)=>{
  try{
   const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code:req.query.code||'',client_id:process.env.GOOGLE_CLIENT_ID||'',client_secret:process.env.GOOGLE_CLIENT_SECRET||'',redirect_uri:googleRedirect(),grant_type:'authorization_code'})});
-  const j=await r.json(); if(!r.ok||!j.refresh_token) throw new Error('Google no entregó autorización permanente');
-  res.cookie('gmail_refresh',j.refresh_token,{httpOnly:true,secure:true,sameSite:'lax',maxAge:30*86400000});
+  const j=await r.json(); if(!r.ok) throw new Error('Google rechazó la autorización');
+  if(j.refresh_token) await saveGmailToken(j.refresh_token);
+  else if(!(await gmailToken())) throw new Error('Google no entregó autorización permanente');
   res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Gmail conectado correctamente.'));
  }catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}
 });

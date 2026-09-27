@@ -200,7 +200,11 @@ app.post('/superadmin/approve/:id',requireSuper,async(req,res)=>{
  }catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}
 });
 app.post('/superadmin/reject/:id',requireSuper,async(req,res)=>{await rejectRequest(req.params.id); res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Solicitud rechazada.'));});
+app.post('/superadmin/send-password/:id',requireSuper,async(req,res)=>{
+ try{const x=await resetPin(req.params.id);const mail=await sendActivation(x.est,x.generatedPin);res.redirect('/superadmin/dashboard?msg='+encodeURIComponent(mail.sent?'Nueva contraseña enviada al correo registrado.':'Nueva contraseña creada, pero no pudo enviarse.'));}
+ catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}
+});
 app.get('/logout',(req,res)=>{res.clearCookie('idps_session');res.redirect('/');});
-app.get('/health',(req,res)=>res.json({ok:true,database:pool?'postgres':'temporary',mail:!!process.env.GMAIL_APP_PASSWORD}));
+app.get('/health',(req,res)=>res.json({ok:true,database:pool?'postgres':'temporary',mail:!!process.env.RESEND_API_KEY}));
 
 initDb().then(()=>app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`))).catch(err=>{console.error(err);process.exit(1)});

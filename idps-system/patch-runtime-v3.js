@@ -16,12 +16,6 @@ mustReplace(
   'trust proxy'
 );
 
-mustReplace(
-  "const pass = process.env.GMAIL_APP_PASSWORD;",
-  "const pass = String(process.env.GMAIL_APP_PASSWORD || '').replace(/\\s+/g,'');",
-  'normalización contraseña Gmail'
-);
-
 // Si Gmail rechaza el envío, la cuenta sigue activa y el panel muestra el motivo.
 const sendLine = "const {est,generatedPin}=await approveRequest(req.params.id); const mail=await sendActivation(est,generatedPin);";
 mustReplace(

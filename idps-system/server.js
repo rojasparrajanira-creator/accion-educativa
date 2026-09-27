@@ -109,6 +109,11 @@ async function resetPin(eid){
  return {est,generatedPin};
 }
 
+async function removeEst(eid){
+ if(pool){const r=await pool.query('DELETE FROM idps_establishments WHERE id=$1 RETURNING id',[eid]);if(!r.rowCount)throw new Error('Establecimiento no encontrado');}
+ else {const i=mem.establishments.findIndex(x=>x.id===eid);if(i<0)throw new Error('Establecimiento no encontrado');mem.establishments.splice(i,1);}
+}
+
 async function sendActivation(est,pin){
   const apiKey = String(process.env.RESEND_API_KEY || '').trim();
   if(!apiKey) return {sent:false, reason:'RESEND_API_KEY pendiente'};

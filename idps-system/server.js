@@ -136,6 +136,20 @@ async function sendActivation(est,pin){
   return {sent:true, provider:'resend'};
 }
 
+function googleRedirect(){return (process.env.PUBLIC_URL||'https://idps-gestion-material-educativo.onrender.com')+'/auth/google/callback';}
+app.get('/auth/google',requireSuper,(req,res)=>{
+ const q=new URLSearchParams({client_id:process.env.GOOGLE_CLIENT_ID||'',redirect_uri:googleRedirect(),response_type:'code',scope:'https://www.googleapis.com/auth/gmail.send',access_type:'offline',prompt:'consent'});
+ res.redirect('https://accounts.google.com/o/oauth2/v2/auth?'+q.toString());
+});
+app.get('/auth/google/callback',requireSuper,async(req,res)=>{
+ try{
+  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code:req.query.code||'',client_id:process.env.GOOGLE_CLIENT_ID||'',client_secret:process.env.GOOGLE_CLIENT_SECRET||'',redirect_uri:googleRedirect(),grant_type:'authorization_code'})});
+  const j=await r.json(); if(!r.ok||!j.refresh_token) throw new Error('Google no entregó autorización permanente');
+  res.cookie('gmail_refresh',j.refresh_token,{httpOnly:true,secure:true,sameSite:'lax',maxAge:30*86400000});
+  res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Gmail conectado correctamente.'));
+ }catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}
+});
+
 const css = `
 :root{--navy:#0F2D52;--blue:#1E7FBC;--turq:#19C2D1;--yellow:#FFD200;--bg:#F4F7FA;--line:#E6E8EB;--text:#17324d;--red:#c0392b;--green:#198754}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -194,7 +208,7 @@ app.get('/superadmin/dashboard',requireSuper,async(req,res)=>{
  const pending=requests.filter(x=>x.status==='pending').length;
  const reqRows=requests.map(r=>`<tr><td>${r.rbd}</td><td><b>${r.establishment_name}</b><br><span class="muted">${r.commune||''}</span></td><td>${r.contact_name}<br>${r.email}</td><td>${r.voucher_name||'Sin archivo'}</td><td><span class="badge ${r.status}">${r.status}</span></td><td>${r.status==='pending'?`<div class="actions"><form method="post" action="/superadmin/approve/${r.id}"><button class="btn success">Aprobar</button></form><form method="post" action="/superadmin/reject/${r.id}"><button class="btn danger">Rechazar</button></form></div>`:''}</td></tr>`).join('');
  const estRows=ests.map(e=>`<tr><td>${e.rbd}</td><td><b>${e.name}</b><br><span class="muted">${e.commune||''}</span></td><td>${e.email}</td><td><span class="badge ${e.status}">${e.status}</span></td><td>${e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—'}</td><td><div class="actions"><form method="post" action="/superadmin/send-password/${e.id}"><button class="btn secondary">Enviar contraseña</button></form><a class="btn danger" href="/superadmin/remove/${e.id}">Eliminar cuenta</a></div></td></tr>`).join('');
- res.send(layout('Panel superadministrador',`<div class="grid"><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table></div><div class="col12 card"><h2>Establecimientos</h2><table><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
+ res.send(layout('Panel superadministrador',`<div class="grid"><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Correo automático</h2><p class="muted">Autoriza la cuenta de Acción Educativa para enviar accesos desde Gmail.</p><a class="btn primary" href="/auth/google">Conectar Gmail</a></div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table></div><div class="col12 card"><h2>Establecimientos</h2><table><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
 });
 
 app.post('/superadmin/approve/:id',requireSuper,async(req,res)=>{

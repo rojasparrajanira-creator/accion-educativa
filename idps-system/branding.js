@@ -41,6 +41,13 @@ function injectBranding(html) {
   const newBrand = `<div class="brand-lockup">${logo}<div class="brand-copy"><b>Material Educativo Chile</b><small>Diagnóstico IDPS · Gestión de establecimientos</small><span class="brand-kicker">Plataforma institucional</span></div></div>`;
   html = html.replace(oldBrand, newBrand);
 
+  // Fuerza el botón Gmail al host correcto del portal de gestión para evitar
+  // problemas por pestañas antiguas, rutas relativas o enlaces cacheados.
+  html = html.replace(
+    'href="/auth/google">Conectar Gmail</a>',
+    'href="https://idps-gestion-material-educativo.onrender.com/auth/google">Conectar Gmail</a>'
+  );
+
   if (!html.includes('class="mec-footer"')) {
     const footerLogo = logoData ? `<img src="${logoData}" alt="Material Educativo Chile">` : '';
     html = html.replace('</body>', `<footer class="mec-footer"><div class="mec-footer-inner">${footerLogo}<div><strong>Material Educativo Chile</strong><span>APRENDER · INCLUIR · TRANSFORMAR</span></div></div></footer></body>`);

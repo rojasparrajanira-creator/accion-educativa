@@ -127,17 +127,21 @@ async function importRoster(est,rows){
   const fileRbds=[...new Set(rows.map(r=>r.source_rbd).filter(Boolean))];
   if(expected && fileRbds.length && !fileRbds.includes(expected)) throw new Error(`El RBD de la nómina (${fileRbds.join(', ')}) no corresponde al establecimiento (${est.rbd}).`);
   const years=[...new Set(rows.map(r=>r.school_year))];
-  await pool.query('BEGIN');
+  const client=await pool.connect();
   try{
-    for(const y of years) await pool.query('UPDATE idps_students SET active=false,updated_at=now() WHERE establishment_id=$1 AND school_year=$2',[est.id,y]);
+    await client.query('BEGIN');
+    for(const y of years) await client.query('UPDATE idps_students SET active=false,updated_at=now() WHERE establishment_id=$1 AND school_year=$2',[est.id,y]);
     for(const s of rows){
-      await pool.query(`INSERT INTO idps_students(id,establishment_id,school_year,source_rbd,grade_desc,course_letter,run,dv,gender,first_names,last_name_paternal,last_name_maternal,birth_date,active)
+      await client.query(`INSERT INTO idps_students(id,establishment_id,school_year,source_rbd,grade_desc,course_letter,run,dv,gender,first_names,last_name_paternal,last_name_maternal,birth_date,active)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,true)
         ON CONFLICT(establishment_id,school_year,run,dv) DO UPDATE SET source_rbd=EXCLUDED.source_rbd,grade_desc=EXCLUDED.grade_desc,course_letter=EXCLUDED.course_letter,gender=EXCLUDED.gender,first_names=EXCLUDED.first_names,last_name_paternal=EXCLUDED.last_name_paternal,last_name_maternal=EXCLUDED.last_name_maternal,birth_date=EXCLUDED.birth_date,active=true,updated_at=now()`,
         [crypto.randomUUID(),est.id,s.school_year,s.source_rbd,s.grade_desc,s.course_letter,s.run,s.dv,s.gender,s.first_names,s.last_name_paternal,s.last_name_maternal,s.birth_date]);
     }
-    await pool.query('COMMIT');
-  }catch(e){await pool.query('ROLLBACK');throw e;}
+    await client.query('COMMIT');
+  }catch(e){
+    try{await client.query('ROLLBACK')}catch{}
+    throw e;
+  }finally{client.release();}
   return rows.length;
 }
 function baseCss(){return `

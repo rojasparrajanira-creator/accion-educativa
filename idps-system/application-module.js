@@ -35,7 +35,7 @@ function surveyLevel(grade=''){
 function questionLevel(level=''){return level==='2° medio'?'II medio':level;}
 function pct(n,d){return d?Math.round((Number(n)/Number(d))*100):0;}
 function round1(n){return Math.round(Number(n)*10)/10;}
-function reading(v){v=Number(v||0);if(v>=75)return 'Fortaleza relativa';if(v>=55)return 'Desarrollo intermedio';return 'Área prioritaria de trabajo';}
+function reading(v){v=Number(v||0);if(v>=75)return 'Fortaleza observada';if(v>=55)return 'Desarrollo favorable';return 'Requiere fortalecimiento';}
 function calcScores(answers){const groups=[answers.slice(0,8),answers.slice(8,16),answers.slice(16,23),answers.slice(23,30)];const scores=groups.map(a=>round1(((a.reduce((x,y)=>x+y,0)-a.length)/(a.length*3))*100));return{scores,general:round1(scores.reduce((x,y)=>x+y,0)/scores.length)};}
 function parseJsonArray(v){if(Array.isArray(v))return v;try{return JSON.parse(v||'[]')}catch{return[]}}
 function normalizeRut(raw=''){const s=String(raw).toUpperCase().replace(/[^0-9K]/g,'');if(s.length<2)return{run:'',dv:'',full:''};return{run:s.slice(0,-1).replace(/\D/g,''),dv:s.slice(-1),full:s};}
@@ -66,7 +66,18 @@ async function ensureApplications(estId){
   await ensureTables();
   const students=(await pool.query(`SELECT id,school_year,grade_desc,course_letter FROM idps_students WHERE establishment_id=$1 AND active=true`,[estId])).rows;
   const eligible=students.map(s=>({...s,level:surveyLevel(s.grade_desc)})).filter(s=>s.level);if(!eligible.length)return 0;
-  await pool.query('BEGIN');try{for(const s of eligible){await pool.query(`INSERT INTO idps_applications(id,token,establishment_id,student_id,school_year,level,grade_desc,course_letter,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending') ON CONFLICT(student_id) DO UPDATE SET school_year=EXCLUDED.school_year,level=CASE WHEN idps_applications.status='completed' THEN idps_applications.level ELSE EXCLUDED.level END,grade_desc=CASE WHEN idps_applications.status='completed' THEN idps_applications.grade_desc ELSE EXCLUDED.grade_desc END,course_letter=CASE WHEN idps_applications.status='completed' THEN idps_applications.course_letter ELSE EXCLUDED.course_letter END`,[crypto.randomUUID(),crypto.randomUUID(),estId,s.id,s.school_year,s.level,s.grade_desc,s.course_letter||'']);}await pool.query('COMMIT');}catch(e){await pool.query('ROLLBACK');throw e;}return eligible.length;
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    for(const s of eligible){
+      await client.query(`INSERT INTO idps_applications(id,token,establishment_id,student_id,school_year,level,grade_desc,course_letter,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending') ON CONFLICT(student_id) DO UPDATE SET school_year=EXCLUDED.school_year,level=CASE WHEN idps_applications.status='completed' THEN idps_applications.level ELSE EXCLUDED.level END,grade_desc=CASE WHEN idps_applications.status='completed' THEN idps_applications.grade_desc ELSE EXCLUDED.grade_desc END,course_letter=CASE WHEN idps_applications.status='completed' THEN idps_applications.course_letter ELSE EXCLUDED.course_letter END`,[crypto.randomUUID(),crypto.randomUUID(),estId,s.id,s.school_year,s.level,s.grade_desc,s.course_letter||'']);
+    }
+    await client.query('COMMIT');
+  }catch(e){
+    try{await client.query('ROLLBACK')}catch{}
+    throw e;
+  }finally{client.release();}
+  return eligible.length;
 }
 async function getEst(estId){return(await pool.query(`SELECT id,rbd,name,commune,status,expires_at FROM idps_establishments WHERE id=$1`,[estId])).rows[0];}
 async function getApplicationRows(estId){await ensureApplications(estId);return(await pool.query(`SELECT a.id,a.student_id,a.school_year,a.level,a.grade_desc,a.course_letter,a.status,a.opened_at,a.completed_at,s.first_names,s.last_name_paternal,s.last_name_maternal,s.run,s.dv,s.gender,s.active,CASE WHEN ac.student_id IS NULL THEN false ELSE true END AS access_ready FROM idps_applications a JOIN idps_students s ON s.id=a.student_id LEFT JOIN idps_student_access ac ON ac.student_id=s.id WHERE a.establishment_id=$1 AND s.active=true ORDER BY a.school_year DESC,a.grade_desc,a.course_letter,s.last_name_paternal,s.last_name_maternal,s.first_names`,[estId])).rows;}
@@ -82,7 +93,7 @@ function page(title,body,extra=''){return`<!doctype html><html lang="es"><head><
 function scoreCards(scores){return`<div class="scoregrid">${INDICATORS.map((n,i)=>`<div class="scorebox"><small>${esc(n)}</small><div class="score">${Number(scores[i]||0).toFixed(1)}%</div><div class="bar"><i style="width:${Math.max(0,Math.min(100,Number(scores[i]||0)))}%"></i></div><div class="mini">${reading(scores[i])}</div></div>`).join('')}</div>`;}
 function distributionHtml(dist,level){const labs=level==='2° medio'?['Totalmente en desacuerdo','En desacuerdo','De acuerdo','Totalmente de acuerdo']:['Nunca','Pocas veces','Muchas veces','Siempre'];return dist.map((d,i)=>`<div class="dist"><b>${esc(INDICATORS[i])}</b><div><div class="stack">${d.percent.map((p,k)=>`<i title="${esc(labs[k])}: ${p}%" style="width:${p}%"></i>`).join('')}</div><div class="mini">${d.percent.map((p,k)=>`${esc(labs[k])}: ${p}%`).join(' · ')}</div></div></div>`).join('');}
 function interpretationText(scores){const ranked=INDICATORS.map((name,i)=>({name,value:Number(scores[i]||0),i})).sort((a,b)=>b.value-a.value),high=ranked[0],low=ranked[ranked.length-1];return`El indicador con mayor nivel relativo es <b>${esc(high.name)}</b> (${high.value.toFixed(1)}%), mientras que <b>${esc(low.name)}</b> (${low.value.toFixed(1)}%) concentra la principal oportunidad de fortalecimiento. Esta lectura es descriptiva y debe complementarse con antecedentes de asistencia, convivencia educativa, participación, trayectoria del curso y observación profesional.`;}
-function reportDisclaimer(){return`<div class="warning"><b>Alcance del informe.</b> Este documento corresponde a un diagnóstico interno de apoyo a la gestión educativa. No constituye un resultado oficial SIMCE, de la Agencia de Calidad de la Educación ni del Ministerio de Educación, y no reemplaza evaluaciones especializadas cuando estas sean necesarias.</div>`;}
+function reportDisclaimer(){return`<div class="callout"><b>Uso del informe.</b> Instrumento diagnóstico de Material Educativo Chile para apoyar el análisis, la planificación y el seguimiento educativo del establecimiento.</div>`;}
 
 const loginFailures=new Map();
 function checkLoginBlock(key){const now=Date.now(),rec=loginFailures.get(key);if(!rec||now-rec.started>15*60*1000){loginFailures.set(key,{started:now,count:0});return false;}return rec.count>=5;}

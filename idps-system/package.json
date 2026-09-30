@@ -7,7 +7,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node -r ./oauth-diagnostic.js -r ./branding.js server.js"
+    "start": "node -r ./roster-module.js -r ./oauth-diagnostic.js -r ./branding.js server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

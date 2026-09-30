@@ -16,7 +16,7 @@ const INDICATORS = [
 
 function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function parseScores(v){if(Array.isArray(v))return v;try{return JSON.parse(v||'[]')}catch{return[]}}
-function reading(v){v=Number(v||0);if(v>=75)return 'Fortaleza observada';if(v>=55)return 'Desarrollo en proceso';return 'Oportunidad de fortalecimiento';}
+function reading(v){v=Number(v||0);if(v>=75)return 'Fortaleza observada';if(v>=55)return 'Desarrollo favorable';return 'Requiere fortalecimiento';}
 function dateCL(v){if(!v)return '—';return new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'});}
 function courseLabel(g,l){return `${g||''} ${l||''}`.trim();}
 function formatRut(run,dv){let r=String(run||''),out='';while(r.length>3){out='.'+r.slice(-3)+out;r=r.slice(0,-3);}return r+out+'-'+String(dv||'').toUpperCase();}
@@ -30,8 +30,20 @@ async function studentResult(estId,studentId){
 function fullName(r){return [r.first_names,r.last_name_paternal,r.last_name_maternal].filter(Boolean).join(' ');}
 function summary(scores){
   const rows=INDICATORS.map((name,i)=>({name,value:Number(scores[i]||0)})).sort((a,b)=>b.value-a.value);
-  return `El perfil muestra mayor desarrollo relativo en ${rows[0].name.toLowerCase()}. El ámbito que requiere mayor acompañamiento corresponde a ${rows[rows.length-1].name.toLowerCase()}. Estos antecedentes pueden orientar acciones de apoyo, seguimiento y planificación educativa.`;
+  return `Los resultados permiten identificar fortalezas y ámbitos que requieren acompañamiento educativo. Se observa mayor desarrollo en ${rows[0].name.toLowerCase()} y una necesidad de fortalecimiento en ${rows[rows.length-1].name.toLowerCase()}. Esta información puede orientar el acompañamiento, la planificación y el seguimiento educativo del estudiante.`;
 }
+const DESCRIPTIONS=[
+  'Las respuestas permiten observar la percepción del estudiante respecto de sus capacidades académicas, motivación, perseverancia y disposición frente a los desafíos de aprendizaje.',
+  'Las respuestas permiten observar la percepción del estudiante sobre las relaciones interpersonales, el buen trato, la seguridad y el ambiente de convivencia en su experiencia escolar.',
+  'Las respuestas permiten observar su disposición a participar, expresar opiniones, vincularse con su comunidad educativa y ejercer progresivamente responsabilidades de participación.',
+  'Las respuestas permiten observar hábitos vinculados al descanso, actividad física, alimentación, autocuidado y bienestar cotidiano.'
+];
+const ACTIONS=[
+  'Favorecer experiencias de logro, retroalimentación formativa y reconocimiento de avances.',
+  'Fortalecer acuerdos de convivencia, buen trato, resolución colaborativa de conflictos y percepción de seguridad.',
+  'Mantener oportunidades de participación, expresión de opiniones y protagonismo estudiantil.',
+  'Reforzar rutinas de autocuidado y hábitos protectores que favorezcan el bienestar y el aprendizaje.'
+];
 function css(){return `:root{--navy:#173b67;--blue:#3E83C8;--turq:#28c1cc;--bg:#f5f7fa;--line:#dfe5eb;--text:#20364b;--muted:#667789}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,Arial,sans-serif;color:var(--text)}header{background:var(--navy);color:#fff;padding:16px 20px}.wrap{max-width:980px;margin:auto}main{padding:28px 14px 60px}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 8px 28px #173b6710}h1,h2{color:var(--navy);margin-top:0}.muted{color:var(--muted)}.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.meta div{border:1px solid var(--line);border-radius:12px;padding:12px}.meta small{display:block;color:var(--muted);margin-bottom:4px}.score{display:grid;grid-template-columns:1.5fr .4fr .7fr;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:11px 15px;font-weight:800;text-decoration:none;cursor:pointer}.dark{background:var(--navy);color:#fff}.secondary{background:#fff;color:var(--blue);border:1px solid var(--blue)}.danger{background:#fff;color:#a33;border:1px solid #c88}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}.summary{background:#f4f8fb;border-left:4px solid var(--blue);padding:15px;border-radius:10px;line-height:1.55}@media(max-width:700px){.meta{grid-template-columns:1fr}.score{grid-template-columns:1fr}.card{padding:18px}}@media print{header,.no-print{display:none}body{background:#fff}.card{box-shadow:none;border:0;padding:0}main{padding:0}}`;}
 function page(title,body){return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${css()}</style></head><body><header><div class="wrap"><b>Material Educativo Chile</b><br><small>Plataforma de diagnóstico y seguimiento IDPS</small></div></header><main><div class="wrap">${body}</div></main></body></html>`;}
 
@@ -45,8 +57,10 @@ express.application.listen = function reportResetListen(...args){
       const send=res.send.bind(res);
       res.send=function(body){
         if(typeof body==='string'){
-          body=body.replace(/<div class="warning"><b>Alcance del informe\.<\/b>[\s\S]*?<\/div>/g,'');
+          body=body.replace(/<div class="warning">[\s\S]*?<\/div>/g,'');
           body=body.replace(/<div class="notice"><b>Importante:<\/b>[\s\S]*?<\/div>/g,'');
+          body=body.replace(/<p[^>]*>[^<]*(?:diagnóstico clínico|resultado oficial Mineduc|Agencia de Calidad)[\s\S]*?<\/p>/gi,'');
+          body=body.replace(/Los perfiles individuales son descriptivos[^<]*/gi,'');
           if((req.path==='/panel/resultados'||req.path==='/panel/aplicacion')&&body.includes('</main>')&&!body.includes('Reiniciar todas las aplicaciones')){
             const reset=`<div class="wrap no-print" style="margin:0 auto 28px;max-width:1180px"><div class="card" style="border:1px solid #e2b6b6"><h2>Reiniciar aplicaciones</h2><p class="muted">Utiliza esta opción cuando el establecimiento necesite aplicar una nueva versión del instrumento. Se eliminan las respuestas registradas y los estudiantes quedan nuevamente en estado pendiente. Las claves de acceso del curso se mantienen.</p><form method="post" action="/panel/aplicaciones/reiniciar-todas" onsubmit="return confirm('¿Confirma que desea reiniciar todas las encuestas respondidas de este establecimiento? Esta acción eliminará las respuestas actuales.')"><button class="btn" style="background:#fff;color:#a33;border:1px solid #c88">Reiniciar todas las aplicaciones</button></form></div></div>`;
             body=body.replace('</main>',reset+'</main>');
@@ -71,22 +85,102 @@ express.application.listen = function reportResetListen(...args){
       try{
         const r=await studentResult(req.auth.establishmentId,req.params.studentId);
         if(!r)return res.status(404).send('Resultado no disponible');
-        const scores=parseScores(r.scores);
-        const doc=new PDFDocument({size:'A4',margin:48,info:{Title:'Informe individual IDPS',Author:'Material Educativo Chile'}});
+        const scores=parseScores(r.scores).map(Number);
+        const ranked=INDICATORS.map((name,i)=>({name,value:Number(scores[i]||0),i})).sort((a,b)=>b.value-a.value);
         const safe=(fullName(r)||'estudiante').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_|_$/g,'');
+        const doc=new PDFDocument({size:'A4',margin:46,bufferPages:true,info:{Title:'Informe Individual de Resultados - Desarrollo Personal y Social',Author:'Material Educativo Chile',Subject:'Informe individual IDPS'}});
         res.setHeader('Content-Type','application/pdf');
         res.setHeader('Content-Disposition',`attachment; filename="Informe_IDPS_${safe}.pdf"`);
+        res.setHeader('Cache-Control','private, no-store');
         doc.pipe(res);
-        doc.fillColor('#173b67').fontSize(19).font('Helvetica-Bold').text('Informe individual de resultados');
-        doc.fontSize(10).font('Helvetica').fillColor('#5b6d7e').text('Indicadores de Desarrollo Personal y Social · Material Educativo Chile');
-        doc.moveDown(1);
-        const meta=[['Estudiante',fullName(r)],['RUT',formatRut(r.run,r.dv)],['Curso',courseLabel(r.grade_desc,r.course_letter)],['Establecimiento',r.establishment_name],['RBD',r.rbd],['Fecha de aplicación',dateCL(r.submitted_at)]];
-        for(const [k,v] of meta){doc.fillColor('#657789').fontSize(9).font('Helvetica-Bold').text(k+':',{continued:true});doc.fillColor('#20364b').font('Helvetica').text(' '+String(v||'—'));}
-        doc.moveDown(1);
-        doc.fillColor('#173b67').fontSize(13).font('Helvetica-Bold').text('Resultados por indicador');doc.moveDown(.5);
-        INDICATORS.forEach((n,i)=>{const val=Number(scores[i]||0);doc.fillColor('#20364b').fontSize(10).font('Helvetica-Bold').text(n);doc.font('Helvetica').text(`${val.toFixed(1)}% · ${reading(val)}`);const x=48,y=doc.y+3,w=300;doc.roundedRect(x,y,w,6,3).fill('#e9edf1');doc.roundedRect(x,y,w*Math.max(0,Math.min(100,val))/100,6,3).fill('#3E83C8');doc.y=y+15;});
-        doc.moveDown(.5);doc.fillColor('#173b67').fontSize(13).font('Helvetica-Bold').text('Síntesis orientativa');doc.moveDown(.4);doc.fillColor('#20364b').fontSize(10.5).font('Helvetica').text(summary(scores),{lineGap:3});
-        doc.moveDown(1.2);doc.fillColor('#657789').fontSize(8.5).text('Resultado descriptivo y orientativo para apoyar el acompañamiento educativo, la planificación de acciones y el seguimiento del estudiante.');
+        const W=doc.page.width, M=46, CW=W-M*2;
+        const navy='#17365D', blue='#3E83C8', graphite='#4A4D57', light='#F4F6F8', line='#D9E0E6', green='#DDEFD9';
+
+        function header(){
+          doc.save().rect(0,0,W,52).fill(blue).restore();
+          doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10).text('MATERIAL EDUCATIVO CHILE',M,19);
+          doc.fontSize(9).text('INFORME INDIVIDUAL',W-M-130,19,{width:130,align:'right'});
+          doc.y=70;
+        }
+        function section(title){
+          doc.moveDown(.55); doc.fillColor(navy).font('Helvetica-Bold').fontSize(12).text(title); doc.moveDown(.35);
+        }
+        function footer(pageNo,total){
+          doc.fillColor('#6B7280').font('Helvetica').fontSize(7.5).text(`Material Educativo Chile · Informe individual · Página ${pageNo} de ${total}`,M,doc.page.height-34,{width:CW,align:'center'});
+        }
+        function metaCell(x,y,w,label,value){
+          doc.save().roundedRect(x,y,w,42,5).fill(light).strokeColor(line).stroke().restore();
+          doc.fillColor('#667789').font('Helvetica-Bold').fontSize(7.5).text(label,x+7,y+7,{width:w-14});
+          doc.fillColor(graphite).font('Helvetica').fontSize(8.5).text(String(value||'—'),x+7,y+19,{width:w-14,height:18,ellipsis:true});
+        }
+
+        header();
+        doc.fillColor(navy).font('Helvetica-Bold').fontSize(18).text('Informe Individual de Resultados');
+        doc.fillColor(graphite).font('Helvetica').fontSize(9.5).text('Desarrollo Personal y Social · Síntesis para el acompañamiento educativo');
+        doc.moveDown(.8);
+        const y=doc.y, gap=6, w=(CW-gap*2)/3;
+        metaCell(M,y,w,'ESTUDIANTE',fullName(r)); metaCell(M+w+gap,y,w,'RUT',formatRut(r.run,r.dv)); metaCell(M+(w+gap)*2,y,w,'CURSO',courseLabel(r.grade_desc,r.course_letter));
+        metaCell(M,y+48,w,'ESTABLECIMIENTO',r.establishment_name); metaCell(M+w+gap,y+48,w,'RBD',r.rbd); metaCell(M+(w+gap)*2,y+48,w,'FECHA DE APLICACIÓN',dateCL(r.submitted_at));
+        doc.y=y+102;
+
+        section('1. Síntesis del resultado');
+        doc.fillColor(graphite).font('Helvetica').fontSize(9.4).text(summary(scores),{width:CW,lineGap:2});
+
+        section('2. Resultados por ámbito');
+        const col=[CW*.53,CW*.16,CW*.31], rowH=31, x=M, tableY=doc.y;
+        doc.save().rect(x,tableY,CW,27).fill('#EAF2F9').restore();
+        let xx=x; ['Ámbito evaluado','Resultado','Lectura orientativa'].forEach((t,i)=>{doc.fillColor(navy).font('Helvetica-Bold').fontSize(8).text(t,xx+6,tableY+9,{width:col[i]-12});xx+=col[i];});
+        let yy=tableY+27;
+        INDICATORS.forEach((name,i)=>{
+          doc.save().rect(x,yy,CW,rowH).strokeColor(line).stroke().restore();
+          doc.fillColor(graphite).font('Helvetica').fontSize(8.1).text(name,x+6,yy+7,{width:col[0]-12,height:20});
+          doc.font('Helvetica-Bold').text(`${Number(scores[i]||0).toFixed(1)}%`,x+col[0]+6,yy+10,{width:col[1]-12});
+          doc.font('Helvetica').text(reading(scores[i]),x+col[0]+col[1]+6,yy+7,{width:col[2]-12,height:20});
+          yy+=rowH;
+        });
+        doc.y=yy+12;
+        doc.fillColor(navy).font('Helvetica-Bold').fontSize(9).text('Perfil gráfico de resultados',{align:'center'});
+        const barX=M+120, barW=CW-170;
+        INDICATORS.forEach((name,i)=>{
+          const val=Math.max(0,Math.min(100,Number(scores[i]||0)));
+          const by=doc.y+6;
+          doc.fillColor(graphite).font('Helvetica').fontSize(7.4).text(name,M,by-2,{width:112,height:18});
+          doc.save().roundedRect(barX,by,barW,9,4).fill('#E9EDF1').restore();
+          if(val>0) doc.save().roundedRect(barX,by,barW*val/100,9,4).fill(blue).restore();
+          doc.fillColor(graphite).font('Helvetica-Bold').fontSize(7.5).text(`${val.toFixed(1)}%`,barX+barW+5,by,{width:42});
+          doc.y=by+17;
+        });
+
+        doc.addPage(); header();
+        section('3. Lectura descriptiva');
+        INDICATORS.forEach((name,i)=>{
+          doc.fillColor(navy).font('Helvetica-Bold').fontSize(8.8).text(name);
+          doc.fillColor(graphite).font('Helvetica').fontSize(8.6).text(DESCRIPTIONS[i],{lineGap:1.5});
+          doc.moveDown(.45);
+        });
+
+        section('4. Orientaciones para el acompañamiento educativo');
+        ACTIONS.forEach(a=>{doc.fillColor(graphite).font('Helvetica').fontSize(8.8).text('•  '+a,{indent:4,lineGap:1.5});doc.moveDown(.22);});
+
+        section('5. Prioridades sugeridas');
+        const priorities=[ranked[ranked.length-1],ranked[ranked.length-2]];
+        priorities.forEach((p,idx)=>{
+          const py=doc.y;
+          doc.save().roundedRect(M,py,CW,48,6).fill(green).strokeColor('#C8DCC4').stroke().restore();
+          doc.fillColor(navy).font('Helvetica-Bold').fontSize(8.5).text(`Prioridad ${idx+1}`,M+8,py+8,{width:64});
+          doc.fillColor(graphite).font('Helvetica-Bold').fontSize(8.4).text(p.name,M+78,py+8,{width:165});
+          doc.font('Helvetica').fontSize(8.1).text(ACTIONS[p.i],M+250,py+8,{width:CW-258,height:34});
+          doc.y=py+56;
+        });
+
+        doc.moveDown(.5);
+        const cy=doc.y;
+        doc.save().roundedRect(M,cy,CW,58,6).fill('#F7FAFC').strokeColor('#D8E3EA').stroke().restore();
+        doc.fillColor(navy).font('Helvetica-Bold').fontSize(8.5).text('Uso del informe',M+9,cy+9);
+        doc.fillColor(graphite).font('Helvetica').fontSize(8.2).text('Este documento sistematiza los antecedentes obtenidos mediante el instrumento de Desarrollo Personal y Social de Material Educativo Chile, con el propósito de apoyar el acompañamiento, la planificación y el seguimiento educativo del estudiante.',M+9,cy+23,{width:CW-18,lineGap:1.5});
+
+        const range=doc.bufferedPageRange();
+        for(let i=0;i<range.count;i++){doc.switchToPage(range.start+i);footer(i+1,range.count);}
         doc.end();
       }catch(e){console.error('[INDIVIDUAL_PDF]',e);if(!res.headersSent)res.status(500).send('No fue posible generar el PDF.');}
     });

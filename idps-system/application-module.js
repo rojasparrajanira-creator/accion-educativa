@@ -1,43 +1,15 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const { Pool } = require('pg');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const SURVEY_URL = (process.env.SURVEY_URL || 'https://diagnostico-idps-material-educativo.onrender.com').replace(/\/$/, '');
 const PUBLIC_URL = (process.env.PUBLIC_URL || 'https://idps-gestion-material-educativo.onrender.com').replace(/\/$/, '');
 const pool = DATABASE_URL ? new Pool({connectionString:DATABASE_URL, ssl:{rejectUnauthorized:false}}) : null;
-const MIN_GROUP = 5;
+const STUDENT_SESSION_HOURS = 4;
 let requireEst = null;
 
-function esc(v='') {
-  return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function norm(v='') {
-  return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-}
-function surveyLevel(grade='') {
-  const g = norm(grade);
-  if (g === '4basico' || g === '4basic') return '4° básico';
-  if (g === '6basico' || g === '6basic') return '6° básico';
-  if (g === '2medio') return '2° medio';
-  return '';
-}
-function questionLevel(level='') { return level === '2° medio' ? 'II medio' : level; }
-function validUuid(v='') { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v)); }
-function surveyLink(token) { return `${SURVEY_URL}/encuesta-idps.html?t=${encodeURIComponent(token)}`; }
-function pct(n,d) { return d ? Math.round((n/d)*100) : 0; }
-function round1(n) { return Math.round(Number(n)*10)/10; }
-function calcScores(answers) {
-  const groups = [answers.slice(0,8), answers.slice(8,16), answers.slice(16,23), answers.slice(23,30)];
-  const scores = groups.map(v => round1(((v.reduce((a,b)=>a+b,0)-v.length)/(v.length*3))*100));
-  return {scores, general:round1(scores.reduce((a,b)=>a+b,0)/scores.length)};
-}
-function reading(value) {
-  if (value >= 75) return 'Fortaleza relativa';
-  if (value >= 55) return 'Desarrollo intermedio';
-  return 'Área prioritaria de trabajo';
-}
 const INDICATORS = [
   'Autoestima académica y motivación escolar',
   'Clima de convivencia escolar',
@@ -46,243 +18,94 @@ const INDICATORS = [
 ];
 const RECOMMENDATIONS = [
   'Fortalecer experiencias de logro, retroalimentación formativa, metas alcanzables y reconocimiento del esfuerzo.',
-  'Reforzar acuerdos de convivencia, buen trato, prevención de violencia, resolución colaborativa de conflictos y percepción de seguridad.',
+  'Reforzar acuerdos de convivencia educativa, buen trato, prevención de violencia, resolución colaborativa de conflictos y percepción de seguridad.',
   'Aumentar instancias de voz estudiantil, participación en decisiones, pertenencia y experiencias de formación ciudadana.',
   'Promover rutinas de autocuidado, actividad física, descanso, alimentación saludable y hábitos protectores sostenidos.'
 ];
 
-async function ensureTables() {
-  if (!pool) throw new Error('La base de datos central no está disponible.');
-  await pool.query(`CREATE TABLE IF NOT EXISTS idps_students (
-    id uuid PRIMARY KEY,
-    establishment_id uuid NOT NULL REFERENCES idps_establishments(id) ON DELETE CASCADE,
-    school_year integer NOT NULL,
-    source_rbd text,
-    grade_desc text NOT NULL,
-    course_letter text,
-    run text NOT NULL,
-    dv text NOT NULL,
-    gender text,
-    first_names text,
-    last_name_paternal text,
-    last_name_maternal text,
-    birth_date date,
-    active boolean NOT NULL DEFAULT true,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    UNIQUE(establishment_id,school_year,run,dv)
-  )`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS idps_applications (
-    id uuid PRIMARY KEY,
-    token uuid NOT NULL UNIQUE,
-    establishment_id uuid NOT NULL REFERENCES idps_establishments(id) ON DELETE CASCADE,
-    student_id uuid NOT NULL UNIQUE REFERENCES idps_students(id) ON DELETE CASCADE,
-    school_year integer NOT NULL,
-    level text NOT NULL,
-    grade_desc text NOT NULL,
-    course_letter text,
-    status text NOT NULL DEFAULT 'pending',
-    created_at timestamptz NOT NULL DEFAULT now(),
-    opened_at timestamptz,
-    completed_at timestamptz
-  )`);
+function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function norm(v=''){return String(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function surveyLevel(grade=''){
+  const g=norm(grade);
+  if(g==='4basico'||g==='4basic') return '4° básico';
+  if(g==='6basico'||g==='6basic') return '6° básico';
+  if(g==='2medio') return '2° medio';
+  return '';
+}
+function questionLevel(level=''){return level==='2° medio'?'II medio':level;}
+function pct(n,d){return d?Math.round((Number(n)/Number(d))*100):0;}
+function round1(n){return Math.round(Number(n)*10)/10;}
+function reading(v){v=Number(v||0);if(v>=75)return 'Fortaleza relativa';if(v>=55)return 'Desarrollo intermedio';return 'Área prioritaria de trabajo';}
+function calcScores(answers){const groups=[answers.slice(0,8),answers.slice(8,16),answers.slice(16,23),answers.slice(23,30)];const scores=groups.map(a=>round1(((a.reduce((x,y)=>x+y,0)-a.length)/(a.length*3))*100));return{scores,general:round1(scores.reduce((x,y)=>x+y,0)/scores.length)};}
+function parseJsonArray(v){if(Array.isArray(v))return v;try{return JSON.parse(v||'[]')}catch{return[]}}
+function normalizeRut(raw=''){const s=String(raw).toUpperCase().replace(/[^0-9K]/g,'');if(s.length<2)return{run:'',dv:'',full:''};return{run:s.slice(0,-1).replace(/\D/g,''),dv:s.slice(-1),full:s};}
+function validRut(raw=''){const{run,dv}=normalizeRut(raw);if(!run||!dv)return false;let sum=0,m=2;for(let i=run.length-1;i>=0;i--){sum+=Number(run[i])*m;m=m===7?2:m+1;}const r=11-(sum%11),expected=r===11?'0':r===10?'K':String(r);return expected===dv;}
+function formatRut(run,dv){let r=String(run||''),out='';while(r.length>3){out='.'+r.slice(-3)+out;r=r.slice(0,-3);}return r+out+'-'+String(dv||'').toUpperCase();}
+function csvCell(v=''){return '"'+String(v).replace(/"/g,'""')+'"';}
+function tokenHash(t){return crypto.createHash('sha256').update(String(t)).digest('hex');}
+function sessionToken(){return crypto.randomBytes(32).toString('hex');}
+function pin4(){return String(crypto.randomInt(1000,10000));}
+function sameCourse(r,year,grade,letter){if(year&&String(r.school_year)!==String(year))return false;if(grade&&r.grade_desc!==grade)return false;if(letter!==undefined&&letter!==null&&String(letter)!==''&&String(r.course_letter||'')!==String(letter))return false;return true;}
+function dateCL(v){if(!v)return'—';try{return new Date(v).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'});}catch{return'—'}}
+function dateTimeCL(v){if(!v)return'—';try{return new Date(v).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch{return'—'}}
+function courseLabel(grade,letter){return`${grade||''} ${letter||''}`.trim();}
+
+async function ensureTables(){
+  if(!pool)throw new Error('La base de datos central no está disponible.');
+  await pool.query(`CREATE TABLE IF NOT EXISTS idps_students (id uuid PRIMARY KEY,establishment_id uuid NOT NULL REFERENCES idps_establishments(id) ON DELETE CASCADE,school_year integer NOT NULL,source_rbd text,grade_desc text NOT NULL,course_letter text,run text NOT NULL,dv text NOT NULL,gender text,first_names text,last_name_paternal text,last_name_maternal text,birth_date date,active boolean NOT NULL DEFAULT true,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),UNIQUE(establishment_id,school_year,run,dv))`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS idps_applications (id uuid PRIMARY KEY,token uuid NOT NULL UNIQUE,establishment_id uuid NOT NULL REFERENCES idps_establishments(id) ON DELETE CASCADE,student_id uuid NOT NULL UNIQUE REFERENCES idps_students(id) ON DELETE CASCADE,school_year integer NOT NULL,level text NOT NULL,grade_desc text NOT NULL,course_letter text,status text NOT NULL DEFAULT 'pending',created_at timestamptz NOT NULL DEFAULT now(),opened_at timestamptz,completed_at timestamptz)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idps_applications_est_idx ON idps_applications(establishment_id,school_year,grade_desc,course_letter,status)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS idps_responses (
-    id uuid PRIMARY KEY,
-    application_id uuid NOT NULL UNIQUE REFERENCES idps_applications(id) ON DELETE CASCADE,
-    establishment_id uuid NOT NULL REFERENCES idps_establishments(id) ON DELETE CASCADE,
-    student_id uuid NOT NULL REFERENCES idps_students(id) ON DELETE CASCADE,
-    level text NOT NULL,
-    answers jsonb NOT NULL,
-    scores jsonb NOT NULL,
-    general numeric(6,2) NOT NULL,
-    submitted_at timestamptz NOT NULL DEFAULT now()
-  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS idps_responses (id uuid PRIMARY KEY,application_id uuid NOT NULL UNIQUE REFERENCES idps_applications(id) ON DELETE CASCADE,establishment_id uuid NOT NULL REFERENCES idps_establishments(id) ON DELETE CASCADE,student_id uuid NOT NULL REFERENCES idps_students(id) ON DELETE CASCADE,level text NOT NULL,answers jsonb NOT NULL,scores jsonb NOT NULL,general numeric(6,2) NOT NULL,submitted_at timestamptz NOT NULL DEFAULT now())`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idps_responses_est_idx ON idps_responses(establishment_id,submitted_at)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS idps_student_access (student_id uuid PRIMARY KEY REFERENCES idps_students(id) ON DELETE CASCADE,pin_hash text NOT NULL,generated_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS idps_student_sessions (id uuid PRIMARY KEY,token_hash text NOT NULL UNIQUE,student_id uuid NOT NULL REFERENCES idps_students(id) ON DELETE CASCADE,application_id uuid NOT NULL REFERENCES idps_applications(id) ON DELETE CASCADE,created_at timestamptz NOT NULL DEFAULT now(),expires_at timestamptz NOT NULL)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idps_student_sessions_exp_idx ON idps_student_sessions(expires_at)`);
 }
 
-async function ensureApplications(estId) {
+async function ensureApplications(estId){
   await ensureTables();
-  const students = (await pool.query(`SELECT id,school_year,grade_desc,course_letter FROM idps_students WHERE establishment_id=$1 AND active=true`,[estId])).rows;
-  const eligible = students.map(s => ({...s, level:surveyLevel(s.grade_desc)})).filter(s => s.level);
-  if (!eligible.length) return 0;
-  await pool.query('BEGIN');
-  try {
-    for (const s of eligible) {
-      await pool.query(`INSERT INTO idps_applications(id,token,establishment_id,student_id,school_year,level,grade_desc,course_letter,status)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending')
-        ON CONFLICT(student_id) DO UPDATE SET
-          school_year=EXCLUDED.school_year,
-          level=CASE WHEN idps_applications.status='completed' THEN idps_applications.level ELSE EXCLUDED.level END,
-          grade_desc=CASE WHEN idps_applications.status='completed' THEN idps_applications.grade_desc ELSE EXCLUDED.grade_desc END,
-          course_letter=CASE WHEN idps_applications.status='completed' THEN idps_applications.course_letter ELSE EXCLUDED.course_letter END`,
-        [crypto.randomUUID(),crypto.randomUUID(),estId,s.id,s.school_year,s.level,s.grade_desc,s.course_letter||'']);
-    }
-    await pool.query('COMMIT');
-  } catch (e) {
-    await pool.query('ROLLBACK');
-    throw e;
-  }
-  return eligible.length;
+  const students=(await pool.query(`SELECT id,school_year,grade_desc,course_letter FROM idps_students WHERE establishment_id=$1 AND active=true`,[estId])).rows;
+  const eligible=students.map(s=>({...s,level:surveyLevel(s.grade_desc)})).filter(s=>s.level);if(!eligible.length)return 0;
+  await pool.query('BEGIN');try{for(const s of eligible){await pool.query(`INSERT INTO idps_applications(id,token,establishment_id,student_id,school_year,level,grade_desc,course_letter,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending') ON CONFLICT(student_id) DO UPDATE SET school_year=EXCLUDED.school_year,level=CASE WHEN idps_applications.status='completed' THEN idps_applications.level ELSE EXCLUDED.level END,grade_desc=CASE WHEN idps_applications.status='completed' THEN idps_applications.grade_desc ELSE EXCLUDED.grade_desc END,course_letter=CASE WHEN idps_applications.status='completed' THEN idps_applications.course_letter ELSE EXCLUDED.course_letter END`,[crypto.randomUUID(),crypto.randomUUID(),estId,s.id,s.school_year,s.level,s.grade_desc,s.course_letter||'']);}await pool.query('COMMIT');}catch(e){await pool.query('ROLLBACK');throw e;}return eligible.length;
 }
+async function getEst(estId){return(await pool.query(`SELECT id,rbd,name,commune,status,expires_at FROM idps_establishments WHERE id=$1`,[estId])).rows[0];}
+async function getApplicationRows(estId){await ensureApplications(estId);return(await pool.query(`SELECT a.id,a.student_id,a.school_year,a.level,a.grade_desc,a.course_letter,a.status,a.opened_at,a.completed_at,s.first_names,s.last_name_paternal,s.last_name_maternal,s.run,s.dv,s.gender,s.active,CASE WHEN ac.student_id IS NULL THEN false ELSE true END AS access_ready FROM idps_applications a JOIN idps_students s ON s.id=a.student_id LEFT JOIN idps_student_access ac ON ac.student_id=s.id WHERE a.establishment_id=$1 AND s.active=true ORDER BY a.school_year DESC,a.grade_desc,a.course_letter,s.last_name_paternal,s.last_name_maternal,s.first_names`,[estId])).rows;}
+async function getProgress(estId){const rows=await getApplicationRows(estId),eligible=rows.filter(r=>surveyLevel(r.grade_desc)),completed=eligible.filter(r=>r.status==='completed').length,opened=eligible.filter(r=>r.status==='opened').length,accessReady=eligible.filter(r=>r.access_ready).length,groups=new Map();for(const r of eligible){const key=`${r.school_year}|${r.grade_desc}|${r.course_letter||''}`;if(!groups.has(key))groups.set(key,{year:r.school_year,grade:r.grade_desc,letter:r.course_letter||'',level:r.level,total:0,accessReady:0,opened:0,completed:0});const g=groups.get(key);g.total++;if(r.access_ready)g.accessReady++;if(r.status==='opened')g.opened++;if(r.status==='completed')g.completed++;}return{rows:eligible,total:eligible.length,accessReady,opened,completed,percent:pct(completed,eligible.length),groups:[...groups.values()]};}
+async function getResponsesDetailed(estId){await ensureTables();return(await pool.query(`SELECT r.id response_id,r.student_id,r.answers,r.scores,r.general,r.level,r.submitted_at,a.school_year,a.grade_desc,a.course_letter,a.status,s.first_names,s.last_name_paternal,s.last_name_maternal,s.run,s.dv,s.gender FROM idps_responses r JOIN idps_applications a ON a.id=r.application_id JOIN idps_students s ON s.id=r.student_id WHERE r.establishment_id=$1 ORDER BY a.school_year DESC,a.grade_desc,a.course_letter,s.last_name_paternal,s.last_name_maternal,s.first_names`,[estId])).rows;}
+function aggregate(list){if(!list.length)return{n:0,scores:[0,0,0,0],general:0};const sums=[0,0,0,0];let general=0;for(const x of list){const s=parseJsonArray(x.scores);for(let i=0;i<4;i++)sums[i]+=Number(s[i]||0);general+=Number(x.general||0);}return{n:list.length,scores:sums.map(v=>round1(v/list.length)),general:round1(general/list.length)};}
+function answerDistribution(list){const ranges=[[0,8],[8,16],[16,23],[23,30]];return ranges.map(([a,b])=>{const counts=[0,0,0,0];let total=0;for(const r of list){const answers=parseJsonArray(r.answers);for(let i=a;i<b;i++){const v=Number(answers[i]);if(v>=1&&v<=4){counts[v-1]++;total++;}}}return{counts,total,percent:counts.map(c=>total?round1(c*100/total):0)};});}
+async function getResults(estId){const rows=await getResponsesDetailed(estId),institution=aggregate(rows),groupsMap=new Map();for(const r of rows){const key=`${r.school_year}|${r.grade_desc}|${r.course_letter||''}`;if(!groupsMap.has(key))groupsMap.set(key,[]);groupsMap.get(key).push(r);}const groups=[...groupsMap.entries()].map(([key,list])=>{const[year,grade,letter]=key.split('|'),dates=list.map(x=>new Date(x.submitted_at).getTime()).filter(Number.isFinite);return{year:Number(year),grade,letter,level:list[0]?.level||'',...aggregate(list),firstDate:dates.length?new Date(Math.min(...dates)):null,lastDate:dates.length?new Date(Math.max(...dates)):null,distribution:answerDistribution(list),rows:list};}).sort((a,b)=>b.year-a.year||a.grade.localeCompare(b.grade)||a.letter.localeCompare(b.letter));return{rows,institution,groups};}
+function resultForStudent(rows,studentId){return rows.find(r=>String(r.student_id)===String(studentId));}
 
-async function getEst(estId) {
-  return (await pool.query(`SELECT id,rbd,name,commune,status,expires_at FROM idps_establishments WHERE id=$1`,[estId])).rows[0];
-}
+function baseCss(){return `:root{--navy:#0F2D52;--blue:#1E7FBC;--turq:#19C2D1;--yellow:#FFD200;--bg:#F4F7FA;--line:#E6E8EB;--text:#17324d;--green:#198754;--red:#b42318;--muted:#637083}*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}header{background:var(--navy);color:#fff;padding:16px 20px}.wrap{max-width:1180px;margin:auto}.brand{display:flex;align-items:center;justify-content:space-between;gap:16px}.brand small{opacity:.82}.topnav{display:flex;gap:14px;flex-wrap:wrap}.topnav a{color:#fff;text-decoration:none;font-weight:750}main{padding:28px 16px 60px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px}.col3{grid-column:span 3}.col4{grid-column:span 4}.col6{grid-column:span 6}.col8{grid-column:span 8}.col12{grid-column:span 12}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 8px 28px rgba(15,45,82,.06)}h1,h2,h3{color:var(--navy);margin-top:0}.muted{color:var(--muted)}.kpi{font-size:30px;font-weight:900;color:var(--navy)}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:11px;padding:10px 14px;font-weight:800;text-decoration:none;cursor:pointer}.primary{background:var(--turq);color:var(--navy)}.secondary{background:#fff;color:var(--blue);border:1px solid var(--blue)}.dark{background:var(--navy);color:#fff}.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800;background:#f1f3f5;color:#65727f}.tag.ok{background:#e7f6ec;color:#166534}.tag.open{background:#fff7d1;color:#725c00}.tag.no{background:#fff0ef;color:#a0342d}.notice{padding:12px 14px;border-radius:10px;background:#eef9f3;border:1px solid #bfe7cf;margin:0 0 16px}.warning{padding:12px 14px;border-radius:10px;background:#fff9df;border:1px solid #eadb8d;margin:0 0 16px;color:#685719}.field{margin:12px 0}.field label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.field select,.field input{width:100%;padding:10px 12px;border:1px solid #cfd8e3;border-radius:10px;background:#fff;font:inherit}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:11px;color:var(--muted);text-transform:uppercase}.bar{height:10px;background:#e5eaee;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--turq)}.score{font-size:24px;font-weight:900;color:var(--navy)}.scoregrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.scorebox{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fff}.scorebox small{display:block;color:var(--muted);min-height:32px}.mini{font-size:11px;color:var(--muted)}.dist{display:grid;grid-template-columns:170px 1fr;gap:12px;align-items:center;margin:10px 0}.stack{height:20px;border-radius:99px;overflow:hidden;display:flex;background:#eef1f4}.stack i{display:block;height:100%}.stack i:nth-child(1){background:#d9e4eb}.stack i:nth-child(2){background:#9ec8d5}.stack i:nth-child(3){background:#4ca8bd}.stack i:nth-child(4){background:#0F2D52}.report{background:#fff}.report-head{border-bottom:3px solid var(--navy);padding-bottom:16px;margin-bottom:20px}.report-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.meta-box{border:1px solid var(--line);border-radius:10px;padding:10px}.meta-box small{display:block;color:var(--muted)}.section{margin:24px 0}.callout{padding:14px 16px;border-left:4px solid var(--turq);background:#f5fbfc;border-radius:8px;line-height:1.5}.no-data{text-align:center;padding:26px;color:var(--muted)}@media(max-width:820px){.col3,.col4,.col6,.col8{grid-column:span 12}.brand{flex-direction:column;align-items:flex-start}.scoregrid{grid-template-columns:1fr 1fr}.dist{grid-template-columns:1fr}.report-meta{grid-template-columns:1fr}table{display:block;overflow:auto}.card{padding:17px}}@media(max-width:520px){.scoregrid{grid-template-columns:1fr}}@media print{header,.no-print{display:none!important}body{background:#fff}main{padding:0}.wrap{max-width:none}.card{box-shadow:none;border:0;padding:0}.report{font-size:10.5pt}.report-meta{grid-template-columns:repeat(3,1fr)}.section{break-inside:avoid}.btn{display:none}}`;}
+function page(title,body,extra=''){return`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${baseCss()}</style></head><body><header><div class="wrap brand"><div><b>Material Educativo Chile</b><br><small>Plataforma IDPS · Gestión de establecimientos</small></div><nav class="topnav"><a href="/panel">Panel</a><a href="/panel/estudiantes">Nómina</a><a href="/panel/aplicacion">Aplicación</a><a href="/panel/resultados">Resultados</a><a href="/logout">Cerrar sesión</a></nav></div></header><main><div class="wrap">${body}</div></main>${extra}</body></html>`;}
+function scoreCards(scores){return`<div class="scoregrid">${INDICATORS.map((n,i)=>`<div class="scorebox"><small>${esc(n)}</small><div class="score">${Number(scores[i]||0).toFixed(1)}%</div><div class="bar"><i style="width:${Math.max(0,Math.min(100,Number(scores[i]||0)))}%"></i></div><div class="mini">${reading(scores[i])}</div></div>`).join('')}</div>`;}
+function distributionHtml(dist,level){const labs=level==='2° medio'?['Totalmente en desacuerdo','En desacuerdo','De acuerdo','Totalmente de acuerdo']:['Nunca','Pocas veces','Muchas veces','Siempre'];return dist.map((d,i)=>`<div class="dist"><b>${esc(INDICATORS[i])}</b><div><div class="stack">${d.percent.map((p,k)=>`<i title="${esc(labs[k])}: ${p}%" style="width:${p}%"></i>`).join('')}</div><div class="mini">${d.percent.map((p,k)=>`${esc(labs[k])}: ${p}%`).join(' · ')}</div></div></div>`).join('');}
+function interpretationText(scores){const ranked=INDICATORS.map((name,i)=>({name,value:Number(scores[i]||0),i})).sort((a,b)=>b.value-a.value),high=ranked[0],low=ranked[ranked.length-1];return`El indicador con mayor nivel relativo es <b>${esc(high.name)}</b> (${high.value.toFixed(1)}%), mientras que <b>${esc(low.name)}</b> (${low.value.toFixed(1)}%) concentra la principal oportunidad de fortalecimiento. Esta lectura es descriptiva y debe complementarse con antecedentes de asistencia, convivencia educativa, participación, trayectoria del curso y observación profesional.`;}
+function reportDisclaimer(){return`<div class="warning"><b>Alcance del informe.</b> Este documento corresponde a un diagnóstico interno de apoyo a la gestión educativa. No constituye un resultado oficial SIMCE, de la Agencia de Calidad de la Educación ni del Ministerio de Educación, y no reemplaza evaluaciones especializadas cuando estas sean necesarias.</div>`;}
 
-async function getApplicationRows(estId) {
-  await ensureApplications(estId);
-  const rows = (await pool.query(`SELECT
-      a.id,a.token,a.school_year,a.level,a.grade_desc,a.course_letter,a.status,a.opened_at,a.completed_at,
-      s.first_names,s.last_name_paternal,s.last_name_maternal,s.run,s.dv,s.active
-    FROM idps_applications a
-    JOIN idps_students s ON s.id=a.student_id
-    WHERE a.establishment_id=$1 AND s.active=true
-    ORDER BY a.school_year DESC,a.grade_desc,a.course_letter,s.last_name_paternal,s.last_name_maternal,s.first_names`,[estId])).rows;
-  return rows.filter(r => surveyLevel(r.grade_desc));
-}
+const loginFailures=new Map();
+function checkLoginBlock(key){const now=Date.now(),rec=loginFailures.get(key);if(!rec||now-rec.started>15*60*1000){loginFailures.set(key,{started:now,count:0});return false;}return rec.count>=5;}
+function failLogin(key){const now=Date.now();let rec=loginFailures.get(key);if(!rec||now-rec.started>15*60*1000)rec={started:now,count:0};rec.count++;loginFailures.set(key,rec);}
+function clearLogin(key){loginFailures.delete(key);}
+async function authStudent(req){const auth=String(req.headers.authorization||''),raw=auth.startsWith('Bearer ')?auth.slice(7):'';if(!raw||raw.length<32)return null;const hash=tokenHash(raw),q=await pool.query(`SELECT ss.student_id,ss.application_id,ss.expires_at,s.first_names,s.last_name_paternal,s.last_name_maternal,s.run,s.dv,s.gender,a.establishment_id,a.school_year,a.level,a.grade_desc,a.course_letter,a.status,a.completed_at,e.name establishment_name,e.rbd,e.commune FROM idps_student_sessions ss JOIN idps_students s ON s.id=ss.student_id JOIN idps_applications a ON a.id=ss.application_id JOIN idps_establishments e ON e.id=a.establishment_id WHERE ss.token_hash=$1 AND ss.expires_at>now() AND s.active=true AND e.status='active' LIMIT 1`,[hash]);return q.rows[0]||null;}
 
-async function getProgress(estId) {
-  const rows = await getApplicationRows(estId);
-  const completed = rows.filter(r=>r.status==='completed').length;
-  const opened = rows.filter(r=>r.status==='opened').length;
-  const groups = new Map();
-  for (const r of rows) {
-    const key = `${r.school_year}|${r.grade_desc}|${r.course_letter||''}`;
-    if (!groups.has(key)) groups.set(key,{year:r.school_year,grade:r.grade_desc,letter:r.course_letter||'',level:r.level,total:0,opened:0,completed:0});
-    const g=groups.get(key); g.total++; if(r.status==='opened') g.opened++; if(r.status==='completed') g.completed++;
-  }
-  return {rows,total:rows.length,opened,completed,percent:pct(completed,rows.length),groups:[...groups.values()]};
-}
-
-async function getResults(estId) {
-  await ensureTables();
-  const rows = (await pool.query(`SELECT r.scores,r.general,r.level,r.submitted_at,a.school_year,a.grade_desc,a.course_letter
-    FROM idps_responses r JOIN idps_applications a ON a.id=r.application_id
-    WHERE r.establishment_id=$1 ORDER BY r.submitted_at`,[estId])).rows;
-  const aggregate = list => {
-    if(!list.length) return {n:0,scores:[0,0,0,0],general:0};
-    const sums=[0,0,0,0]; let general=0;
-    for(const x of list){const s=Array.isArray(x.scores)?x.scores:JSON.parse(x.scores||'[]'); for(let i=0;i<4;i++) sums[i]+=Number(s[i]||0); general+=Number(x.general||0);}
-    return {n:list.length,scores:sums.map(v=>round1(v/list.length)),general:round1(general/list.length)};
-  };
-  const institution=aggregate(rows);
-  const groupsMap=new Map();
-  for(const r of rows){const key=`${r.school_year}|${r.grade_desc}|${r.course_letter||''}`; if(!groupsMap.has(key))groupsMap.set(key,[]); groupsMap.get(key).push(r);}
-  const groups=[...groupsMap.entries()].map(([key,list])=>{const [year,grade,letter]=key.split('|'); return {year:Number(year),grade,letter,level:list[0]?.level||'',...aggregate(list)};}).sort((a,b)=>b.year-a.year||a.grade.localeCompare(b.grade)||a.letter.localeCompare(b.letter));
-  return {rows,institution,groups};
-}
-
-function baseCss(){return `
-:root{--navy:#0F2D52;--blue:#1E7FBC;--turq:#19C2D1;--yellow:#FFD200;--bg:#F4F7FA;--line:#E6E8EB;--text:#17324d;--green:#198754;--red:#b42318}
-*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}header{background:var(--navy);color:#fff;padding:18px 24px}.wrap{max-width:1180px;margin:auto}.brand{display:flex;align-items:center;justify-content:space-between;gap:16px}.brand small{opacity:.8}.topnav a{color:#fff;text-decoration:none;margin-left:14px;font-weight:700}main{padding:34px 18px}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:20px}.col3{grid-column:span 3}.col4{grid-column:span 4}.col6{grid-column:span 6}.col12{grid-column:span 12}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 8px 28px rgba(15,45,82,.07)}h1,h2,h3{color:var(--navy);margin-top:0}.muted{color:#637083}.kpi{font-size:30px;font-weight:900;color:var(--navy)}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:9px 14px;font-weight:800;text-decoration:none;cursor:pointer}.primary{background:var(--turq);color:var(--navy)}.secondary{background:#fff;color:var(--blue);border:1px solid var(--blue)}.print{background:var(--navy);color:#fff}.tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800;background:#f1f3f5;color:#65727f}.tag.ok{background:#e7f6ec;color:#166534}.tag.open{background:#fff7d1;color:#725c00}.notice{padding:12px 14px;border-radius:10px;background:#eef9f3;border:1px solid #bfe7cf;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:12px;color:#637083}.bar{height:9px;background:#e5eaee;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--turq)}.score{font-size:24px;font-weight:900;color:var(--navy)}.actions{display:flex;gap:8px;flex-wrap:wrap}.privacy{font-size:12px;line-height:1.5;padding:12px 14px;background:#fff9df;border:1px solid #eadb8d;border-radius:12px}.report h1{margin-bottom:4px}.report .meta{margin-bottom:24px}.avoid{break-inside:avoid}@media(max-width:800px){.col3,.col4,.col6{grid-column:span 12}.brand{flex-direction:column;align-items:flex-start}.topnav a{margin:0 12px 0 0}table{display:block;overflow:auto}.card{padding:18px}}@media print{header,.no-print{display:none!important}body{background:#fff}main{padding:0}.card{box-shadow:none;border-color:#ddd}.wrap{max-width:none}.report{font-size:11pt}}
-`}
-function page(title,body,extra=''){return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${baseCss()}</style></head><body><header><div class="wrap brand"><div><b>Material Educativo Chile</b><br><small>Diagnóstico IDPS · Gestión de establecimientos</small></div><div class="topnav"><a href="/panel">Panel</a><a href="/panel/estudiantes">Nómina</a><a href="/panel/aplicacion">Aplicación</a><a href="/panel/resultados">Resultados</a><a href="/logout">Cerrar sesión</a></div></div></header><main><div class="wrap">${body}</div></main>${extra}</body></html>`}
-function courseName(r){return `${r.grade_desc||r.grade} ${r.course_letter||r.letter||''}`.trim();}
-
+const originalUse=express.application.use;
+express.application.use=function hardenedUse(...args){if(!this.__idpsTrustProxy){this.set('trust proxy',1);this.__idpsTrustProxy=true;}return originalUse.apply(this,args);};
 const originalGet=express.application.get;
-express.application.get=function applicationPatchedGet(path,...handlers){
-  if(path==='/panel' && handlers.length>=2){
-    requireEst=handlers[0];
-    const originalPanel=handlers[handlers.length-1];
-    handlers[handlers.length-1]=async function applicationAwarePanel(req,res,next){
-      let progress={total:0,completed:0,percent:0}; let results={institution:{n:0,general:0}};
-      try{[progress,results]=await Promise.all([getProgress(req.auth.establishmentId),getResults(req.auth.establishmentId)]);}catch(e){console.error('[IDPS_APPLICATION_PANEL]',e.message);}
-      const send=res.send.bind(res);
-      res.send=function(body){
-        if(typeof body==='string'){
-          body=body.replace('<div class="kpi">0%</div><b>Aplicación</b><p class="muted">Seguimiento por curso y nivel.</p>',`<div class="kpi">${progress.percent}%</div><b>Aplicación</b><p class="muted">${progress.completed} de ${progress.total} respuestas completadas.</p>`);
-          const diag=results.institution.n>=MIN_GROUP?`${Number(results.institution.general).toFixed(1)}%`:'—';
-          body=body.replace('<div class="kpi">—</div><b>Diagnóstico</b><p class="muted">Se activará al recibir respuestas.</p>',`<div class="kpi">${diag}</div><b>Diagnóstico</b><p class="muted">${results.institution.n} respuesta(s) centralizadas.</p>`);
-          body=body.replace(`<a class="btn primary" href="${SURVEY_URL}" target="_blank">Abrir encuesta publicada</a>`,`<a class="btn primary" href="/panel/aplicacion">Gestionar aplicación</a><a class="btn secondary" href="/panel/resultados">Ver resultados e informe</a>`);
-        }
-        return send(body);
-      };
-      return originalPanel(req,res,next);
-    };
-  }
-  return originalGet.call(this,path,...handlers);
-};
+express.application.get=function patchedGet(path,...handlers){if(path==='/panel'&&handlers.length>=2){requireEst=handlers[0];const originalPanel=handlers[handlers.length-1];handlers[handlers.length-1]=async function enhancedPanel(req,res,next){let p={total:0,accessReady:0,completed:0,percent:0},r={institution:{n:0,general:0}};try{[p,r]=await Promise.all([getProgress(req.auth.establishmentId),getResults(req.auth.establishmentId)]);}catch(e){console.error('[IDPS_PANEL]',e.message);}const send=res.send.bind(res);res.send=function(body){if(typeof body==='string'){body=body.replace(/<div class="kpi">\d+<\/div><b>Estudiantes en niveles IDPS<\/b><p class="muted">4° básico, 6° básico y 2° medio\.<\/p>/,`<div class="kpi">${p.total}</div><b>Estudiantes habilitados</b><p class="muted">${p.accessReady} con clave de acceso generada.</p>`);body=body.replace(/<div class="kpi">\d+%<\/div><b>Aplicación<\/b><p class="muted">[^<]*<\/p>/,`<div class="kpi">${p.percent}%</div><b>Aplicación</b><p class="muted">${p.completed} de ${p.total} han respondido.</p>`);body=body.replace(/<div class="kpi">—<\/div><b>Diagnóstico<\/b><p class="muted">[^<]*<\/p>/,`<div class="kpi">${r.institution.n?Number(r.institution.general).toFixed(1)+'%':'—'}</div><b>Diagnóstico</b><p class="muted">${r.institution.n} respuesta(s) registradas.</p>`);}return send(body);};return originalPanel(req,res,next);};}return originalGet.call(this,path,...handlers);};
 
 const originalListen=express.application.listen;
-express.application.listen=function applicationPatchedListen(...args){
-  this.set('trust proxy', 1);
-  if(requireEst && !this.__applicationModuleRoutes){
-    this.__applicationModuleRoutes=true;
-    const publicLimiter=rateLimit({windowMs:15*60*1000,limit:180,standardHeaders:true,legacyHeaders:false});
-    const surveyOrigin=(()=>{try{return new URL(SURVEY_URL).origin}catch{return ''}})();
-    const cors=(req,res,next)=>{const origin=req.headers.origin||''; if(origin&&origin===surveyOrigin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');} res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');next();};
-
-    this.options('/api/application/:token',cors,(req,res)=>res.sendStatus(204));
-    this.options('/api/application/:token/submit',cors,(req,res)=>res.sendStatus(204));
-
-    this.get('/api/application/:token',cors,publicLimiter,async(req,res)=>{
-      try{
-        if(!validUuid(req.params.token)) return res.status(404).json({ok:false,error:'Enlace no válido.'});
-        await ensureTables();
-        const q=await pool.query(`SELECT a.id,a.token,a.level,a.grade_desc,a.course_letter,a.school_year,a.status,a.opened_at,a.completed_at,
-          e.name AS establishment_name,e.status AS establishment_status,e.expires_at,s.active
-          FROM idps_applications a JOIN idps_establishments e ON e.id=a.establishment_id JOIN idps_students s ON s.id=a.student_id
-          WHERE a.token=$1`,[req.params.token]);
-        const a=q.rows[0];
-        if(!a||!a.active||a.establishment_status!=='active'||(a.expires_at&&new Date(a.expires_at)<new Date())) return res.status(404).json({ok:false,error:'Este enlace no está disponible.'});
-        if(!a.opened_at&&a.status==='pending') await pool.query(`UPDATE idps_applications SET opened_at=now(),status='opened' WHERE id=$1 AND status='pending'`,[a.id]);
-        return res.json({ok:true,completed:a.status==='completed',context:{level:a.level,questionLevel:questionLevel(a.level),grade:a.grade_desc,courseLetter:a.course_letter||'',schoolYear:a.school_year,establishment:a.establishment_name}});
-      }catch(e){console.error('[IDPS_APPLICATION_GET]',e);res.status(500).json({ok:false,error:'No fue posible abrir la aplicación.'});}
-    });
-
-    this.post('/api/application/:token/submit',cors,publicLimiter,async(req,res)=>{
-      const client=pool?await pool.connect():null;
-      try{
-        if(!client) throw new Error('Base de datos no disponible');
-        if(!validUuid(req.params.token)) return res.status(404).json({ok:false,error:'Enlace no válido.'});
-        const answers=req.body?.answers;
-        if(!Array.isArray(answers)||answers.length!==30||answers.some(v=>!Number.isInteger(v)||v<1||v>4)) return res.status(400).json({ok:false,error:'Las respuestas recibidas no son válidas.'});
-        await client.query('BEGIN');
-        const q=await client.query(`SELECT a.*,e.status AS establishment_status,e.expires_at,s.active FROM idps_applications a JOIN idps_establishments e ON e.id=a.establishment_id JOIN idps_students s ON s.id=a.student_id WHERE a.token=$1 FOR UPDATE`,[req.params.token]);
-        const a=q.rows[0];
-        if(!a||!a.active||a.establishment_status!=='active'||(a.expires_at&&new Date(a.expires_at)<new Date())) {await client.query('ROLLBACK');return res.status(404).json({ok:false,error:'Este enlace no está disponible.'});}
-        if(a.status==='completed'){await client.query('ROLLBACK');return res.status(409).json({ok:false,error:'Esta aplicación ya fue respondida.'});}
-        const calc=calcScores(answers);
-        await client.query(`INSERT INTO idps_responses(id,application_id,establishment_id,student_id,level,answers,scores,general)
-          VALUES($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8)`,[crypto.randomUUID(),a.id,a.establishment_id,a.student_id,a.level,JSON.stringify(answers),JSON.stringify(calc.scores),calc.general]);
-        await client.query(`UPDATE idps_applications SET status='completed',completed_at=now(),opened_at=COALESCE(opened_at,now()) WHERE id=$1`,[a.id]);
-        await client.query('COMMIT');
-        return res.json({ok:true,scores:calc.scores,general:calc.general});
-      }catch(e){if(client){try{await client.query('ROLLBACK')}catch{}} console.error('[IDPS_APPLICATION_SUBMIT]',e);res.status(500).json({ok:false,error:'No fue posible registrar la respuesta. Intenta nuevamente.'});}
-      finally{if(client)client.release();}
-    });
-
-    this.get('/panel/aplicacion',requireEst,async(req,res)=>{
-      try{
-        const [est,progress]=await Promise.all([getEst(req.auth.establishmentId),getProgress(req.auth.establishmentId)]);
-        const groups=progress.groups.map(g=>`<tr><td>${g.year}</td><td>${esc(`${g.grade} ${g.letter}`.trim())}</td><td>${g.total}</td><td>${g.completed}</td><td>${pct(g.completed,g.total)}%</td></tr>`).join('');
-        const students=progress.rows.map(r=>{const status=r.status==='completed'?'<span class="tag ok">Respondida</span>':r.status==='opened'?'<span class="tag open">Abierta</span>':'<span class="tag">Pendiente</span>';const link=surveyLink(r.token);return `<tr><td>${esc(`${r.last_name_paternal||''} ${r.last_name_maternal||''}, ${r.first_names||''}`)}</td><td>${esc(courseName(r))}</td><td>${status}</td><td><div class="actions"><a class="btn secondary" target="_blank" rel="noopener" href="${esc(link)}">Abrir</a><button type="button" class="btn primary" onclick="navigator.clipboard.writeText(${JSON.stringify(link)}).then(()=>this.textContent='Copiado')">Copiar enlace</button></div></td></tr>`}).join('');
-        res.send(page('Aplicación IDPS',`<div class="grid"><div class="col12"><h1>Aplicación IDPS</h1><p class="muted"><b>${esc(est?.name||'Establecimiento')}</b> · Enlaces individuales vinculados a la nómina SIGE.</p></div><div class="col3 card"><div class="kpi">${progress.total}</div><b>Habilitados</b></div><div class="col3 card"><div class="kpi">${progress.completed}</div><b>Respondidos</b></div><div class="col3 card"><div class="kpi">${progress.total-progress.completed}</div><b>Pendientes</b></div><div class="col3 card"><div class="kpi">${progress.percent}%</div><b>Avance</b></div><div class="col12 privacy"><b>Privacidad:</b> el estudiante accede mediante un token aleatorio. La encuesta no muestra su nombre ni RUN. El panel utiliza la vinculación únicamente para controlar cobertura y evita mostrar respuestas individuales al establecimiento.</div><div class="col12 card"><h2>Avance por curso</h2><table><thead><tr><th>Año</th><th>Curso</th><th>Habilitados</th><th>Respondidos</th><th>Avance</th></tr></thead><tbody>${groups||'<tr><td colspan="5">Carga primero la nómina SIGE.</td></tr>'}</tbody></table></div><div class="col12 card"><h2>Enlaces individuales</h2><p class="muted">Comparte con cada estudiante únicamente su enlace. Una vez respondido, el vínculo queda cerrado.</p><table><thead><tr><th>Estudiante</th><th>Curso</th><th>Estado</th><th>Enlace</th></tr></thead><tbody>${students||'<tr><td colspan="4">No hay estudiantes habilitados en 4° básico, 6° básico o 2° medio.</td></tr>'}</tbody></table></div></div>`));
-      }catch(e){res.status(500).send(page('Aplicación IDPS',`<div class="card"><h1>No fue posible cargar la aplicación</h1><p>${esc(e.message)}</p></div>`));}
-    });
-
-    this.get('/panel/resultados',requireEst,async(req,res)=>{
-      try{
-        const [est,progress,results]=await Promise.all([getEst(req.auth.establishmentId),getProgress(req.auth.establishmentId),getResults(req.auth.establishmentId)]);
-        const inst=results.institution;
-        const cards=INDICATORS.map((n,i)=>`<div class="col3 card"><span class="muted">${esc(n)}</span><div class="score">${inst.n>=MIN_GROUP?inst.scores[i].toFixed(1)+'%':'—'}</div><b>${inst.n>=MIN_GROUP?reading(inst.scores[i]):`Disponible con ${MIN_GROUP} respuestas`}</b></div>`).join('');
-        const groups=results.groups.map(g=>`<tr><td>${g.year}</td><td>${esc(`${g.grade} ${g.letter}`.trim())}</td><td>${g.n}</td><td>${g.n>=MIN_GROUP?g.general.toFixed(1)+'%':'—'}</td><td>${g.n>=MIN_GROUP?g.scores.map(v=>v.toFixed(1)+'%').join(' · '):`Mínimo ${MIN_GROUP} respuestas`}</td></tr>`).join('');
-        res.send(page('Resultados IDPS',`<div class="grid"><div class="col12"><h1>Resultados IDPS</h1><p class="muted"><b>${esc(est?.name||'Establecimiento')}</b> · ${progress.completed} respuestas de ${progress.total} estudiantes habilitados (${progress.percent}% de cobertura).</p><div class="actions no-print"><a class="btn primary" href="/panel/informe" target="_blank">Abrir informe imprimible</a><a class="btn secondary" href="/panel/aplicacion">Volver a aplicación</a></div></div>${cards}<div class="col12 card"><h2>Resultados por curso</h2><p class="muted">Por privacidad, se muestran indicadores agregados solo cuando existen al menos ${MIN_GROUP} respuestas en el grupo.</p><table><thead><tr><th>Año</th><th>Curso</th><th>N</th><th>Índice general</th><th>Indicadores A · C · P · H</th></tr></thead><tbody>${groups||'<tr><td colspan="5">Aún no hay respuestas registradas.</td></tr>'}</tbody></table></div><div class="col12 privacy"><b>Lectura técnica:</b> los porcentajes son índices descriptivos internos derivados de este instrumento. No corresponden a puntajes, categorías ni resultados oficiales SIMCE.</div></div>`));
-      }catch(e){res.status(500).send(page('Resultados IDPS',`<div class="card"><h1>No fue posible cargar resultados</h1><p>${esc(e.message)}</p></div>`));}
-    });
-
-    this.get('/panel/informe',requireEst,async(req,res)=>{
-      try{
-        const [est,progress,results]=await Promise.all([getEst(req.auth.establishmentId),getProgress(req.auth.establishmentId),getResults(req.auth.establishmentId)]);
-        const inst=results.institution; const today=new Intl.DateTimeFormat('es-CL',{dateStyle:'long'}).format(new Date());
-        const indicatorRows=INDICATORS.map((n,i)=>`<tr><td>${esc(n)}</td><td>${inst.n>=MIN_GROUP?inst.scores[i].toFixed(1)+'%':'—'}</td><td>${inst.n>=MIN_GROUP?reading(inst.scores[i]):'Muestra insuficiente'}</td></tr>`).join('');
-        const courseRows=results.groups.map(g=>`<tr><td>${g.year}</td><td>${esc(`${g.grade} ${g.letter}`.trim())}</td><td>${g.n}</td><td>${g.n>=MIN_GROUP?g.general.toFixed(1)+'%':'—'}</td><td>${g.n>=MIN_GROUP?reading(g.general):'Muestra insuficiente'}</td></tr>`).join('');
-        let recs='<p>Aún no existe un número suficiente de respuestas para generar orientaciones agregadas.</p>';
-        if(inst.n>=MIN_GROUP){const order=inst.scores.map((v,i)=>({v,i})).sort((a,b)=>a.v-b.v);recs=`<ol>${order.slice(0,2).map(x=>`<li><b>${esc(INDICATORS[x.i])}:</b> ${esc(RECOMMENDATIONS[x.i])}</li>`).join('')}</ol>`;}
-        res.send(page('Informe institucional IDPS',`<article class="report"><div class="actions no-print" style="justify-content:flex-end"><button class="btn print" onclick="window.print()">Imprimir / Guardar PDF</button></div><div class="card avoid"><h1>Informe Institucional de Diagnóstico IDPS</h1><p class="meta"><b>${esc(est?.name||'Establecimiento')}</b><br>RBD ${esc(est?.rbd||'')} · ${esc(est?.commune||'')}<br>${esc(today)}</p><p>Este informe consolida los resultados del diagnóstico interno de Indicadores de Desarrollo Personal y Social aplicado mediante Material Educativo Chile. Su propósito es apoyar la planificación preventiva y formativa del establecimiento.</p></div><div class="grid" style="margin-top:20px"><div class="col4 card avoid"><div class="kpi">${progress.total}</div><b>Estudiantes habilitados</b></div><div class="col4 card avoid"><div class="kpi">${progress.completed}</div><b>Respuestas válidas</b></div><div class="col4 card avoid"><div class="kpi">${progress.percent}%</div><b>Cobertura</b></div><div class="col12 card avoid"><h2>Síntesis institucional</h2><table><thead><tr><th>Indicador</th><th>Índice</th><th>Lectura descriptiva</th></tr></thead><tbody>${indicatorRows}</tbody></table></div><div class="col12 card avoid"><h2>Resultados por curso</h2><table><thead><tr><th>Año</th><th>Curso</th><th>N</th><th>Índice general</th><th>Lectura</th></tr></thead><tbody>${courseRows||'<tr><td colspan="5">Sin respuestas registradas.</td></tr>'}</tbody></table></div><div class="col12 card avoid"><h2>Orientaciones para el plan de trabajo</h2>${recs}<p>Se recomienda contrastar estos resultados con asistencia, convivencia, observaciones docentes, participación estudiantil y otros antecedentes institucionales antes de adoptar decisiones.</p></div><div class="col12 privacy"><b>Nota metodológica:</b> instrumento diagnóstico interno. Los rangos de lectura utilizados en este informe son descriptivos y no equivalen a categorías oficiales de la Agencia de Calidad ni a resultados SIMCE. Los resultados por curso se ocultan cuando existen menos de ${MIN_GROUP} respuestas para reducir riesgos de identificación.</div></div></article>`));
-      }catch(e){res.status(500).send(page('Informe institucional IDPS',`<div class="card"><h1>No fue posible generar el informe</h1><p>${esc(e.message)}</p></div>`));}
-    });
-  }
-  return originalListen.apply(this,args);
-};
+express.application.listen=function patchedListen(...args){if(requireEst&&!this.__idpsApplicationRoutes){this.__idpsApplicationRoutes=true;const app=this;
+app.use('/api/student',(req,res,next)=>{const origin=String(req.headers.origin||'');if(origin===SURVEY_URL){res.setHeader('Access-Control-Allow-Origin',SURVEY_URL);res.setHeader('Vary','Origin');}res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Cache-Control','no-store');if(req.method==='OPTIONS')return res.sendStatus(204);next();});
+app.post('/api/student/login',async(req,res)=>{try{await ensureTables();const rut=normalizeRut(req.body?.rut||''),pin=String(req.body?.pin||'').replace(/\D/g,''),key=rut.full||'invalid';if(checkLoginBlock(key))return res.status(429).json({ok:false,error:'Demasiados intentos. Intenta nuevamente en 15 minutos.'});if(!validRut(rut.full)||!/^\d{4}$/.test(pin)){failLogin(key);return res.status(400).json({ok:false,error:'RUT o clave incorrectos.'});}const q=await pool.query(`SELECT s.id student_id,s.first_names,s.last_name_paternal,s.last_name_maternal,s.run,s.dv,s.gender,a.id application_id,a.establishment_id,a.school_year,a.level,a.grade_desc,a.course_letter,a.status,a.completed_at,ac.pin_hash,e.name establishment_name,e.rbd,e.commune,e.status establishment_status,e.expires_at FROM idps_students s JOIN idps_applications a ON a.student_id=s.id JOIN idps_student_access ac ON ac.student_id=s.id JOIN idps_establishments e ON e.id=s.establishment_id WHERE s.run=$1 AND upper(s.dv)=upper($2) AND s.active=true AND e.status='active' ORDER BY s.school_year DESC LIMIT 2`,[rut.run,rut.dv]);if(q.rows.length!==1){failLogin(key);return res.status(401).json({ok:false,error:'RUT o clave incorrectos.'});}const row=q.rows[0];if(row.expires_at&&new Date(row.expires_at).getTime()<Date.now())return res.status(403).json({ok:false,error:'El acceso del establecimiento se encuentra vencido.'});if(!(await bcrypt.compare(pin,row.pin_hash))){failLogin(key);return res.status(401).json({ok:false,error:'RUT o clave incorrectos.'});}clearLogin(key);await pool.query('DELETE FROM idps_student_sessions WHERE student_id=$1 OR expires_at<=now()',[row.student_id]);const raw=sessionToken(),hash=tokenHash(raw);await pool.query(`INSERT INTO idps_student_sessions(id,token_hash,student_id,application_id,expires_at) VALUES($1,$2,$3,$4,now()+($5||' hours')::interval)`,[crypto.randomUUID(),hash,row.student_id,row.application_id,String(STUDENT_SESSION_HOURS)]);if(row.status==='pending')await pool.query(`UPDATE idps_applications SET status='opened',opened_at=COALESCE(opened_at,now()) WHERE id=$1`,[row.application_id]);let result=null;if(row.status==='completed'){const rr=(await pool.query(`SELECT scores,general,submitted_at FROM idps_responses WHERE application_id=$1`,[row.application_id])).rows[0];if(rr)result={scores:parseJsonArray(rr.scores),general:Number(rr.general),submitted_at:rr.submitted_at};}return res.json({ok:true,token:raw,student:{first_name:String(row.first_names||'').split(/\s+/)[0]||'Estudiante',full_name:[row.first_names,row.last_name_paternal,row.last_name_maternal].filter(Boolean).join(' '),rut:formatRut(row.run,row.dv),level:questionLevel(row.level),course:courseLabel(row.grade_desc,row.course_letter),establishment:row.establishment_name,status:row.status},result});}catch(e){console.error('[STUDENT_LOGIN]',e);res.status(500).json({ok:false,error:'No fue posible iniciar la aplicación.'});}});
+app.get('/api/student/context',async(req,res)=>{try{const s=await authStudent(req);if(!s)return res.status(401).json({ok:false,error:'Sesión inválida o vencida.'});let result=null;if(s.status==='completed'){const rr=(await pool.query(`SELECT scores,general,submitted_at FROM idps_responses WHERE application_id=$1`,[s.application_id])).rows[0];if(rr)result={scores:parseJsonArray(rr.scores),general:Number(rr.general),submitted_at:rr.submitted_at};}res.json({ok:true,student:{first_name:String(s.first_names||'').split(/\s+/)[0]||'Estudiante',full_name:[s.first_names,s.last_name_paternal,s.last_name_maternal].filter(Boolean).join(' '),rut:formatRut(s.run,s.dv),level:questionLevel(s.level),course:courseLabel(s.grade_desc,s.course_letter),establishment:s.establishment_name,status:s.status},result});}catch(e){console.error('[STUDENT_CONTEXT]',e);res.status(500).json({ok:false,error:'No fue posible recuperar la aplicación.'});}});
+app.post('/api/student/submit',async(req,res)=>{const client=await pool.connect();try{const s=await authStudent(req);if(!s)return res.status(401).json({ok:false,error:'Sesión inválida o vencida.'});const answers=Array.isArray(req.body?.answers)?req.body.answers.map(Number):[];if(answers.length!==30||answers.some(v=>!Number.isInteger(v)||v<1||v>4))return res.status(400).json({ok:false,error:'La encuesta debe contener 30 respuestas válidas.'});await client.query('BEGIN');const lock=(await client.query(`SELECT status FROM idps_applications WHERE id=$1 FOR UPDATE`,[s.application_id])).rows[0];if(!lock){await client.query('ROLLBACK');return res.status(404).json({ok:false,error:'Aplicación no encontrada.'});}if(lock.status==='completed'){const rr=(await client.query(`SELECT scores,general,submitted_at FROM idps_responses WHERE application_id=$1`,[s.application_id])).rows[0];await client.query('COMMIT');return res.status(200).json({ok:true,already_completed:true,result:{scores:parseJsonArray(rr?.scores),general:Number(rr?.general||0),submitted_at:rr?.submitted_at}});}const c=calcScores(answers);await client.query(`INSERT INTO idps_responses(id,application_id,establishment_id,student_id,level,answers,scores,general,submitted_at) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,now()) ON CONFLICT(application_id) DO NOTHING`,[crypto.randomUUID(),s.application_id,s.establishment_id,s.student_id,s.level,JSON.stringify(answers),JSON.stringify(c.scores),c.general]);await client.query(`UPDATE idps_applications SET status='completed',opened_at=COALESCE(opened_at,now()),completed_at=now() WHERE id=$1`,[s.application_id]);await client.query('COMMIT');res.json({ok:true,result:{scores:c.scores,general:c.general,submitted_at:new Date().toISOString()}});}catch(e){try{await client.query('ROLLBACK')}catch{}console.error('[STUDENT_SUBMIT]',e);res.status(500).json({ok:false,error:'No fue posible registrar la encuesta.'});}finally{client.release();}});
+app.get('/panel/aplicacion',requireEst,async(req,res)=>{try{const est=await getEst(req.auth.establishmentId),p=await getProgress(est.id),msg=req.query.msg?`<div class="notice">${esc(req.query.msg)}</div>`:'',groupRows=p.groups.map(g=>`<tr><td>${g.year}</td><td>${esc(courseLabel(g.grade,g.letter))}</td><td>${g.total}</td><td>${g.accessReady}</td><td>${g.completed}</td><td>${pct(g.completed,g.total)}%</td></tr>`).join(''),rows=p.rows.map(r=>`<tr><td>${esc([r.first_names,r.last_name_paternal,r.last_name_maternal].filter(Boolean).join(' '))}</td><td>${esc(courseLabel(r.grade_desc,r.course_letter))}</td><td>${esc(formatRut(r.run,r.dv))}</td><td>${r.access_ready?'<span class="tag ok">Clave lista</span>':'<span class="tag no">Sin clave</span>'}</td><td>${r.status==='completed'?'<span class="tag ok">Completada</span>':r.status==='opened'?'<span class="tag open">Iniciada</span>':'<span class="tag">Pendiente</span>'}</td></tr>`).join(''),opts=p.groups.map(g=>`<option value="${esc(`${g.year}|${g.grade}|${g.letter}`)}">${g.year} · ${esc(courseLabel(g.grade,g.letter))}</option>`).join('');res.send(page('Aplicación IDPS',`${msg}<div class="grid"><div class="col12"><h1>Aplicación IDPS</h1><p class="muted"><b>${esc(est.name)}</b> · Gestión de acceso estudiantil, seguimiento y aplicación.</p></div><div class="col3 card"><div class="kpi">${p.total}</div><b>Habilitados</b></div><div class="col3 card"><div class="kpi">${p.accessReady}</div><b>Con clave</b></div><div class="col3 card"><div class="kpi">${p.completed}</div><b>Respondidos</b></div><div class="col3 card"><div class="kpi">${p.percent}%</div><b>Avance</b></div><div class="col12 card"><h2>Portal del estudiante</h2><p>Los estudiantes ingresan con su <b>RUT</b> y una <b>clave de 4 dígitos</b> generada por el establecimiento.</p><div class="actions"><a class="btn dark" href="${SURVEY_URL}/encuesta-idps.html" target="_blank">Abrir portal del estudiante</a></div></div><div class="col12 card"><h2>Generación masiva de claves</h2><p class="muted">Selecciona un curso. La descarga se genera en CSV para distribuir las credenciales de forma segura. Las claves existentes no pueden recuperarse: si necesitas un nuevo listado completo, usa “Regenerar todas”.</p><form method="post" action="/panel/accesos/generar"><div class="grid"><div class="col6 field"><label>Curso</label><select name="course" required><option value="">Seleccionar curso</option>${opts}</select></div><div class="col6 field"><label>Acción</label><select name="mode"><option value="missing">Generar solo claves faltantes</option><option value="replace">Regenerar todas las claves del curso</option></select></div></div><button class="btn primary">Generar y descargar listado</button></form></div><div class="col12 card"><h2>Avance por curso</h2><table><thead><tr><th>Año</th><th>Curso</th><th>Habilitados</th><th>Con clave</th><th>Respondidos</th><th>Avance</th></tr></thead><tbody>${groupRows||'<tr><td colspan="6">Sin cursos IDPS habilitados.</td></tr>'}</tbody></table></div><div class="col12 card"><h2>Estudiantes</h2><table><thead><tr><th>Estudiante</th><th>Curso</th><th>RUT</th><th>Acceso</th><th>Aplicación</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Sin estudiantes.</td></tr>'}</tbody></table></div></div>`));}catch(e){res.status(500).send(page('Error',`<div class="card"><h1>No fue posible cargar la aplicación</h1><p>${esc(e.message)}</p></div>`));}});
+app.post('/panel/accesos/generar',requireEst,express.urlencoded({extended:false}),async(req,res)=>{try{const[year,grade,letter]=String(req.body.course||'').split('|'),mode=req.body.mode==='replace'?'replace':'missing';if(!year||!grade)throw new Error('Selecciona un curso válido.');const rows=(await getApplicationRows(req.auth.establishmentId)).filter(r=>sameCourse(r,year,grade,letter));if(!rows.length)throw new Error('No hay estudiantes habilitados en el curso seleccionado.');const generated=[];for(const r of rows){if(mode==='missing'&&r.access_ready)continue;const pin=pin4(),hash=await bcrypt.hash(pin,10);await pool.query(`INSERT INTO idps_student_access(student_id,pin_hash,generated_at,updated_at) VALUES($1,$2,now(),now()) ON CONFLICT(student_id) DO UPDATE SET pin_hash=EXCLUDED.pin_hash,generated_at=now(),updated_at=now()`,[r.student_id,hash]);generated.push({name:[r.first_names,r.last_name_paternal,r.last_name_maternal].filter(Boolean).join(' '),rut:formatRut(r.run,r.dv),pin,course:courseLabel(r.grade_desc,r.course_letter)});}if(!generated.length)return res.redirect('/panel/aplicacion?msg='+encodeURIComponent('Todos los estudiantes del curso ya tienen clave. Usa “Regenerar todas” si necesitas un nuevo listado.'));const lines=[['Estudiante','RUT','Clave','Curso','Portal'].map(csvCell).join(',')];for(const g of generated)lines.push([g.name,g.rut,g.pin,g.course,`${SURVEY_URL}/encuesta-idps.html`].map(csvCell).join(','));const csv='\ufeff'+lines.join('\r\n');res.setHeader('Content-Type','text/csv; charset=utf-8');res.setHeader('Content-Disposition',`attachment; filename="claves_idps_${String(grade).replace(/[^a-z0-9]/gi,'_')}_${String(letter||'').replace(/[^a-z0-9]/gi,'_')}_${year}.csv"`);res.send(csv);}catch(e){res.redirect('/panel/aplicacion?msg='+encodeURIComponent(e.message));}});
+app.get('/panel/resultados',requireEst,async(req,res)=>{try{const est=await getEst(req.auth.establishmentId),results=await getResults(est.id),progress=await getProgress(est.id),courseCards=results.groups.map(g=>`<div class="col6 card"><h3>${esc(courseLabel(g.grade,g.letter))}</h3><div class="actions"><span class="tag ok">${g.n} respuesta(s)</span><span class="tag">${Number(g.general).toFixed(1)}% general</span></div><div style="margin:14px 0">${scoreCards(g.scores)}</div><div class="actions"><a class="btn secondary" href="/panel/informe/curso?year=${encodeURIComponent(g.year)}&grade=${encodeURIComponent(g.grade)}&letter=${encodeURIComponent(g.letter)}">Ver informe del curso</a></div></div>`).join(''),studentRows=results.rows.map(r=>`<tr><td>${esc([r.first_names,r.last_name_paternal,r.last_name_maternal].filter(Boolean).join(' '))}</td><td>${esc(courseLabel(r.grade_desc,r.course_letter))}</td><td>${esc(formatRut(r.run,r.dv))}</td><td>${Number(r.general).toFixed(1)}%</td><td>${dateTimeCL(r.submitted_at)}</td><td><a class="btn secondary" href="/panel/resultados/estudiante/${encodeURIComponent(r.student_id)}">Ver resultado</a></td></tr>`).join('');res.send(page('Resultados IDPS',`<div class="grid"><div class="col12"><h1>Resultados IDPS</h1><p class="muted"><b>${esc(est.name)}</b> · Resultados individuales, por curso e institucionales.</p></div><div class="col3 card"><div class="kpi">${results.institution.n}</div><b>Respuestas</b></div><div class="col3 card"><div class="kpi">${progress.percent}%</div><b>Cobertura</b></div><div class="col3 card"><div class="kpi">${results.institution.n?Number(results.institution.general).toFixed(1)+'%':'—'}</div><b>Resultado general</b></div><div class="col3 card"><a class="btn dark" href="/panel/informe/institucional">Informe institucional</a></div>${courseCards||'<div class="col12 card no-data">Aún no existen respuestas registradas.</div>'}<div class="col12 card"><h2>Resultados individuales</h2><p class="muted">Acceso exclusivo del establecimiento. Los perfiles individuales son descriptivos y no constituyen diagnóstico clínico ni resultado oficial Mineduc.</p><table><thead><tr><th>Estudiante</th><th>Curso</th><th>RUT</th><th>General</th><th>Aplicación</th><th></th></tr></thead><tbody>${studentRows||'<tr><td colspan="6">Sin respuestas.</td></tr>'}</tbody></table></div></div>`));}catch(e){res.status(500).send(page('Error',`<div class="card"><h1>No fue posible cargar resultados</h1><p>${esc(e.message)}</p></div>`));}});
+app.get('/panel/resultados/estudiante/:studentId',requireEst,async(req,res)=>{try{const est=await getEst(req.auth.establishmentId),rows=await getResponsesDetailed(est.id),r=resultForStudent(rows,req.params.studentId);if(!r)return res.status(404).send(page('Resultado no encontrado','<div class="card"><h1>Resultado no encontrado</h1></div>'));const scores=parseJsonArray(r.scores),detail=INDICATORS.map((n,i)=>`<tr><td>${esc(n)}</td><td>${Number(scores[i]||0).toFixed(1)}%</td><td>${reading(scores[i])}</td></tr>`).join('');res.send(page('Resultado individual',`<div class="card report"><div class="report-head"><h1>Resultado individual IDPS</h1><p class="muted">Perfil descriptivo de apoyo al acompañamiento educativo.</p></div><div class="report-meta"><div class="meta-box"><small>Estudiante</small><b>${esc([r.first_names,r.last_name_paternal,r.last_name_maternal].filter(Boolean).join(' '))}</b></div><div class="meta-box"><small>RUT</small><b>${esc(formatRut(r.run,r.dv))}</b></div><div class="meta-box"><small>Curso</small><b>${esc(courseLabel(r.grade_desc,r.course_letter))}</b></div><div class="meta-box"><small>Establecimiento</small><b>${esc(est.name)}</b></div><div class="meta-box"><small>Fecha de aplicación</small><b>${dateCL(r.submitted_at)}</b></div><div class="meta-box"><small>Resultado general</small><b>${Number(r.general).toFixed(1)}%</b></div></div><div class="section"><h2>Perfil por indicador</h2>${scoreCards(scores)}</div><div class="section"><h2>Lectura descriptiva</h2><div class="callout">${interpretationText(scores)}</div></div><div class="section"><h2>Detalle técnico</h2><table><thead><tr><th>Indicador</th><th>Resultado</th><th>Lectura</th></tr></thead><tbody>${detail}</tbody></table></div>${reportDisclaimer()}<div class="no-print actions"><button class="btn dark" onclick="window.print()">Imprimir / Guardar PDF</button><a class="btn secondary" href="/panel/resultados">Volver a resultados</a></div></div>`));}catch(e){res.status(500).send(page('Error',`<div class="card"><h1>Error</h1><p>${esc(e.message)}</p></div>`));}});
+app.get('/panel/informe/curso',requireEst,async(req,res)=>{try{const est=await getEst(req.auth.establishmentId),results=await getResults(est.id),progress=await getProgress(est.id),year=String(req.query.year||''),grade=String(req.query.grade||''),letter=String(req.query.letter||''),g=results.groups.find(x=>sameCourse({school_year:x.year,grade_desc:x.grade,course_letter:x.letter},year,grade,letter)),pg=progress.groups.find(x=>sameCourse({school_year:x.year,grade_desc:x.grade,course_letter:x.letter},year,grade,letter));if(!g)return res.status(404).send(page('Informe no disponible','<div class="card"><h1>Informe no disponible</h1><p>El curso aún no registra respuestas.</p></div>'));const strength=INDICATORS.map((n,i)=>({n,v:Number(g.scores[i]||0),i})).sort((a,b)=>b.v-a.v),priorities=strength.slice().reverse(),recs=priorities.slice(0,2).map(x=>`<li><b>${esc(x.n)}:</b> ${esc(RECOMMENDATIONS[x.i])}</li>`).join('');res.send(page('Informe de curso',`<div class="card report"><div class="report-head"><h1>Informe de Resultados IDPS</h1><p>Indicadores de Desarrollo Personal y Social · Informe técnico de curso</p></div><div class="report-meta"><div class="meta-box"><small>Establecimiento</small><b>${esc(est.name)}</b></div><div class="meta-box"><small>RBD</small><b>${esc(est.rbd)}</b></div><div class="meta-box"><small>Comuna</small><b>${esc(est.commune||'—')}</b></div><div class="meta-box"><small>Curso</small><b>${esc(courseLabel(g.grade,g.letter))}</b></div><div class="meta-box"><small>Año</small><b>${g.year}</b></div><div class="meta-box"><small>Aplicación</small><b>${dateCL(g.firstDate)}${g.lastDate&&String(dateCL(g.lastDate))!==String(dateCL(g.firstDate))?' a '+dateCL(g.lastDate):''}</b></div></div><div class="section"><h2>1. Propósito y alcance</h2><p>El presente informe sintetiza los resultados del diagnóstico interno de Indicadores de Desarrollo Personal y Social aplicado al curso señalado. Su propósito es aportar evidencia para la planificación, el acompañamiento educativo y la definición de acciones de mejora.</p></div><div class="section"><h2>2. Cobertura de aplicación</h2><div class="report-meta"><div class="meta-box"><small>Estudiantes habilitados</small><b>${pg?.total||g.n}</b></div><div class="meta-box"><small>Respuestas válidas</small><b>${g.n}</b></div><div class="meta-box"><small>Cobertura</small><b>${pct(g.n,pg?.total||g.n)}%</b></div></div></div><div class="section"><h2>3. Resultados por indicador</h2>${scoreCards(g.scores)}<p><b>Resultado general descriptivo:</b> ${Number(g.general).toFixed(1)}%.</p></div><div class="section"><h2>4. Distribución de respuestas</h2><p class="muted">Representación agregada por indicador; no se exponen respuestas textuales ni registros individuales.</p>${distributionHtml(g.distribution,g.level)}</div><div class="section"><h2>5. Análisis técnico-descriptivo</h2><div class="callout">${interpretationText(g.scores)}</div><p>Los resultados sugieren que <b>${esc(strength[0].n)}</b> constituye una fortaleza relativa del curso. En contraste, <b>${esc(priorities[0].n)}</b> requiere mayor atención dentro de la planificación de acciones formativas y preventivas.</p></div><div class="section"><h2>6. Orientaciones para la gestión educativa</h2><ul>${recs}</ul><p>Se recomienda contrastar estos resultados con información cualitativa del curso, antecedentes de convivencia educativa, participación, asistencia y observación pedagógica antes de adoptar decisiones de intervención.</p></div><div class="section"><h2>7. Consideraciones metodológicas</h2><p>Los puntajes se expresan en una escala descriptiva de 0 a 100%, calculada a partir de respuestas de cuatro categorías. El informe prioriza tendencias por indicador y distribución agregada, evitando interpretar respuestas aisladas o formular conclusiones diagnósticas individuales de carácter clínico.</p></div>${reportDisclaimer()}<div class="no-print actions"><button class="btn dark" onclick="window.print()">Imprimir / Guardar PDF</button><a class="btn secondary" href="/panel/resultados">Volver a resultados</a></div></div>`));}catch(e){res.status(500).send(page('Error',`<div class="card"><h1>Error</h1><p>${esc(e.message)}</p></div>`));}});
+app.get('/panel/informe/institucional',requireEst,async(req,res)=>{try{const est=await getEst(req.auth.establishmentId),results=await getResults(est.id),progress=await getProgress(est.id);if(!results.rows.length)return res.send(page('Informe institucional','<div class="card"><h1>Informe institucional</h1><p>Aún no existen respuestas registradas.</p></div>'));const courseRows=results.groups.map(g=>`<tr><td>${g.year}</td><td>${esc(courseLabel(g.grade,g.letter))}</td><td>${g.n}</td><td>${Number(g.general).toFixed(1)}%</td>${g.scores.map(v=>`<td>${Number(v).toFixed(1)}%</td>`).join('')}</tr>`).join(''),priorities=INDICATORS.map((n,i)=>({n,v:Number(results.institution.scores[i]||0),i})).sort((a,b)=>a.v-b.v);res.send(page('Informe institucional IDPS',`<div class="card report"><div class="report-head"><h1>Informe Institucional de Resultados IDPS</h1><p>Indicadores de Desarrollo Personal y Social · Síntesis para equipos directivos y profesionales</p></div><div class="report-meta"><div class="meta-box"><small>Establecimiento</small><b>${esc(est.name)}</b></div><div class="meta-box"><small>RBD</small><b>${esc(est.rbd)}</b></div><div class="meta-box"><small>Comuna</small><b>${esc(est.commune||'—')}</b></div><div class="meta-box"><small>Fecha de emisión</small><b>${dateCL(new Date())}</b></div><div class="meta-box"><small>Estudiantes habilitados</small><b>${progress.total}</b></div><div class="meta-box"><small>Respuestas</small><b>${results.institution.n}</b></div></div><div class="section"><h2>1. Resumen ejecutivo</h2><p>La aplicación alcanzó una cobertura de <b>${pct(results.institution.n,progress.total)}%</b>. El resultado general descriptivo fue de <b>${Number(results.institution.general).toFixed(1)}%</b>. La lectura institucional debe utilizarse como antecedente para orientar prioridades formativas, de convivencia educativa, participación y promoción de hábitos protectores.</p></div><div class="section"><h2>2. Resultados institucionales por indicador</h2>${scoreCards(results.institution.scores)}</div><div class="section"><h2>3. Síntesis por curso</h2><table><thead><tr><th>Año</th><th>Curso</th><th>N</th><th>General</th><th>Autoestima</th><th>Convivencia</th><th>Participación</th><th>Hábitos</th></tr></thead><tbody>${courseRows}</tbody></table></div><div class="section"><h2>4. Hallazgos principales</h2><div class="callout">${interpretationText(results.institution.scores)}</div></div><div class="section"><h2>5. Prioridades de trabajo sugeridas</h2><ol>${priorities.slice(0,2).map(x=>`<li><b>${esc(x.n)} (${x.v.toFixed(1)}%):</b> ${esc(RECOMMENDATIONS[x.i])}</li>`).join('')}</ol><p>Las acciones deberán ser contextualizadas por el establecimiento e incorporadas, cuando corresponda, a instrumentos de gestión como el Plan de Gestión de la Convivencia Educativa, Plan de Formación Ciudadana, acciones de orientación y/o Plan de Mejoramiento Educativo.</p></div><div class="section"><h2>6. Consideraciones para la toma de decisiones</h2><p>Este informe presenta tendencias cuantitativas y no sustituye el análisis profesional del contexto. Se recomienda triangular los resultados con información cualitativa, antecedentes de trayectoria educativa y observaciones de los equipos responsables antes de definir acciones institucionales.</p></div>${reportDisclaimer()}<div class="no-print actions"><button class="btn dark" onclick="window.print()">Imprimir / Guardar PDF</button><a class="btn secondary" href="/panel/resultados">Volver a resultados</a></div></div>`));}catch(e){res.status(500).send(page('Error',`<div class="card"><h1>Error</h1><p>${esc(e.message)}</p></div>`));}});
+}
+return originalListen.apply(this,args);};

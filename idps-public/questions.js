@@ -21,5 +21,17 @@ document.write('<script src="questions-core.js"><\/script>');
       if(footer&&!footer.querySelector('.mec-foot-brand')){const original=footer.textContent;footer.innerHTML='<div class="mec-foot-brand"><img alt="Material Educativo Chile"><div><strong>Material Educativo Chile</strong><div class="mec-foot-tag">APRENDER · INCLUIR · TRANSFORMAR</div></div></div><div>'+original+'</div>';footer.querySelector('.mec-foot-brand img').src=src;}
     }catch(e){console.error('No fue posible cargar el logo oficial',e);}
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',applyOfficialBrand);else applyOfficialBrand();
+  function polishStudentResult(){
+    const result=document.getElementById('resultView');
+    if(!result)return;
+    const notices=[...result.querySelectorAll('.notice')];
+    for(const n of notices){
+      if(/resultado oficial SIMCE|diagnóstico clínico|Agencia de Calidad|Ministerio de Educación/i.test(n.textContent||'')){
+        n.className='notice info';
+        n.innerHTML='<b>Resultado orientativo:</b> esta síntesis organiza las respuestas del estudiante para apoyar el acompañamiento educativo, la planificación de acciones y el seguimiento de su trayectoria escolar.';
+      }
+    }
+  }
+  function init(){applyOfficialBrand();polishStudentResult();const obs=new MutationObserver(polishStudentResult);obs.observe(document.body,{subtree:true,childList:true});}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();

@@ -1,72 +1,50 @@
 const express = require('express');
 
-// Make the SIGE roster uploader explicit and easy to use: users can add
-// files one-by-one (up to 10), while the existing backend receives all
-// fields under the same `roster` name via upload.array('roster', 10).
-const originalSend = express.response.send;
+// Mobile-safe SIGE uploader. Instead of relying on the browser's native
+// multi-file picker (which is inconsistent on iPhone), render ten explicit
+// file slots. The existing backend already accepts upload.array('roster', 10).
+const previousListen = express.application.listen;
 
-express.response.send = function rosterMultiFileUi(body) {
-  try {
-    const path = this.req && (this.req.originalUrl || this.req.url || '');
-    if (typeof body === 'string' && /^\/panel\/estudiantes(?:[?#]|$)/.test(path)) {
-      body = body
-        .replace(
-          /<p>Puede actualizar la nómina mediante el archivo <b>\.xls exportado desde SIGE<\/b>\.<\/p>/i,
-          '<p>Puedes cargar <b>hasta 10 archivos .xls exportados desde SIGE</b> en una sola importación.</p>'
-        )
-        .replace(
-          /<p>La plataforma permite seleccionar y cargar <b>hasta 10 archivos \.xls exportados desde SIGE en una sola importación<\/b>\.<\/p>/i,
-          '<p>Puedes cargar <b>hasta 10 archivos .xls exportados desde SIGE</b> en una sola importación.</p>'
-        )
-        .replace(
-          /<input\s+type="file"\s+name="roster"\s+accept="\.xls,\.html"[^>]*>/i,
-          `<div id="rosterFileList" style="display:grid;gap:10px;max-width:760px">
-            <div class="roster-file-row"><input type="file" name="roster" accept=".xls,.html" required></div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 4px">
-            <button type="button" class="btn secondary" id="addRosterFile">+ Agregar otro archivo</button>
-            <span class="muted" id="rosterFileCount">1 de 10 archivos</span>
-          </div>
-          <script>
-          (function(){
-            const list=document.getElementById('rosterFileList');
-            const add=document.getElementById('addRosterFile');
-            const count=document.getElementById('rosterFileCount');
-            if(!list||!add||!count) return;
-            function refresh(){
-              const n=list.querySelectorAll('input[type=file][name=roster]').length;
-              count.textContent=n+' de 10 archivos';
-              add.disabled=n>=10;
-              add.style.opacity=n>=10?'.55':'1';
-            }
-            add.addEventListener('click',function(){
-              const n=list.querySelectorAll('input[type=file][name=roster]').length;
-              if(n>=10) return;
-              const row=document.createElement('div');
-              row.className='roster-file-row';
-              row.style.display='flex';
-              row.style.gap='8px';
-              row.style.alignItems='center';
-              row.innerHTML='<input type="file" name="roster" accept=".xls,.html" style="flex:1"><button type="button" class="btn secondary" style="padding:9px 12px">Quitar</button>';
-              row.querySelector('button').addEventListener('click',function(){row.remove();refresh();});
-              list.appendChild(row);
-              refresh();
-            });
-            refresh();
-          })();
-          </script>`
-        )
-        .replace(
-          /<p class="muted">Puedes seleccionar hasta 10 archivos a la vez\.[\s\S]*?<\/p>/i,
-          '<p class="muted">Agrega los archivos uno por uno con “+ Agregar otro archivo”. Puedes cargar hasta 10 nóminas antes de presionar “Importar nómina”.</p>'
-        )
-        .replace(
-          /<p class="muted">Se importan únicamente datos necesarios para identificar estudiante, curso y nivel\.[\s\S]*?<\/p>/i,
-          '<p class="muted">Agrega los archivos uno por uno con “+ Agregar otro archivo”. Puedes cargar hasta 10 nóminas antes de presionar “Importar nómina”.</p>'
-        );
-    }
-  } catch (err) {
-    console.error('[ROSTER_MULTI_UI]', err.message);
+function fileSlotsHtml(){
+  const slots=[];
+  for(let i=1;i<=10;i++){
+    slots.push(`<label style="display:block;font-weight:800;color:#0F2D52">Archivo ${i}${i===1?' *':''}<input type="file" name="roster" accept=".xls,.html" ${i===1?'required':''} style="display:block;width:100%;margin-top:6px"></label>`);
   }
-  return originalSend.call(this, body);
+  return `<div id="rosterTenSlots" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;max-width:980px;margin:14px 0">${slots.join('')}</div>`;
+}
+
+express.application.listen=function rosterMultiUiListen(...args){
+  if(!this.__rosterMultiUiMiddleware){
+    this.__rosterMultiUiMiddleware=true;
+    this.use((req,res,next)=>{
+      const path=req.originalUrl||req.url||'';
+      if(!/^\/panel\/estudiantes(?:[/?#]|$)/.test(path)) return next();
+
+      const originalSend=res.send.bind(res);
+      res.send=function(body){
+        try{
+          if(typeof body==='string' && !body.includes('id="rosterTenSlots"')){
+            body=body
+              .replace(
+                /<p>La plataforma permite seleccionar y cargar <b>hasta 10 archivos \.xls exportados desde SIGE en una sola importación<\/b>\.<\/p>/i,
+                '<p>Puedes cargar <b>entre 1 y 10 archivos .xls exportados desde SIGE</b> en una sola importación.</p>'
+              )
+              .replace(
+                /<input[^>]*type="file"[^>]*name="roster"[^>]*>/i,
+                fileSlotsHtml()
+              )
+              .replace(
+                /<p class="muted">Puedes seleccionar hasta 10 archivos a la vez\.[\s\S]*?<\/p>/i,
+                '<p class="muted">Usa un espacio por cada nómina SIGE. El primer archivo es obligatorio y los demás son opcionales. Puedes adjuntar hasta 10 antes de presionar “Importar nómina”.</p>'
+              );
+          }
+        }catch(err){
+          console.error('[ROSTER_MULTI_UI]',err.message);
+        }
+        return originalSend(body);
+      };
+      next();
+    });
+  }
+  return previousListen.apply(this,args);
 };

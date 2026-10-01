@@ -1,2 +1,57 @@
-const express = require('express');
-module.exports = {};
+const express=require('express');
+const jwt=require('jsonwebtoken');
+const crypto=require('crypto');
+const{Pool}=require('pg');
+
+const DATABASE_URL=process.env.DATABASE_URL||'';
+const JWT_SECRET=process.env.JWT_SECRET||'';
+const pool=DATABASE_URL?new Pool({connectionString:DATABASE_URL,ssl:{rejectUnauthorized:false}}):null;
+
+function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function auth(req){try{return JWT_SECRET?jwt.verify(req.cookies?.idps_session||'',JWT_SECRET):null}catch{return null}}
+function requireEst(req,res,next){const a=auth(req);if(!a||a.role!=='establishment')return res.redirect('/');req.auth=a;next();}
+function rutParts(raw=''){const s=String(raw).toUpperCase().replace(/[^0-9K]/g,'');return s.length>1?{run:s.slice(0,-1),dv:s.slice(-1)}:{run:'',dv:''};}
+function validRut(raw=''){const{run,dv}=rutParts(raw);if(!run||!dv)return false;let sum=0,m=2;for(let i=run.length-1;i>=0;i--){sum+=Number(run[i])*m;m=m===7?2:m+1;}const r=11-(sum%11);return(r===11?'0':r===10?'K':String(r))===dv;}
+function mask(run,dv){return'••••'+String(run||'').slice(-4)+'-'+String(dv||'').toUpperCase();}
+function grades(){return['1° básico','2° básico','3° básico','4° básico','5° básico','6° básico','7° básico','8° básico','1° medio','2° medio','3° medio','4° medio'].map(x=>`<option value="${x}">${x}</option>`).join('');}
+function input(){return'width:100%;padding:10px 11px;border:1px solid #cfd9e3;border-radius:9px;background:#fff;font:inherit;margin-top:5px';}
+
+async function students(estId){if(!pool)return[];return(await pool.query(`SELECT id,grade_desc,course_letter,run,dv,first_names,last_name_paternal,last_name_maternal FROM idps_students WHERE establishment_id=$1 AND active=true ORDER BY grade_desc,course_letter,last_name_paternal,last_name_maternal,first_names`,[estId])).rows;}
+
+function card(rows){
+ const opts=rows.map(s=>`<option value="${esc(s.id)}">${esc([s.last_name_paternal,s.last_name_maternal,s.first_names].filter(Boolean).join(' '))} · ${esc(`${s.grade_desc||''} ${s.course_letter||''}`.trim())} · ${esc(mask(s.run,s.dv))}</option>`).join('');
+ return `<div class="col12 card" id="gestionMatricula"><h2>Gestión de matrícula</h2><p class="muted">Mantén la nómina actualizada cuando ingresan estudiantes nuevos o cuando un estudiante se retira del establecimiento.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:18px">
+ <div style="border:1px solid #E6E8EB;border-radius:12px;padding:17px;background:#FAFCFD"><h3 style="color:#0F2D52;margin-top:0">Agregar estudiante nuevo</h3><form method="post" action="/panel/estudiantes/nuevo"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label style="font-weight:700">Año escolar<input type="number" name="school_year" value="${new Date().getFullYear()}" min="2020" max="2100" required style="${input()}"></label><label style="font-weight:700">RUT<input name="rut" placeholder="12.345.678-9" required style="${input()}"></label><label style="font-weight:700;grid-column:1/-1">Nombres<input name="first_names" required style="${input()}"></label><label style="font-weight:700">Apellido paterno<input name="last_name_paternal" required style="${input()}"></label><label style="font-weight:700">Apellido materno<input name="last_name_maternal" style="${input()}"></label><label style="font-weight:700">Nivel<select name="grade_desc" required style="${input()}"><option value="">Seleccionar</option>${grades()}</select></label><label style="font-weight:700">Curso / letra<input name="course_letter" placeholder="A" maxlength="12" required style="${input()}"></label></div><button class="btn primary" style="margin-top:14px">Agregar estudiante</button></form></div>
+ <div style="border:1px solid #E6E8EB;border-radius:12px;padding:17px;background:#FAFCFD"><h3 style="color:#0F2D52;margin-top:0">Retirar estudiante</h3><p class="muted">El estudiante dejará de aparecer en la matrícula activa y en los reportes institucionales vigentes. Su registro histórico se conserva.</p><form method="post" action="/panel/estudiantes/retirar" onsubmit="return confirm('¿Confirma el retiro de este estudiante de la nómina activa?')"><label style="font-weight:700">Estudiante<select name="student_id" required style="${input()}"><option value="">Seleccionar estudiante</option>${opts}</select></label><button class="btn secondary" style="margin-top:14px;color:#a0342d;border-color:#c98f8a">Retirar de la nómina activa</button></form></div>
+ </div></div>`;
+}
+
+const previousListen=express.application.listen;
+express.application.listen=function rosterManagementListen(...args){
+ if(!this.__rosterManagement){
+  this.__rosterManagement=true;
+  this.use('/panel/estudiantes',requireEst,async(req,res,next)=>{
+   if(req.method!=='GET')return next();
+   try{const rows=await students(req.auth.establishmentId),send=res.send.bind(res);res.send=function(body){if(typeof body==='string'&&!body.includes('id="gestionMatricula"')){const marker='<div class="col12 card"><h2>Cursos</h2>';if(body.includes(marker))body=body.replace(marker,card(rows)+marker);}return send(body);};}catch(e){console.error('[ROSTER_MANAGEMENT_UI]',e.message)}
+   next();
+  });
+  this.post('/panel/estudiantes/nuevo',requireEst,express.urlencoded({extended:false}),async(req,res)=>{
+   try{
+    if(!pool)throw new Error('La base de datos central no está disponible.');
+    const year=Number(req.body.school_year),rut=String(req.body.rut||'').trim(),first=String(req.body.first_names||'').trim(),pat=String(req.body.last_name_paternal||'').trim(),mat=String(req.body.last_name_maternal||'').trim(),grade=String(req.body.grade_desc||'').trim(),letter=String(req.body.course_letter||'').trim().toUpperCase();
+    if(!Number.isInteger(year)||year<2020||year>2100)throw new Error('El año escolar no es válido.');
+    if(!validRut(rut))throw new Error('El RUT ingresado no es válido.');
+    if(!first||!pat||!grade||!letter)throw new Error('Complete los datos obligatorios.');
+    const{run,dv}=rutParts(rut),est=(await pool.query('SELECT id,rbd FROM idps_establishments WHERE id=$1',[req.auth.establishmentId])).rows[0];if(!est)throw new Error('Establecimiento no encontrado.');
+    const ex=(await pool.query('SELECT id FROM idps_students WHERE establishment_id=$1 AND school_year=$2 AND run=$3 AND dv=$4',[est.id,year,run,dv])).rows[0];
+    if(ex)await pool.query('UPDATE idps_students SET first_names=$1,last_name_paternal=$2,last_name_maternal=$3,grade_desc=$4,course_letter=$5,active=true,updated_at=now() WHERE id=$6',[first,pat,mat,grade,letter,ex.id]);
+    else await pool.query(`INSERT INTO idps_students(id,establishment_id,school_year,source_rbd,grade_desc,course_letter,run,dv,first_names,last_name_paternal,last_name_maternal,active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)`,[crypto.randomUUID(),est.id,year,String(est.rbd||'').split('-')[0],grade,letter,run,dv,first,pat,mat]);
+    res.redirect('/panel/estudiantes?msg='+encodeURIComponent(ex?'Estudiante actualizado y reincorporado correctamente.':'Estudiante agregado correctamente a la nómina activa.'));
+   }catch(e){res.redirect('/panel/estudiantes?err=1&msg='+encodeURIComponent(e.message));}
+  });
+  this.post('/panel/estudiantes/retirar',requireEst,express.urlencoded({extended:false}),async(req,res)=>{
+   try{if(!pool)throw new Error('La base de datos central no está disponible.');const id=String(req.body.student_id||'');const q=await pool.query('UPDATE idps_students SET active=false,updated_at=now() WHERE id=$1 AND establishment_id=$2 AND active=true RETURNING first_names,last_name_paternal,last_name_maternal',[id,req.auth.establishmentId]);if(!q.rowCount)throw new Error('El estudiante no se encuentra en la nómina activa.');const s=q.rows[0],name=[s.first_names,s.last_name_paternal,s.last_name_maternal].filter(Boolean).join(' ');res.redirect('/panel/estudiantes?msg='+encodeURIComponent(`${name} fue retirado de la nómina activa. El registro histórico se mantiene.`));}catch(e){res.redirect('/panel/estudiantes?err=1&msg='+encodeURIComponent(e.message));}
+  });
+ }
+ return previousListen.apply(this,args);
+};

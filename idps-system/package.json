@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node -r ./home-student-portal.js -r ./roster-module.js -r ./application-module.js -r ./course-access.js -r ./all-courses.js -r ./oauth-diagnostic.js -r ./branding.js -r ./report-reset.js server.js"
+    "start": "node -r ./home-student-portal.js -r ./roster-module.js -r ./application-module.js -r ./course-access.js -r ./all-courses.js -r ./oauth-diagnostic.js -r ./branding.js -r ./report-reset.js -r ./roster-multi-ui.js server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

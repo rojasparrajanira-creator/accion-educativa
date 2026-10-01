@@ -5,7 +5,7 @@ const crypto = require('crypto');
 
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const pool = DATABASE_URL ? new Pool({connectionString:DATABASE_URL, ssl:{rejectUnauthorized:false}}) : null;
-const upload = multer({storage:multer.memoryStorage(), limits:{fileSize:8*1024*1024}});
+const upload = multer({storage:multer.memoryStorage(), limits:{fileSize:8*1024*1024,files:10}});
 let requireEst = null;
 
 function esc(v=''){
@@ -184,17 +184,27 @@ express.application.listen=function patchedListen(...args){
         const msg=req.query.msg?`<div class="notice ${req.query.err?'error':''}">${esc(req.query.msg)}</div>`:'';
         const courseRows=stats.courses.map(c=>`<tr><td>${c.year}</td><td>${esc(c.grade)} ${esc(c.letter)}</td><td>${c.count}</td><td>${c.eligible?'<span class="tag">Encuesta IDPS disponible</span>':'<span class="tag off">Sin instrumento IDPS en esta versión</span>'}</td></tr>`).join('');
         const studentRows=stats.students.slice(0,500).map(s=>`<tr><td>${esc(s.last_name_paternal)} ${esc(s.last_name_maternal)}, ${esc(s.first_names)}</td><td>${esc(s.grade_desc)} ${esc(s.course_letter||'')}</td><td>${maskRun(s.run,s.dv)}</td><td>${surveyLevel(s.grade_desc)?'<span class="tag">IDPS</span>':'<span class="tag off">—</span>'}</td></tr>`).join('');
-        res.send(page('Nómina de estudiantes',`${msg}<div class="grid"><div class="col12"><h1>Nómina de estudiantes</h1><p class="muted"><b>${esc(est.name)}</b> · RBD ${esc(est.rbd)}</p></div><div class="col4 card"><div class="kpi">${stats.students.length}</div><b>Estudiantes activos</b></div><div class="col4 card"><div class="kpi">${stats.courses.length}</div><b>Cursos detectados</b></div><div class="col4 card"><div class="kpi">${stats.eligible}</div><b>En niveles IDPS</b></div><div class="col12 card"><h2>Subir nómina SIGE</h2><p>La plataforma acepta directamente el archivo <b>.xls exportado desde SIGE</b>, como el formato que utiliza el establecimiento.</p><form method="post" action="/panel/estudiantes/import" enctype="multipart/form-data"><input type="file" name="roster" accept=".xls,.html" required><p class="muted">Se importan únicamente datos necesarios para identificar estudiante, curso y nivel. No se almacenan dirección, teléfonos, correo, etnia, asistencia ni calificaciones.</p><button class="btn primary">Importar nómina</button></form></div><div class="col12 card"><h2>Cursos</h2><table><thead><tr><th>Año</th><th>Curso</th><th>Estudiantes</th><th>Aplicación</th></tr></thead><tbody>${courseRows||'<tr><td colspan="4">Aún no hay estudiantes cargados.</td></tr>'}</tbody></table></div><div class="col12 card"><h2>Estudiantes</h2><table><thead><tr><th>Estudiante</th><th>Curso</th><th>RUN</th><th>Instrumento</th></tr></thead><tbody>${studentRows||'<tr><td colspan="4">Aún no hay estudiantes cargados.</td></tr>'}</tbody></table></div></div>`));
+        res.send(page('Nómina de estudiantes',`${msg}<div class="grid"><div class="col12"><h1>Nómina de estudiantes</h1><p class="muted"><b>${esc(est.name)}</b> · RBD ${esc(est.rbd)}</p></div><div class="col4 card"><div class="kpi">${stats.students.length}</div><b>Estudiantes activos</b></div><div class="col4 card"><div class="kpi">${stats.courses.length}</div><b>Cursos detectados</b></div><div class="col4 card"><div class="kpi">${stats.eligible}</div><b>En niveles IDPS</b></div><div class="col12 card"><h2>Subir nómina SIGE</h2><p>La plataforma permite seleccionar y cargar <b>hasta 10 archivos .xls exportados desde SIGE en una sola importación</b>.</p><form method="post" action="/panel/estudiantes/import" enctype="multipart/form-data"><input type="file" name="roster" accept=".xls,.html" multiple required><p class="muted">Puedes seleccionar hasta 10 archivos a la vez. Se importan únicamente datos necesarios para identificar estudiante, curso y nivel. No se almacenan dirección, teléfonos, correo, etnia, asistencia ni calificaciones.</p><button class="btn primary">Importar nómina</button></form></div><div class="col12 card"><h2>Cursos</h2><table><thead><tr><th>Año</th><th>Curso</th><th>Estudiantes</th><th>Aplicación</th></tr></thead><tbody>${courseRows||'<tr><td colspan="4">Aún no hay estudiantes cargados.</td></tr>'}</tbody></table></div><div class="col12 card"><h2>Estudiantes</h2><table><thead><tr><th>Estudiante</th><th>Curso</th><th>RUN</th><th>Instrumento</th></tr></thead><tbody>${studentRows||'<tr><td colspan="4">Aún no hay estudiantes cargados.</td></tr>'}</tbody></table></div></div>`));
       }catch(e){res.redirect('/panel?err=1&msg='+encodeURIComponent(e.message));}
     });
-    this.post('/panel/estudiantes/import',requireEst,upload.single('roster'),async(req,res)=>{
+    this.post('/panel/estudiantes/import',requireEst,upload.array('roster',10),async(req,res)=>{
       try{
-        if(!req.file) throw new Error('Seleccione una nómina SIGE .xls.');
+        const files=Array.isArray(req.files)?req.files:[];
+        if(!files.length) throw new Error('Seleccione al menos una nómina SIGE .xls.');
         const est=await getEst(req.auth.establishmentId); if(!est) throw new Error('Establecimiento no encontrado.');
-        const rows=parseSigeRoster(req.file.buffer);
-        const total=await importRoster(est,rows);
-        const courses=new Set(rows.map(r=>`${r.school_year}|${r.grade_desc}|${r.course_letter}`)).size;
-        res.redirect('/panel/estudiantes?msg='+encodeURIComponent(`Nómina importada correctamente: ${total} estudiantes en ${courses} curso(s).`));
+        const combinedRows=[];
+        for(let i=0;i<files.length;i++){
+          const file=files[i];
+          try{
+            combinedRows.push(...parseSigeRoster(file.buffer));
+          }catch(e){
+            throw new Error(`${file.originalname||`Archivo ${i+1}`}: ${e.message}`);
+          }
+        }
+        const uniqueRows=[...new Map(combinedRows.map(r=>[`${r.school_year}|${r.run}|${r.dv}`,r])).values()];
+        const total=await importRoster(est,uniqueRows);
+        const courses=new Set(uniqueRows.map(r=>`${r.school_year}|${r.grade_desc}|${r.course_letter}`)).size;
+        res.redirect('/panel/estudiantes?msg='+encodeURIComponent(`Importación completada: ${files.length} archivo(s), ${total} estudiantes en ${courses} curso(s).`));
       }catch(e){res.redirect('/panel/estudiantes?err=1&msg='+encodeURIComponent(e.message));}
     });
   }

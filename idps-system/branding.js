@@ -13,20 +13,31 @@ try {
 }
 
 const brandCss = `
-body{background:linear-gradient(180deg,#f7f9fc 0%,#eef4f8 100%)!important}
-header{background:linear-gradient(135deg,#0F2D52 0%,#143d69 100%)!important;border-bottom:3px solid #19C2D1;box-shadow:0 10px 30px rgba(15,45,82,.12)}
-.brand{min-height:72px}.brand-lockup{display:flex;align-items:center;gap:14px;min-width:0;max-width:100%}
-.brand-logo{width:62px;height:62px;flex:0 0 62px;border-radius:50%;object-fit:cover;display:block;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.18),0 8px 20px rgba(0,0,0,.18)}
-.brand-copy{min-width:0}.brand-copy b{display:block;color:#fff;font-size:19px;line-height:1.05;letter-spacing:-.01em}.brand-copy small{display:block;color:#cfe8f2;font-size:11px;margin-top:5px;line-height:1.25}.brand-kicker{display:inline-block;margin-top:5px;color:#FFD200;font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
-.topnav a{color:#fff!important;text-decoration:none!important;margin-left:8px!important;padding:8px 11px;border-radius:10px;font-weight:700!important}.topnav a:hover{background:rgba(255,255,255,.10)}
-main{padding-top:38px!important}.card{border:1px solid #dce5ec!important;border-radius:18px!important;box-shadow:0 14px 38px rgba(15,45,82,.08)!important}.card h1,.card h2,.card h3{letter-spacing:-.02em}
-h1:after{content:'';display:block;width:44px;height:3px;border-radius:999px;background:#FFD200;margin-top:10px}
-.btn{border-radius:12px!important;min-height:44px;transition:transform .15s ease,box-shadow .15s ease}.btn:hover{transform:translateY(-1px)}
-.primary{background:#19C2D1!important;color:#0F2D52!important;box-shadow:0 8px 20px rgba(25,194,209,.22)}
-.secondary{background:#fff!important;color:#0F2D52!important;border:1px solid #1E7FBC!important}.warn{background:#FFD200!important;color:#0F2D52!important}
-.field input,.field select,input,select{font-size:16px!important;border-radius:10px!important;border-color:#cbd8e3!important;min-height:44px}.field input:focus,.field select:focus,input:focus,select:focus{outline:2px solid rgba(25,194,209,.25);border-color:#19C2D1!important}
-.mec-footer{margin-top:42px;padding:26px 18px;background:#0F2D52;color:#fff;text-align:center;border-top:3px solid #19C2D1}.mec-footer-inner{display:flex;align-items:center;justify-content:center;gap:13px;flex-wrap:wrap}.mec-footer img{width:50px;height:50px;border-radius:50%;object-fit:cover;background:#fff}.mec-footer strong{display:block;font-size:14px}.mec-footer span{display:block;font-size:10px;color:#19C2D1;margin-top:4px;letter-spacing:.12em;font-weight:800}
-@media(max-width:780px){header{padding:13px 15px!important}.brand{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;width:100%;gap:8px!important}.brand-lockup{gap:9px;flex:1}.brand-logo{width:46px;height:46px;flex-basis:46px}.brand-copy b{font-size:15px}.brand-copy small{font-size:10px}.brand-kicker{font-size:8px;letter-spacing:.1em}.topnav{flex:0 0 auto}.topnav a{font-size:12px;padding:7px 8px!important}.mec-footer{margin-top:28px;padding:22px 14px}}
+body{background:linear-gradient(180deg,#F7FAFC 0%,#EEF4F8 100%)!important;color:#17324d!important}
+header{background:linear-gradient(135deg,#0F2D52 0%,#163C68 100%)!important;border-bottom:3px solid #19C2D1!important;box-shadow:0 8px 28px rgba(15,45,82,.14)!important;position:sticky;top:0;z-index:30}
+.wrap{max-width:1220px!important}
+.brand{min-height:68px!important;align-items:center!important}.brand-lockup{display:flex;align-items:center;gap:13px;min-width:0;max-width:100%}
+.brand-logo{width:54px;height:54px;flex:0 0 54px;border-radius:50%;object-fit:cover;display:block;background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.16)}
+.brand-copy{min-width:0}.brand-copy b{display:block;color:#fff;font-size:18px;line-height:1.08;letter-spacing:-.015em}.brand-copy small{display:block;color:#C6EDF1;font-size:10.5px;margin-top:4px;line-height:1.25}.brand-kicker{display:inline-block;margin-top:4px;color:#FFD200;font-size:8.5px;font-weight:850;letter-spacing:.15em;text-transform:uppercase}
+.topnav{display:flex!important;align-items:center;gap:6px!important;flex-wrap:wrap}.topnav a{color:#fff!important;text-decoration:none!important;margin-left:0!important;padding:8px 11px!important;border-radius:10px!important;font-weight:750!important;font-size:13px!important;transition:background .15s ease,transform .15s ease}.topnav a:hover{background:rgba(255,255,255,.11)!important;transform:translateY(-1px)}
+main{padding-top:34px!important;padding-bottom:54px!important}
+.grid{gap:18px!important}.card{position:relative;background:#fff!important;border:1px solid #DCE5EC!important;border-radius:16px!important;padding:22px!important;box-shadow:0 10px 28px rgba(15,45,82,.065)!important;transition:box-shadow .18s ease,transform .18s ease,border-color .18s ease}.card:hover{box-shadow:0 14px 34px rgba(15,45,82,.09)!important;border-color:#C7D8E6!important}
+h1,h2,h3{letter-spacing:-.025em!important}h1{font-size:clamp(25px,3vw,34px)!important;line-height:1.12!important;margin-bottom:8px!important}h2{font-size:20px!important}h3{font-size:16px!important}
+h1:after{content:'';display:block;width:42px;height:3px;border-radius:999px;background:#FFD200;margin-top:10px}
+.muted{color:#6B7E90!important;line-height:1.55!important}
+.kpi{font-size:34px!important;font-weight:900!important;letter-spacing:-.04em!important;color:#0F2D52!important;line-height:1!important;margin-bottom:7px}
+.card>.kpi+ b{display:block;font-size:14px;color:#17324d;margin-bottom:5px}
+.btn{border-radius:10px!important;min-height:42px!important;padding:10px 15px!important;transition:transform .15s ease,box-shadow .15s ease,background .15s ease!important;font-weight:800!important}.btn:hover{transform:translateY(-1px)}.btn:active{transform:translateY(0)}
+.primary{background:#19C2D1!important;color:#0F2D52!important;box-shadow:0 7px 18px rgba(25,194,209,.20)!important}.primary:hover{background:#16B3C1!important}.secondary{background:#fff!important;color:#0F2D52!important;border:1px solid #1E7FBC!important}.dark{background:#0F2D52!important;color:#fff!important}.warn{background:#FFD200!important;color:#0F2D52!important}.danger{background:#fff!important;color:#B42318!important;border:1px solid #EAB2AD!important}.success{background:#198754!important;color:#fff!important}
+.field{margin:13px 0!important}.field label{font-size:12.5px!important;color:#29465F!important}.field input,.field select,input,select,textarea{font-size:15px!important;border-radius:9px!important;border:1px solid #C8D5DF!important;min-height:43px!important;background:#fff!important;box-shadow:inset 0 1px 0 rgba(15,45,82,.02)!important;transition:border-color .15s ease,box-shadow .15s ease!important}.field input:focus,.field select:focus,input:focus,select:focus,textarea:focus{outline:none!important;border-color:#19C2D1!important;box-shadow:0 0 0 3px rgba(25,194,209,.13)!important}
+table{background:#fff!important;border:1px solid #E2E9EF!important;border-radius:12px!important;overflow:hidden!important}th{background:#F1F6FA!important;color:#496175!important;font-size:11px!important;text-transform:uppercase!important;letter-spacing:.035em!important;font-weight:850!important}th,td{padding:11px 12px!important;border-bottom:1px solid #E5EBF0!important}tbody tr:nth-child(even){background:#FAFCFD!important}tbody tr:hover{background:#F3F9FB!important}
+.badge,.tag{border-radius:999px!important;padding:5px 9px!important;font-weight:800!important}
+.notice{border-radius:10px!important}.actions{gap:9px!important}
+.mobile-item{border:1px solid #DCE5EC!important;border-radius:14px!important;box-shadow:0 7px 18px rgba(15,45,82,.05)!important}
+.mec-footer{margin-top:44px;padding:24px 18px;background:#0F2D52;color:#fff;text-align:center;border-top:3px solid #19C2D1}.mec-footer-inner{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}.mec-footer img{width:46px;height:46px;border-radius:50%;object-fit:cover;background:#fff}.mec-footer strong{display:block;font-size:14px}.mec-footer span{display:block;font-size:9.5px;color:#19C2D1;margin-top:4px;letter-spacing:.12em;font-weight:850}
+.report-brand{display:flex!important;align-items:center!important;gap:10px!important}.report-brand .brand-logo{width:44px!important;height:44px!important;flex-basis:44px!important}.report-brand span{font-weight:900!important;color:#fff!important}
+body:has(form[action="/login"]) main{display:flex!important;align-items:center!important;min-height:calc(100vh - 170px)!important}body:has(form[action="/login"]) main>.wrap{width:100%!important}body:has(form[action="/login"]) .grid{align-items:stretch!important}body:has(form[action="/login"]) .col6.card{min-height:360px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}body:has(form[action="/login"]) .col6.card:first-of-type{border-top:4px solid #19C2D1!important}body:has(form[action="/login"]) .col6.card:last-of-type{background:linear-gradient(145deg,#F9FCFE 0%,#EEF7FA 100%)!important;border-top:4px solid #FFD200!important}
+@media(max-width:780px){header{position:relative!important;padding:12px 14px!important}.brand{display:flex!important;flex-direction:column!important;align-items:flex-start!important;width:100%!important;gap:10px!important}.brand-lockup{gap:9px}.brand-logo{width:46px;height:46px;flex-basis:46px}.brand-copy b{font-size:15px}.brand-copy small{font-size:9.5px}.brand-kicker{font-size:7.8px;letter-spacing:.1em}.topnav{width:100%!important;overflow-x:auto!important;flex-wrap:nowrap!important;padding-bottom:2px}.topnav a{font-size:12px!important;padding:7px 9px!important;white-space:nowrap!important}.card{padding:18px!important;border-radius:14px!important}.grid{gap:14px!important}h1{font-size:26px!important}.mec-footer{margin-top:28px;padding:20px 14px}body:has(form[action="/login"]) main{min-height:auto!important;display:block!important}body:has(form[action="/login"]) .col6.card{min-height:0!important}}
 `;
 
 function injectBranding(html) {
@@ -38,8 +49,13 @@ function injectBranding(html) {
 
   const oldBrand = '<div><b>Material Educativo Chile</b><br><small>Diagnóstico IDPS · Gestión de establecimientos</small></div>';
   const logo = logoData ? `<img class="brand-logo" src="${logoData}" alt="Material Educativo Chile">` : '';
-  const newBrand = `<div class="brand-lockup">${logo}<div class="brand-copy"><b>Material Educativo Chile</b><small>Diagnóstico IDPS · Gestión de establecimientos</small><span class="brand-kicker">Plataforma institucional</span></div></div>`;
+  const newBrand = `<div class="brand-lockup">${logo}<div class="brand-copy"><b>Material Educativo Chile</b><small>Plataforma IDPS · Desarrollo Personal y Social</small><span class="brand-kicker">APRENDER · INCLUIR · TRANSFORMAR</span></div></div>`;
   html = html.replace(oldBrand, newBrand);
+
+  // Membrete institucional: usa siempre el logo oficial también en informes.
+  if (logoData) {
+    html = html.replace(/<div class="brand">MATERIAL EDUCATIVO CHILE<\/div>/i, '<div class="brand report-brand"><img class="brand-logo" src="'+logoData+'" alt="Material Educativo Chile"><span>Material Educativo Chile</span></div>');
+  }
 
   // Fuerza el botón Gmail al host correcto del portal de gestión para evitar
   // problemas por pestañas antiguas, rutas relativas o enlaces cacheados.

@@ -49,6 +49,24 @@ body:has(form[action="/login"]) main{display:flex!important;align-items:center!i
 .dashboard-banner{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-top:18px;padding:24px 28px;border-radius:18px;background:linear-gradient(115deg,#F1F8FB 0%,#FFFFFF 55%,#E7F7F9 100%);border:1px solid #D8E6EE}.dashboard-banner h2{font-size:20px!important;margin:5px 0 6px}.dashboard-banner p{margin:0;color:#687C8C;max-width:720px;font-size:12px}.banner-mark{width:90px;height:90px;border-radius:50%;display:grid;place-items:center;flex:0 0 90px;background:#0F2D52;color:#FFD200;font-size:20px;font-weight:950;box-shadow:inset 0 0 0 7px #19C2D1}.legacy-controls{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important}
 @media(max-width:980px){.login-shell{grid-template-columns:1fr}.login-visual-panel{min-height:340px}.quick-grid{grid-template-columns:1fr 1fr}.dashboard-hero{flex-direction:column}.school-chip{width:100%;min-width:0}.section-heading{align-items:flex-start;flex-direction:column}.section-heading p{text-align:left}}
 @media(max-width:620px){.login-form-panel{padding:32px 22px 28px}.login-form-panel h1{font-size:29px!important}.login-visual-panel{min-height:300px;padding:28px 22px}.visual-content h2{font-size:27px!important}.visual-stats{grid-template-columns:1fr}.quick-grid{grid-template-columns:1fr}.dashboard-hero,.quick-section,.dashboard-banner{padding:20px}.dashboard-banner{align-items:flex-start}.banner-mark{width:64px;height:64px;flex-basis:64px;font-size:15px}}
+
+/* Portada principal: jerarquía editorial, sin bloque amarillo/turquesa dominante */
+body:has(form[action="/login"]) main{display:block!important;min-height:calc(100vh - 170px)!important;padding-top:0!important}
+body:has(form[action="/login"]) main>.wrap{max-width:none!important;width:100%!important;padding:0!important}
+.home-intro{background:#fff;border-bottom:1px solid #DCE5EC;padding:34px max(24px,calc((100vw - 1040px)/2)) 30px}
+.home-kicker{display:block;color:#1E7FBC;font-size:10px;font-weight:900;letter-spacing:.16em;margin-bottom:8px}
+.home-intro h1{font-family:Inter,Arial,sans-serif!important;font-size:clamp(42px,5vw,66px)!important;line-height:.98!important;letter-spacing:-.055em!important;margin:0!important;max-width:850px;color:#0F2D52!important;font-weight:900!important}
+.home-intro h1:after{width:58px!important;height:4px!important;margin-top:16px!important}
+.home-intro>p{font-size:15px;line-height:1.55;color:#5D7284;max-width:760px;margin:18px 0 0}
+.home-points{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}.home-points span{padding:8px 11px;border:1px solid #D9E5EC;border-radius:999px;background:#F7FAFC;color:#50687A;font-size:11px}.home-points b{color:#0F2D52}
+body:has(form[action="/login"]) .login-shell{grid-template-columns:minmax(0,1.35fr) minmax(270px,.65fr)!important;max-width:1040px!important;margin:28px auto 0!important;border-radius:18px!important;box-shadow:0 14px 38px rgba(15,45,82,.08)!important}
+body:has(form[action="/login"]) .login-form-panel{padding:36px 42px!important}.login-form-panel h2{font-size:24px!important;margin-bottom:7px!important}
+.login-side{position:relative;overflow:hidden;background:#0F2D52;padding:38px 32px;color:#fff;display:flex;flex-direction:column;justify-content:center}
+.login-side:after{content:'';position:absolute;width:170px;height:170px;border-radius:50%;right:-90px;bottom:-90px;border:34px solid rgba(25,194,209,.22)}
+.side-kicker{position:relative;z-index:1;font-size:9px;font-weight:900;letter-spacing:.15em;color:#19C2D1}.login-side h3{position:relative;z-index:1;color:#fff!important;font-size:27px!important;line-height:1.08;margin:10px 0 10px}.login-side p{position:relative;z-index:1;color:#C8DAE7;font-size:12px;line-height:1.55;margin:0}
+body:has(form[action="/login"]) .mode{max-width:1040px;margin:18px auto 0;padding:0 2px}
+@media(max-width:980px){body:has(form[action="/login"]) .login-shell{grid-template-columns:1fr!important;margin:22px 18px 0!important}.login-side{min-height:190px}.home-intro{padding:28px 24px 26px}}
+@media(max-width:620px){.home-intro{padding:25px 20px 24px}.home-intro h1{font-size:43px!important;line-height:1!important}.home-intro>p{font-size:13px}.home-points{gap:7px}.home-points span{font-size:10px;padding:7px 9px}body:has(form[action="/login"]) .login-shell{margin:18px 14px 0!important}body:has(form[action="/login"]) .login-form-panel{padding:26px 22px!important}.login-side{padding:28px 22px;min-height:170px}.login-side h3{font-size:24px!important}body:has(form[action="/login"]) .mode{padding:0 16px}}
 `;
 
 function injectBranding(html) {

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Convivencia Escolar | Material Educativo Chile</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
+:root{--ink:#173E35;--sage:#7EA894;--sage2:#DDEBE3;--mint:#EEF6F1;--turq:#19C2D1;--blue:#0F2D52;--yellow:#FFD200;--white:#fff;--line:#DCE6E0}
+header{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 34px;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:12px}.mark{width:45px;height:45px;border-radius:14px;background:linear-gradient(145deg,#173E35,#7EA894);display:grid;place-items:center;color:white;font-size:22px}.brand b{display:block;color:var(--blue);font-size:16px}.brand span{font-size:11px;color:#718078}
+.user{display:flex;align-items:center;gap:12px;font-size:12px}.avatar{width:38px;height:38px;border-radius:50%;background:var(--sage2);display:grid;place-items:center;font-weight:900;color:var(--ink)}
+.layout{display:grid;grid-template-columns:235px 1fr;min-height:calc(100vh - 72px)}
+aside{background:#173E35;padding:25px 16px;color:#fff}.year{font-size:10px;letter-spacing:.15em;color:#BFD4C9;margin:0 10px 18px}.nav a{display:flex;align-items:center;gap:10px;color:#E6F0EB;text-decoration:none;padding:11px 12px;border-radius:11px;margin:4px 0;font-size:13px}.nav a.active{background:rgba(255,255,255,.13);font-weight:800}.nav i{font-style:normal;width:22px;text-align:center}
+main{padding:32px 36px 55px;max-width:1500px;width:100%}.eyebrow{font-size:10px;letter-spacing:.18em;font-weight:900;color:#5C8A76}.welcome{display:flex;justify-content:space-between;gap:20px;align-items:flex-end}.welcome h1{font-size:34px;margin:7px 0;color:var(--ink)}.welcome p{margin:0;color:#718078}.date{font-size:12px;color:#718078}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:27px 0}.stat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:19px;box-shadow:0 8px 24px rgba(23,62,53,.05)}.stat small{color:#74847C}.stat strong{display:block;font-size:29px;margin-top:8px;color:var(--ink)}.stat em{font-style:normal;font-size:11px;color:#718078}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:30px 0 13px}.section-title h2{font-size:18px;margin:0;color:var(--ink)}.section-title span{font-size:11px;color:#7A8982}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.module{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;min-height:155px;text-decoration:none;color:inherit;position:relative;overflow:hidden;transition:.18s}.module:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(23,62,53,.09)}.module:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sage)}.module .ico{width:38px;height:38px;border-radius:12px;background:var(--mint);display:grid;place-items:center;font-size:19px}.module h3{font-size:14px;margin:14px 0 6px}.module p{font-size:11px;line-height:1.5;color:#74847C;margin:0}.module b{position:absolute;right:15px;bottom:13px;color:#6B9B85}
+.bottom{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;margin-top:28px}.attention,.agenda{background:#fff;border:1px solid var(--line);border-radius:20px;padding:21px}.attention{background:linear-gradient(145deg,#173E35,#275E50);color:#fff}.attention h2,.agenda h2{font-size:18px;margin:0 0 14px}.alert{display:flex;justify-content:space-between;gap:15px;padding:12px 0;border-top:1px solid rgba(255,255,255,.13);font-size:12px}.alert:first-of-type{border-top:0}.pill{white-space:nowrap;background:rgba(255,210,0,.17);color:#FFE568;padding:5px 8px;border-radius:12px;font-size:10px}.agenda-row{padding:11px 0;border-top:1px solid #EDF1EE;font-size:12px}.agenda-row:first-of-type{border-top:0}.agenda-row b{display:block;color:var(--ink);margin-bottom:3px}.agenda-row span{color:#77867E}
+.note{margin-top:25px;font-size:10px;color:#819087;text-align:center}
+@media(max-width:1050px){.stats,.grid{grid-template-columns:repeat(2,1fr)}.bottom{grid-template-columns:1fr}}
+@media(max-width:720px){header{padding:0 16px}.layout{grid-template-columns:1fr}aside{display:none}main{padding:24px 17px}.stats,.grid{grid-template-columns:1fr}.welcome{display:block}.date{margin-top:12px}}
+
+/* V2 identidad visual */
+header{height:88px;padding:0 34px}
+.official-logo{width:62px;height:62px;object-fit:contain;flex:none}
+.brand{min-width:320px}.brand b{font-size:18px}.brand span{font-size:11px;line-height:1.35}.brand em{display:block;font-size:10px;font-style:normal;color:#7EA894;font-weight:800;margin-top:2px}
+.layout{min-height:calc(100vh - 88px)}
+main{padding-top:27px}
+.institutional-hero{position:relative;overflow:hidden;min-height:230px;border-radius:27px;padding:39px 150px 35px 38px;color:#fff;
+ background:
+ radial-gradient(circle at 88% 18%,rgba(255,210,0,.30),transparent 25%),
+ radial-gradient(circle at 12% 92%,rgba(72,191,160),.32),transparent 29%),
+ linear-gradient(125deg,#173E35 0%,#397865 48%,#1E7FBC 100%);
+ box-shadow:0 18px 38px rgba(23,62,53,.16)}
+.hero-pattern{position:absolute;inset:0;opacity:.15;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='155' height='95' viewBox='0 0 155 95'%3E%3Cg fill='none' stroke='white' stroke-width='1.2'%3E%3Cpath d='M10 19l18-10 18 10-18 10zM28 29v15M70 11h22v27H70zM75 18h12M111 11l19 14-19 14zM18 68h29M25 59v18M68 63c12-15 27-15 39 0M121 62c10 0 14 14 3 18-11 3-17-14-3-18zM139 56l7 7-7 7-7-7z'/%3E%3C/g%3E%3C/svg%3E");background-repeat:repeat}
+.hero-copy{position:relative;z-index:2;max-width:760px}.institutional-hero .eyebrow{color:#C6FBF5}.institutional-hero h1{font-size:38px;margin:7px 0 8px;color:#fff}.institutional-hero p{margin:0;color:#ECF8F3;line-height:1.55}
+.hero-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:19px}.hero-tags span{font-size:10px;font-weight:850;padding:7px 9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.11);border-radius:18px}
+.hero-mark{position:absolute;right:37px;top:50%;transform:translateY(-50%) rotate(6deg);width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.72);outline:1px dashed rgba(255,255,255,.55);outline-offset:6px;display:grid;place-items:center;font-size:28px;font-weight:900;color:#fff;background:rgba(22,75,59,.18)}
+.future{background:linear-gradient(145deg,#fff,#F4FAF7)}.future-tag{position:absolute;right:12px;top:13px;font-size:8px;letter-spacing:.1em;font-weight:900;color:#0F2D52;background:#FFD200;padding:5px 7px;border-radius:10px}
+@media(max-width:720px){header{height:auto;min-height:88px}.brand{min-width:0}.official-logo{width:54px;height:54px}.institutional-hero{padding:31px 25px 135px}.hero-mark{top:auto;bottom:28px;right:50%;transform:translateX(50%) rotate(6deg)}}
+
+
+.sige-action{margin:22px 0 8px;background:linear-gradient(115deg,#fff,#EFF8F4);border:1px solid #CFE0D7;border-left:6px solid #19C2D1;border-radius:20px;padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 8px 25px rgba(23,62,53,.06)}
+.sige-action h2{margin:4px 0 5px;font-size:18px;color:#173E35}.sige-action p{margin:0;font-size:11px;color:#718078}.sige-kicker{font-size:9px;letter-spacing:.14em;font-weight:900;color:#1E7FBC}.sige-buttons{display:flex;gap:8px;flex-wrap:wrap}.sige-buttons a{text-decoration:none;background:#173E35;color:#fff;padding:11px 13px;border-radius:12px;font-size:11px;font-weight:850;white-space:nowrap}.sige-buttons .secondary{background:#E2F2EA;color:#173E35}
+.module .ico{color:#315F51}.module .ico svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:850px){.sige-action{display:block}.sige-buttons{margin-top:15px}}
+
+/* V5 iconografía oficializada para el lenguaje visual Material Educativo Chile */
+.module .brand-icon{position:relative;width:48px;height:48px;border-radius:15px;display:grid;place-items:center;
+ background:linear-gradient(145deg,#F4FAFF,#E8F7F4);border:1px solid rgba(35,134,107),.20);
+ box-shadow:inset 0 -2px 0 rgba(72,191,160),.10),0 6px 14px rgba(22,75,59,.06);color:#0F2D52}
+.module .brand-icon svg{width:28px;height:28px;fill:none;stroke:#0F2D52;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.module .brand-icon:before{content:"";position:absolute;left:0;top:0;width:5px;height:100%;border-radius:15px 0 0 15px;background:#19C2D1}
+.module .brand-icon .accent-dot{position:absolute;width:8px;height:8px;border-radius:50%;right:-2px;top:-2px;background:#FFD200;border:2px solid #fff}
+.module:nth-of-type(3n+2) .brand-icon{background:linear-gradient(145deg,#F8FAFF,#EEF1FF)}
+.module:nth-of-type(3n+2) .brand-icon:before{background:#1E7FBC}
+.module:nth-of-type(3n) .brand-icon{background:linear-gradient(145deg,#FFFDF1,#F3FAF7)}
+.module:hover .brand-icon{transform:translateY(-2px);transition:.18s ease}
+.user .bell-icon{position:relative;width:39px;height:39px;border-radius:50%;display:grid;place-items:center;text-decoration:none;background:#F0F7F3;border:1px solid #D8E6DE;font-size:18px;flex:0 0 auto}.user .bell-icon:after{content:"3";position:absolute;right:-4px;top:-5px;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:#FFD200;color:#0F2D52;font:900 9px Arial;border:2px solid #fff}.task{grid-template-columns:74px minmax(0,1fr) minmax(110px,max-content)!important}.task>div:nth-child(2){min-width:0}.task>a,.task>button,.task>span{justify-self:end;white-space:nowrap}.badge{display:inline-flex!important;align-items:center;white-space:nowrap;line-height:1.2;min-height:24px;box-sizing:border-box}.case-table{overflow-x:auto}.case-table table{min-width:950px}.case-table th,.case-table td{padding:13px 14px!important}.case-table td:last-child{min-width:120px}@media(max-width:720px){.task{grid-template-columns:60px minmax(0,1fr)!important}.task>a,.task>button,.task>span{grid-column:2;justify-self:start}}.user{gap:10px!important}.user .bell-icon{order:8;margin-left:8px}.user .avatar{order:9}.user>div:not(.avatar){order:7}</style></head>
+<body>
+<header>
+ <div class="brand"><img class="official-logo" src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span><em>Solución digital institucional</em></div></div>
+ <div class="user"><div><b>Equipo de Convivencia</b><br><span>Administrador establecimiento</span></div><a class="bell-icon" href="notificaciones.html" title="Centro de notificaciones" aria-label="Centro de notificaciones">🔔</a><div class="avatar">EC</div></div>
+</header>
+<div class="layout">
+<aside>
+ <div class="year">AÑO ESCOLAR 2026</div>
+ <nav class="nav">
+  <a class="active" href="#"><i>⌂</i>Inicio</a>
+  <a href="diagnostico.html"><i>◎</i>Diagnóstico</a>
+  <a href="#"><i>◉</i>Casos y seguimiento</a>
+  <a href="#"><i>◇</i>Intervenciones</a>
+  <a href="#"><i>▦</i>Plan de Gestión</a>
+  <a href="#"><i>▤</i>Protocolos</a>
+  <a href="#"><i>✓</i>Encuestas</a>
+  <a href="#"><i>▥</i>Reportes</a>
+  <a href="#"><i>□</i>Recursos</a>
+  <a href="mis-tareas.html"><i>✓</i>Mis tareas</a><a href="notificaciones.html"><i>◌</i>Notificaciones</a><a href="usuarios.html"><i>♙</i>Usuarios y roles</a><a href="matricula.html"><i>▦</i>Matrícula y accesos</a><a href="#"><i>⚙</i>Configuración</a>
+ </nav>
+</aside>
+<main>
+ <section class="institutional-hero">
+  <div class="hero-pattern" aria-hidden="true"></div>
+  <div class="hero-copy"><div class="eyebrow">PANEL INSTITUCIONAL</div><h1>Convivencia Escolar</h1><p>Una visión integral para prevenir, intervenir, acompañar y hacer seguimiento.</p>
+  <div class="hero-tags"><span>Prevención</span><span>Intervención</span><span>Seguimiento</span><span>Gestión institucional</span></div></div>
+  <div class="hero-mark">CE</div>
+ </section>
+
+ <section class="sige-action">
+<div><span class="sige-kicker">MATRÍCULA Y ACCESOS</span><h2>Subir matrícula SIGE y gestionar estudiantes</h2><p>Carga hasta 20 archivos, revisa la matrícula, administra cursos, estudiantes y claves de acceso.</p></div>
+<div class="sige-buttons"><a href="matricula.html">Subir matrícula SIGE →</a><a class="secondary" href="estudiantes.html">Seguimiento de matrícula</a></div>
+</section>
+<section class="sige-action" style="border-left-color:#FFD200"><div><span class="sige-kicker">GESTIÓN DEL EQUIPO</span><h2>Asignaciones, tareas y notificaciones</h2><p>Coordina talleres, entrevistas, derivaciones y seguimientos. Cada responsable recibe su tarea en plataforma y aviso por correo.</p></div><div class="sige-buttons"><a href="mis-tareas.html">Ver mis tareas →</a><a class="secondary" href="usuarios.html">Usuarios y roles</a></div></section>
+<section class="stats">
+  <div class="stat"><small>Casos activos</small><strong>12</strong><em>Requieren seguimiento</em></div>
+  <div class="stat"><small>Seguimientos pendientes</small><strong>5</strong><em>2 con prioridad</em></div>
+  <div class="stat"><small>Acciones del mes</small><strong>8</strong><em>Plan de Gestión</em></div>
+  <div class="stat"><small>Participación diagnóstica</small><strong>76%</strong><em>Comunidad educativa</em></div>
+ </section>
+
+ <div class="section-title"><h2>Gestión de la convivencia</h2><span>Accesos principales</span></div>
+ <section class="grid">
+  <a class="module" href="diagnostico.html"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><path d="M8 30V18M16 30V11M24 30V21M32 30V7"/><path d="M7 33h27"/></svg><span class="accent-dot"></span></div><h3>Diagnóstico institucional</h3><p>Encuestas, resultados, indicadores y necesidades detectadas.</p><b>→</b></a>
+  <a class="module" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><path d="M9 6h17l5 5v23H9z"/><path d="M26 6v7h7M14 18h12M14 24h8"/><circle cx="28" cy="28" r="5"/><path d="M28 25v6M25 28h6"/></svg><span class="accent-dot"></span></div><h3>Casos y seguimiento</h3><p>Registro de casos vinculado a los protocolos propios del establecimiento, sus plazos, responsables, medidas y trazabilidad.</p><b>→</b></a>
+  <a class="module" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><circle cx="20" cy="12" r="5"/><circle cx="10" cy="18" r="4"/><circle cx="30" cy="18" r="4"/><path d="M12 33c0-7 3-11 8-11s8 4 8 11M4 32c0-5 2-8 6-8M36 32c0-5-2-8-6-8"/></svg><span class="accent-dot"></span></div><h3>Intervenciones</h3><p>Acciones individuales, grupales, cursos y comunidad educativa.</p><b>→</b></a>
+  <a class="module" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><rect x="8" y="8" width="24" height="26" rx="4"/><path d="M14 5v7M26 5v7M13 18l3 3 6-7M13 28h14"/></svg><span class="accent-dot"></span></div><h3>Plan de Gestión</h3><p>Planificación, responsables, fechas, evidencias y cumplimiento.</p><b>→</b></a>
+  <a class="module" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><path d="M10 5h15l6 6v24H10z"/><path d="M25 5v8h8M15 19h11M15 25h11M15 31h7"/></svg><span class="accent-dot"></span></div><h3>Protocolos</h3><p>Carga de protocolos institucionales, activaciones, actuaciones, plazos y seguimiento asociado a cada caso.</p><b>→</b></a>
+  <a class="module" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><rect x="8" y="6" width="24" height="29" rx="4"/><path d="M14 15l3 3 6-7M14 26h12"/></svg><span class="accent-dot"></span></div><h3>Encuestas</h3><p>Salud mental, bullying, resolución pacífica de conflictos, señales de riesgo, alcohol y drogas, entre otros instrumentos.</p><b>→</b></a>
+  <a class="module" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><path d="M7 34h27M11 30V20h6v10M20 30V9h6v21M29 30V15h6v15"/></svg><span class="accent-dot"></span></div><h3>Reportes</h3><p>Informes, tendencias, seguimiento y respaldo de gestión.</p><b>→</b></a>
+  <a class="module" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><path d="M6 11l14-6 14 6v23l-14-6-14 6z"/><path d="M20 5v23M6 11l14 6 14-6"/></svg><span class="accent-dot"></span></div><h3>Recursos</h3><p>Materiales de apoyo para prevención e intervención educativa.</p><b>→</b></a>
+  <a class="module future" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15"/><path d="M11 24l6-7 5 4 8-11M11 30h19"/></svg><span class="accent-dot"></span></div><div class="future-tag">PRÓXIMAMENTE</div><h3>Indicadores de Desarrollo Personal y Social</h3><p>Integración con diagnóstico, resultados e intervención asociada a IDPS.</p><b>→</b></a>
+ </section>
+
+ <section class="bottom">
+  <div class="attention"><h2>¿Qué requiere atención?</h2>
+   <div class="alert"><span>Seguimiento de caso pendiente de actualización</span><span class="pill">Prioridad</span></div>
+   <div class="alert"><span>2 acciones del Plan de Gestión próximas a vencer</span><span class="pill">Esta semana</span></div>
+   <div class="alert"><span>Encuesta de convivencia con participación incompleta</span><span class="pill">76%</span></div>
+  </div>
+  <div class="agenda"><h2>Próximas acciones</h2>
+   <div class="agenda-row"><b>Taller preventivo · 8° básico</b><span>Actividad programada · Plan de Gestión</span></div>
+   <div class="agenda-row"><b>Revisión de seguimiento</b><span>Equipo de Convivencia Escolar</span></div>
+   <div class="agenda-row"><b>Cierre de encuesta institucional</b><span>Participación de la comunidad educativa</span></div>
+  </div>
+ </section>
+ <div class="note">MAQUETA FUNCIONAL DE DISEÑO · Los datos son demostrativos. No modifica ni comparte código con la plataforma de Orientación Vocacional.</div>
+</main></div>
+</body></html>

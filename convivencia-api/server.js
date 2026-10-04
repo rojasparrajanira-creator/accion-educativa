@@ -5,23 +5,19 @@ const {Pool}=require('pg');
 const app=express();
 app.use(express.json());
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:false});
-
-async function initDatabase(){
-  if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL no configurada');
-  const schema=fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8');
-  await pool.query(schema);
-  const check=await pool.query("select current_database() as database, now() as time");
-  console.log('Convivencia DB connected:',check.rows[0].database);
-}
-app.get('/health',async(req,res)=>{
-  try{
-    const q=await pool.query("select current_database() as database, now() as time");
-    res.json({ok:true,service:'convivencia-escolar-api',database:true,databaseName:q.rows[0].database,time:q.rows[0].time});
-  }catch(e){
-    console.error('Health DB error:',e.message);
-    res.status(500).json({ok:false,service:'convivencia-escolar-api',database:false,error:'database_connection_failed'});
-  }
-});
-app.get('/api/status',(req,res)=>res.json({ok:true,module:'convivencia-escolar',isolation:'independent'}));
+async function initDatabase(){if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL no configurada');await pool.query(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));const q=await pool.query("select current_database() database");console.log('Convivencia DB connected:',q.rows[0].database);}
+const ok=(res,data)=>res.json({ok:true,...data});
+app.get('/health',async(req,res)=>{try{const q=await pool.query("select current_database() database,now() time");ok(res,{service:'convivencia-escolar-api',database:true,...q.rows[0]})}catch(e){res.status(500).json({ok:false,database:false})}});
+app.get('/api/status',(req,res)=>ok(res,{module:'convivencia-escolar',isolation:'independent'}));
+app.post('/api/establishments',async(req,res)=>{try{const {name,rbd}=req.body;if(!name)return res.status(400).json({ok:false,error:'name_required'});const q=await pool.query('insert into establishments(name,rbd) values($1,$2) on conflict(rbd) do update set name=excluded.name returning *',[name,rbd||null]);ok(res,{establishment:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.get('/api/establishments',async(req,res)=>{const q=await pool.query('select * from establishments order by name');ok(res,{establishments:q.rows})});
+app.post('/api/courses',async(req,res)=>{try{const {establishment_id,name,school_year}=req.body;const q=await pool.query('insert into courses(establishment_id,name,school_year) values($1,$2,$3) returning *',[establishment_id,name,school_year]);ok(res,{course:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.get('/api/courses',async(req,res)=>{const q=await pool.query('select c.*,e.name establishment from courses c join establishments e on e.id=c.establishment_id order by c.school_year desc,c.name');ok(res,{courses:q.rows})});
+app.post('/api/students',async(req,res)=>{try{const {establishment_id,course_id,rut,name}=req.body;const q=await pool.query('insert into students(establishment_id,course_id,rut,name) values($1,$2,$3,$4) returning *',[establishment_id,course_id,rut||null,name]);ok(res,{student:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.get('/api/students',async(req,res)=>{const q=await pool.query('select s.*,c.name course from students s left join courses c on c.id=s.course_id order by s.name');ok(res,{students:q.rows})});
+app.post('/api/measurements',async(req,res)=>{try{const {establishment_id,code,school_year}=req.body;const q=await pool.query('insert into measurements(establishment_id,code,school_year) values($1,$2,$3) on conflict(establishment_id,code,school_year) do update set status=measurements.status returning *',[establishment_id,code,school_year]);ok(res,{measurement:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.post('/api/applications',async(req,res)=>{try{const {measurement_id,student_id,survey_level}=req.body;const q=await pool.query('insert into survey_applications(measurement_id,student_id,survey_level) values($1,$2,$3) returning *',[measurement_id,student_id,survey_level]);ok(res,{application:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.post('/api/applications/:id/responses',async(req,res)=>{const client=await pool.connect();try{await client.query('begin');for(const x of (req.body.responses||[])){await client.query('insert into responses(application_id,item_code,value) values($1,$2,$3) on conflict(application_id,item_code) do update set value=excluded.value',[req.params.id,x.item_code,x.value])}await client.query("update survey_applications set status='completed',completed_at=now() where id=$1",[req.params.id]);await client.query('commit');ok(res,{application_id:Number(req.params.id),saved:(req.body.responses||[]).length,status:'completed'})}catch(e){await client.query('rollback');res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+app.get('/api/applications/:id/results',async(req,res)=>{const a=await pool.query('select a.*,s.name student,c.name course,m.code measurement from survey_applications a join students s on s.id=a.student_id left join courses c on c.id=s.course_id join measurements m on m.id=a.measurement_id where a.id=$1',[req.params.id]);if(!a.rowCount)return res.status(404).json({ok:false,error:'not_found'});const r=await pool.query('select item_code,value from responses where application_id=$1 order by item_code',[req.params.id]);ok(res,{application:a.rows[0],responses:r.rows})});
 const port=process.env.PORT||3000;
-initDatabase().then(()=>app.listen(port,()=>console.log('Convivencia API ready with PostgreSQL'))).catch(e=>{console.error('Convivencia startup failed:',e.message);process.exit(1);});
+initDatabase().then(()=>app.listen(port,()=>console.log('Convivencia API ready with PostgreSQL'))).catch(e=>{console.error('Convivencia startup failed:',e.message);process.exit(1)});

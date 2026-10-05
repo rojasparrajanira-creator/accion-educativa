@@ -2,7 +2,7 @@
 const standard=[['Nunca',1],['Casi nunca',2],['A veces',3],['Casi siempre',4],['Siempre',5]];
 const frequency=[['Nunca',1],['Una vez',2],['Algunas veces',3],['Muchas veces',4]];
 const likely=[['Nada probable',1],['Poco probable',2],['Algo probable',3],['Bastante probable',4],['Muy probable',5]];
-const base=[...A.core.map(x=>({code:x[0],text:x[2],scale:standard})),...A.experience.map(x=>({code:x[0],text:x[1],scale:frequency})),...A.peer.map(x=>({code:x[0],text:x[1],scale:standard})),...A.wellbeing.map(x=>({code:x[0],text:x[1],scale:standard})),...A.scenarios.map(x=>({code:x[0],text:x[1],scale:likely}))];
+const base=[...A.core.map(x=>({code:x[0],text:x[2],scale:standard})),...A.experience.map(x=>({code:x[0],text:x[1],scale:frequency})),...A.autonomy.map(x=>({code:x[0],text:x[1],scale:standard})),...A.wellbeing.map(x=>({code:x[0],text:x[1],scale:standard})),...A.scenarios.map(x=>({code:x[0],text:x[1],scale:likely}))];
 let digital=null,idx=0,submitting=false;const KEY='mec12m_'+(MECSurvey.applicationId||'sin_app'),META=KEY+'_meta';
 try{Object.assign(answers,JSON.parse(sessionStorage.getItem(KEY)||'{}'));const m=JSON.parse(sessionStorage.getItem(META)||'{}');if(typeof m.digital==='boolean')digital=m.digital;if(Number.isInteger(m.idx)&&m.idx>=0)idx=m.idx}catch(e){}
 const persist=()=>{try{sessionStorage.setItem(KEY,JSON.stringify(answers));sessionStorage.setItem(META,JSON.stringify({idx,digital}))}catch(e){}};

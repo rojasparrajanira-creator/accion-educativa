@@ -30,6 +30,14 @@ app.post('/api/applications',async(req,res)=>{try{const {measurement_id,student_
 app.get('/api/students/:id/applications',async(req,res)=>{try{const q=await pool.query("select a.id,a.survey_level,a.status,a.started_at,a.completed_at,m.code measurement,m.school_year from survey_applications a join measurements m on m.id=a.measurement_id where a.student_id=$1 order by m.school_year,m.code",[req.params.id]);ok(res,{applications:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.post('/api/applications/:id/responses',async(req,res)=>{const client=await pool.connect();try{const responses=req.body.responses;if(!Array.isArray(responses)||!responses.length)throw new Error('responses_required');const a=await client.query('select survey_level,status from survey_applications where id=$1',[req.params.id]);if(!a.rowCount)throw new Error('application_not_found');const level=a.rows[0].survey_level;if(a.rows[0].status==='completed')throw new Error('application_already_completed');
 const manifests={
+'1-2':{
+required:['D01_01','D02_01','D03_01','D04_01','D05_01','D06_01','D07_01','D08_01','D09_01','D10_01','D11_01','D12_01','D13_01','D14_01','D15_01','D16_01','D01_02','D02_02','D08_02','D13_02',...Array.from({length:7},(_,i)=>'EXP_'+String(i+1).padStart(2,'0')),'OBS_01','OBS_02'],
+digital:['DIG_01','DIG_02','DIG_03']
+},
+'3-4':{
+required:[...Array.from({length:16},(_,i)=>'D'+String(i+1).padStart(2,'0')+'_01'),'D01_02','D02_02','D03_02','D05_02','D07_02','D08_02','D09_02','D13_02',...Array.from({length:9},(_,i)=>'EXP_'+String(i+1).padStart(2,'0')),'OBS_01','OBS_02','OBS_03','OBS_04'],
+digital:Array.from({length:5},(_,i)=>'DIG_'+String(i+1).padStart(2,'0'))
+},
 '5-6':{
 required:[...Array.from({length:16},(_,i)=>'D'+String(i+1).padStart(2,'0')+'_01'),'D01_02','D02_02','D03_02','D04_02','D05_02','D06_02','D07_02','D08_02','D09_02','D10_02','D13_02','D14_02',...Array.from({length:10},(_,i)=>'EXP_'+String(i+1).padStart(2,'0')),'PRO_01','PRO_02','PRO_03','BIE_01','BIE_02','BIE_03','ESC_01','ESC_02','ESC_03'],
 digital:Array.from({length:6},(_,i)=>'DIG_'+String(i+1).padStart(2,'0'))

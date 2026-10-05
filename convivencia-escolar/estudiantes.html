@@ -49,7 +49,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padd
 <body><header><div class="brand"><img class="official-logo" src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span><em>Solución digital institucional</em></div></div><div class="user"><div><b>Equipo de Convivencia</b><br><span>Administrador establecimiento</span></div><a class="bell-icon" href="notificaciones.html" title="Centro de notificaciones" aria-label="Centro de notificaciones">🔔</a><div class="avatar">EC</div></div></header>
 <div class="layout"><aside><div class="year">AÑO ESCOLAR 2026</div><nav class="nav"><a class="" href="inicio.html"><i>⌂</i>Inicio</a><a class="active" href="estudiantes.html"><i>▦</i>Matrícula y accesos</a><a class="" href="asignar-encuestas.html"><i>✓</i>Encuestas</a><a class="" href="diagnostico.html"><i>◎</i>Diagnóstico</a><span class="nav-pending"><i>◉</i>Casos y seguimiento · Próximamente</span><a class="" href="pgce-panel.html"><i>◇</i>Intervenciones</a><span class="nav-pending"><i>▤</i>Protocolos · Próximamente</span><a class="" href="resultados.html"><i>▥</i>Reportes</a></nav></aside><main class="page"><div class="topline"><div><div class="eyebrow">MATRÍCULA Y ACCESOS</div><h1>Estudiantes</h1><p>Administración de matrícula, PIE, datos básicos, altas, retiros y accesos.</p></div><a class="btn soft" href="inicio.html">← Inicio</a></div>
 <div class="tabs"><a class="on" href="estudiantes.html">Estudiantes</a><a href="cursos.html">Cursos</a><a href="solicitar-clave.html">Solicitar clave</a><a href="cambiar-clave.html">Cambiar clave</a></div>
-<section class="card"><div class="row" style="justify-content:space-between"><div class="row"><input id="buscar-estudiante" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Buscar por nombre o RUN"><select id="filtro-curso" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los cursos</option></select></div><button class="btn primary" id="show-add-student" type="button">+ Agregar estudiante</button></div><div style="overflow:auto;margin-top:16px"><table><tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th></tr><tr><td colspan="4">Cargando estudiantes registrados…</td></tr></table></div></section>
+<section class="card"><div class="row" style="justify-content:space-between"><div class="row"><input id="buscar-estudiante" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Buscar por nombre o RUN"><select id="filtro-curso" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los cursos</option></select><select id="filtro-estado" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los estados</option><option value="active">Activos</option><option value="inactive">Retirados</option></select></div><button class="btn primary" id="show-add-student" type="button">+ Agregar estudiante</button></div><div style="overflow:auto;margin-top:16px"><table><tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th><th>Acción</th></tr><tr><td colspan="5">Cargando estudiantes registrados…</td></tr></table></div></section>
 <section class="card" style="margin-top:16px">
 <h3>Carga masiva desde SIGE / Excel</h3>
 <p style="font-size:12px;color:#718078">Selecciona hasta 20 archivos .xlsx o .csv. Primero se realizará una revisión; ningún estudiante se guardará hasta que confirmes la importación.</p>
@@ -97,6 +97,7 @@ const qs=new URLSearchParams(location.search);
 const eid=Number(qs.get('establishment_id')||0);
 const table=document.querySelector('table:not(#bulk-table)');
 const filter=document.getElementById('filtro-curso');
+const statusFilter=document.getElementById('filtro-estado');
 const search=document.getElementById('buscar-estudiante');
 const formCard=document.getElementById('student-form-card');
 const courseSelect=document.getElementById('student-course');
@@ -128,23 +129,33 @@ function buildRow(s){
     const td=document.createElement('td');td.textContent=value;tr.appendChild(td);
   }
   const td=document.createElement('td');
-  const badge=document.createElement('span');badge.className='status';badge.textContent=s.active?'Activo':'Inactivo';
+  const badge=document.createElement('span');badge.className='status';badge.textContent=s.active?'Activo':'Retirado';
   td.appendChild(badge);tr.appendChild(td);
+
+  const action=document.createElement('td');
+  const btn=document.createElement('button');
+  btn.type='button';
+  btn.className='btn soft';
+  btn.textContent=s.active?'Retirar':'Reactivar';
+  btn.addEventListener('click',()=>changeStudentStatus(s));
+  action.appendChild(btn);
+  tr.appendChild(action);
   return tr;
 }
 function render(){
   table.replaceChildren();
   const head=document.createElement('tr');
-  ['Estudiante','RUN','Curso','Estado'].forEach(t=>{const th=document.createElement('th');th.textContent=t;head.appendChild(th)});
+  ['Estudiante','RUN','Curso','Estado','Acción'].forEach(t=>{const th=document.createElement('th');th.textContent=t;head.appendChild(th)});
   table.appendChild(head);
-  const term=search.value.trim().toLowerCase(),courseId=Number(filter.value||0);
+  const term=search.value.trim().toLowerCase(),courseId=Number(filter.value||0),state=statusFilter.value;
   const visible=students.filter(s=>{
     const matchText=!term||String(s.name||'').toLowerCase().includes(term)||String(s.rut||'').toLowerCase().includes(term);
     const matchCourse=!courseId||Number(s.course_id)===courseId;
-    return matchText&&matchCourse;
+    const matchState=!state||(state==='active'?s.active:!s.active);
+    return matchText&&matchCourse&&matchState;
   });
   if(!visible.length){
-    const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent='No hay estudiantes que coincidan con los filtros.';tr.appendChild(td);table.appendChild(tr);return;
+    const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='No hay estudiantes que coincidan con los filtros.';tr.appendChild(td);table.appendChild(tr);return;
   }
   visible.forEach(s=>table.appendChild(buildRow(s)));
 }
@@ -158,7 +169,7 @@ function fillCourses(){
 }
 async function loadData(){
   if(!eid){
-    table.innerHTML='<tr><td colspan="4">Falta el contexto del establecimiento.</td></tr>';
+    table.innerHTML='<tr><td colspan="5">Falta el contexto del establecimiento.</td></tr>';
     document.getElementById('show-add-student').disabled=true;
     document.getElementById('bulk-preview').disabled=true;
     return;
@@ -176,7 +187,7 @@ async function loadData(){
     document.getElementById('save-student').disabled=!courses.length;
     if(!courses.length)formStatus.textContent='Puedes crear cursos manualmente o mediante la carga masiva.';
   }catch(e){
-    table.innerHTML='<tr><td colspan="4">No fue posible cargar la matrícula del establecimiento.</td></tr>';
+    table.innerHTML='<tr><td colspan="5">No fue posible cargar la matrícula del establecimiento.</td></tr>';
   }
 }
 function pill(text){
@@ -227,8 +238,25 @@ function renderBulkPreview(data){
   document.getElementById('bulk-commit').disabled=!bulkRows.length;
   bulkReview.style.display='block';
 }
+async function changeStudentStatus(s){
+  const next=!s.active;
+  if(!next&&!confirm('¿Confirmas el retiro de '+s.name+'? Su historial de encuestas e informes se conservará.'))return;
+  try{
+    const r=await fetch(API+'/api/students/'+encodeURIComponent(s.id)+'/status',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({establishment_id:eid,active:next})
+    });
+    const d=await r.json();
+    if(!r.ok||!d.ok)throw new Error(d.error||'status_failed');
+    await loadData();
+  }catch(e){
+    formStatus.textContent='No fue posible cambiar el estado del estudiante.';
+  }
+}
 search.addEventListener('input',render);
 filter.addEventListener('change',render);
+statusFilter.addEventListener('change',render);
 document.getElementById('show-add-student').addEventListener('click',()=>{
   formCard.style.display=formCard.style.display==='none'?'block':'none';
 });

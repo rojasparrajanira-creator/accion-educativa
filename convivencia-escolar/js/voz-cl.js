@@ -21,12 +21,12 @@
     if(!isSpanish(v)) return -1000;
     let s=0;
     const female=isFemaleName(v.name), male=isMaleName(v.name);
-    if(isChile(v)) s+=100;
-    else if(isLatam(v)) s+=55;
-    else if(isSpain(v)) s-=45;
-    else s+=15;
-    if(female) s+=85;
-    if(male) s-=90;
+    if(isChile(v)) s+=120;
+    else if(isLatam(v)) s+=65;
+    else if(isSpain(v)) s-=120;
+    else s+=10;
+    if(female) s+=90;
+    if(male) s-=100;
     if(v.localService) s+=4;
     if(/natural|premium|enhanced|neural|siri/i.test(v.name||'')) s+=12;
     return s;
@@ -40,24 +40,41 @@
   function chooseVoice(){
     const voices=refreshVoices().filter(isSpanish);
     if(!voices.length) return null;
-    return voices.slice().sort((a,b)=>score(b)-score(a))[0]||null;
+    const nonSpain=voices.filter(v=>!isSpain(v));
+    const pool=nonSpain.length?nonSpain:voices;
+    return pool.slice().sort((a,b)=>score(b)-score(a))[0]||null;
   }
   function supported(){
     return 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  }
+  function speakNow(clean,voice){
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(clean);
+    u.lang='es-CL';
+    u.rate=0.93;
+    u.pitch=1.02;
+    u.volume=1;
+    if(voice) u.voice=voice;
+    window.speechSynthesis.speak(u);
   }
   function speak(text){
     if(!supported()) return false;
     const clean=String(text||'').trim();
     if(!clean) return false;
-    window.speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(clean);
-    u.lang='es-CL';
-    u.rate=0.93;
-    u.pitch=1.04;
-    u.volume=1;
-    const voice=chooseVoice();
-    if(voice) u.voice=voice;
-    window.speechSynthesis.speak(u);
+    const first=chooseVoice();
+    if(first){
+      speakNow(clean,first);
+      return true;
+    }
+    let tries=0;
+    const retry=()=>{
+      const voice=chooseVoice();
+      if(voice){speakNow(clean,voice);return}
+      tries++;
+      if(tries<8)setTimeout(retry,120);
+      else speakNow(clean,null);
+    };
+    setTimeout(retry,80);
     return true;
   }
   if(supported()){

@@ -53,3 +53,5 @@ CREATE TABLE IF NOT EXISTS measurement_settings(
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
  CHECK(end_date >= start_date)
 );
+
+ALTER TABLE students ADD COLUMN IF NOT EXISTS withdrawn_at TIMESTAMPTZ;

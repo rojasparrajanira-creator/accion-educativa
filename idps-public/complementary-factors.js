@@ -99,15 +99,22 @@
       const saveDraft=async()=>{
         const core=[...Array(30)].map((_,i)=>{const x=form.querySelector(`input[name="q${i}"]:checked`);return x?Number(x.value):null;});
         const extra=[...Array(15)].map((_,i)=>{const x=form.querySelector(`input[name="c${i}"]:checked`);return x?Number(x.value):null;});
+        const payload=[...core,...extra];
+        try{localStorage.setItem('idps_draft_'+(student?.rut||'session'),JSON.stringify(payload));}catch(_){}
         try{
           const token=sessionStorage.getItem('idps_student_session')||'';
           if(!token)return;
-          await fetch('https://idps-gestion-material-educativo.onrender.com/api/student/draft',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({answers:[...core,...extra]})});
+          const r=await fetch('https://idps-gestion-material-educativo.onrender.com/api/student/draft',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({answers:payload})});
+          if(!r.ok)throw new Error('HTTP '+r.status);
         }catch(e){console.warn('Guardado automático pendiente',e);}
       };
-      const draft=Array.isArray(window.idpsServerDraft)?window.idpsServerDraft:[];
+      window.idpsSaveDraft=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(saveDraft,180);};
+      let draft=Array.isArray(window.idpsServerDraft)?window.idpsServerDraft:[];
+      if(!draft.some(v=>Number(v)>=1&&Number(v)<=4)){try{const local=JSON.parse(localStorage.getItem('idps_draft_'+(student?.rut||'session'))||'[]');if(Array.isArray(local))draft=local;}catch(_){}}
+      window.idpsServerDraft=draft;
+      for(let i=0;i<30;i++){const v=Number(draft[i]);if(v>=1&&v<=4){const x=form.querySelector(`input[name="q${i}"][value="${v}"]`);if(x){x.checked=true;if(Array.isArray(answers))answers[i]=v;}}}
       for(let i=0;i<15;i++){const v=Number(draft[30+i]);if(v>=1&&v<=4){const x=form.querySelector(`input[name="c${i}"][value="${v}"]`);if(x)x.checked=true;}}
-      qs.addEventListener('change',()=>{setTimeout(refresh,0);clearTimeout(saveTimer);saveTimer=setTimeout(saveDraft,250);});
+      qs.addEventListener('change',()=>{setTimeout(refresh,0);window.idpsSaveDraft();});
       refresh();
     };
 

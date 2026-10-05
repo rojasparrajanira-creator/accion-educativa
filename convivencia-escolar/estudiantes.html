@@ -49,10 +49,119 @@ table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padd
 <body><header><div class="brand"><img class="official-logo" src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span><em>Solución digital institucional</em></div></div><div class="user"><div><b>Equipo de Convivencia</b><br><span>Administrador establecimiento</span></div><a class="bell-icon" href="notificaciones.html" title="Centro de notificaciones" aria-label="Centro de notificaciones">🔔</a><div class="avatar">EC</div></div></header>
 <div class="layout"><aside><div class="year">AÑO ESCOLAR 2026</div><nav class="nav"><a class="" href="inicio.html"><i>⌂</i>Inicio</a><a class="active" href="estudiantes.html"><i>▦</i>Matrícula y accesos</a><a class="" href="asignar-encuestas.html"><i>✓</i>Encuestas</a><a class="" href="diagnostico.html"><i>◎</i>Diagnóstico</a><span class="nav-pending"><i>◉</i>Casos y seguimiento · Próximamente</span><a class="" href="pgce-panel.html"><i>◇</i>Intervenciones</a><span class="nav-pending"><i>▤</i>Protocolos · Próximamente</span><a class="" href="resultados.html"><i>▥</i>Reportes</a></nav></aside><main class="page"><div class="topline"><div><div class="eyebrow">MATRÍCULA Y ACCESOS</div><h1>Estudiantes</h1><p>Administración de matrícula, PIE, datos básicos, altas, retiros y accesos.</p></div><a class="btn soft" href="inicio.html">← Inicio</a></div>
 <div class="tabs"><a class="on" href="estudiantes.html">Estudiantes</a><a href="cursos.html">Cursos</a><a href="solicitar-clave.html">Solicitar clave</a><a href="cambiar-clave.html">Cambiar clave</a></div>
-<section class="card"><div class="row" style="justify-content:space-between"><div class="row"><input id="buscar-estudiante" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Buscar por nombre o RUN"><select id="filtro-curso" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los cursos</option></select></div><button class="btn primary" type="button">+ Agregar estudiante</button></div><div style="overflow:auto;margin-top:16px"><table><tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th></tr><tr><td colspan="4">Cargando estudiantes registrados…</td></tr></table></div></section>
-<section class="card" style="margin-top:16px"><h3>Gestión de estudiantes</h3><p style="font-size:12px;color:#718078">La edición, retiro y generación de accesos se habilitarán sobre un estudiante efectivamente registrado. Esta pantalla no muestra antecedentes demostrativos como si fueran datos reales.</p></section><script>
+<section class="card"><div class="row" style="justify-content:space-between"><div class="row"><input id="buscar-estudiante" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Buscar por nombre o RUN"><select id="filtro-curso" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los cursos</option></select></div><button class="btn primary" id="show-add-student" type="button">+ Agregar estudiante</button></div><div style="overflow:auto;margin-top:16px"><table><tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th></tr><tr><td colspan="4">Cargando estudiantes registrados…</td></tr></table></div></section>
+<section class="card" id="student-form-card" style="margin-top:16px;display:none">
+<h3>Agregar o actualizar estudiante</h3>
+<p style="font-size:12px;color:#718078">Si el RUN ya existe en este establecimiento, se actualizará el nombre y curso del estudiante.</p>
+<div class="row" style="align-items:end;flex-wrap:wrap">
+  <label style="flex:2;min-width:220px">Nombre completo<input id="student-name" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Nombre y apellidos"></label>
+  <label style="flex:1;min-width:170px">RUN<input id="student-rut" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px" placeholder="12.345.678-9"></label>
+  <label style="flex:1;min-width:180px">Curso<select id="student-course" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px"></select></label>
+  <button class="btn primary" id="save-student" type="button">Guardar estudiante</button>
+</div>
+<p id="student-form-status" style="font-size:12px;color:#718078;margin-bottom:0" role="status" aria-live="polite"></p>
+</section><script>
 const API='https://convivencia-escolar-api.onrender.com';
+const qs=new URLSearchParams(location.search);
+const eid=Number(qs.get('establishment_id')||0);
 const table=document.querySelector('table');
-async function cargarEstudiantes(){try{const r=await fetch(API+'/api/students');const d=await r.json();if(!d.ok)return;table.innerHTML='<tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th></tr>'+d.students.map(s=>'<tr><td>'+s.name+'</td><td>'+(s.rut||'—')+'</td><td>'+(s.course||'—')+'</td><td><span class="status">'+(s.active?'Activo':'Inactivo')+'</span></td></tr>').join('')}catch(e){console.error(e)}}
-cargarEstudiantes();
+const filter=document.getElementById('filtro-curso');
+const search=document.getElementById('buscar-estudiante');
+const formCard=document.getElementById('student-form-card');
+const courseSelect=document.getElementById('student-course');
+const formStatus=document.getElementById('student-form-status');
+let students=[],courses=[];
+
+function preserveContext(){
+  document.querySelectorAll('a[href]').forEach(a=>{
+    const href=a.getAttribute('href');
+    if(!href||href==='#'||href.startsWith('http')||href.startsWith('mailto:'))return;
+    const url=new URL(href,location.href);
+    if(url.origin===location.origin){
+      url.searchParams.set('establishment_id',String(eid));
+      a.href=url.pathname.split('/').pop()+url.search;
+    }
+  });
+}
+function buildRow(s){
+  const tr=document.createElement('tr');
+  for(const value of [s.name,s.rut||'—',s.course||'—']){
+    const td=document.createElement('td');td.textContent=value;tr.appendChild(td);
+  }
+  const td=document.createElement('td');
+  const badge=document.createElement('span');badge.className='status';badge.textContent=s.active?'Activo':'Inactivo';
+  td.appendChild(badge);tr.appendChild(td);
+  return tr;
+}
+function render(){
+  table.replaceChildren();
+  const head=document.createElement('tr');
+  ['Estudiante','RUN','Curso','Estado'].forEach(t=>{const th=document.createElement('th');th.textContent=t;head.appendChild(th)});
+  table.appendChild(head);
+  const term=search.value.trim().toLowerCase(),courseId=Number(filter.value||0);
+  const visible=students.filter(s=>{
+    const matchText=!term||String(s.name||'').toLowerCase().includes(term)||String(s.rut||'').toLowerCase().includes(term);
+    const matchCourse=!courseId||Number(s.course_id)===courseId;
+    return matchText&&matchCourse;
+  });
+  if(!visible.length){
+    const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent='No hay estudiantes que coincidan con los filtros.';tr.appendChild(td);table.appendChild(tr);return;
+  }
+  visible.forEach(s=>table.appendChild(buildRow(s)));
+}
+function fillCourses(){
+  filter.innerHTML='<option value="">Todos los cursos</option>';
+  courseSelect.replaceChildren();
+  courses.forEach(c=>{
+    const o1=document.createElement('option');o1.value=c.id;o1.textContent=c.name;filter.appendChild(o1);
+    const o2=document.createElement('option');o2.value=c.id;o2.textContent=c.name;courseSelect.appendChild(o2);
+  });
+}
+async function loadData(){
+  if(!eid){
+    table.innerHTML='<tr><td colspan="4">Falta el contexto del establecimiento.</td></tr>';
+    document.getElementById('show-add-student').disabled=true;
+    return;
+  }
+  try{
+    const [sr,cr]=await Promise.all([
+      fetch(API+'/api/students?establishment_id='+encodeURIComponent(eid)).then(r=>r.json()),
+      fetch(API+'/api/courses?establishment_id='+encodeURIComponent(eid)).then(r=>r.json())
+    ]);
+    if(!sr.ok||!cr.ok)throw new Error('load_failed');
+    students=sr.students||[];
+    courses=cr.courses||[];
+    fillCourses();
+    render();
+    document.getElementById('save-student').disabled=!courses.length;
+    if(!courses.length)formStatus.textContent='Primero debes crear al menos un curso.';
+  }catch(e){
+    table.innerHTML='<tr><td colspan="4">No fue posible cargar la matrícula del establecimiento.</td></tr>';
+  }
+}
+search.addEventListener('input',render);
+filter.addEventListener('change',render);
+document.getElementById('show-add-student').addEventListener('click',()=>{
+  formCard.style.display=formCard.style.display==='none'?'block':'none';
+});
+document.getElementById('save-student').addEventListener('click',async()=>{
+  const name=document.getElementById('student-name').value.trim();
+  const rut=document.getElementById('student-rut').value.trim();
+  const course_id=Number(courseSelect.value||0);
+  if(!name||!course_id){formStatus.textContent='Completa el nombre y selecciona un curso.';return}
+  formStatus.textContent='Guardando estudiante…';
+  try{
+    const r=await fetch(API+'/api/students',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({establishment_id:eid,course_id,rut,name})});
+    const d=await r.json();
+    if(!r.ok||!d.ok)throw new Error(d.error||'save_failed');
+    document.getElementById('student-name').value='';
+    document.getElementById('student-rut').value='';
+    formStatus.textContent='Estudiante guardado correctamente.';
+    await loadData();
+  }catch(e){
+    formStatus.textContent='No fue posible guardar el estudiante.';
+  }
+});
+preserveContext();
+loadData();
 </script></body></html>

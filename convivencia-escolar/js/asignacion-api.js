@@ -64,14 +64,16 @@ window.MECAssign={
     const root=document.getElementById('pilot-assign');
     if(!root)return;
     const q=new URLSearchParams(location.search);
+    const eid=Number(q.get('establishment_id')||0);
+    if(!eid){root.textContent='Falta el contexto del establecimiento.';return}
     try{
       const [sr,mr]=await Promise.all([
-        fetch(this.API+'/api/students').then(r=>r.json()),
-        fetch(this.API+'/api/measurements').then(r=>r.json())
+        fetch(this.API+'/api/students?establishment_id='+encodeURIComponent(eid)).then(r=>r.json()),
+        fetch(this.API+'/api/measurements?establishment_id='+encodeURIComponent(eid)).then(r=>r.json())
       ]);
-      const eid=Number(q.get('establishment_id')||0);
-      this.students=(sr.students||[]).filter(x=>!eid||Number(x.establishment_id)===eid);
-      const measures=(mr.measurements||[]).filter(x=>!eid||Number(x.establishment_id)===eid);
+      if(!sr.ok||!mr.ok)throw new Error('load_failed');
+      this.students=sr.students||[];
+      const measures=mr.measurements||[];
 
       root.innerHTML=
         '<h3>Asignación de instrumento</h3>'+

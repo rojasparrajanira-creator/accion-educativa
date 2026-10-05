@@ -60,6 +60,18 @@ const pages={
       document.getElementById("intro-message").textContent="El establecimiento todavía no ha habilitado esta medición. Inténtalo nuevamente cuando el equipo responsable confirme su inicio.";
       return;
     }
+    if(d.application.period_state==="scheduled"){
+      tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
+      btn.textContent="Aplicación aún no disponible";
+      document.getElementById("intro-message").textContent="Esta medición estará disponible desde el "+new Date(String(d.application.start_date).slice(0,10)+"T12:00:00").toLocaleDateString("es-CL")+".";
+      return;
+    }
+    if(d.application.period_state==="closed"){
+      tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
+      btn.textContent="Período finalizado";
+      document.getElementById("intro-message").textContent="El período de aplicación de esta medición ya finalizó.";
+      return;
+    }
 
     tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
     const intro=document.getElementById("intro-message");

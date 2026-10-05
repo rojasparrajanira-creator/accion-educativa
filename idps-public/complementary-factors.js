@@ -100,7 +100,7 @@
         const core=[...Array(30)].map((_,i)=>{const x=form.querySelector(`input[name="q${i}"]:checked`);return x?Number(x.value):null;});
         const extra=[...Array(15)].map((_,i)=>{const x=form.querySelector(`input[name="c${i}"]:checked`);return x?Number(x.value):null;});
         const payload=[...core,...extra];
-        try{localStorage.setItem('idps_draft_'+(student?.rut||'session'),JSON.stringify(payload));}catch(_){}
+        try{localStorage.setItem('idps_draft_'+(String((student&&student.rut)||'session').toUpperCase().replace(/[^0-9K]/g,'')),JSON.stringify(payload));}catch(_){}
         try{
           const token=sessionStorage.getItem('idps_student_session')||'';
           if(!token)return;
@@ -110,7 +110,7 @@
       };
       window.idpsSaveDraft=()=>{clearTimeout(saveTimer);saveTimer=setTimeout(saveDraft,180);};
       let draft=Array.isArray(window.idpsServerDraft)?window.idpsServerDraft:[];
-      if(!draft.some(v=>Number(v)>=1&&Number(v)<=4)){try{const local=JSON.parse(localStorage.getItem('idps_draft_'+(student?.rut||'session'))||'[]');if(Array.isArray(local))draft=local;}catch(_){}}
+      if(!draft.some(v=>Number(v)>=1&&Number(v)<=4)){try{const local=JSON.parse(localStorage.getItem('idps_draft_'+(String((student&&student.rut)||'session').toUpperCase().replace(/[^0-9K]/g,'')))||'[]');if(Array.isArray(local))draft=local;}catch(_){}}
       window.idpsServerDraft=draft;
       for(let i=0;i<30;i++){const v=Number(draft[i]);if(v>=1&&v<=4){const x=form.querySelector(`input[name="q${i}"][value="${v}"]`);if(x){x.checked=true;if(Array.isArray(answers))answers[i]=v;}}}
       for(let i=0;i<15;i++){const v=Number(draft[30+i]);if(v>=1&&v<=4){const x=form.querySelector(`input[name="c${i}"][value="${v}"]`);if(x)x.checked=true;}}
@@ -143,7 +143,7 @@
         const r=await fetch('https://idps-gestion-material-educativo.onrender.com/api/student/submit',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({answers,instrument_version:'2026.10-complementary-v1'})});
         const j=await r.json();
         if(!r.ok||!j.ok)throw new Error(j.error||'No fue posible registrar la encuesta.');
-        try{localStorage.removeItem('idps_draft_'+(student?.rut||'session'));}catch(_){}
+        try{localStorage.removeItem('idps_draft_'+(String((student&&student.rut)||'session').toUpperCase().replace(/[^0-9K]/g,'')));}catch(_){}
         window.idpsServerDraft=[];
         if(typeof window.renderResult==='function')window.renderResult(j.result);
         sessionStorage.removeItem('idps_student_session');

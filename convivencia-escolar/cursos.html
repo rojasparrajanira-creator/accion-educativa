@@ -1,4 +1,57 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cursos</title><style>body{font-family:Arial;margin:0;background:#eef9f5;color:#29443d}main{max-width:1000px;margin:32px auto;padding:20px}.card{background:white;border:1px solid #d8ebe4;border-radius:20px;padding:26px}h1{color:#176b5b}</style></head><body><main><section class="card"><small>CONVIVENCIA EDUCATIVA</small><h1>Cursos</h1><p>Administración de cursos del establecimiento.</p><div id="cursos" style="margin-top:20px"></div><script>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cursos</title><style>body{font-family:Arial;margin:0;background:#eef9f5;color:#29443d}main{max-width:1000px;margin:32px auto;padding:20px}.card{background:white;border:1px solid #d8ebe4;border-radius:20px;padding:26px}h1{color:#176b5b}</style></head><body><main>
+<section class="card">
+  <small>CONVIVENCIA EDUCATIVA</small>
+  <h1>Cursos</h1>
+  <p>Administración de cursos del establecimiento activo.</p>
+  <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin-top:18px;align-items:end">
+    <label>Nombre del curso<input id="course-name" placeholder="Ej.: 7° A" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #d8ebe4;border-radius:10px"></label>
+    <label>Año<input id="course-year" type="number" min="2020" max="2100" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #d8ebe4;border-radius:10px"></label>
+    <button id="course-add" style="padding:11px 16px;border:0;border-radius:10px;background:#176B5B;color:white;font-weight:800;cursor:pointer">Agregar curso</button>
+  </div>
+  <p id="course-status" style="color:#61766f;font-size:13px"></p>
+</section>
+<section class="card" style="margin-top:16px">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+    <h2 style="margin:0">Cursos registrados</h2>
+    <a id="students-link" href="estudiantes.html" style="color:#176B5B;font-weight:700">Ver estudiantes →</a>
+  </div>
+  <div id="cursos" style="margin-top:20px">Cargando…</div>
+</section>
+<script>
 const API='https://convivencia-escolar-api.onrender.com';
-fetch(API+'/api/courses').then(r=>r.json()).then(d=>{if(d.ok)document.getElementById('cursos').innerHTML=d.courses.length?d.courses.map(c=>'<div class="card" style="margin-top:12px"><b>'+c.name+'</b><p>Año '+c.school_year+' · '+c.establishment+'</p></div>').join(''):'<p>Aún no hay cursos cargados.</p>'}).catch(()=>document.getElementById('cursos').innerHTML='<p>No fue posible cargar los cursos.</p>');
-</script></section></main></body></html>
+const qs=new URLSearchParams(location.search),eid=Number(qs.get('establishment_id')||0);
+const root=document.getElementById('cursos'),status=document.getElementById('course-status'),year=document.getElementById('course-year');
+year.value=new Date().getFullYear();
+document.getElementById('students-link').href='estudiantes.html?establishment_id='+encodeURIComponent(eid);
+
+function courseCard(x){
+ const d=document.createElement('div');d.className='card';d.style.marginTop='12px';
+ const b=document.createElement('b');b.textContent=x.name;
+ const p=document.createElement('p');p.textContent='Año '+x.school_year;
+ d.append(b,p);return d;
+}
+async function loadCourses(){
+ if(!eid){root.textContent='Falta el contexto del establecimiento.';document.getElementById('course-add').disabled=true;return}
+ try{
+  const r=await fetch(API+'/api/courses?establishment_id='+encodeURIComponent(eid)),d=await r.json();
+  if(!r.ok||!d.ok)throw 0;
+  root.replaceChildren();
+  if(!(d.courses||[]).length){root.textContent='Aún no hay cursos cargados.';return}
+  d.courses.forEach(x=>root.appendChild(courseCard(x)));
+ }catch(e){root.textContent='No fue posible cargar los cursos.'}
+}
+document.getElementById('course-add').addEventListener('click',async()=>{
+ const name=document.getElementById('course-name').value.trim(),school_year=Number(year.value);
+ if(!name||!school_year){status.textContent='Completa nombre y año del curso.';return}
+ status.textContent='Guardando curso…';
+ try{
+  const r=await fetch(API+'/api/courses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({establishment_id:eid,name,school_year})}),d=await r.json();
+  if(!r.ok||!d.ok)throw 0;
+  document.getElementById('course-name').value='';
+  status.textContent='Curso guardado correctamente.';
+  await loadCourses();
+ }catch(e){status.textContent='No fue posible guardar el curso.'}
+});
+loadCourses();
+</script>
+</main></body></html>

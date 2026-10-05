@@ -2,12 +2,80 @@ const express=require('express');
 const fs=require('fs');
 const path=require('path');
 const {Pool}=require('pg');
+const multer=require('multer');
+const XLSX=require('xlsx');
 const app=express();
-app.use(express.json());
+app.use(express.json({limit:'5mb'}));
 app.use((req,res,next)=>{res.setHeader('Access-Control-Allow-Origin','https://convivencia-escolar-material-educativo.onrender.com');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');if(req.method==='OPTIONS')return res.sendStatus(204);next()});
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:false});
+const matrículaUpload=multer({
+  storage:multer.memoryStorage(),
+  limits:{files:20,fileSize:10*1024*1024},
+  fileFilter:(req,file,cb)=>{
+    const n=String(file.originalname||'').toLowerCase();
+    cb(null,/\.(xlsx|xls|csv)$/.test(n));
+  }
+});
 async function initDatabase(){if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL no configurada');await pool.query(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));const q=await pool.query("select current_database() database");console.log('Convivencia DB connected:',q.rows[0].database);}
 const ok=(res,data)=>res.json({ok:true,...data});
+function plain(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
+function cleanHeader(v){return plain(v).replace(/[^a-z0-9]+/g,'')}
+function normalizeRut(v){
+  const x=String(v??'').toUpperCase().replace(/[^0-9K]/g,'');
+  if(x.length<8||x.length>9)return '';
+  return x.slice(0,-1)+'-'+x.slice(-1);
+}
+function validRut(v){
+  const r=normalizeRut(v);if(!r)return false;
+  const [body,dv]=r.split('-');let sum=0,m=2;
+  for(let i=body.length-1;i>=0;i--){sum+=Number(body[i])*m;m=m===7?2:m+1}
+  const x=11-(sum%11),expected=x===11?'0':x===10?'K':String(x);
+  return dv===expected;
+}
+function rowMap(row){const out={};for(const [k,v] of Object.entries(row||{}))out[cleanHeader(k)]=v;return out}
+function firstValue(m,aliases){
+  for(const a of aliases){const k=cleanHeader(a);if(m[k]!==undefined&&String(m[k]).trim()!=='')return m[k]}
+  return '';
+}
+function courseKey(v){
+  const n=plain(v).replace(/º/g,'°').replace(/[._-]+/g,' ').replace(/\s+/g,' ').trim();
+  let m=n.match(/^(i|ii|iii|iv)\s*°?\s*(?:medio|media)?\s*([a-z])?\b/);
+  if(m){const num={i:1,ii:2,iii:3,iv:4}[m[1]];return 'm'+num+(m[2]||'')}
+  m=n.match(/^([1-8])\s*°?\s*(basico|medio|media|em)?\s*([a-z])?\b/);
+  if(!m)return '';
+  const grade=Number(m[1]),type=m[2]||'',letter=m[3]||'';
+  const medio=/medio|media|em/.test(type);
+  return (medio?'m':'b')+grade+letter;
+}
+function composeCourse(m){
+  const direct=firstValue(m,['curso','nombre curso','curso completo','curso actual']);
+  if(String(direct).trim())return String(direct).trim();
+  const grade=String(firstValue(m,['grado','nivel','grado curso','nivel curso'])).trim();
+  const letter=String(firstValue(m,['letra','letra curso'])).trim().toUpperCase();
+  const teaching=plain(firstValue(m,['ensenanza','enseñanza','tipo ensenanza','tipo enseñanza','modalidad','nivel ensenanza']));
+  if(!grade)return '';
+  const medio=/medio|media|humanista|cientifico|científico|tecnico|técnico|tp|hc/.test(teaching);
+  return grade.replace(/º/g,'°').replace(/\s+/g,'')+(grade.includes('°')?'':'°')+(medio?' Medio':'')+(letter?' '+letter:'');
+}
+function parseStudentRow(row,file,rowNumber){
+  const m=rowMap(row);
+  const rawRut=firstValue(m,['run','rut','run alumno','rut alumno','run estudiante','rut estudiante']);
+  const dv=firstValue(m,['dv','digito verificador','dígito verificador']);
+  let rut=String(rawRut??'').trim();
+  if(rut&&dv&&!/[kK0-9]\s*$/.test(rut.split('-')[1]||''))rut=rut+'-'+String(dv).trim();
+  else if(rut&&dv&&!rut.includes('-')&&String(rut).replace(/\D/g,'').length<=8)rut=rut+'-'+String(dv).trim();
+  rut=normalizeRut(rut);
+
+  let name=String(firstValue(m,['nombre completo','nombre estudiante','nombre alumno','estudiante','alumno'])).trim();
+  if(!name){
+    const nombres=String(firstValue(m,['nombres','nombre'])).trim();
+    const ap=String(firstValue(m,['apellido paterno','primer apellido','apellido1'])).trim();
+    const am=String(firstValue(m,['apellido materno','segundo apellido','apellido2'])).trim();
+    name=[nombres,ap,am].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+  }
+  const course=composeCourse(m);
+  return {file,row:rowNumber,rut,name,course};
+}
 function surveyLevelForCourse(name){
   const n=String(name||'').trim().toLowerCase().replace(/º/g,'°').replace(/\s+/g,' ');
   if(/^\s*(i|ii)\s*°?\b/.test(n))return '1-2-medio';
@@ -39,6 +107,93 @@ app.post('/api/users',async(req,res)=>{try{const {establishment_id,email,rut,nam
 app.get('/api/users',async(req,res)=>{const q=await pool.query('select u.id,u.establishment_id,e.name establishment,u.email,u.rut,u.name,u.role,u.active,u.created_at from users u join establishments e on e.id=u.establishment_id order by u.name');ok(res,{users:q.rows})});
 app.post('/api/courses',async(req,res)=>{try{const {establishment_id,name,school_year}=req.body,year=Number(school_year),clean=String(name||'').trim();if(!establishment_id||!clean||!Number.isInteger(year)||year<2020||year>2100)return res.status(400).json({ok:false,error:'required_fields'});const q=await pool.query('insert into courses(establishment_id,name,school_year) values($1,$2,$3) on conflict(establishment_id,name,school_year) do update set name=excluded.name returning *',[establishment_id,clean,year]);ok(res,{course:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/courses',async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(!establishmentId)throw new Error('establishment_id_required');const q=await pool.query('select c.*,e.name establishment from courses c join establishments e on e.id=c.establishment_id where c.establishment_id=$1 order by c.school_year desc,c.name',[establishmentId]);ok(res,{courses:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/students/import/preview',matrículaUpload.array('files',20),async(req,res)=>{try{
+  const establishmentId=Number(req.body.establishment_id),schoolYear=Number(req.body.school_year);
+  if(!establishmentId||!Number.isInteger(schoolYear))throw new Error('establishment_and_year_required');
+  const est=await pool.query("select id from establishments where id=$1",[establishmentId]);
+  if(!est.rowCount)return res.status(404).json({ok:false,error:'establishment_not_found'});
+  const files=req.files||[];if(!files.length)throw new Error('files_required');
+
+  const cq=await pool.query("select id,name,school_year from courses where establishment_id=$1 and school_year=$2",[establishmentId,schoolYear]);
+  const existingCourses=new Map(cq.rows.map(x=>[courseKey(x.name),x]));
+  const sq=await pool.query("select id,rut,name,course_id from students where establishment_id=$1 and rut is not null",[establishmentId]);
+  const existingStudents=new Map(sq.rows.map(x=>[normalizeRut(x.rut),x]));
+  const seen=new Set(),rows=[],fileSummaries=[];
+
+  for(const file of files){
+    let wb;
+    try{wb=XLSX.read(file.buffer,{type:'buffer',raw:false})}catch(e){fileSummaries.push({file:file.originalname,error:'file_unreadable'});continue}
+    let sheet=null,sheetName='';
+    for(const n of wb.SheetNames){
+      const data=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:'',raw:false});
+      if(data.length){sheet=data;sheetName=n;break}
+    }
+    if(!sheet){fileSummaries.push({file:file.originalname,error:'file_empty'});continue}
+    const limited=sheet.slice(0,5000);
+    fileSummaries.push({file:file.originalname,sheet:sheetName,rows:limited.length,truncated:sheet.length>5000});
+    for(let i=0;i<limited.length;i++){
+      const p=parseStudentRow(limited[i],file.originalname,i+2);
+      const errors=[],warnings=[];
+      if(!p.rut||!validRut(p.rut))errors.push('run_invalido');
+      if(!p.name)errors.push('nombre_faltante');
+      const key=courseKey(p.course);
+      if(!key||!surveyLevelForCourse(p.course))errors.push('curso_no_reconocido');
+      if(p.rut&&seen.has(p.rut))errors.push('duplicado_en_archivos');
+      if(p.rut)seen.add(p.rut);
+
+      const course=key?existingCourses.get(key):null;
+      if(key&&!course)warnings.push('curso_nuevo');
+      const existing=p.rut?existingStudents.get(p.rut):null;
+      if(existing)warnings.push('estudiante_existente');
+
+      rows.push({...p,course_key:key,course_id:course?Number(course.id):null,course_name:course?course.name:p.course,existing_student_id:existing?Number(existing.id):null,errors,warnings,importable:errors.length===0});
+    }
+  }
+  const summary={
+    files:files.length,
+    rows:rows.length,
+    importable:rows.filter(x=>x.importable).length,
+    errors:rows.filter(x=>!x.importable).length,
+    new_students:rows.filter(x=>x.importable&&!x.existing_student_id).length,
+    updates:rows.filter(x=>x.importable&&x.existing_student_id).length,
+    new_courses:[...new Set(rows.filter(x=>x.importable&&x.warnings.includes('curso_nuevo')).map(x=>x.course_name))].length
+  };
+  ok(res,{summary,files:fileSummaries,rows});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/students/import/commit',async(req,res)=>{const client=await pool.connect();try{
+  const b=req.body||{},establishmentId=Number(b.establishment_id),schoolYear=Number(b.school_year),createCourses=b.create_missing_courses!==false;
+  const rows=Array.isArray(b.rows)?b.rows:[];
+  if(!establishmentId||!Number.isInteger(schoolYear)||!rows.length)throw new Error('invalid_import_payload');
+  if(rows.length>10000)throw new Error('too_many_rows');
+  const est=await client.query("select id from establishments where id=$1",[establishmentId]);
+  if(!est.rowCount)throw new Error('establishment_not_found');
+
+  await client.query('begin');
+  const cq=await client.query("select id,name from courses where establishment_id=$1 and school_year=$2",[establishmentId,schoolYear]);
+  const courseMap=new Map(cq.rows.map(x=>[courseKey(x.name),x]));
+  const seen=new Set();let created=0,updated=0,skipped=0;const createdCourses=[];
+
+  for(const raw of rows){
+    const rut=normalizeRut(raw.rut),name=String(raw.name||'').trim(),courseName=String(raw.course_name||raw.course||'').trim(),key=courseKey(courseName);
+    if(!rut||!validRut(rut)||!name||!key||!surveyLevelForCourse(courseName)||seen.has(rut)){skipped++;continue}
+    seen.add(rut);
+    let course=courseMap.get(key);
+    if(!course){
+      if(!createCourses){skipped++;continue}
+      const ins=await client.query("insert into courses(establishment_id,name,school_year) values($1,$2,$3) on conflict(establishment_id,name,school_year) do update set name=excluded.name returning id,name",[establishmentId,courseName,schoolYear]);
+      course=ins.rows[0];courseMap.set(key,course);createdCourses.push(course.name);
+    }
+    const exists=await client.query("select id from students where establishment_id=$1 and rut=$2",[establishmentId,rut]);
+    const q=await client.query("insert into students(establishment_id,course_id,rut,name) values($1,$2,$3,$4) on conflict(establishment_id,rut) do update set course_id=excluded.course_id,name=excluded.name,active=true returning id",[establishmentId,course.id,rut,name]);
+    if(!q.rowCount)throw new Error('student_upsert_failed');
+    if(exists.rowCount)updated++;else created++;
+  }
+  await client.query('commit');
+  ok(res,{result:{created,updated,skipped,created_courses:[...new Set(createdCourses)]}});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+
 app.post('/api/students',async(req,res)=>{try{const {establishment_id,course_id,rut,name}=req.body,cleanName=String(name||'').trim(),cleanRut=String(rut||'').trim()||null;if(!establishment_id||!course_id||!cleanName)return res.status(400).json({ok:false,error:'required_fields'});const course=await pool.query('select establishment_id from courses where id=$1',[course_id]);if(!course.rowCount)return res.status(404).json({ok:false,error:'course_not_found'});if(Number(course.rows[0].establishment_id)!==Number(establishment_id))return res.status(400).json({ok:false,error:'course_establishment_mismatch'});let q;if(cleanRut){q=await pool.query('insert into students(establishment_id,course_id,rut,name) values($1,$2,$3,$4) on conflict(establishment_id,rut) do update set course_id=excluded.course_id,name=excluded.name,active=true returning *',[establishment_id,course_id,cleanRut,cleanName])}else{q=await pool.query('insert into students(establishment_id,course_id,rut,name) values($1,$2,$3,$4) returning *',[establishment_id,course_id,null,cleanName])}ok(res,{student:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/students',async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(!establishmentId)throw new Error('establishment_id_required');const q=await pool.query('select s.*,c.name course from students s left join courses c on c.id=s.course_id where s.establishment_id=$1 order by s.name',[establishmentId]);ok(res,{students:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.post('/api/measurements',async(req,res)=>{try{const {establishment_id,code,school_year}=req.body;const q=await pool.query('insert into measurements(establishment_id,code,school_year) values($1,$2,$3) on conflict(establishment_id,code,school_year) do update set status=measurements.status returning *',[establishment_id,code,school_year]);ok(res,{measurement:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});

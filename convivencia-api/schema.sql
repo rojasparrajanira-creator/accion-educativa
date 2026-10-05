@@ -41,3 +41,15 @@ CREATE TABLE IF NOT EXISTS pgce_intervention_updates(
  created_by BIGINT REFERENCES users(id),
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+
+CREATE TABLE IF NOT EXISTS measurement_settings(
+ measurement_id BIGINT PRIMARY KEY REFERENCES measurements(id) ON DELETE CASCADE,
+ start_date DATE NOT NULL,
+ end_date DATE NOT NULL,
+ modality TEXT NOT NULL DEFAULT 'individual' CHECK(modality IN ('individual','group_support')),
+ estimated_minutes INT NOT NULL DEFAULT 25 CHECK(estimated_minutes BETWEEN 5 AND 90),
+ initial_message TEXT NOT NULL DEFAULT 'Responde con tranquilidad. No existen respuestas correctas o incorrectas. Tu opinión es importante.',
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ CHECK(end_date >= start_date)
+);

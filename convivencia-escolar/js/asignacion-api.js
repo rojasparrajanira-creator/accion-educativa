@@ -68,7 +68,7 @@ window.MECAssign={
     if(!eid){root.textContent='Falta el contexto del establecimiento.';return}
     try{
       const [sr,mr]=await Promise.all([
-        fetch(this.API+'/api/students?establishment_id='+encodeURIComponent(eid)).then(r=>r.json()),
+        fetch(this.API+'/api/students?establishment_id='+encodeURIComponent(eid)+'&active=true').then(r=>r.json()),
         fetch(this.API+'/api/measurements?establishment_id='+encodeURIComponent(eid)).then(r=>r.json())
       ]);
       if(!sr.ok||!mr.ok)throw new Error('load_failed');

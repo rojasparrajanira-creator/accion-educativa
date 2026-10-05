@@ -52,10 +52,10 @@ table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padd
 <section class="card"><div class="row" style="justify-content:space-between"><div class="row"><input id="buscar-estudiante" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Buscar por nombre o RUN"><select id="filtro-curso" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los cursos</option></select></div><button class="btn primary" id="show-add-student" type="button">+ Agregar estudiante</button></div><div style="overflow:auto;margin-top:16px"><table><tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th></tr><tr><td colspan="4">Cargando estudiantes registrados…</td></tr></table></div></section>
 <section class="card" style="margin-top:16px">
 <h3>Carga masiva desde SIGE / Excel</h3>
-<p style="font-size:12px;color:#718078">Selecciona hasta 20 archivos .xlsx, .xls o .csv. Primero se realizará una revisión; ningún estudiante se guardará hasta que confirmes la importación.</p>
+<p style="font-size:12px;color:#718078">Selecciona hasta 20 archivos .xlsx o .csv. Primero se realizará una revisión; ningún estudiante se guardará hasta que confirmes la importación.</p>
 <div class="row" style="align-items:end;flex-wrap:wrap">
   <label style="flex:2;min-width:260px">Archivos de matrícula
-    <input id="bulk-files" type="file" accept=".xlsx,.xls,.csv" multiple style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px;background:#fff">
+    <input id="bulk-files" type="file" accept=".xlsx,.csv" multiple style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px;background:#fff">
   </label>
   <label style="min-width:150px">Año escolar
     <input id="bulk-year" type="number" min="2020" max="2100" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px">
@@ -264,7 +264,7 @@ document.getElementById('bulk-preview').addEventListener('click',async()=>{
     bulkStatus.textContent='Revisión completada. Confirma solo si el resumen es correcto.';
     renderBulkPreview(d);
   }catch(e){
-    bulkStatus.textContent='No fue posible revisar los archivos. Verifica que sean Excel o CSV válidos.';
+    bulkStatus.textContent='No fue posible revisar los archivos. Verifica que sean archivos .xlsx o .csv válidos.';
   }
 });
 document.getElementById('bulk-commit').addEventListener('click',async()=>{

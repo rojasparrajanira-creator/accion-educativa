@@ -1,0 +1,51 @@
+(()=>{
+  const API='https://convivencia-escolar-api.onrender.com';
+  const nativeFetch=window.fetch.bind(window);
+
+  window.fetch=(input,init={})=>{
+    const url=typeof input==='string'?input:(input&&input.url)||'';
+    if(url.startsWith(API)){
+      init=Object.assign({},init,{credentials:'include'});
+    }
+    return nativeFetch(input,init);
+  };
+
+  async function me(){
+    const r=await nativeFetch(API+'/api/auth/me',{credentials:'include'});
+    const d=await r.json().catch(()=>({ok:false}));
+    if(!r.ok||!d.ok)throw new Error('authentication_required');
+    return d.user;
+  }
+
+  async function logout(){
+    try{await nativeFetch(API+'/api/auth/logout',{method:'POST',credentials:'include'})}catch(e){}
+    location.href='ingreso.html';
+  }
+
+  async function guard(){
+    try{
+      const user=await me();
+      window.MECProfessional=user;
+      document.documentElement.dataset.auth='ok';
+
+      const q=new URLSearchParams(location.search);
+      const current=Number(q.get('establishment_id')||0);
+      const expected=Number(user.establishment_id||0);
+      if(expected&&current!==expected){
+        q.set('establishment_id',String(expected));
+        location.replace(location.pathname.split('/').pop()+'?'+q.toString());
+        return new Promise(()=>{});
+      }
+
+      document.querySelectorAll('[data-professional-name]').forEach(x=>x.textContent=user.name||'Profesional');
+      document.querySelectorAll('[data-establishment-name]').forEach(x=>x.textContent=user.establishment||'Establecimiento');
+      return user;
+    }catch(e){
+      const next=location.pathname.split('/').pop()+location.search;
+      location.replace('ingreso.html?next='+encodeURIComponent(next));
+      return new Promise(()=>{});
+    }
+  }
+
+  window.MECAuth={API,me,logout,guard};
+})();

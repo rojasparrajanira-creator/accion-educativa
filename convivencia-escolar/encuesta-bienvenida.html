@@ -54,6 +54,12 @@ const pages={
       btn.textContent="Aplicación ya completada";
       return;
     }
+    if(d.application.student_active===false){
+      tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
+      btn.textContent="Acceso no disponible";
+      document.getElementById("intro-message").textContent="Este acceso ya no se encuentra habilitado. Si crees que se trata de un error, comunícate con el equipo responsable del establecimiento.";
+      return;
+    }
     if(d.application.measurement_status!=="active"){
       tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
       btn.textContent="Aplicación aún no habilitada";

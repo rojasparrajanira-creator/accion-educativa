@@ -134,7 +134,7 @@ window.MECAssign={
         if(d.error==='establishment_mismatch')throw new Error('El estudiante y la medición pertenecen a establecimientos distintos.');
         throw new Error('No fue posible crear la aplicación.');
       }
-      const url='encuesta-bienvenida.html?application_id='+encodeURIComponent(d.application.id);
+      if(!d.access_token)throw new Error('No fue posible generar el acceso seguro.');const url='encuesta-bienvenida.html?application_id='+encodeURIComponent(d.application.id)+'&access='+encodeURIComponent(d.access_token);
       const eid=new URLSearchParams(location.search).get('establishment_id')||'';
       msg.innerHTML='Aplicación preparada. <a href="configurar-aplicacion.html?establishment_id='+encodeURIComponent(eid)+'&measurement_id='+encodeURIComponent(measurement_id)+'">Continuar configuración →</a> · <a href="'+url+'">Abrir acceso del estudiante</a>';
     }catch(e){

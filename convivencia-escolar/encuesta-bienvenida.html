@@ -19,11 +19,11 @@ a{background:var(--g2);color:#fff;text-decoration:none;padding:13px 20px;border-
 <body>
 <main class="card">
 <div class="mark">✓</div>
-<small>M1 · DIAGNÓSTICO INICIAL</small>
+<small id="measurement">CONVIVENCIA EDUCATIVA</small>
 <h1>Queremos conocer tu experiencia en la escuela</h1>
 <p>No hay respuestas correctas o incorrectas. Responde de acuerdo con lo que has vivido y observado en tu establecimiento. Si necesitas apoyo para comprender las instrucciones, puedes solicitarlo.</p>
 <div class="notice"><strong>Tu participación es importante.</strong><br>Este instrumento no corresponde a una calificación ni constituye un diagnóstico clínico.</div>
-<div class="actions"><span class="time">Tiempo aproximado: 15–25 minutos</span><a href="encuesta-1-2.html">Comenzar →</a></div>
+<div class="actions"><span class="time">Tiempo aproximado: 15–25 minutos</span><a id="start" href="#" aria-disabled="true">Validando acceso…</a></div>
 </main>
-</body>
+<script>const API="https://convivencia-escolar-api.onrender.com";const q=new URLSearchParams(location.search),id=q.get("application_id"),btn=document.getElementById("start"),tag=document.getElementById("measurement");const pages={"1-2":"encuesta-1-2.html","3-4":"encuesta-3-4.html","5-6":"encuesta-5-6.html","7-8":"encuesta-7-8.html","1-2-medio":"encuesta-1-2-medio.html","3-4-medio":"encuesta-3-4-medio.html"};(async()=>{if(!id){btn.textContent="Acceso no válido";return}try{const r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/context"),d=await r.json();if(!r.ok||!d.ok||!pages[d.application.survey_level])throw 0;if(d.application.status==="completed"){btn.textContent="Aplicación ya completada";return}tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;btn.href=pages[d.application.survey_level]+"?application_id="+encodeURIComponent(id);btn.removeAttribute("aria-disabled");btn.textContent="Comenzar →"}catch(e){btn.textContent="No fue posible validar el acceso"}})();</script></body>
 </html>

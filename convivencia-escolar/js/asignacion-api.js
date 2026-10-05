@@ -134,7 +134,7 @@ window.MECAssign={
       }
       const url='encuesta-bienvenida.html?application_id='+encodeURIComponent(d.application.id);
       const eid=new URLSearchParams(location.search).get('establishment_id')||'';
-      msg.innerHTML='Aplicación preparada. <a href="'+url+'">Abrir acceso del estudiante</a> · <a href="generar-accesos.html?establishment_id='+encodeURIComponent(eid)+'&measurement_id='+encodeURIComponent(measurement_id)+'">Administrar accesos</a>';
+      msg.innerHTML='Aplicación preparada. <a href="configurar-aplicacion.html?establishment_id='+encodeURIComponent(eid)+'&measurement_id='+encodeURIComponent(measurement_id)+'">Continuar configuración →</a> · <a href="'+url+'">Abrir acceso del estudiante</a>';
     }catch(e){
       msg.textContent=e.message||'No fue posible preparar la aplicación.';
     }

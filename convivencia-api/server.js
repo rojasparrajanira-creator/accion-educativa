@@ -3,7 +3,7 @@ const fs=require('fs');
 const path=require('path');
 const {Pool}=require('pg');
 const multer=require('multer');
-const XLSX=require('xlsx');
+const ExcelJS=require('exceljs');
 const app=express();
 app.use(express.json({limit:'5mb'}));
 app.use((req,res,next)=>{res.setHeader('Access-Control-Allow-Origin','https://convivencia-escolar-material-educativo.onrender.com');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');if(req.method==='OPTIONS')return res.sendStatus(204);next()});
@@ -13,7 +13,7 @@ const matrículaUpload=multer({
   limits:{files:20,fileSize:10*1024*1024},
   fileFilter:(req,file,cb)=>{
     const n=String(file.originalname||'').toLowerCase();
-    cb(null,/\.(xlsx|xls|csv)$/.test(n));
+    cb(null,/\.(xlsx|csv)$/.test(n));
   }
 });
 async function initDatabase(){if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL no configurada');await pool.query(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));const q=await pool.query("select current_database() database");console.log('Convivencia DB connected:',q.rows[0].database);}
@@ -56,6 +56,82 @@ function composeCourse(m){
   if(!grade)return '';
   const medio=/medio|media|humanista|cientifico|científico|tecnico|técnico|tp|hc/.test(teaching);
   return grade.replace(/º/g,'°').replace(/\s+/g,'')+(grade.includes('°')?'':'°')+(medio?' Medio':'')+(letter?' '+letter:'');
+}
+function cellText(v){
+  if(v===null||v===undefined)return '';
+  if(typeof v==='object'){
+    if(v.text!==undefined)return String(v.text);
+    if(v.result!==undefined)return String(v.result??'');
+    if(Array.isArray(v.richText))return v.richText.map(x=>x.text||'').join('');
+  }
+  return String(v);
+}
+function detectHeaderIndex(matrix){
+  let best=-1,bestScore=0;
+  const hints=['run','rut','nombre','nombres','apellidopaterno','apellidomaterno','curso','grado','letra'];
+  for(let i=0;i<Math.min(matrix.length,25);i++){
+    const keys=(matrix[i]||[]).map(cleanHeader);
+    const score=hints.reduce((n,h)=>n+(keys.some(k=>k===h||k.includes(h))?1:0),0);
+    if(score>bestScore){best=i;bestScore=score}
+  }
+  return bestScore>=2?best:-1;
+}
+function matrixToObjects(matrix){
+  const hi=detectHeaderIndex(matrix);
+  if(hi<0)return [];
+  const headers=(matrix[hi]||[]).map((x,i)=>String(x||'').trim()||('col_'+i));
+  const out=[];
+  for(let i=hi+1;i<matrix.length;i++){
+    const vals=matrix[i]||[];
+    if(!vals.some(v=>String(v??'').trim()!==''))continue;
+    const row={};headers.forEach((h,j)=>row[h]=vals[j]??'');
+    row.__source_row=i+1;out.push(row);
+  }
+  return out;
+}
+function detectCsvDelimiter(text){
+  const line=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/,1)[0]||'';
+  const options=[',',';','\t'];
+  return options.sort((a,b)=>(line.split(b).length-line.split(a).length))[0];
+}
+function parseCsvMatrix(text){
+  const src=String(text||'').replace(/^\uFEFF/,'');
+  const delimiter=detectCsvDelimiter(src);
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<src.length;i++){
+    const ch=src[i];
+    if(ch==='"'){
+      if(quoted&&src[i+1]==='"'){cell+='"';i++}else quoted=!quoted;
+    }else if(ch===delimiter&&!quoted){
+      row.push(cell);cell='';
+    }else if((ch==='\n'||ch==='\r')&&!quoted){
+      if(ch==='\r'&&src[i+1]==='\n')i++;
+      row.push(cell);cell='';
+      if(row.some(v=>String(v).trim()!==''))rows.push(row);
+      row=[];
+    }else cell+=ch;
+  }
+  row.push(cell);if(row.some(v=>String(v).trim()!==''))rows.push(row);
+  return rows;
+}
+async function parseEnrollmentFile(file){
+  const name=String(file.originalname||'').toLowerCase();
+  if(name.endsWith('.csv')){
+    const objects=matrixToObjects(parseCsvMatrix(file.buffer.toString('utf8')));
+    return {sheet:'CSV',rows:objects};
+  }
+  const wb=new ExcelJS.Workbook();
+  await wb.xlsx.load(file.buffer);
+  for(const ws of wb.worksheets){
+    const matrix=[];
+    ws.eachRow({includeEmpty:false},row=>{
+      const vals=[];for(let i=1;i<=Math.max(row.cellCount,1);i++)vals.push(cellText(row.getCell(i).value));
+      matrix.push(vals);
+    });
+    const objects=matrixToObjects(matrix);
+    if(objects.length)return {sheet:ws.name,rows:objects};
+  }
+  return {sheet:'',rows:[]};
 }
 function parseStudentRow(row,file,rowNumber){
   const m=rowMap(row);
@@ -122,18 +198,15 @@ app.post('/api/students/import/preview',matrículaUpload.array('files',20),async
   const seen=new Set(),rows=[],fileSummaries=[];
 
   for(const file of files){
-    let wb;
-    try{wb=XLSX.read(file.buffer,{type:'buffer',raw:false})}catch(e){fileSummaries.push({file:file.originalname,error:'file_unreadable'});continue}
-    let sheet=null,sheetName='';
-    for(const n of wb.SheetNames){
-      const data=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:'',raw:false});
-      if(data.length){sheet=data;sheetName=n;break}
-    }
-    if(!sheet){fileSummaries.push({file:file.originalname,error:'file_empty'});continue}
+    let parsed;
+    try{parsed=await parseEnrollmentFile(file)}catch(e){fileSummaries.push({file:file.originalname,error:'file_unreadable'});continue}
+    const sheet=parsed.rows||[],sheetName=parsed.sheet||'';
+    if(!sheet.length){fileSummaries.push({file:file.originalname,error:'file_empty_or_headers_unrecognized'});continue}
     const limited=sheet.slice(0,5000);
     fileSummaries.push({file:file.originalname,sheet:sheetName,rows:limited.length,truncated:sheet.length>5000});
     for(let i=0;i<limited.length;i++){
-      const p=parseStudentRow(limited[i],file.originalname,i+2);
+      const sourceRow=Number(limited[i].__source_row||i+2);
+      const p=parseStudentRow(limited[i],file.originalname,sourceRow);
       const errors=[],warnings=[];
       if(!p.rut||!validRut(p.rut))errors.push('run_invalido');
       if(!p.name)errors.push('nombre_faltante');

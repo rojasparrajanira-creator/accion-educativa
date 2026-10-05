@@ -50,6 +50,37 @@ table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padd
 <div class="layout"><aside><div class="year">AÑO ESCOLAR 2026</div><nav class="nav"><a class="" href="inicio.html"><i>⌂</i>Inicio</a><a class="active" href="estudiantes.html"><i>▦</i>Matrícula y accesos</a><a class="" href="asignar-encuestas.html"><i>✓</i>Encuestas</a><a class="" href="diagnostico.html"><i>◎</i>Diagnóstico</a><span class="nav-pending"><i>◉</i>Casos y seguimiento · Próximamente</span><a class="" href="pgce-panel.html"><i>◇</i>Intervenciones</a><span class="nav-pending"><i>▤</i>Protocolos · Próximamente</span><a class="" href="resultados.html"><i>▥</i>Reportes</a></nav></aside><main class="page"><div class="topline"><div><div class="eyebrow">MATRÍCULA Y ACCESOS</div><h1>Estudiantes</h1><p>Administración de matrícula, PIE, datos básicos, altas, retiros y accesos.</p></div><a class="btn soft" href="inicio.html">← Inicio</a></div>
 <div class="tabs"><a class="on" href="estudiantes.html">Estudiantes</a><a href="cursos.html">Cursos</a><a href="solicitar-clave.html">Solicitar clave</a><a href="cambiar-clave.html">Cambiar clave</a></div>
 <section class="card"><div class="row" style="justify-content:space-between"><div class="row"><input id="buscar-estudiante" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Buscar por nombre o RUN"><select id="filtro-curso" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los cursos</option></select></div><button class="btn primary" id="show-add-student" type="button">+ Agregar estudiante</button></div><div style="overflow:auto;margin-top:16px"><table><tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th></tr><tr><td colspan="4">Cargando estudiantes registrados…</td></tr></table></div></section>
+<section class="card" style="margin-top:16px">
+<h3>Carga masiva desde SIGE / Excel</h3>
+<p style="font-size:12px;color:#718078">Selecciona hasta 20 archivos .xlsx, .xls o .csv. Primero se realizará una revisión; ningún estudiante se guardará hasta que confirmes la importación.</p>
+<div class="row" style="align-items:end;flex-wrap:wrap">
+  <label style="flex:2;min-width:260px">Archivos de matrícula
+    <input id="bulk-files" type="file" accept=".xlsx,.xls,.csv" multiple style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px;background:#fff">
+  </label>
+  <label style="min-width:150px">Año escolar
+    <input id="bulk-year" type="number" min="2020" max="2100" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px">
+  </label>
+  <button class="btn primary" id="bulk-preview" type="button">Revisar archivos</button>
+</div>
+<p id="bulk-status" style="font-size:12px;color:#718078" role="status" aria-live="polite"></p>
+
+<div id="bulk-review" style="display:none;margin-top:14px">
+  <div id="bulk-summary" class="row" style="gap:10px;flex-wrap:wrap"></div>
+  <label style="display:flex;gap:8px;align-items:center;margin:14px 0;font-size:13px">
+    <input type="checkbox" id="bulk-create-courses" checked>
+    Crear automáticamente los cursos nuevos reconocidos en los archivos
+  </label>
+  <div style="overflow:auto;max-height:420px;border:1px solid #E3ECE7;border-radius:12px">
+    <table id="bulk-table">
+      <tr><th>Archivo</th><th>Fila</th><th>RUN</th><th>Estudiante</th><th>Curso</th><th>Estado</th></tr>
+    </table>
+  </div>
+  <p style="font-size:12px;color:#718078;margin:10px 0">Se muestran hasta 250 filas en la vista previa. Las filas con error no se importarán.</p>
+  <div class="row" style="justify-content:flex-end">
+    <button class="btn primary" id="bulk-commit" type="button">Confirmar importación</button>
+  </div>
+</div>
+</section>
 <section class="card" id="student-form-card" style="margin-top:16px;display:none">
 <h3>Agregar o actualizar estudiante</h3>
 <p style="font-size:12px;color:#718078">Si el RUN ya existe en este establecimiento, se actualizará el nombre y curso del estudiante.</p>
@@ -64,13 +95,21 @@ table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padd
 const API='https://convivencia-escolar-api.onrender.com';
 const qs=new URLSearchParams(location.search);
 const eid=Number(qs.get('establishment_id')||0);
-const table=document.querySelector('table');
+const table=document.querySelector('table:not(#bulk-table)');
 const filter=document.getElementById('filtro-curso');
 const search=document.getElementById('buscar-estudiante');
 const formCard=document.getElementById('student-form-card');
 const courseSelect=document.getElementById('student-course');
 const formStatus=document.getElementById('student-form-status');
-let students=[],courses=[];
+const bulkFiles=document.getElementById('bulk-files');
+const bulkYear=document.getElementById('bulk-year');
+const bulkStatus=document.getElementById('bulk-status');
+const bulkReview=document.getElementById('bulk-review');
+const bulkSummary=document.getElementById('bulk-summary');
+const bulkTable=document.getElementById('bulk-table');
+let students=[],courses=[],bulkRows=[];
+
+bulkYear.value=new Date().getFullYear();
 
 function preserveContext(){
   document.querySelectorAll('a[href]').forEach(a=>{
@@ -121,6 +160,7 @@ async function loadData(){
   if(!eid){
     table.innerHTML='<tr><td colspan="4">Falta el contexto del establecimiento.</td></tr>';
     document.getElementById('show-add-student').disabled=true;
+    document.getElementById('bulk-preview').disabled=true;
     return;
   }
   try{
@@ -134,10 +174,58 @@ async function loadData(){
     fillCourses();
     render();
     document.getElementById('save-student').disabled=!courses.length;
-    if(!courses.length)formStatus.textContent='Primero debes crear al menos un curso.';
+    if(!courses.length)formStatus.textContent='Puedes crear cursos manualmente o mediante la carga masiva.';
   }catch(e){
     table.innerHTML='<tr><td colspan="4">No fue posible cargar la matrícula del establecimiento.</td></tr>';
   }
+}
+function pill(text){
+  const s=document.createElement('span');
+  s.className='status';
+  s.style.marginRight='6px';
+  s.textContent=text;
+  return s;
+}
+function rowState(x){
+  if(!x.importable)return {label:'Error',detail:(x.errors||[]).map(errorLabel).join(', ')};
+  if((x.warnings||[]).includes('estudiante_existente'))return {label:'Actualizar',detail:'Estudiante existente'};
+  if((x.warnings||[]).includes('curso_nuevo'))return {label:'Importable',detail:'Creará curso'};
+  return {label:'Importable',detail:'Nuevo estudiante'};
+}
+function errorLabel(x){
+  return ({
+    run_invalido:'RUN inválido',
+    nombre_faltante:'Nombre faltante',
+    curso_no_reconocido:'Curso no reconocido',
+    duplicado_en_archivos:'RUN duplicado en archivos'
+  })[x]||x;
+}
+function renderBulkPreview(data){
+  bulkRows=(data.rows||[]).filter(x=>x.importable);
+  const s=data.summary||{};
+  bulkSummary.replaceChildren(
+    pill('Filas: '+(s.rows||0)),
+    pill('Importables: '+(s.importable||0)),
+    pill('Nuevos: '+(s.new_students||0)),
+    pill('Actualizaciones: '+(s.updates||0)),
+    pill('Cursos nuevos: '+(s.new_courses||0)),
+    pill('Errores: '+(s.errors||0))
+  );
+  bulkTable.replaceChildren();
+  const head=document.createElement('tr');
+  ['Archivo','Fila','RUN','Estudiante','Curso','Estado'].forEach(t=>{const th=document.createElement('th');th.textContent=t;head.appendChild(th)});
+  bulkTable.appendChild(head);
+  (data.rows||[]).slice(0,250).forEach(x=>{
+    const tr=document.createElement('tr');
+    const state=rowState(x);
+    [x.file,x.row,x.rut||'—',x.name||'—',x.course_name||x.course||'—'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
+    const td=document.createElement('td');
+    const b=document.createElement('b');b.textContent=state.label;td.appendChild(b);
+    if(state.detail){const small=document.createElement('div');small.style.fontSize='11px';small.style.color='#718078';small.textContent=state.detail;td.appendChild(small)}
+    tr.appendChild(td);bulkTable.appendChild(tr);
+  });
+  document.getElementById('bulk-commit').disabled=!bulkRows.length;
+  bulkReview.style.display='block';
 }
 search.addEventListener('input',render);
 filter.addEventListener('change',render);
@@ -160,6 +248,49 @@ document.getElementById('save-student').addEventListener('click',async()=>{
     await loadData();
   }catch(e){
     formStatus.textContent='No fue posible guardar el estudiante.';
+  }
+});
+document.getElementById('bulk-preview').addEventListener('click',async()=>{
+  const files=[...bulkFiles.files],schoolYear=Number(bulkYear.value);
+  if(!files.length){bulkStatus.textContent='Selecciona al menos un archivo.';return}
+  if(files.length>20){bulkStatus.textContent='Puedes cargar un máximo de 20 archivos por vez.';return}
+  if(!schoolYear){bulkStatus.textContent='Indica el año escolar.';return}
+  bulkReview.style.display='none';bulkRows=[];
+  bulkStatus.textContent='Analizando archivos. Aún no se guardará ningún estudiante…';
+  const fd=new FormData();fd.append('establishment_id',String(eid));fd.append('school_year',String(schoolYear));files.forEach(file=>fd.append('files',file));
+  try{
+    const r=await fetch(API+'/api/students/import/preview',{method:'POST',body:fd}),d=await r.json();
+    if(!r.ok||!d.ok)throw new Error(d.error||'preview_failed');
+    bulkStatus.textContent='Revisión completada. Confirma solo si el resumen es correcto.';
+    renderBulkPreview(d);
+  }catch(e){
+    bulkStatus.textContent='No fue posible revisar los archivos. Verifica que sean Excel o CSV válidos.';
+  }
+});
+document.getElementById('bulk-commit').addEventListener('click',async()=>{
+  const school_year=Number(bulkYear.value);
+  if(!bulkRows.length){bulkStatus.textContent='No hay filas válidas para importar.';return}
+  const btn=document.getElementById('bulk-commit');btn.disabled=true;
+  bulkStatus.textContent='Importando matrícula validada…';
+  try{
+    const r=await fetch(API+'/api/students/import/commit',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        establishment_id:eid,
+        school_year,
+        create_missing_courses:document.getElementById('bulk-create-courses').checked,
+        rows:bulkRows
+      })
+    });
+    const d=await r.json();
+    if(!r.ok||!d.ok)throw new Error(d.error||'commit_failed');
+    const x=d.result||{};
+    bulkStatus.textContent='Importación completada: '+(x.created||0)+' estudiantes nuevos, '+(x.updated||0)+' actualizados, '+(x.skipped||0)+' omitidos'+((x.created_courses||[]).length?' y '+x.created_courses.length+' cursos creados.':'.');
+    bulkReview.style.display='none';bulkRows=[];bulkFiles.value='';
+    await loadData();
+  }catch(e){
+    bulkStatus.textContent='No fue posible completar la importación. No se confirmó el proceso.';
+    btn.disabled=false;
   }
 });
 preserveContext();

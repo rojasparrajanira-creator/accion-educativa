@@ -29,6 +29,7 @@ a{background:var(--g2);color:#fff;text-decoration:none;padding:13px 20px;border-
 const API="https://convivencia-escolar-api.onrender.com";
 const q=new URLSearchParams(location.search);
 const id=q.get("application_id");
+const access=q.get("access");
 const btn=document.getElementById("start");
 const tag=document.getElementById("measurement");
 const pages={
@@ -41,12 +42,12 @@ const pages={
 };
 
 (async()=>{
-  if(!id){
+  if(!id||!access){
     btn.textContent="Acceso no válido";
     return;
   }
   try{
-    const r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/context");
+    const r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/context?access="+encodeURIComponent(access));
     const d=await r.json();
     if(!r.ok||!d.ok||!pages[d.application.survey_level])throw new Error("invalid_context");
 
@@ -84,7 +85,7 @@ const pages={
     const time=document.getElementById("time-estimate");
     if(intro&&d.application.initial_message)intro.textContent=d.application.initial_message;
     if(time&&d.application.estimated_minutes)time.textContent="Tiempo aproximado: "+d.application.estimated_minutes+" minutos";
-    const target=pages[d.application.survey_level]+"?application_id="+encodeURIComponent(id);
+    const target=pages[d.application.survey_level]+"?application_id="+encodeURIComponent(id)+"&access="+encodeURIComponent(access);
     btn.href=target;
     btn.removeAttribute("aria-disabled");
     btn.textContent=d.application.status==="in_progress"?"Continuar →":"Comenzar →";
@@ -97,7 +98,7 @@ const pages={
         const sr=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/start",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
-          body:"{}"
+          body:JSON.stringify({access})
         });
         const sd=await sr.json();
         if(!sr.ok||!sd.ok)throw new Error("start_failed");

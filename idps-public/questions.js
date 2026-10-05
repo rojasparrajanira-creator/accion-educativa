@@ -1,5 +1,5 @@
-document.write('<script src="questions-core.js"><\/script>');
-document.write('<script src="complementary-factors.js?v=20261001"><\/script>');
+document.write('<script src="questions-core.js?v=20261005-1418"><\/script>');
+document.write('<script src="complementary-factors.js?v=20261005-1418"><\/script>');
 
 (()=>{
   async function applyOfficialBrand(){

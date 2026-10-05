@@ -21,9 +21,9 @@ a{background:var(--g2);color:#fff;text-decoration:none;padding:13px 20px;border-
 <div class="mark">✓</div>
 <small id="measurement">CONVIVENCIA EDUCATIVA</small>
 <h1>Queremos conocer tu experiencia en la escuela</h1>
-<p>No hay respuestas correctas o incorrectas. Responde de acuerdo con lo que has vivido y observado en tu establecimiento. Si necesitas apoyo para comprender las instrucciones, puedes solicitarlo.</p>
+<p id="intro-message">No hay respuestas correctas o incorrectas. Responde de acuerdo con lo que has vivido y observado en tu establecimiento. Si necesitas apoyo para comprender las instrucciones, puedes solicitarlo.</p>
 <div class="notice"><strong>Tu participación es importante.</strong><br>Este instrumento no corresponde a una calificación ni constituye un diagnóstico clínico.</div>
-<div class="actions"><span class="time">Tiempo aproximado: 15–25 minutos</span><a id="start" href="#" aria-disabled="true">Validando acceso…</a></div>
+<div class="actions"><span class="time" id="time-estimate">Tiempo aproximado: 15–25 minutos</span><a id="start" href="#" aria-disabled="true">Validando acceso…</a></div>
 </main>
 <script>
 const API="https://convivencia-escolar-api.onrender.com";
@@ -56,6 +56,10 @@ const pages={
     }
 
     tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
+    const intro=document.getElementById("intro-message");
+    const time=document.getElementById("time-estimate");
+    if(intro&&d.application.initial_message)intro.textContent=d.application.initial_message;
+    if(time&&d.application.estimated_minutes)time.textContent="Tiempo aproximado: "+d.application.estimated_minutes+" minutos";
     const target=pages[d.application.survey_level]+"?application_id="+encodeURIComponent(id);
     btn.href=target;
     btn.removeAttribute("aria-disabled");

@@ -116,6 +116,7 @@
       for(let i=0;i<15;i++){const v=Number(draft[30+i]);if(v>=1&&v<=4){const x=form.querySelector(`input[name="c${i}"][value="${v}"]`);if(x)x.checked=true;}}
       qs.addEventListener('change',()=>{setTimeout(refresh,0);window.idpsSaveDraft();});
       refresh();
+      window.addEventListener('pagehide',()=>{try{window.idpsSaveDraft&&window.idpsSaveDraft();}catch(_){}},{once:false});
     };
 
     const form=document.getElementById('form');
@@ -142,6 +143,8 @@
         const r=await fetch('https://idps-gestion-material-educativo.onrender.com/api/student/submit',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({answers,instrument_version:'2026.10-complementary-v1'})});
         const j=await r.json();
         if(!r.ok||!j.ok)throw new Error(j.error||'No fue posible registrar la encuesta.');
+        try{localStorage.removeItem('idps_draft_'+(student?.rut||'session'));}catch(_){}
+        window.idpsServerDraft=[];
         if(typeof window.renderResult==='function')window.renderResult(j.result);
         sessionStorage.removeItem('idps_student_session');
       }catch(ex){if(err)err.textContent=ex.message||'No fue posible registrar la encuesta.';if(btn)btn.disabled=false;}

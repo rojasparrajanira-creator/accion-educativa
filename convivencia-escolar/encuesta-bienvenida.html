@@ -54,6 +54,12 @@ const pages={
       btn.textContent="Aplicación ya completada";
       return;
     }
+    if(d.application.measurement_status!=="active"){
+      tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
+      btn.textContent="Aplicación aún no habilitada";
+      document.getElementById("intro-message").textContent="El establecimiento todavía no ha habilitado esta medición. Inténtalo nuevamente cuando el equipo responsable confirme su inicio.";
+      return;
+    }
 
     tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
     const intro=document.getElementById("intro-message");

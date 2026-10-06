@@ -601,7 +601,7 @@ app.post('/api/cases/:id/actions',...requireRole('coordinador_convivencia','dupl
     task=tq.rows[0];
     await client.query(`insert into professional_notifications(establishment_id,user_id,kind,title,message,link)
       values($1,$2,'case_task',$3,$4,$5)`,
-      [req.auth.establishment_id,responsibleUserId,'Nueva actuación de caso','Se te asignó una actuación con plazo '+dueDate+'.','ver-caso.html?case_id='+encodeURIComponent(req.params.id)]);
+      [req.auth.establishment_id,responsibleUserId,'Nueva actuación de caso','Se te asignó una actuación con plazo '+dueDate+'.','notificaciones.html#tareas']);
   }
   await client.query('commit');
   await auditProfessional(req,'case_action_added','case',req.params.id,{action_id:q.rows[0].id,action_type:type,responsible_user_id:responsibleUserId,due_date:dueDate});

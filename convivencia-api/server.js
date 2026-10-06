@@ -1380,6 +1380,7 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{const client=a
   const qty=new Map();for(const x of raw){const id=Number(x.product_id),q=Number(x.quantity||1);if(!Number.isInteger(id)||!Number.isInteger(q)||q<1||q>20)return res.status(400).json({ok:false,error:'invalid_order_items'});qty.set(id,(qty.get(id)||0)+q)}
   const ids=[...qty.keys()];const pq=await client.query("select id,title,price_clp,drive_delivery_url,drive_account_id from store_products where status='published' and id=any($1::bigint[])",[ids]);
   if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
+  if(pq.rows.some(p=>!p.drive_account_id||!p.drive_delivery_url))return res.status(409).json({ok:false,error:'product_delivery_not_configured'});
   let total=0;for(const p of pq.rows)total+=Number(p.price_clp)*qty.get(Number(p.id));
   const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(8).toString('hex').toUpperCase();
   await client.query('begin');

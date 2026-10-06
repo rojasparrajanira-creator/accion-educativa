@@ -33,6 +33,7 @@ form.addEventListener('submit',async e=>{
  e.preventDefault();
  const current=document.getElementById('current').value,next=document.getElementById('next').value,repeat=document.getElementById('repeat').value;
  if(next!==repeat){status.textContent='Las nuevas claves no coinciden.';return}
+ if(next===current){status.textContent='La nueva clave debe ser distinta de la clave temporal o actual.';return}
  if(next.length<10||!/[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(next)||!/[0-9]/.test(next)){status.textContent='La nueva clave debe tener al menos 10 caracteres, letras y números.';return}
  save.disabled=true;status.textContent='Guardando nueva clave…';
  try{

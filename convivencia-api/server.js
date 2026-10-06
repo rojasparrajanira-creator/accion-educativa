@@ -1334,6 +1334,32 @@ app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
   ok(res,{product:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_update_failed'})}});
 
+
+app.post('/api/store/orders',async(req,res)=>{const client=await pool.connect();try{
+  const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
+  if(name.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
+  const qty=new Map();for(const x of raw){const id=Number(x.product_id),q=Number(x.quantity||1);if(!Number.isInteger(id)||!Number.isInteger(q)||q<1||q>20)return res.status(400).json({ok:false,error:'invalid_order_items'});qty.set(id,(qty.get(id)||0)+q)}
+  const ids=[...qty.keys()];const pq=await client.query("select id,title,price_clp,drive_delivery_url from store_products where status='published' and id=any($1::bigint[])",[ids]);
+  if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
+  let total=0;for(const p of pq.rows)total+=Number(p.price_clp)*qty.get(Number(p.id));
+  const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(3).toString('hex').toUpperCase();
+  await client.query('begin');
+  const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp) values($1,$2,$3,$4) returning id,order_code,status,total_clp,created_at",[code,name,email,total]);
+  for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot) values($1,$2,$3,$4,$5,$6)",[oq.rows[0].id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url]);
+  await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[oq.rows[0].id,email]);
+  await client.query('commit');ok(res,{order:oq.rows[0],payment_ready:false,message:'Pedido creado. Webpay aún no está habilitado.'});
+}catch(e){await client.query('rollback').catch(()=>{});res.status(400).json({ok:false,error:'order_create_failed'})}finally{client.release()}});
+app.get('/api/store/orders/:code/status',async(req,res)=>{try{
+  const code=String(req.params.code||'').trim();const q=await pool.query("select order_code,status,total_clp,paid_at,created_at from store_orders where order_code=$1",[code]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'order_not_found'});
+  ok(res,{order:q.rows[0],delivery_available:q.rows[0].status==='paid'});
+}catch(e){res.status(400).json({ok:false,error:'order_status_failed'})}});
+app.get('/api/store/admin/orders',requireAuth,async(req,res)=>{try{
+  if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
+  const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count from store_orders o left join store_order_items i on i.order_id=o.id group by o.id order by o.created_at desc limit 250");
+  ok(res,{orders:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'store_orders_failed'})}});
+
 const port=process.env.PORT||3000;
 initDatabase().then(()=>app.listen(port,()=>{
   console.log('Convivencia API ready with PostgreSQL');

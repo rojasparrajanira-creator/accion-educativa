@@ -512,6 +512,40 @@ app.get('/api/audit',...requireRole('coordinador_convivencia'),async(req,res)=>{
   ok(res,{events:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'audit_load_failed'})}});
 
+app.get('/api/resources',requireAuth,async(req,res)=>{try{
+  const role=canonicalRole(req.auth.role,req.auth.rbd),manager=['coordinador_convivencia','dupla_psicosocial'].includes(role);
+  const values=[req.auth.establishment_id];let where="r.establishment_id=$1 and r.active=true";
+  if(!manager)where+=" and r.visibility='all_professionals'";
+  if(req.query.type){values.push(String(req.query.type));where+=" and r.resource_type=$"+values.length}
+  const q=await pool.query(`select r.id,r.title,r.description,r.resource_type,r.audience,r.visibility,r.url,r.tags,r.active,r.created_at,r.updated_at,u.name created_by_name
+    from institutional_resources r join users u on u.id=r.created_by
+    where ${where} order by r.resource_type,r.title`,values);
+  ok(res,{resources:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'resources_load_failed'})}});
+
+app.post('/api/resources',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const b=req.body||{},title=String(b.title||'').trim(),description=String(b.description||'').trim(),url=String(b.url||'').trim();
+  const type=String(b.resource_type||''),audience=String(b.audience||'profesionales'),visibility=String(b.visibility||'all_professionals');
+  if(!title||title.length>220||description.length>4000||!['ppt','cuadernillo','infografia','lectura','matriz','acta','evaluacion','guia','otro'].includes(type)||!['profesionales','estudiantes','familias','general'].includes(audience)||!['all_professionals','management'].includes(visibility))return res.status(400).json({ok:false,error:'invalid_resource_payload'});
+  let parsed;try{parsed=new URL(url)}catch(_){return res.status(400).json({ok:false,error:'invalid_resource_url'})}
+  if(parsed.protocol!=='https:')return res.status(400).json({ok:false,error:'https_resource_required'});
+  const tags=Array.isArray(b.tags)?b.tags.map(x=>String(x).trim().slice(0,80)).filter(Boolean).slice(0,20):[];
+  const q=await pool.query(`insert into institutional_resources(establishment_id,title,description,resource_type,audience,visibility,url,tags,created_by)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
+    [req.auth.establishment_id,title,description||null,type,audience,visibility,url,tags,req.auth.id]);
+  await auditProfessional(req,'institutional_resource_created','resource',q.rows[0].id,{resource_type:type,audience,visibility});
+  res.status(201).json({ok:true,resource:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/resources/:id/status',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const active=(req.body||{}).active;
+  if(typeof active!=='boolean')return res.status(400).json({ok:false,error:'invalid_status_payload'});
+  const q=await pool.query("update institutional_resources set active=$1,updated_at=now() where id=$2 and establishment_id=$3 returning *",[active,req.params.id,req.auth.establishment_id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'resource_not_found'});
+  await auditProfessional(req,active?'institutional_resource_activated':'institutional_resource_deactivated','resource',req.params.id,{});
+  ok(res,{resource:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
 app.get('/api/protocols',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
   const q=await pool.query("select id,name,description,default_days,active,created_at,updated_at from case_protocols where establishment_id=$1 order by active desc,name",[req.auth.establishment_id]);
   ok(res,{protocols:q.rows});

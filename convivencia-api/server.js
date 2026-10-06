@@ -608,7 +608,9 @@ app.get('/api/cases',...requireRole('coordinador_convivencia','dupla_psicosocial
   if(req.query.status){values.push(String(req.query.status));where+=" and c.status=$"+values.length}
   const q=await pool.query(`select c.id,c.protocol_id,c.student_id,c.course_id,c.title,c.priority,c.status,c.opened_at,c.due_date,c.closed_at,c.updated_at,
     p.name protocol,s.name student,co.name course,u.name created_by_name,
-    (select count(*)::int from case_actions a where a.case_id=c.id) actions_count
+    (select count(*)::int from case_actions a where a.case_id=c.id) actions_count,
+    (select count(*)::int from case_required_steps rs where rs.case_id=c.id and rs.required=true) required_steps_count,
+    (select count(*)::int from case_required_steps rs where rs.case_id=c.id and rs.required=true and rs.status='pending') pending_required_steps
     from case_records c
     left join case_protocols p on p.id=c.protocol_id
     left join students s on s.id=c.student_id
@@ -662,7 +664,10 @@ app.get('/api/cases/:id',...requireRole('coordinador_convivencia','dupla_psicoso
   const a=await pool.query(`select a.id,a.action_type,a.note,a.action_date,a.responsible_user_id,a.due_date,a.created_at,u.name responsible,cb.name created_by_name
     from case_actions a left join users u on u.id=a.responsible_user_id join users cb on cb.id=a.created_by
     where a.case_id=$1 order by a.action_date,a.id`,[req.params.id]);
-  ok(res,{case:q.rows[0],actions:a.rows});
+  const steps=await pool.query(`select s.id,s.protocol_step_id,s.step_order,s.title,s.description,s.due_date,s.required,s.status,s.completed_at,s.completion_note,u.name completed_by_name
+    from case_required_steps s left join users u on u.id=s.completed_by
+    where s.case_id=$1 order by s.step_order,s.id`,[req.params.id]);
+  ok(res,{case:q.rows[0],actions:a.rows,required_steps:steps.rows});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
 
 app.post('/api/cases/:id/actions',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
@@ -693,10 +698,28 @@ app.post('/api/cases/:id/actions',...requireRole('coordinador_convivencia','dupl
   res.status(201).json({ok:true,action:{...q.rows[0],responsible:responsible?.name||null},task});
 }catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
 
+app.post('/api/cases/:id/steps/:stepId/status',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const status=String((req.body||{}).status||''),note=String((req.body||{}).note||'').trim();
+  if(!['pending','completed','not_applicable'].includes(status))return res.status(400).json({ok:false,error:'invalid_case_step_status'});
+  if(note.length>2000)return res.status(400).json({ok:false,error:'case_step_note_too_long'});
+  if(status==='not_applicable'&&!note)return res.status(400).json({ok:false,error:'not_applicable_note_required'});
+  const cs=await pool.query("select id,status from case_records where id=$1 and establishment_id=$2",[req.params.id,req.auth.establishment_id]);
+  if(!cs.rowCount)return res.status(404).json({ok:false,error:'case_not_found'});
+  if(cs.rows[0].status==='closed')return res.status(409).json({ok:false,error:'case_closed'});
+  const step=await pool.query("select id,title,required from case_required_steps where id=$1 and case_id=$2",[req.params.stepId,req.params.id]);
+  if(!step.rowCount)return res.status(404).json({ok:false,error:'case_step_not_found'});
+  const q=await pool.query("update case_required_steps set status=$1,completed_at=case when $1='pending' then null else now() end,completed_by=case when $1='pending' then null else $2 end,completion_note=case when $1='pending' then null else nullif($3,'') end where id=$4 returning *",[status,req.auth.id,note,req.params.stepId]);
+  await auditProfessional(req,'case_protocol_step_updated','case',req.params.id,{step_id:Number(req.params.stepId),step_title:step.rows[0].title,status,required:step.rows[0].required});
+  ok(res,{step:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.post('/api/cases/:id/status',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
   const status=String((req.body||{}).status||'');
   if(!['open','in_progress','closed'].includes(status))return res.status(400).json({ok:false,error:'invalid_case_status'});
   await client.query('begin');
+  if(status==='closed'){
+    const pending=await client.query("select count(*)::int total from case_required_steps where case_id=$1 and required=true and status='pending'",[req.params.id]);
+    if(Number(pending.rows[0].total)>0){await client.query('rollback');return res.status(409).json({ok:false,error:'required_protocol_steps_pending',pending_required_steps:Number(pending.rows[0].total)})}
+  }
   const q=await client.query(`update case_records set status=$1,closed_at=case when $1='closed' then now() else null end,updated_at=now()
     where id=$2 and establishment_id=$3 returning *`,[status,req.params.id,req.auth.establishment_id]);
   if(!q.rowCount){await client.query('rollback');return res.status(404).json({ok:false,error:'case_not_found'})}

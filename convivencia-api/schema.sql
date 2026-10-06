@@ -271,6 +271,8 @@ CREATE TABLE IF NOT EXISTS store_products(
  included_materials TEXT NOT NULL,
  audience TEXT,
  image_url TEXT,
+ image_mime TEXT,
+ image_data BYTEA,
  drive_delivery_url TEXT NOT NULL,
  price_clp INT NOT NULL CHECK(price_clp >= 0),
  compare_at_price_clp INT CHECK(compare_at_price_clp IS NULL OR compare_at_price_clp >= price_clp),
@@ -346,3 +348,6 @@ CREATE TABLE IF NOT EXISTS store_drive_accounts(
 );
 ALTER TABLE store_products ADD COLUMN IF NOT EXISTS drive_account_id BIGINT REFERENCES store_drive_accounts(id);
 ALTER TABLE store_order_items ADD COLUMN IF NOT EXISTS drive_account_id_snapshot BIGINT REFERENCES store_drive_accounts(id);
+
+ALTER TABLE store_products ADD COLUMN IF NOT EXISTS image_mime TEXT;
+ALTER TABLE store_products ADD COLUMN IF NOT EXISTS image_data BYTEA;

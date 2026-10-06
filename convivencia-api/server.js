@@ -34,6 +34,8 @@ function publicRateLimit({windowMs=60000,max=30}={}){
 }
 const studentLoginRateLimit=publicRateLimit({windowMs:60000,max:20});
 const studentPinRateLimit=publicRateLimit({windowMs:60000,max:15});
+const storeOrderRateLimit=publicRateLimit({windowMs:60000,max:10});
+const storeStatusRateLimit=publicRateLimit({windowMs:60000,max:30});
 app.use((req,res,next)=>{
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('Referrer-Policy','no-referrer');
@@ -1375,21 +1377,21 @@ app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_update_failed'})}});
 
 
-app.post('/api/store/orders',async(req,res)=>{const client=await pool.connect();try{
+app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{const client=await pool.connect();try{
   const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
   if(name.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
   const qty=new Map();for(const x of raw){const id=Number(x.product_id),q=Number(x.quantity||1);if(!Number.isInteger(id)||!Number.isInteger(q)||q<1||q>20)return res.status(400).json({ok:false,error:'invalid_order_items'});qty.set(id,(qty.get(id)||0)+q)}
   const ids=[...qty.keys()];const pq=await client.query("select id,title,price_clp,drive_delivery_url,drive_account_id from store_products where status='published' and id=any($1::bigint[])",[ids]);
   if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
   let total=0;for(const p of pq.rows)total+=Number(p.price_clp)*qty.get(Number(p.id));
-  const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(3).toString('hex').toUpperCase();
+  const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(8).toString('hex').toUpperCase();
   await client.query('begin');
   const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp) values($1,$2,$3,$4) returning id,order_code,status,total_clp,created_at",[code,name,email,total]);
   for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[oq.rows[0].id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);
   await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[oq.rows[0].id,email]);
   await client.query('commit');ok(res,{order:oq.rows[0],payment_ready:false,message:'Pedido creado. Webpay aún no está habilitado.'});
 }catch(e){await client.query('rollback').catch(()=>{});res.status(400).json({ok:false,error:'order_create_failed'})}finally{client.release()}});
-app.get('/api/store/orders/:code/status',async(req,res)=>{try{
+app.get('/api/store/orders/:code/status',storeStatusRateLimit,async(req,res)=>{try{
   const code=String(req.params.code||'').trim();const q=await pool.query("select order_code,status,total_clp,paid_at,created_at from store_orders where order_code=$1",[code]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'order_not_found'});
   ok(res,{order:q.rows[0],delivery_available:q.rows[0].status==='paid'});

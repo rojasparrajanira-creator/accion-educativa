@@ -280,3 +280,56 @@ CREATE TABLE IF NOT EXISTS store_products(
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_store_products_status_updated ON store_products(status,updated_at DESC);
+
+
+CREATE TABLE IF NOT EXISTS store_orders(
+ id BIGSERIAL PRIMARY KEY,
+ order_code TEXT UNIQUE NOT NULL,
+ buyer_name TEXT NOT NULL,
+ buyer_email TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','payment_initialized','paid','failed','cancelled','refunded')),
+ total_clp INT NOT NULL CHECK(total_clp >= 0),
+ payment_provider TEXT NOT NULL DEFAULT 'webpay',
+ payment_token_hash TEXT,
+ payment_buy_order TEXT UNIQUE,
+ paid_at TIMESTAMPTZ,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_orders_email_created ON store_orders(buyer_email,created_at DESC);
+
+CREATE TABLE IF NOT EXISTS store_order_items(
+ id BIGSERIAL PRIMARY KEY,
+ order_id BIGINT NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,
+ product_id BIGINT NOT NULL REFERENCES store_products(id),
+ product_title TEXT NOT NULL,
+ unit_price_clp INT NOT NULL CHECK(unit_price_clp >= 0),
+ quantity INT NOT NULL DEFAULT 1 CHECK(quantity BETWEEN 1 AND 20),
+ delivery_url_snapshot TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_store_order_items_order ON store_order_items(order_id);
+
+CREATE TABLE IF NOT EXISTS store_payment_events(
+ id BIGSERIAL PRIMARY KEY,
+ order_id BIGINT NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,
+ provider TEXT NOT NULL DEFAULT 'webpay',
+ event_type TEXT NOT NULL,
+ provider_status TEXT,
+ response_code INT,
+ amount_clp INT,
+ authorization_code TEXT,
+ payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_payment_events_order ON store_payment_events(order_id,created_at DESC);
+
+CREATE TABLE IF NOT EXISTS store_delivery_events(
+ id BIGSERIAL PRIMARY KEY,
+ order_id BIGINT NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,
+ status TEXT NOT NULL CHECK(status IN ('pending','ready','sent','failed')),
+ buyer_email TEXT NOT NULL,
+ sent_at TIMESTAMPTZ,
+ detail TEXT,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_delivery_order ON store_delivery_events(order_id,created_at DESC);

@@ -169,10 +169,13 @@ function courseKey(v){
   const n=plain(v).replace(/º/g,'°').replace(/[._-]+/g,' ').replace(/\s+/g,' ').trim();
   let m=n.match(/^(i|ii|iii|iv)\s*°?\s*(?:medio|media)?\s*([a-z])?\b/);
   if(m){const num={i:1,ii:2,iii:3,iv:4}[m[1]];return 'm'+num+(m[2]||'')}
-  m=n.match(/^([1-8])\s*°?\s*(basico|medio|media|em)?\s*([a-z])?\b/);
+  const compact=n.replace(/\s+/g,'');
+  m=compact.match(/^([1-4])°?(m|em)([a-z])?/);
+  if(m)return 'm'+Number(m[1])+(m[3]||'');
+  m=n.match(/^([1-8])\s*°?\s*(basico|medio|media|m|em)?\s*([a-z])?\b/);
   if(!m)return '';
   const grade=Number(m[1]),type=m[2]||'',letter=m[3]||'';
-  const medio=/medio|media|em/.test(type);
+  const medio=/medio|media|m|em/.test(type);
   return (medio?'m':'b')+grade+letter;
 }
 function composeCourse(m){
@@ -281,12 +284,21 @@ function parseStudentRow(row,file,rowNumber){
   return {file,row:rowNumber,rut,name,course};
 }
 function surveyLevelForCourse(name){
-  const n=String(name||'').trim().toLowerCase().replace(/º/g,'°').replace(/\s+/g,' ');
-  if(/^\s*(i|ii)\s*°?\b/.test(n))return '1-2-medio';
-  if(/^\s*(iii|iv)\s*°?\b/.test(n))return '3-4-medio';
+  const n=plain(String(name||'').replace(/º/g,'°')).replace(/\s+/g,' ').trim();
+  if(/^\s*(i|ii)\s*°?(?:\s|$)/.test(n))return '1-2-medio';
+  if(/^\s*(iii|iv)\s*°?(?:\s|$)/.test(n))return '3-4-medio';
+
+  const compact=n.replace(/\s+/g,'');
+  const mediaShort=compact.match(/^([1-4])°?(m|em)(?:[a-z]{0,3})?$/);
+  if(mediaShort){
+    const g=Number(mediaShort[1]);
+    return g<=2?'1-2-medio':'3-4-medio';
+  }
+
   const m=n.match(/^\s*([1-8])\s*°?\s*(.*)$/);
   if(!m)return null;
-  const grade=Number(m[1]),rest=m[2]||'',medio=/\b(medio|media|em|enseñanza media)\b/.test(rest);
+  const grade=Number(m[1]),rest=m[2]||'';
+  const medio=/^(m|em)\b|\b(medio|media|ensenanza media|humanista|cientifico|tecnico|tp|hc)\b/.test(rest);
   if(medio){
     if(grade===1||grade===2)return '1-2-medio';
     if(grade===3||grade===4)return '3-4-medio';

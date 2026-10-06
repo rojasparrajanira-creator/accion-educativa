@@ -1,6 +1,45 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Plan de Intervención Institucional · Convivencia Escolar</title><style>
-:root{--green:#173E35;--mint:#EEF6F1;--line:#DCE6E0;--muted:#718078;--navy:#0F2D52;--yellow:#FFD200}
-*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
-main{max-width:960px;margin:auto;padding:34px 22px 60px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.brand img{width:64px;height:64px;object-fit:contain}.brand b{color:var(--navy)}.brand span{display:block;color:var(--muted);font-size:11px}
-.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 10px 30px rgba(23,62,53,.06)}h1{color:var(--green);margin:6px 0 8px}.sub{color:var(--muted);line-height:1.6}.call{background:var(--mint);border-left:5px solid #48BFA0;border-radius:14px;padding:15px;margin:18px 0}.call b{display:block;color:var(--green);margin-bottom:5px}.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.btn{display:inline-block;text-decoration:none;border-radius:11px;padding:11px 14px;font-weight:850;font-size:12px}.primary{background:var(--green);color:#fff}.soft{background:#fff;color:var(--green);border:1px solid var(--line)}
-</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><main><div class="brand"><img src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span></div></div><section class="card"><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">GESTIÓN INSTITUCIONAL</small><h1>Plan de Intervención Institucional</h1><p class="sub">El plan institucional debe construirse desde resultados reales y decisiones profesionales registradas. Durante el piloto, las intervenciones se administran en el Panel PGCE.</p><div class="call"><b>Documento no generado aún</b>No se mostrará un establecimiento, RBD, puntajes, responsables ni metas ficticias como si fueran datos reales. Cuando existan intervenciones registradas, esta vista podrá transformarse en el documento imprimible institucional.</div><div class="btns"><a class="btn primary" href="pgce-panel.html">Abrir intervenciones reales</a><a class="btn soft" href="resultados.html">Volver a resultados</a></div></section></main></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan de Intervención Institucional · Convivencia Escolar</title>
+<style>
+:root{--g:#173E35;--m:#EEF6F1;--l:#DCE6E0;--u:#718078;--n:#0F2D52}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}.wrap{max-width:1120px;margin:auto;padding:28px 20px 60px}.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:14px}.btn{border:0;border-radius:11px;padding:10px 13px;font-weight:850;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex}.primary{background:var(--g);color:#fff}.soft{background:var(--m);color:var(--g);border:1px solid var(--l)}
+.report{background:#fff;border:1px solid var(--l);border-radius:20px;overflow:hidden;box-shadow:0 8px 25px rgba(23,62,53,.06)}.head{background:linear-gradient(120deg,#173E35,#2F8067);color:#fff;padding:26px}.head h1{margin:6px 0}.head p{margin:0;color:#e4f3ed}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:18px 22px;background:#F6FAF8}.meta div{border:1px solid var(--l);border-radius:12px;padding:10px;background:#fff}.meta b{display:block;font-size:10px;color:#567064}.section{padding:22px;border-top:1px solid #E6EEEA}.section h2{color:var(--g);font-size:18px;margin:0 0 12px}.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.metric{border:1px solid var(--l);border-radius:13px;padding:12px}.metric strong{display:block;font-size:23px;color:var(--g)}.metric span{font-size:10px;color:var(--u)}
+table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;background:#F1F6F3;color:#45675c;padding:9px}td{padding:9px;border-bottom:1px solid #E7EEEA;vertical-align:top}.note{background:var(--m);border-left:5px solid #48BFA0;padding:13px;border-radius:12px;color:#526a62;line-height:1.5}.status{font-size:11px;color:var(--u)}
+@media(max-width:800px){.meta,.summary{grid-template-columns:1fr 1fr}.table-wrap{overflow:auto}table{min-width:950px}}
+@media print{@page{margin:2cm}body{background:#fff}.actions{display:none!important}.wrap{max-width:none;padding:0}.report{font-family:"Times New Roman",Times,serif;font-size:12pt;color:#000;border:0;box-shadow:none}.head,.meta,.section,.metric,.note{background:#fff!important;color:#000!important}.head h1,.head p,.section h2,.metric strong,.meta b{color:#000!important}.report p,.report td,.report th,.note{line-height:1.5;text-align:justify}.report table{font-size:10pt}.report th,.report td{border:1px solid #000}.meta div,.metric{border:1px solid #000}}
+</style>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard();</script><script src="js/report-export.js"></script>
+</head>
+<body><main class="wrap">
+<div class="actions"><a id="back" class="btn soft" href="pgce-panel.html">← Panel PGCE</a><a id="gantt" class="btn soft" href="plan-gestion.html">Carta Gantt</a><button class="btn primary" onclick="window.print()">Imprimir / PDF</button><button class="btn soft" onclick="MECReportExport.download({root:'.report',filename:'plan-intervencion-institucional'})">Descargar para Word (.rtf)</button></div>
+<article class="report">
+<div class="head"><small>CONVIVENCIA ESCOLAR · MATERIAL EDUCATIVO CHILE</small><h1>Plan de Intervención Institucional</h1><p id="head-school">Establecimiento autenticado</p></div>
+<div class="meta"><div><b>Establecimiento</b><span id="meta-school">—</span></div><div><b>RBD</b><span id="meta-rbd">—</span></div><div><b>Fecha de generación</b><span id="meta-date">—</span></div><div><b>Fuente</b><span>Intervenciones PGCE registradas</span></div></div>
+<section class="section"><h2>Resumen de gestión</h2><div class="summary"><div class="metric"><strong id="m-total">—</strong><span>Total intervenciones</span></div><div class="metric"><strong id="m-progress">—</strong><span>En ejecución</span></div><div class="metric"><strong id="m-done">—</strong><span>Completadas</span></div><div class="metric"><strong id="m-overdue">—</strong><span>Plazo vencido</span></div><div class="metric"><strong id="m-noupdates">—</strong><span>Sin seguimiento</span></div></div></section>
+<section class="section"><h2>Criterio del documento</h2><div class="note">Este plan reúne únicamente intervenciones que fueron creadas a partir de resultados completados y revisión profesional registrada. La priorización, responsables, metas y plazos corresponden a decisiones profesionales persistidas en la plataforma. El documento no constituye diagnóstico clínico ni reemplaza los protocolos institucionales aplicables.</div></section>
+<section class="section"><h2>Intervenciones institucionales</h2><div class="table-wrap"><table><thead><tr><th>Dimensión</th><th>Prioridad</th><th>Indicador</th><th>Meta</th><th>Responsable</th><th>Inicio</th><th>Término</th><th>Estado</th><th>Avance</th><th>Seguimientos</th></tr></thead><tbody id="rows"><tr><td colspan="10">Cargando…</td></tr></tbody></table></div></section>
+<section class="section"><h2>Seguimiento</h2><p id="follow-note">El estado de avance se actualiza desde el módulo de Seguimiento PGCE y las tareas vinculadas a responsables internos.</p><p class="status">Los cambios de estado, responsables y seguimientos quedan registrados en la trazabilidad profesional de la plataforma.</p></section>
+</article>
+</main>
+<script>
+const API=MECAuth.API,q=new URLSearchParams(location.search),eid=Number(q.get('establishment_id')||0);
+const statusLabel=s=>({approved:'Aprobada',in_progress:'En ejecución',completed:'Completada',reprogrammed:'Reprogramada',suspended:'Suspendida'})[s]||s;
+const priorityLabel=p=>({high:'Alta',medium:'Media',low:'Baja'})[p]||p;
+const date=v=>v?new Date(String(v).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL'):'—';
+(async()=>{
+ document.getElementById('meta-date').textContent=new Date().toLocaleDateString('es-CL');
+ if(!eid){document.getElementById('rows').innerHTML='<tr><td colspan="10">Falta contexto del establecimiento.</td></tr>';return}
+ document.getElementById('back').href='pgce-panel.html?establishment_id='+eid;document.getElementById('gantt').href='plan-gestion.html?establishment_id='+eid;
+ try{
+  const r=await fetch(API+'/api/pgce/dashboard?establishment_id='+eid),d=await r.json();if(!r.ok||!d.ok)throw 0;
+  document.getElementById('head-school').textContent=d.establishment.name+(d.establishment.rbd?' · RBD '+d.establishment.rbd:'');document.getElementById('meta-school').textContent=d.establishment.name;document.getElementById('meta-rbd').textContent=d.establishment.rbd||'—';
+  const s=d.summary||{};document.getElementById('m-total').textContent=s.total||0;document.getElementById('m-progress').textContent=s.by_status?.in_progress||0;document.getElementById('m-done').textContent=s.by_status?.completed||0;document.getElementById('m-overdue').textContent=s.overdue||0;document.getElementById('m-noupdates').textContent=s.without_updates||0;
+  const body=document.getElementById('rows');body.replaceChildren();const rows=d.interventions||[];
+  if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=10;td.textContent='Aún no existen intervenciones PGCE registradas.';tr.appendChild(td);body.appendChild(tr);return}
+  for(const x of rows){const tr=document.createElement('tr');[x.dimension_code,priorityLabel(x.priority),x.indicator,x.target,x.responsible,date(x.start_date),date(x.end_date),statusLabel(x.status),(x.last_progress??'—')+'%',x.updates_count].forEach(v=>{const td=document.createElement('td');td.textContent=v??'—';tr.appendChild(td)});body.appendChild(tr)}
+ }catch(e){document.getElementById('rows').innerHTML='<tr><td colspan="10">No fue posible cargar el plan institucional.</td></tr>'}
+})();
+</script></body></html>

@@ -571,6 +571,38 @@ app.post('/api/protocols/:id/status',...requireRole('coordinador_convivencia'),a
   ok(res,{protocol:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
 
+app.get('/api/protocols/:id/steps',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const p=await pool.query("select id,name,active from case_protocols where id=$1 and establishment_id=$2",[req.params.id,req.auth.establishment_id]);
+  if(!p.rowCount)return res.status(404).json({ok:false,error:'protocol_not_found'});
+  const q=await pool.query("select id,protocol_id,step_order,title,description,due_offset_days,required,created_at from case_protocol_steps where protocol_id=$1 order by step_order",[req.params.id]);
+  ok(res,{protocol:p.rows[0],steps:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'protocol_steps_load_failed'})}});
+
+app.post('/api/protocols/:id/steps',...requireRole('coordinador_convivencia'),async(req,res)=>{const client=await pool.connect();try{
+  const p=await client.query("select id,name from case_protocols where id=$1 and establishment_id=$2",[req.params.id,req.auth.establishment_id]);
+  if(!p.rowCount)return res.status(404).json({ok:false,error:'protocol_not_found'});
+  const steps=Array.isArray((req.body||{}).steps)?req.body.steps:null;
+  if(!steps||steps.length>50)return res.status(400).json({ok:false,error:'invalid_protocol_steps'});
+  const clean=[];
+  for(let i=0;i<steps.length;i++){
+    const s=steps[i]||{},title=String(s.title||'').trim(),description=String(s.description||'').trim();
+    const due=s.due_offset_days===null||s.due_offset_days===''||s.due_offset_days===undefined?null:Number(s.due_offset_days);
+    const required=s.required!==false;
+    if(!title||title.length>220||description.length>2000||!(due===null||(Number.isInteger(due)&&due>=0&&due<=365)))return res.status(400).json({ok:false,error:'invalid_protocol_step',step:i+1});
+    clean.push({step_order:i+1,title,description:description||null,due_offset_days:due,required});
+  }
+  await client.query('begin');
+  await client.query("delete from case_protocol_steps where protocol_id=$1",[req.params.id]);
+  const saved=[];
+  for(const s of clean){
+    const q=await client.query("insert into case_protocol_steps(protocol_id,step_order,title,description,due_offset_days,required) values($1,$2,$3,$4,$5,$6) returning *",[req.params.id,s.step_order,s.title,s.description,s.due_offset_days,s.required]);
+    saved.push(q.rows[0]);
+  }
+  await client.query("update case_protocols set updated_at=now() where id=$1",[req.params.id]);
+  await client.query('commit');
+  await auditProfessional(req,'case_protocol_steps_saved','case_protocol',req.params.id,{steps:saved.length});
+  ok(res,{protocol:p.rows[0],steps:saved});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
 app.get('/api/cases',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
   const values=[req.auth.establishment_id];let where="c.establishment_id=$1";
   if(req.query.status){values.push(String(req.query.status));where+=" and c.status=$"+values.length}

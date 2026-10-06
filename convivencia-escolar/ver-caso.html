@@ -126,8 +126,9 @@ async function loadDetail(id){
 }
 async function setCaseStatus(status){
  if(!currentCaseId)return;
+ if(status==='closed'&&!confirm('Cerrar el caso cancelará las tareas pendientes vinculadas a sus actuaciones. ¿Deseas continuar?'))return;
  const r=await fetch(API+'/api/cases/'+currentCaseId+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})}),d=await r.json();
- if(r.ok&&d.ok){await loadCases();await loadDetail(currentCaseId)}
+ if(r.ok&&d.ok){if(status==='closed'&&Array.isArray(d.cancelled_tasks)&&d.cancelled_tasks.length)alert('Caso cerrado. Se cancelaron '+d.cancelled_tasks.length+' tarea(s) pendiente(s) vinculada(s).');await loadCases();await loadDetail(currentCaseId)}
 }
 document.querySelectorAll('[data-case-status]').forEach(b=>b.onclick=()=>setCaseStatus(b.dataset.caseStatus));
 document.getElementById('case-refresh').onclick=loadCases;document.getElementById('case-filter').onchange=loadCases;

@@ -190,3 +190,20 @@ CREATE TABLE IF NOT EXISTS case_actions(
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_case_actions_case ON case_actions(case_id,action_date);
+
+CREATE TABLE IF NOT EXISTS institutional_resources(
+ id BIGSERIAL PRIMARY KEY,
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id),
+ title TEXT NOT NULL,
+ description TEXT,
+ resource_type TEXT NOT NULL CHECK(resource_type IN ('ppt','cuadernillo','infografia','lectura','matriz','acta','evaluacion','guia','otro')),
+ audience TEXT NOT NULL DEFAULT 'profesionales' CHECK(audience IN ('profesionales','estudiantes','familias','general')),
+ visibility TEXT NOT NULL DEFAULT 'all_professionals' CHECK(visibility IN ('all_professionals','management')),
+ url TEXT NOT NULL,
+ tags TEXT[] NOT NULL DEFAULT '{}',
+ active BOOLEAN NOT NULL DEFAULT true,
+ created_by BIGINT NOT NULL REFERENCES users(id),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_institutional_resources_establishment ON institutional_resources(establishment_id,active,resource_type);

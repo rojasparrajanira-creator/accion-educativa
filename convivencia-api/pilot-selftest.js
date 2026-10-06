@@ -117,7 +117,16 @@ async function runPilotSelfTest(base){
   const firstLogin=await student('/api/student-access/login',{method:'POST',body:{establishment_id:eid,rut,secret:initialCode}});
   if(!firstLogin.access_token||firstLogin.requires_pin_setup!==true||Number(firstLogin.application?.id)!==appId)throw new Error('course_code_first_login_failed');
   await expectError('start_before_personal_pin',()=>student('/api/applications/'+appId+'/start',{method:'POST',body:{access:firstLogin.access_token}}),'student_pin_required');
-  const pinSet=await student('/api/student-access/set-pin',{method:'POST',body:{application_id:appId,access:firstLogin.access_token,new_pin:personalCode}});
+
+  let rotatedCode=String(1000+((stamp+2931)%8000)).padStart(4,'0');
+  if(rotatedCode===initialCode)rotatedCode=String((Number(rotatedCode)+1)%10000).padStart(4,'0');
+  const rotated=await prof('/api/courses/'+courseId+'/access-code',{method:'POST',body:{code:rotatedCode}});
+  if(Number(rotated.invalidated_initial_accesses)<1)throw new Error('course_code_rotation_did_not_invalidate');
+  await expectError('old_first_access_after_rotation',()=>student('/api/student-access/set-pin',{method:'POST',body:{application_id:appId,access:firstLogin.access_token,new_pin:personalCode}}),'invalid_student_access');
+  const renewedLogin=await student('/api/student-access/login',{method:'POST',body:{establishment_id:eid,rut,secret:rotatedCode}});
+  if(!renewedLogin.access_token||renewedLogin.requires_pin_setup!==true)throw new Error('rotated_course_code_login_failed');
+
+  const pinSet=await student('/api/student-access/set-pin',{method:'POST',body:{application_id:appId,access:renewedLogin.access_token,new_pin:personalCode}});
   if(pinSet.pin_set!==true)throw new Error('personal_pin_setup_failed');
   const pinLogin=await student('/api/student-access/login',{method:'POST',body:{establishment_id:eid,rut,secret:personalCode}});
   if(!pinLogin.access_token||pinLogin.requires_pin_setup!==false)throw new Error('personal_pin_login_failed');

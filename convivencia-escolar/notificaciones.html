@@ -1,66 +1,165 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Notificaciones</title><style>
-*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
-:root{--ink:#173E35;--sage:#7EA894;--sage2:#DDEBE3;--mint:#EEF6F1;--turq:#19C2D1;--blue:#0F2D52;--yellow:#FFD200;--white:#fff;--line:#DCE6E0}
-header{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 34px;position:sticky;top:0;z-index:20}
-.brand{display:flex;align-items:center;gap:12px}.mark{width:45px;height:45px;border-radius:14px;background:linear-gradient(145deg,#173E35,#7EA894);display:grid;place-items:center;color:white;font-size:22px}.brand b{display:block;color:var(--blue);font-size:16px}.brand span{font-size:11px;color:#718078}
-.user{display:flex;align-items:center;gap:12px;font-size:12px}.avatar{width:38px;height:38px;border-radius:50%;background:var(--sage2);display:grid;place-items:center;font-weight:900;color:var(--ink)}
-.layout{display:grid;grid-template-columns:235px 1fr;min-height:calc(100vh - 72px)}
-aside{background:#173E35;padding:25px 16px;color:#fff}.year{font-size:10px;letter-spacing:.15em;color:#BFD4C9;margin:0 10px 18px}.nav a{display:flex;align-items:center;gap:10px;color:#E6F0EB;text-decoration:none;padding:11px 12px;border-radius:11px;margin:4px 0;font-size:13px}.nav a.active{background:rgba(255,255,255,.13);font-weight:800}.nav i{font-style:normal;width:22px;text-align:center}
-main{padding:32px 36px 55px;max-width:1500px;width:100%}.eyebrow{font-size:10px;letter-spacing:.18em;font-weight:900;color:#5C8A76}.welcome{display:flex;justify-content:space-between;gap:20px;align-items:flex-end}.welcome h1{font-size:34px;margin:7px 0;color:var(--ink)}.welcome p{margin:0;color:#718078}.date{font-size:12px;color:#718078}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:27px 0}.stat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:19px;box-shadow:0 8px 24px rgba(23,62,53,.05)}.stat small{color:#74847C}.stat strong{display:block;font-size:29px;margin-top:8px;color:var(--ink)}.stat em{font-style:normal;font-size:11px;color:#718078}
-.section-title{display:flex;justify-content:space-between;align-items:center;margin:30px 0 13px}.section-title h2{font-size:18px;margin:0;color:var(--ink)}.section-title span{font-size:11px;color:#7A8982}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.module{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;min-height:155px;text-decoration:none;color:inherit;position:relative;overflow:hidden;transition:.18s}.module:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(23,62,53,.09)}.module:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sage)}.module .ico{width:38px;height:38px;border-radius:12px;background:var(--mint);display:grid;place-items:center;font-size:19px}.module h3{font-size:14px;margin:14px 0 6px}.module p{font-size:11px;line-height:1.5;color:#74847C;margin:0}.module b{position:absolute;right:15px;bottom:13px;color:#6B9B85}
-.bottom{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;margin-top:28px}.attention,.agenda{background:#fff;border:1px solid var(--line);border-radius:20px;padding:21px}.attention{background:linear-gradient(145deg,#173E35,#275E50);color:#fff}.attention h2,.agenda h2{font-size:18px;margin:0 0 14px}.alert{display:flex;justify-content:space-between;gap:15px;padding:12px 0;border-top:1px solid rgba(255,255,255,.13);font-size:12px}.alert:first-of-type{border-top:0}.pill{white-space:nowrap;background:rgba(255,210,0,.17);color:#FFE568;padding:5px 8px;border-radius:12px;font-size:10px}.agenda-row{padding:11px 0;border-top:1px solid #EDF1EE;font-size:12px}.agenda-row:first-of-type{border-top:0}.agenda-row b{display:block;color:var(--ink);margin-bottom:3px}.agenda-row span{color:#77867E}
-.note{margin-top:25px;font-size:10px;color:#819087;text-align:center}
-@media(max-width:1050px){.stats,.grid{grid-template-columns:repeat(2,1fr)}.bottom{grid-template-columns:1fr}}
-@media(max-width:720px){header{padding:0 16px}.layout{grid-template-columns:1fr}aside{display:none}main{padding:24px 17px}.stats,.grid{grid-template-columns:1fr}.welcome{display:block}.date{margin-top:12px}}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tareas y notificaciones · Convivencia Escolar</title>
+<style>
+:root{--g:#173E35;--g2:#2F8067;--m:#EEF6F1;--l:#DCE6E0;--u:#718078;--n:#0F2D52;--y:#FFD200}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
+header{height:82px;background:#fff;border-bottom:1px solid var(--l);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:20}.brand{display:flex;gap:12px;align-items:center}.brand img{width:58px;height:58px;object-fit:contain}.brand b{color:var(--n)}.brand span{display:block;font-size:11px;color:var(--u)}.user{display:flex;gap:10px;align-items:center;font-size:12px}
+main{max-width:1200px;margin:auto;padding:28px 20px 60px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-end}.top h1{color:var(--g);margin:5px 0}.top p{margin:0;color:var(--u);font-size:13px}.btn{border:0;border-radius:11px;padding:10px 13px;font-weight:850;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.primary{background:var(--g);color:#fff}.soft{background:var(--m);color:var(--g);border:1px solid var(--l)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.stat{background:#fff;border:1px solid var(--l);border-radius:17px;padding:16px}.stat strong{display:block;font-size:27px;color:var(--g)}.stat span{font-size:11px;color:var(--u)}
+.card{background:#fff;border:1px solid var(--l);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 8px 24px rgba(23,62,53,.05)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:10px;font-weight:850;color:#567064;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #D7E3DC;border-radius:11px;padding:10px;font:inherit}.field textarea{min-height:86px}
+.task{display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px 0;border-bottom:1px solid #EDF1EE}.task:last-child{border-bottom:0}.task h3{font-size:13px;margin:0 0 5px}.meta{font-size:11px;color:var(--u);line-height:1.5}.badge{display:inline-block;padding:5px 8px;border-radius:11px;background:#E3F4E9;color:#2F6A48;font-size:10px;font-weight:800}.badge.high{background:#FCE8E6;color:#8D3C36}.badge.medium{background:#FFF3C5;color:#705B00}.badge.done{background:#E7EEF8;color:#315A86}.badge.late{background:#FCE8E6;color:#8D3C36}
+.notice{padding:13px;border:1px solid var(--l);border-radius:14px;margin:9px 0;background:#fff}.notice.unread{border-left:5px solid var(--y);background:#fffdf2}.notice b{display:block;font-size:12px}.notice p{font-size:11px;color:var(--u);margin:4px 0}.status{font-size:12px;color:var(--u);min-height:18px}
+@media(max-width:800px){.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.top{display:block}.task{grid-template-columns:1fr}}@media(max-width:480px){.stats{grid-template-columns:1fr}}
+</style>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard({allowAnyRole:true});</script>
+</head>
+<body>
+<header><div class="brand"><img src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span data-establishment-name>Establecimiento</span></div></div><div class="user"><div><b data-professional-name>Profesional</b><br><span data-professional-role>Rol</span></div><button class="btn soft" onclick="MECAuth.logout()">Salir</button></div></header>
+<main>
+<div class="top"><div><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">GESTIÓN DEL EQUIPO</small><h1>Tareas y notificaciones</h1><p>Asignaciones, plazos y avisos internos del establecimiento.</p></div><a id="home-link" class="btn soft" href="inicio.html">← Volver</a></div>
 
-/* V2 identidad visual */
-header{height:88px;padding:0 34px}
-.official-logo{width:62px;height:62px;object-fit:contain;flex:none}
-.brand{min-width:320px}.brand b{font-size:18px}.brand span{font-size:11px;line-height:1.35}.brand em{display:block;font-size:10px;font-style:normal;color:#7EA894;font-weight:800;margin-top:2px}
-.layout{min-height:calc(100vh - 88px)}
-main{padding-top:27px}
-.institutional-hero{position:relative;overflow:hidden;min-height:230px;border-radius:27px;padding:39px 150px 35px 38px;color:#fff;
- background:
- radial-gradient(circle at 88% 18%,rgba(255,210,0,.30),transparent 25%),
- radial-gradient(circle at 12% 92%,rgba(72,191,160),.32),transparent 29%),
- linear-gradient(125deg,#173E35 0%,#397865 48%,#1E7FBC 100%);
- box-shadow:0 18px 38px rgba(23,62,53,.16)}
-.hero-pattern{position:absolute;inset:0;opacity:.15;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='155' height='95' viewBox='0 0 155 95'%3E%3Cg fill='none' stroke='white' stroke-width='1.2'%3E%3Cpath d='M10 19l18-10 18 10-18 10zM28 29v15M70 11h22v27H70zM75 18h12M111 11l19 14-19 14zM18 68h29M25 59v18M68 63c12-15 27-15 39 0M121 62c10 0 14 14 3 18-11 3-17-14-3-18zM139 56l7 7-7 7-7-7z'/%3E%3C/g%3E%3C/svg%3E");background-repeat:repeat}
-.hero-copy{position:relative;z-index:2;max-width:760px}.institutional-hero .eyebrow{color:#C6FBF5}.institutional-hero h1{font-size:38px;margin:7px 0 8px;color:#fff}.institutional-hero p{margin:0;color:#ECF8F3;line-height:1.55}
-.hero-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:19px}.hero-tags span{font-size:10px;font-weight:850;padding:7px 9px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.11);border-radius:18px}
-.hero-mark{position:absolute;right:37px;top:50%;transform:translateY(-50%) rotate(6deg);width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.72);outline:1px dashed rgba(255,255,255,.55);outline-offset:6px;display:grid;place-items:center;font-size:28px;font-weight:900;color:#fff;background:rgba(22,75,59,.18)}
-.future{background:linear-gradient(145deg,#fff,#F4FAF7)}.future-tag{position:absolute;right:12px;top:13px;font-size:8px;letter-spacing:.1em;font-weight:900;color:#0F2D52;background:#FFD200;padding:5px 7px;border-radius:10px}
-@media(max-width:720px){header{height:auto;min-height:88px}.brand{min-width:0}.official-logo{width:54px;height:54px}.institutional-hero{padding:31px 25px 135px}.hero-mark{top:auto;bottom:28px;right:50%;transform:translateX(50%) rotate(6deg)}}
+<section class="stats">
+ <div class="stat"><strong id="stat-pending">—</strong><span>Mis tareas pendientes</span></div>
+ <div class="stat"><strong id="stat-late">—</strong><span>Mis tareas vencidas</span></div>
+ <div class="stat"><strong id="stat-unread">—</strong><span>Notificaciones sin leer</span></div>
+ <div class="stat"><strong id="stat-team">—</strong><span>Tareas abiertas del equipo</span></div>
+</section>
 
+<section class="card" id="create-card" hidden>
+<h2 style="margin-top:0;font-size:18px">Asignar una tarea</h2>
+<div class="grid">
+ <div class="field"><label>Título</label><input id="task-title" maxlength="200"></div>
+ <div class="field"><label>Responsable</label><select id="task-user"></select></div>
+ <div class="field"><label>Fecha límite</label><input id="task-due" type="date"></div>
+ <div class="field"><label>Prioridad</label><select id="task-priority"><option value="medium">Media</option><option value="high">Alta</option><option value="low">Baja</option></select></div>
+</div>
+<div class="field"><label>Descripción / indicaciones</label><textarea id="task-description" maxlength="2000"></textarea></div>
+<div style="display:flex;justify-content:flex-end"><button id="task-create" class="btn primary" type="button">Asignar tarea</button></div>
+<p id="create-status" class="status"></p>
+<p class="status">El aviso se entrega dentro de la plataforma. El correo electrónico todavía no está conectado.</p>
+</section>
 
-.sige-action{margin:22px 0 8px;background:linear-gradient(115deg,#fff,#EFF8F4);border:1px solid #CFE0D7;border-left:6px solid #19C2D1;border-radius:20px;padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 8px 25px rgba(23,62,53,.06)}
-.sige-action h2{margin:4px 0 5px;font-size:18px;color:#173E35}.sige-action p{margin:0;font-size:11px;color:#718078}.sige-kicker{font-size:9px;letter-spacing:.14em;font-weight:900;color:#1E7FBC}.sige-buttons{display:flex;gap:8px;flex-wrap:wrap}.sige-buttons a{text-decoration:none;background:#173E35;color:#fff;padding:11px 13px;border-radius:12px;font-size:11px;font-weight:850;white-space:nowrap}.sige-buttons .secondary{background:#E2F2EA;color:#173E35}
-.module .ico{color:#315F51}.module .ico svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-@media(max-width:850px){.sige-action{display:block}.sige-buttons{margin-top:15px}}
+<section class="card" id="tareas">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h2 style="margin:0;font-size:18px">Mis tareas</h2><button id="refresh" class="btn soft" type="button">Actualizar</button></div>
+<div id="my-tasks"><p class="status">Cargando…</p></div>
+</section>
 
-/* V5 iconografía oficializada para el lenguaje visual Material Educativo Chile */
-.module .brand-icon{position:relative;width:48px;height:48px;border-radius:15px;display:grid;place-items:center;
- background:linear-gradient(145deg,#F4FAFF,#E8F7F4);border:1px solid rgba(35,134,107),.20);
- box-shadow:inset 0 -2px 0 rgba(72,191,160),.10),0 6px 14px rgba(22,75,59,.06);color:#0F2D52}
-.module .brand-icon svg{width:28px;height:28px;fill:none;stroke:#0F2D52;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.module .brand-icon:before{content:"";position:absolute;left:0;top:0;width:5px;height:100%;border-radius:15px 0 0 15px;background:#19C2D1}
-.module .brand-icon .accent-dot{position:absolute;width:8px;height:8px;border-radius:50%;right:-2px;top:-2px;background:#FFD200;border:2px solid #fff}
-.module:nth-of-type(3n+2) .brand-icon{background:linear-gradient(145deg,#F8FAFF,#EEF1FF)}
-.module:nth-of-type(3n+2) .brand-icon:before{background:#1E7FBC}
-.module:nth-of-type(3n) .brand-icon{background:linear-gradient(145deg,#FFFDF1,#F3FAF7)}
-.module:hover .brand-icon{transform:translateY(-2px);transition:.18s ease}
+<section class="card" id="team-card" hidden>
+<h2 style="margin-top:0;font-size:18px">Tareas del equipo</h2>
+<div id="team-tasks"><p class="status">Cargando…</p></div>
+</section>
 
-.page{padding:30px 36px 55px;max-width:1500px;width:100%}.topline{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:20px}.topline h1{margin:4px 0;font-size:29px;color:#173E35}.topline p{margin:0;color:#718078;font-size:12px}
-.btn{border:0;border-radius:12px;padding:10px 13px;font-weight:850;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:7px}.primary{background:#173E35;color:#fff}.soft{background:#EEF6F1;color:#173E35;border:1px solid #DCE6E0}.turq{background:#19C2D1;color:#0F2D52}.yellow{background:#FFD200;color:#0F2D52}
-.card{background:#fff;border:1px solid #DCE6E0;border-radius:20px;padding:20px;box-shadow:0 8px 24px rgba(23,62,53,.05)}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.mini{background:#fff;border:1px solid #DCE6E0;border-radius:17px;padding:16px}.mini b{font-size:24px;color:#173E35}.mini span{display:block;font-size:10px;color:#718078;margin-top:3px}
-.badge{font-size:9px;padding:5px 8px;border-radius:12px;font-weight:850;background:#E4F4EA;color:#32674B}.pending{background:#FFF3C5;color:#705B00}.late{background:#FCE8E6;color:#8D3C36}.blue{background:#E9F3FA;color:#1E6A98}
-.task{display:grid;grid-template-columns:80px 1fr auto;gap:15px;align-items:center;padding:15px 0;border-bottom:1px solid #EDF1EE}.task:last-child{border-bottom:0}.datebox{border-radius:14px;background:#F1F7F4;text-align:center;padding:9px}.datebox b{display:block;font-size:19px;color:#173E35}.datebox small{font-size:9px;color:#718078}.task h3{margin:0 0 4px;font-size:13px}.task p{margin:0;font-size:10px;color:#718078}
-table{width:100%;border-collapse:collapse;font-size:10.5px}th{text-align:left;background:#F1F6F3;padding:10px;color:#567064}td{padding:11px 10px;border-bottom:1px solid #EDF1EE}.avatar2{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#DDEBE3;color:#173E35;font-weight:900;font-size:10px}
-.field{margin:10px 0}.field label{display:block;font-size:9px;font-weight:900;color:#567064;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;box-sizing:border-box;border:1px solid #D7E3DC;border-radius:11px;padding:10px;font:inherit;background:#fff}.field textarea{min-height:80px}
-.gantt{overflow:auto}.gantt table{min-width:950px}.month{font-size:9px;text-align:center}.dot{width:11px;height:11px;border-radius:50%;display:inline-block;background:#19C2D1}.done{background:#78A893}.alertbox{background:linear-gradient(120deg,#173E35,#245E52);color:#fff;border-radius:20px;padding:20px}.alertbox h2{margin:0 0 5px}.alertbox p{font-size:11px;color:#DCEAE3}
-.bell{position:relative}.bell:after{content:"";position:absolute;right:-7px;top:-7px;width:16px;height:16px;border-radius:50%;background:#FFD200;color:#0F2D52;font-size:9px;font-weight:900;display:grid;place-items:center}
-@media(max-width:900px){.grid4{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}@media(max-width:600px){.grid4{grid-template-columns:1fr}.page{padding:22px 15px}.task{grid-template-columns:60px 1fr}.task>a{grid-column:2}}
-.user .bell-icon{position:relative;width:39px;height:39px;border-radius:50%;display:grid;place-items:center;text-decoration:none;background:#F0F7F3;border:1px solid #D8E6DE;font-size:18px;flex:0 0 auto}.user .bell-icon:after{content:"";position:absolute;right:-4px;top:-5px;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:#FFD200;color:#0F2D52;font:900 9px Arial;border:2px solid #fff}.task{grid-template-columns:74px minmax(0,1fr) minmax(110px,max-content)!important}.task>div:nth-child(2){min-width:0}.task>a,.task>button,.task>span{justify-self:end;white-space:nowrap}.badge{display:inline-flex!important;align-items:center;white-space:nowrap;line-height:1.2;min-height:24px;box-sizing:border-box}.case-table{overflow-x:auto}.case-table table{min-width:950px}.case-table th,.case-table td{padding:13px 14px!important}.case-table td:last-child{min-width:120px}@media(max-width:720px){.task{grid-template-columns:60px minmax(0,1fr)!important}.task>a,.task>button,.task>span{grid-column:2;justify-self:start}}.user{gap:10px!important}.user .bell-icon{order:8;margin-left:8px}.user .avatar{order:9}.user>div:not(.avatar){order:7}</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><header><div class="brand"><img class="official-logo" src="assets/logo.jpeg"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span><em>Gestión institucional</em></div></div><div class="user"><div><b>Equipo de Convivencia</b><br><span>Coordinador/a</span></div><a class="bell-icon" href="notificaciones.html" title="Centro de notificaciones" aria-label="Centro de notificaciones">🔔</a><div class="avatar">EC</div></div></header><div class="layout"><aside><div class="year">AÑO ESCOLAR 2026</div><nav class="nav"><a class="" href="index.html"><i>⌂</i>Inicio</a><a class="" href="#" aria-disabled="true" onclick="return false"><i>✓</i>Mis tareas</a><a class="active" href="notificaciones.html"><i>◌</i>Notificaciones</a><a class="" href="pgce-panel.html"><i>▤</i>Plan de Gestión</a><a class="" href="#" aria-disabled="true" onclick="return false"><i>◉</i>Casos y seguimiento</a><a class="" href="#" aria-disabled="true" onclick="return false"><i>♙</i>Usuarios y roles</a><a class="" href="estudiantes.html"><i>▦</i>Matrícula y accesos</a><a class="" href="asignar-encuestas.html"><i>◇</i>Encuestas</a></nav></aside><main class="page"><div class="topline"><div><div class="eyebrow">GESTIÓN DEL EQUIPO</div><h1>Notificaciones</h1><p>Avisos de asignaciones, plazos, recordatorios y cambios de estado.</p></div></div>
-<section class="card"><div class="row" style="justify-content:space-between"><h2 style="font-size:16px">Centro de notificaciones</h2></div><div class="task"><div class="datebox">🔔</div><div><h3>Sin notificaciones reales registradas</h3><p>Los avisos aparecerán aquí únicamente cuando exista una asignación, plazo o cambio de estado generado por datos reales de la plataforma. Durante el piloto no se mostrarán ejemplos como si fueran eventos del establecimiento.</p></div></div></section></main></div></body></html>
+<section class="card">
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h2 style="margin:0;font-size:18px">Notificaciones</h2><button id="read-all" class="btn soft" type="button">Marcar todas como leídas</button></div>
+<div id="notifications"><p class="status">Cargando…</p></div>
+</section>
+</main>
+
+<script>
+const API=MECAuth.API;
+let user=null,manager=false,eid=0;
+const roleLabel=r=>({coordinador_convivencia:'Coordinación de Convivencia',dupla_psicosocial:'Dupla Psicosocial',profesor:'Profesor/a',asistente_educacion:'Asistente de la Educación',prevencionista:'Prevencionista',nutricionista:'Nutricionista'})[r]||r;
+const taskStatus=s=>({pending:'Pendiente',in_progress:'En curso',completed:'Completada',cancelled:'Cancelada'})[s]||s;
+const priorityLabel=p=>({high:'Alta',medium:'Media',low:'Baja'})[p]||p;
+const date=v=>v?new Date(String(v).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL'):'Sin fecha';
+const late=t=>t.due_date&&!['completed','cancelled'].includes(t.status)&&new Date(String(t.due_date).slice(0,10)+'T23:59:59')<new Date();
+
+function taskCard(t,team=false){
+ const wrap=document.createElement('div');wrap.className='task';
+ const info=document.createElement('div');
+ const h=document.createElement('h3');h.textContent=t.title;
+ const meta=document.createElement('div');meta.className='meta';
+ meta.textContent=(team?'Responsable: '+t.assigned_to_name+' · ':'Asignada por: '+t.assigned_by_name+' · ')+'Plazo: '+date(t.due_date)+' · '+taskStatus(t.status);
+ const desc=document.createElement('div');desc.className='meta';desc.textContent=t.description||'Sin descripción.';
+ const badges=document.createElement('div');badges.style.marginTop='7px';
+ const p=document.createElement('span');p.className='badge '+t.priority;p.textContent='Prioridad '+priorityLabel(t.priority);badges.appendChild(p);
+ if(late(t)){const l=document.createElement('span');l.className='badge late';l.style.marginLeft='6px';l.textContent='Vencida';badges.appendChild(l)}
+ info.append(h,meta,desc,badges);wrap.appendChild(info);
+
+ const actions=document.createElement('div');actions.style.display='flex';actions.style.gap='6px';actions.style.flexWrap='wrap';actions.style.alignItems='center';
+ if(t.status==='pending'){const b=document.createElement('button');b.className='btn soft';b.textContent='Iniciar';b.onclick=()=>setTask(t.id,'in_progress');actions.appendChild(b)}
+ if(t.status==='in_progress'||t.status==='pending'){const b=document.createElement('button');b.className='btn primary';b.textContent='Completar';b.onclick=()=>setTask(t.id,'completed');actions.appendChild(b)}
+ if(manager&&!['completed','cancelled'].includes(t.status)){const b=document.createElement('button');b.className='btn soft';b.textContent='Cancelar';b.onclick=()=>setTask(t.id,'cancelled');actions.appendChild(b)}
+ if(t.status==='completed'){const s=document.createElement('span');s.className='badge done';s.textContent='Completada';actions.appendChild(s)}
+ wrap.appendChild(actions);return wrap;
+}
+async function setTask(id,status){
+ try{
+  const r=await fetch(API+'/api/tasks/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})}),d=await r.json();
+  if(!r.ok||!d.ok)throw new Error(d.error||'update_failed');
+  await loadAll();
+ }catch(e){alert('No fue posible actualizar la tarea.')}
+}
+async function loadTasks(){
+ const [mineR,teamR]=await Promise.all([
+  fetch(API+'/api/tasks?scope=mine').then(async r=>({r,d:await r.json()})),
+  manager?fetch(API+'/api/tasks?scope=all').then(async r=>({r,d:await r.json()})):Promise.resolve(null)
+ ]);
+ if(!mineR.r.ok||!mineR.d.ok)throw new Error('tasks_failed');
+ const mine=mineR.d.tasks||[],open=mine.filter(x=>!['completed','cancelled'].includes(x.status)),lateTasks=open.filter(late);
+ document.getElementById('stat-pending').textContent=open.length;
+ document.getElementById('stat-late').textContent=lateTasks.length;
+ const my=document.getElementById('my-tasks');my.replaceChildren();
+ if(!mine.length){const p=document.createElement('p');p.className='status';p.textContent='No tienes tareas asignadas.';my.appendChild(p)}else mine.forEach(t=>my.appendChild(taskCard(t,false)));
+
+ if(manager&&teamR?.r.ok&&teamR.d.ok){
+  const all=teamR.d.tasks||[],teamOpen=all.filter(x=>!['completed','cancelled'].includes(x.status));
+  document.getElementById('stat-team').textContent=teamOpen.length;
+  const box=document.getElementById('team-tasks');box.replaceChildren();
+  if(!all.length){const p=document.createElement('p');p.className='status';p.textContent='No hay tareas registradas.';box.appendChild(p)}else all.forEach(t=>box.appendChild(taskCard(t,true)));
+ }else document.getElementById('stat-team').textContent='—';
+}
+async function loadNotifications(){
+ const r=await fetch(API+'/api/notifications?limit=50'),d=await r.json();
+ if(!r.ok||!d.ok)throw new Error('notifications_failed');
+ document.getElementById('stat-unread').textContent=d.unread||0;
+ const box=document.getElementById('notifications');box.replaceChildren();
+ if(!(d.notifications||[]).length){const p=document.createElement('p');p.className='status';p.textContent='No tienes notificaciones.';box.appendChild(p);return}
+ for(const n of d.notifications){
+  const row=document.createElement('div');row.className='notice '+(n.read_at?'':'unread');
+  const b=document.createElement('b');b.textContent=n.title;
+  const p=document.createElement('p');p.textContent=n.message||'';
+  const m=document.createElement('div');m.className='meta';m.textContent=new Date(n.created_at).toLocaleString('es-CL');
+  row.append(b,p,m);
+  if(!n.read_at){const btn=document.createElement('button');btn.className='btn soft';btn.style.marginTop='7px';btn.textContent='Marcar como leída';btn.onclick=async()=>{await fetch(API+'/api/notifications/'+n.id+'/read',{method:'POST'});await loadNotifications()};row.appendChild(btn)}
+  box.appendChild(row);
+ }
+}
+async function loadTeam(){
+ if(!manager)return;
+ const r=await fetch(API+'/api/team'),d=await r.json();
+ if(!r.ok||!d.ok)throw new Error('team_failed');
+ const sel=document.getElementById('task-user');sel.replaceChildren();
+ for(const u of d.users||[]){const o=document.createElement('option');o.value=u.id;o.textContent=u.name+' · '+roleLabel(u.role);sel.appendChild(o)}
+}
+async function loadAll(){
+ try{await Promise.all([loadTasks(),loadNotifications()])}catch(e){}
+}
+document.getElementById('refresh').onclick=loadAll;
+document.getElementById('read-all').onclick=async()=>{await fetch(API+'/api/notifications/read-all',{method:'POST'});await loadNotifications()};
+document.getElementById('task-create').onclick=async()=>{
+ const payload={title:document.getElementById('task-title').value.trim(),description:document.getElementById('task-description').value.trim(),assigned_to:Number(document.getElementById('task-user').value),due_date:document.getElementById('task-due').value||null,priority:document.getElementById('task-priority').value};
+ const st=document.getElementById('create-status');
+ if(!payload.title||!payload.assigned_to){st.textContent='Completa el título y responsable.';return}
+ st.textContent='Asignando tarea…';
+ try{
+  const r=await fetch(API+'/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
+  if(!r.ok||!d.ok)throw 0;
+  document.getElementById('task-title').value='';document.getElementById('task-description').value='';document.getElementById('task-due').value='';
+  st.textContent='Tarea asignada y notificación interna creada.';await loadAll();
+ }catch(e){st.textContent='No fue posible asignar la tarea.'}
+};
+(async()=>{
+ try{
+  user=await MECAuth.me();eid=Number(user.establishment_id||0);const role=MECAuth.roleOf(user);manager=['coordinador_convivencia','dupla_psicosocial'].includes(role);
+  if(manager){document.getElementById('create-card').hidden=false;document.getElementById('team-card').hidden=false;await loadTeam()}
+  if(role==='coordinador_convivencia'||role==='dupla_psicosocial')document.getElementById('home-link').href='inicio.html?establishment_id='+encodeURIComponent(eid);
+  else {document.getElementById('home-link').textContent='Mi bandeja';document.getElementById('home-link').href='#tareas'}
+  await loadAll();
+ }catch(e){}
+})();
+</script>
+</body></html>

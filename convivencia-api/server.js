@@ -512,6 +512,113 @@ app.get('/api/audit',...requireRole('coordinador_convivencia'),async(req,res)=>{
   ok(res,{events:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'audit_load_failed'})}});
 
+app.get('/api/protocols',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const q=await pool.query("select id,name,description,default_days,active,created_at,updated_at from case_protocols where establishment_id=$1 order by active desc,name",[req.auth.establishment_id]);
+  ok(res,{protocols:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'protocols_load_failed'})}});
+
+app.post('/api/protocols',...requireRole('coordinador_convivencia'),async(req,res)=>{try{
+  const b=req.body||{},name=String(b.name||'').trim(),description=String(b.description||'').trim(),days=b.default_days===null||b.default_days===''?null:Number(b.default_days);
+  if(!name||name.length>180||description.length>3000||!(days===null||(Number.isInteger(days)&&days>=1&&days<=365)))return res.status(400).json({ok:false,error:'invalid_protocol_payload'});
+  const q=await pool.query(`insert into case_protocols(establishment_id,name,description,default_days,created_by)
+    values($1,$2,$3,$4,$5)
+    on conflict(establishment_id,name) do update set description=excluded.description,default_days=excluded.default_days,active=true,updated_at=now()
+    returning *`,[req.auth.establishment_id,name,description||null,days,req.auth.id]);
+  await auditProfessional(req,'case_protocol_saved','case_protocol',q.rows[0].id,{name,default_days:days});
+  ok(res,{protocol:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/protocols/:id/status',...requireRole('coordinador_convivencia'),async(req,res)=>{try{
+  const active=(req.body||{}).active;
+  if(typeof active!=='boolean')return res.status(400).json({ok:false,error:'invalid_status_payload'});
+  const q=await pool.query("update case_protocols set active=$1,updated_at=now() where id=$2 and establishment_id=$3 returning *",[active,req.params.id,req.auth.establishment_id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'protocol_not_found'});
+  await auditProfessional(req,active?'case_protocol_activated':'case_protocol_deactivated','case_protocol',req.params.id,{});
+  ok(res,{protocol:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.get('/api/cases',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const values=[req.auth.establishment_id];let where="c.establishment_id=$1";
+  if(req.query.status){values.push(String(req.query.status));where+=" and c.status=$"+values.length}
+  const q=await pool.query(`select c.id,c.protocol_id,c.student_id,c.course_id,c.title,c.priority,c.status,c.opened_at,c.due_date,c.closed_at,c.updated_at,
+    p.name protocol,s.name student,co.name course,u.name created_by_name,
+    (select count(*)::int from case_actions a where a.case_id=c.id) actions_count
+    from case_records c
+    left join case_protocols p on p.id=c.protocol_id
+    left join students s on s.id=c.student_id
+    left join courses co on co.id=c.course_id
+    join users u on u.id=c.created_by
+    where ${where}
+    order by case when c.status='closed' then 2 else 1 end,c.due_date nulls last,c.opened_at desc`,values);
+  ok(res,{cases:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'cases_load_failed'})}});
+
+app.post('/api/cases',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const b=req.body||{},title=String(b.title||'').trim(),summary=String(b.summary||'').trim(),priority=String(b.priority||'medium');
+  const protocolId=Number(b.protocol_id)||null,studentId=Number(b.student_id)||null,dueDate=b.due_date?String(b.due_date):null;
+  if(!title||title.length>220||summary.length>5000||!['low','medium','high'].includes(priority))return res.status(400).json({ok:false,error:'invalid_case_payload'});
+  if(dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))return res.status(400).json({ok:false,error:'invalid_due_date'});
+  let protocol=null,student=null,courseId=null;
+  if(protocolId){const p=await pool.query("select id,name,default_days,active from case_protocols where id=$1 and establishment_id=$2",[protocolId,req.auth.establishment_id]);if(!p.rowCount)return res.status(404).json({ok:false,error:'protocol_not_found'});if(!p.rows[0].active)return res.status(409).json({ok:false,error:'protocol_inactive'});protocol=p.rows[0]}
+  if(studentId){const s=await pool.query("select id,name,course_id from students where id=$1 and establishment_id=$2",[studentId,req.auth.establishment_id]);if(!s.rowCount)return res.status(404).json({ok:false,error:'student_not_found'});student=s.rows[0];courseId=student.course_id}
+  let finalDue=dueDate;
+  if(!finalDue&&protocol?.default_days){const d=new Date();d.setDate(d.getDate()+Number(protocol.default_days));finalDue=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+  const q=await pool.query(`insert into case_records(establishment_id,protocol_id,student_id,course_id,title,summary,priority,due_date,created_by)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
+    [req.auth.establishment_id,protocolId,studentId,courseId,title,summary||null,priority,finalDue,req.auth.id]);
+  await auditProfessional(req,'case_opened','case',q.rows[0].id,{protocol_id:protocolId,student_id:studentId,priority,due_date:finalDue});
+  res.status(201).json({ok:true,case:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.get('/api/cases/:id',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const q=await pool.query(`select c.*,p.name protocol,p.description protocol_description,s.name student,co.name course,u.name created_by_name
+    from case_records c left join case_protocols p on p.id=c.protocol_id left join students s on s.id=c.student_id left join courses co on co.id=c.course_id join users u on u.id=c.created_by
+    where c.id=$1 and c.establishment_id=$2`,[req.params.id,req.auth.establishment_id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'case_not_found'});
+  const a=await pool.query(`select a.id,a.action_type,a.note,a.action_date,a.responsible_user_id,a.due_date,a.created_at,u.name responsible,cb.name created_by_name
+    from case_actions a left join users u on u.id=a.responsible_user_id join users cb on cb.id=a.created_by
+    where a.case_id=$1 order by a.action_date,a.id`,[req.params.id]);
+  ok(res,{case:q.rows[0],actions:a.rows});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/cases/:id/actions',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
+  const b=req.body||{},type=String(b.action_type||'seguimiento').trim(),note=String(b.note||'').trim(),responsibleUserId=Number(b.responsible_user_id)||null,dueDate=b.due_date?String(b.due_date):null;
+  if(!type||type.length>120||!note||note.length>5000)return res.status(400).json({ok:false,error:'invalid_case_action'});
+  if(dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))return res.status(400).json({ok:false,error:'invalid_due_date'});
+  const cs=await client.query("select id,title,status from case_records where id=$1 and establishment_id=$2",[req.params.id,req.auth.establishment_id]);
+  if(!cs.rowCount)return res.status(404).json({ok:false,error:'case_not_found'});
+  if(cs.rows[0].status==='closed')return res.status(409).json({ok:false,error:'case_closed'});
+  let responsible=null;if(responsibleUserId){const ru=await client.query("select id,name from users where id=$1 and establishment_id=$2 and active=true",[responsibleUserId,req.auth.establishment_id]);if(!ru.rowCount)return res.status(404).json({ok:false,error:'responsible_user_not_found'});responsible=ru.rows[0]}
+  await client.query('begin');
+  const q=await client.query(`insert into case_actions(case_id,action_type,note,responsible_user_id,due_date,created_by)
+    values($1,$2,$3,$4,$5,$6) returning *`,[req.params.id,type,note,responsibleUserId,dueDate,req.auth.id]);
+  await client.query("update case_records set status=case when status='open' then 'in_progress' else status end,updated_at=now() where id=$1",[req.params.id]);
+  let task=null;
+  if(responsibleUserId&&dueDate){
+    const tq=await client.query(`insert into professional_tasks(establishment_id,title,description,assigned_to,assigned_by,due_date,priority,related_type,related_id)
+      values($1,$2,$3,$4,$5,$6,'medium','case_action',$7) returning *`,
+      [req.auth.establishment_id,'Caso #'+req.params.id+' · '+type,note.slice(0,2000),responsibleUserId,req.auth.id,dueDate,String(q.rows[0].id)]);
+    task=tq.rows[0];
+    await client.query(`insert into professional_notifications(establishment_id,user_id,kind,title,message,link)
+      values($1,$2,'case_task',$3,$4,$5)`,
+      [req.auth.establishment_id,responsibleUserId,'Nueva actuación de caso','Se te asignó una actuación con plazo '+dueDate+'.','ver-caso.html?case_id='+encodeURIComponent(req.params.id)]);
+  }
+  await client.query('commit');
+  await auditProfessional(req,'case_action_added','case',req.params.id,{action_id:q.rows[0].id,action_type:type,responsible_user_id:responsibleUserId,due_date:dueDate});
+  if(task)await auditProfessional(req,'professional_task_created','task',task.id,{assigned_to:responsibleUserId,due_date:dueDate,related_type:'case_action',related_id:q.rows[0].id});
+  res.status(201).json({ok:true,action:{...q.rows[0],responsible:responsible?.name||null},task});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+
+app.post('/api/cases/:id/status',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const status=String((req.body||{}).status||'');
+  if(!['open','in_progress','closed'].includes(status))return res.status(400).json({ok:false,error:'invalid_case_status'});
+  const q=await pool.query(`update case_records set status=$1,closed_at=case when $1='closed' then now() else null end,updated_at=now()
+    where id=$2 and establishment_id=$3 returning *`,[status,req.params.id,req.auth.establishment_id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'case_not_found'});
+  await auditProfessional(req,'case_status_changed','case',req.params.id,{status});
+  ok(res,{case:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
 app.get('/api/team',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
   const q=await pool.query("select id,name,role,active from users where establishment_id=$1 and active=true order by name",[req.auth.establishment_id]);
   ok(res,{users:q.rows});

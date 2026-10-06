@@ -26,11 +26,9 @@ const d=map.dimensions[result.dimension];if(!d)throw new Error("dimension_not_ma
 return {dimension:result.dimension,dimension_name:d.name,priority:result.priority,priority_label:result.label,objectives:d.pgce,action_ids:d.actions,indicators:d.indicators,evidence:d.evidence,reasons:result.reasons,status:"propuesta_para_revision",decision:null,responsible:null,start_date:null,end_date:null,indicator_selected:null,target:null,evidence_selected:[]};
 },
 validateDecision(p){
-if(!p||!["aprobar","ajustar","descartar"].includes(p.decision))throw new Error("professional_decision_required");
-if(p.decision!=="descartar"){
+if(!p||!["aprobar","ajustar"].includes(p.decision))throw new Error("professional_decision_required");
 for(const k of ["responsible","start_date","end_date","indicator_selected","target"])if(!p[k])throw new Error("missing_"+k);
 if(!Array.isArray(p.evidence_selected)||!p.evidence_selected.length)throw new Error("evidence_required");
-}
-return {...p,status:p.decision==="aprobar"?"aprobada":p.decision==="ajustar"?"ajustada":"descartada",reviewed_at:new Date().toISOString()};
+return {...p,status:p.decision==="aprobar"?"aprobada":"ajustada",reviewed_at:new Date().toISOString()};
 }
 };

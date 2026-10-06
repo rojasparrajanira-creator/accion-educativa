@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recursos institucionales · Convivencia Escolar</title>
+<style>
+:root{--g:#173E35;--g2:#2F8067;--m:#EEF6F1;--l:#DCE6E0;--u:#718078;--n:#0F2D52;--y:#FFD200}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
+header{height:82px;background:#fff;border-bottom:1px solid var(--l);display:flex;align-items:center;justify-content:space-between;padding:0 28px}.brand{display:flex;align-items:center;gap:12px}.brand img{width:58px;height:58px;object-fit:contain}.brand b{color:var(--n)}.brand span{display:block;font-size:11px;color:var(--u)}
+main{max-width:1200px;margin:auto;padding:28px 20px 60px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-end}.top h1{margin:5px 0;color:var(--g)}.top p{margin:0;color:var(--u);font-size:13px}
+.card{background:#fff;border:1px solid var(--l);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 8px 24px rgba(23,62,53,.05)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field label{display:block;font-size:10px;font-weight:850;color:#567064;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #D7E3DC;border-radius:11px;padding:10px;font:inherit}.field textarea{min-height:80px}
+.btn{border:0;border-radius:11px;padding:10px 13px;font-weight:850;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.primary{background:var(--g);color:#fff}.soft{background:var(--m);color:var(--g);border:1px solid var(--l)}
+.note{background:var(--m);border-left:5px solid #48BFA0;border-radius:13px;padding:13px;color:#526a62;line-height:1.5;font-size:12px}.status{font-size:12px;color:var(--u);min-height:18px}
+.resources{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.resource{border:1px solid var(--l);border-radius:16px;padding:16px;background:#fff}.resource h3{font-size:14px;margin:8px 0;color:var(--g)}.resource p{font-size:11px;color:var(--u);line-height:1.5}.badges{display:flex;gap:6px;flex-wrap:wrap}.badge{display:inline-block;padding:5px 8px;border-radius:11px;background:#E3F4E9;color:#2F6A48;font-size:9px;font-weight:800}.badge.management{background:#FFF3C5;color:#705B00}.tags{font-size:10px;color:#6b7f77;margin-top:8px}
+@media(max-width:900px){.resources{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:1fr 1fr}}@media(max-width:620px){.resources,.grid,.grid3{grid-template-columns:1fr}.top{display:block}}
+</style>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard({allowAnyRole:true});</script>
+</head>
+<body>
+<header><div class="brand"><img src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span data-establishment-name>Establecimiento</span></div></div><div><b data-professional-name>Profesional</b> · <span data-professional-role>Rol</span></div></header>
+<main>
+<div class="top"><div><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">REPOSITORIO INSTITUCIONAL</small><h1>Recursos</h1><p>Materiales de apoyo para prevención, intervención, seguimiento y trabajo con la comunidad educativa.</p></div><a id="back" class="btn soft" href="inicio.html">← Volver</a></div>
+<div class="note" style="margin-top:16px"><strong>Repositorio de enlaces.</strong> Los archivos se mantienen en Drive u otro alojamiento HTTPS autorizado. Revisa también los permisos del archivo en el servicio de origen. Este módulo no debe utilizarse para almacenar evidencia sensible de casos.</div>
+
+<section id="create-card" class="card" hidden>
+<h2 style="margin-top:0;font-size:18px">Registrar recurso</h2>
+<div class="grid">
+ <div class="field"><label>Título</label><input id="res-title" maxlength="220"></div>
+ <div class="field"><label>Enlace HTTPS</label><input id="res-url" type="url" placeholder="https://..." autocomplete="off"></div>
+</div>
+<div class="grid3">
+ <div class="field"><label>Tipo</label><select id="res-type"><option value="ppt">PPT</option><option value="cuadernillo">Cuadernillo</option><option value="infografia">Infografía</option><option value="lectura">Lectura</option><option value="matriz">Matriz</option><option value="acta">Acta</option><option value="evaluacion">Evaluación</option><option value="guia">Guía</option><option value="otro">Otro</option></select></div>
+ <div class="field"><label>Audiencia</label><select id="res-audience"><option value="profesionales">Profesionales</option><option value="estudiantes">Estudiantes</option><option value="familias">Familias</option><option value="general">General</option></select></div>
+ <div class="field"><label>Visibilidad en plataforma</label><select id="res-visibility"><option value="all_professionals">Todo el equipo profesional</option><option value="management">Solo Coordinación / Dupla</option></select></div>
+</div>
+<div class="field"><label>Descripción</label><textarea id="res-description" maxlength="4000"></textarea></div>
+<div class="field"><label>Etiquetas (separadas por coma)</label><input id="res-tags" placeholder="buen trato, 7° básico, familias"></div>
+<button id="res-save" class="btn primary" type="button">Guardar recurso</button><p id="res-status" class="status"></p>
+</section>
+
+<section class="card">
+<div class="grid3">
+ <div class="field"><label>Buscar</label><input id="search" placeholder="Título, descripción o etiqueta"></div>
+ <div class="field"><label>Tipo</label><select id="filter-type"><option value="">Todos</option><option value="ppt">PPT</option><option value="cuadernillo">Cuadernillo</option><option value="infografia">Infografía</option><option value="lectura">Lectura</option><option value="matriz">Matriz</option><option value="acta">Acta</option><option value="evaluacion">Evaluación</option><option value="guia">Guía</option><option value="otro">Otro</option></select></div>
+ <div style="display:flex;align-items:end"><button id="refresh" class="btn soft" type="button">Actualizar repositorio</button></div>
+</div>
+<p id="summary" class="status"></p>
+<div id="resources" class="resources"></div>
+</section>
+</main>
+<script>
+const API=MECAuth.API;
+let user=null,manager=false,items=[];
+const typeLabel=t=>({ppt:'PPT',cuadernillo:'Cuadernillo',infografia:'Infografía',lectura:'Lectura',matriz:'Matriz',acta:'Acta',evaluacion:'Evaluación',guia:'Guía',otro:'Otro'})[t]||t;
+const audienceLabel=a=>({profesionales:'Profesionales',estudiantes:'Estudiantes',familias:'Familias',general:'General'})[a]||a;
+function render(){
+ const term=document.getElementById('search').value.trim().toLowerCase(),type=document.getElementById('filter-type').value;
+ const filtered=items.filter(x=>(!type||x.resource_type===type)&&(!term||[x.title,x.description,...(x.tags||[])].join(' ').toLowerCase().includes(term)));
+ const box=document.getElementById('resources');box.replaceChildren();document.getElementById('summary').textContent=filtered.length+' recurso(s) visible(s).';
+ if(!filtered.length){const p=document.createElement('p');p.className='status';p.textContent='No hay recursos para este filtro.';box.appendChild(p);return}
+ for(const x of filtered){
+  const card=document.createElement('article');card.className='resource';
+  const badges=document.createElement('div');badges.className='badges';
+  const b1=document.createElement('span');b1.className='badge';b1.textContent=typeLabel(x.resource_type);badges.appendChild(b1);
+  const b2=document.createElement('span');b2.className='badge';b2.textContent=audienceLabel(x.audience);badges.appendChild(b2);
+  if(x.visibility==='management'){const b3=document.createElement('span');b3.className='badge management';b3.textContent='Coordinación / Dupla';badges.appendChild(b3)}
+  const h=document.createElement('h3');h.textContent=x.title;
+  const p=document.createElement('p');p.textContent=x.description||'Sin descripción.';
+  const tags=document.createElement('div');tags.className='tags';tags.textContent=(x.tags||[]).length?'Etiquetas: '+x.tags.join(' · '):'';
+  const actions=document.createElement('div');actions.style.display='flex';actions.style.gap='6px';actions.style.flexWrap='wrap';actions.style.marginTop='12px';
+  const a=document.createElement('a');a.className='btn primary';a.href=x.url;a.target='_blank';a.rel='noopener noreferrer';a.referrerPolicy='no-referrer';a.textContent='Abrir recurso';actions.appendChild(a);
+  if(manager){const off=document.createElement('button');off.className='btn soft';off.type='button';off.textContent='Desactivar';off.onclick=()=>setStatus(x.id,false);actions.appendChild(off)}
+  card.append(badges,h,p,tags,actions);box.appendChild(card);
+ }
+}
+async function load(){
+ try{const r=await fetch(API+'/api/resources'+(document.getElementById('filter-type').value?'?type='+encodeURIComponent(document.getElementById('filter-type').value):'')),d=await r.json();if(!r.ok||!d.ok)throw 0;items=d.resources||[];render()}catch(e){document.getElementById('summary').textContent='No fue posible cargar el repositorio.'}
+}
+async function setStatus(id,active){await fetch(API+'/api/resources/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});await load()}
+document.getElementById('search').oninput=render;document.getElementById('filter-type').onchange=load;document.getElementById('refresh').onclick=load;
+document.getElementById('res-save').onclick=async()=>{
+ const st=document.getElementById('res-status'),payload={
+  title:document.getElementById('res-title').value.trim(),url:document.getElementById('res-url').value.trim(),resource_type:document.getElementById('res-type').value,audience:document.getElementById('res-audience').value,visibility:document.getElementById('res-visibility').value,description:document.getElementById('res-description').value.trim(),tags:document.getElementById('res-tags').value.split(',').map(x=>x.trim()).filter(Boolean)
+ };
+ if(!payload.title||!payload.url){st.textContent='Completa título y enlace HTTPS.';return}st.textContent='Guardando recurso…';
+ try{const r=await fetch(API+'/api/resources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'save_failed');['res-title','res-url','res-description','res-tags'].forEach(id=>document.getElementById(id).value='');st.textContent='Recurso guardado correctamente.';await load()}catch(e){st.textContent=e.message==='https_resource_required'?'El enlace debe utilizar HTTPS.':'No fue posible guardar el recurso.'}
+};
+(async()=>{
+ try{user=await MECAuth.me();const role=MECAuth.roleOf(user);manager=['coordinador_convivencia','dupla_psicosocial'].includes(role);document.getElementById('create-card').hidden=!manager;document.getElementById('back').href=manager?'inicio.html?establishment_id='+encodeURIComponent(user.establishment_id):'notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);await load()}catch(e){}
+})();
+</script>
+</body></html>

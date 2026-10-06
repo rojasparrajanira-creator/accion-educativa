@@ -1345,12 +1345,12 @@ app.get('/api/store/products',async(req,res)=>{try{
 }catch(e){res.status(400).json({ok:false,error:'store_products_failed'})}});
 app.get('/api/store/admin/products',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
-  const q=await pool.query("select id,title,slug,objective,description,included_materials,audience,image_url,drive_delivery_url,price_clp,compare_at_price_clp,status,created_at,updated_at from store_products order by updated_at desc");
+  const q=await pool.query("select id,title,slug,objective,description,included_materials,audience,image_url,drive_delivery_url,drive_account_id,price_clp,compare_at_price_clp,status,created_at,updated_at from store_products order by updated_at desc");
   ok(res,{products:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'store_products_failed'})}});
 app.post('/api/store/admin/products',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
-  const b=req.body||{},title=String(b.title||'').trim(),objective=String(b.objective||'').trim(),description=String(b.description||'').trim(),included=String(b.included_materials||'').trim(),drive=String(b.drive_delivery_url||'').trim(),image=String(b.image_url||'').trim(),audience=String(b.audience||'').trim(),price=Number(b.price_clp),compare=b.compare_at_price_clp==null||b.compare_at_price_clp===''?null:Number(b.compare_at_price_clp),status=['draft','published','archived'].includes(b.status)?b.status:'draft';
+  const b=req.body||{},driveAccountId=b.drive_account_id?Number(b.drive_account_id):null,title=String(b.title||'').trim(),objective=String(b.objective||'').trim(),description=String(b.description||'').trim(),included=String(b.included_materials||'').trim(),drive=String(b.drive_delivery_url||'').trim(),image=String(b.image_url||'').trim(),audience=String(b.audience||'').trim(),price=Number(b.price_clp),compare=b.compare_at_price_clp==null||b.compare_at_price_clp===''?null:Number(b.compare_at_price_clp),status=['draft','published','archived'].includes(b.status)?b.status:'draft';
   if(!title||!objective||!description||!included||!drive||!Number.isInteger(price)||price<0)return res.status(400).json({ok:false,error:'required_store_fields'});
   if(!/^https:\/\//i.test(drive)||image&&!/^https:\/\//i.test(image))return res.status(400).json({ok:false,error:'https_url_required'});
   if(compare!==null&&(!Number.isInteger(compare)||compare<price))return res.status(400).json({ok:false,error:'invalid_compare_price'});
@@ -1358,17 +1358,19 @@ app.post('/api/store/admin/products',requireAuth,async(req,res)=>{try{
   const q=await pool.query(`insert into store_products(title,slug,objective,description,included_materials,audience,image_url,drive_delivery_url,price_clp,compare_at_price_clp,status,created_by)
     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning id,title,slug,status,price_clp,updated_at`,
     [title,slug,objective,description,included,audience||null,image||null,drive,price,compare,status,req.auth.id]);
+  if(driveAccountId)await pool.query("update store_products set drive_account_id=$1 where id=$2",[driveAccountId,q.rows[0].id]);
   ok(res,{product:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_create_failed'})}});
 app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
-  const b=req.body||{},id=Number(req.params.id),title=String(b.title||'').trim(),objective=String(b.objective||'').trim(),description=String(b.description||'').trim(),included=String(b.included_materials||'').trim(),drive=String(b.drive_delivery_url||'').trim(),image=String(b.image_url||'').trim(),audience=String(b.audience||'').trim(),price=Number(b.price_clp),compare=b.compare_at_price_clp==null||b.compare_at_price_clp===''?null:Number(b.compare_at_price_clp),status=['draft','published','archived'].includes(b.status)?b.status:'draft',slug=storeSlug(b.slug||title);
+  const b=req.body||{},driveAccountId=b.drive_account_id?Number(b.drive_account_id):null,id=Number(req.params.id),title=String(b.title||'').trim(),objective=String(b.objective||'').trim(),description=String(b.description||'').trim(),included=String(b.included_materials||'').trim(),drive=String(b.drive_delivery_url||'').trim(),image=String(b.image_url||'').trim(),audience=String(b.audience||'').trim(),price=Number(b.price_clp),compare=b.compare_at_price_clp==null||b.compare_at_price_clp===''?null:Number(b.compare_at_price_clp),status=['draft','published','archived'].includes(b.status)?b.status:'draft',slug=storeSlug(b.slug||title);
   if(!id||!title||!slug||!objective||!description||!included||!drive||!Number.isInteger(price)||price<0)return res.status(400).json({ok:false,error:'required_store_fields'});
   if(!/^https:\/\//i.test(drive)||image&&!/^https:\/\//i.test(image))return res.status(400).json({ok:false,error:'https_url_required'});
   if(compare!==null&&(!Number.isInteger(compare)||compare<price))return res.status(400).json({ok:false,error:'invalid_compare_price'});
   const q=await pool.query(`update store_products set title=$1,slug=$2,objective=$3,description=$4,included_materials=$5,audience=$6,image_url=$7,drive_delivery_url=$8,price_clp=$9,compare_at_price_clp=$10,status=$11,updated_at=now() where id=$12 returning id,title,slug,status,price_clp,updated_at`,
     [title,slug,objective,description,included,audience||null,image||null,drive,price,compare,status,id]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'store_product_not_found'});
+  await pool.query("update store_products set drive_account_id=$1 where id=$2",[driveAccountId||null,id]);
   ok(res,{product:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_update_failed'})}});
 
@@ -1377,13 +1379,13 @@ app.post('/api/store/orders',async(req,res)=>{const client=await pool.connect();
   const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
   if(name.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
   const qty=new Map();for(const x of raw){const id=Number(x.product_id),q=Number(x.quantity||1);if(!Number.isInteger(id)||!Number.isInteger(q)||q<1||q>20)return res.status(400).json({ok:false,error:'invalid_order_items'});qty.set(id,(qty.get(id)||0)+q)}
-  const ids=[...qty.keys()];const pq=await client.query("select id,title,price_clp,drive_delivery_url from store_products where status='published' and id=any($1::bigint[])",[ids]);
+  const ids=[...qty.keys()];const pq=await client.query("select id,title,price_clp,drive_delivery_url,drive_account_id from store_products where status='published' and id=any($1::bigint[])",[ids]);
   if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
   let total=0;for(const p of pq.rows)total+=Number(p.price_clp)*qty.get(Number(p.id));
   const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(3).toString('hex').toUpperCase();
   await client.query('begin');
   const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp) values($1,$2,$3,$4) returning id,order_code,status,total_clp,created_at",[code,name,email,total]);
-  for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot) values($1,$2,$3,$4,$5,$6)",[oq.rows[0].id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url]);
+  for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[oq.rows[0].id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);
   await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[oq.rows[0].id,email]);
   await client.query('commit');ok(res,{order:oq.rows[0],payment_ready:false,message:'Pedido creado. Webpay aún no está habilitado.'});
 }catch(e){await client.query('rollback').catch(()=>{});res.status(400).json({ok:false,error:'order_create_failed'})}finally{client.release()}});

@@ -107,11 +107,28 @@ async function runPilotSelfTest(base){
 
   const activated=await prof('/api/measurements/'+mid+'/activate',{method:'POST',body:{establishment_id:eid}});
   if(activated.measurement?.status!=='active')throw new Error('measurement_activation_failed');
-  const started=await student('/api/applications/'+appId+'/start',{method:'POST',body:{access:token}});
+
+  const initialCode=String(1000+(stamp%8000)).padStart(4,'0');
+  let personalCode=String(1000+((stamp+1379)%8000)).padStart(4,'0');
+  if(personalCode===initialCode)personalCode=String((Number(personalCode)+1)%10000).padStart(4,'0');
+
+  const codeSaved=await prof('/api/courses/'+courseId+'/access-code',{method:'POST',body:{code:initialCode}});
+  if(codeSaved.configured!==true)throw new Error('course_code_not_configured');
+  const firstLogin=await student('/api/student-access/login',{method:'POST',body:{establishment_id:eid,rut,secret:initialCode}});
+  if(!firstLogin.access_token||firstLogin.requires_pin_setup!==true||Number(firstLogin.application?.id)!==appId)throw new Error('course_code_first_login_failed');
+  await expectError('start_before_personal_pin',()=>student('/api/applications/'+appId+'/start',{method:'POST',body:{access:firstLogin.access_token}}),'student_pin_required');
+  const pinSet=await student('/api/student-access/set-pin',{method:'POST',body:{application_id:appId,access:firstLogin.access_token,new_pin:personalCode}});
+  if(pinSet.pin_set!==true)throw new Error('personal_pin_setup_failed');
+  const pinLogin=await student('/api/student-access/login',{method:'POST',body:{establishment_id:eid,rut,secret:personalCode}});
+  if(!pinLogin.access_token||pinLogin.requires_pin_setup!==false)throw new Error('personal_pin_login_failed');
+  const activeToken=pinLogin.access_token;
+  log.push('course_code_personal_pin');
+
+  const started=await student('/api/applications/'+appId+'/start',{method:'POST',body:{access:activeToken}});
   if(started.application?.status!=='in_progress')throw new Error('application_start_failed');
-  const draft=await student('/api/applications/'+appId+'/progress',{method:'POST',body:{access:token,responses:[{item_code:'D01_01',value:4}]}});
+  const draft=await student('/api/applications/'+appId+'/progress',{method:'POST',body:{access:activeToken,responses:[{item_code:'D01_01',value:4}]}});
   if(Number(draft.saved)!==1)throw new Error('draft_save_failed');
-  const saved=await student('/api/applications/'+appId+'/responses',{method:'POST',body:{access:token,responses:manifest78()}});
+  const saved=await student('/api/applications/'+appId+'/responses',{method:'POST',body:{access:activeToken,responses:manifest78()}});
   if(Number(saved.saved)!==50||saved.status!=='completed')throw new Error('responses_completion_failed:'+JSON.stringify(saved));
   log.push('student_completion');
 

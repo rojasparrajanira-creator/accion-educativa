@@ -134,9 +134,9 @@ window.MECAssign={
         if(d.error==='establishment_mismatch')throw new Error('El estudiante y la medición pertenecen a establecimientos distintos.');
         throw new Error('No fue posible crear la aplicación.');
       }
-      if(!d.access_token)throw new Error('No fue posible generar el acceso seguro.');const url='encuesta-bienvenida.html?application_id='+encodeURIComponent(d.application.id)+'&access='+encodeURIComponent(d.access_token);
+      if(!d.application||!d.application.id)throw new Error('No fue posible preparar la aplicación.');
       const eid=new URLSearchParams(location.search).get('establishment_id')||'';
-      msg.innerHTML='Aplicación preparada. <a href="configurar-aplicacion.html?establishment_id='+encodeURIComponent(eid)+'&measurement_id='+encodeURIComponent(measurement_id)+'">Continuar configuración →</a> · <a href="'+url+'">Abrir acceso del estudiante</a>';
+      msg.innerHTML='Aplicación preparada correctamente. <a href="configurar-aplicacion.html?establishment_id='+encodeURIComponent(eid)+'&measurement_id='+encodeURIComponent(measurement_id)+'">Continuar configuración →</a><br><small>El enlace estudiantil se generará en la etapa “Accesos seguros”, después de revisar la configuración.</small>';
     }catch(e){
       msg.textContent=e.message||'No fue posible preparar la aplicación.';
     }

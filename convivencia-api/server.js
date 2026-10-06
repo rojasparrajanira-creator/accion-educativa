@@ -110,6 +110,17 @@ async function initDatabase(){
       console.log('Platform administrator role verified.');
     }
   }
+  if(String(process.env.RUN_STORE_SELFTEST||'')==='1'){
+    const checks=[];
+    const cols=await pool.query("select table_name,column_name from information_schema.columns where table_schema='public' and table_name in ('store_products','store_drive_accounts','store_product_images','store_orders','store_order_items','store_delivery_events')");
+    const have=new Set(cols.rows.map(x=>x.table_name+'.'+x.column_name));
+    for(const k of ['store_products.drive_account_id','store_drive_accounts.google_email','store_product_images.image_data','store_orders.order_code','store_order_items.delivery_url_snapshot','store_order_items.drive_account_id_snapshot','store_delivery_events.buyer_email'])if(!have.has(k))throw new Error('STORE_SELFTEST missing '+k);
+    checks.push('schema');
+    const pub=await pool.query("select column_name from information_schema.columns where table_name='store_products'");
+    if(!pub.rowCount)throw new Error('STORE_SELFTEST products unavailable');
+    checks.push('catalog_storage');
+    console.log('STORE_SELFTEST PASSED '+JSON.stringify({ok:true,checks}));
+  }
   const q=await pool.query("select current_database() database");
   console.log('Convivencia DB connected:',q.rows[0].database);
 }

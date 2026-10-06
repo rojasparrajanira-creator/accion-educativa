@@ -333,3 +333,16 @@ CREATE TABLE IF NOT EXISTS store_delivery_events(
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_store_delivery_order ON store_delivery_events(order_id,created_at DESC);
+
+
+-- Store: multiple authorized Drive owners.
+CREATE TABLE IF NOT EXISTS store_drive_accounts(
+ id BIGSERIAL PRIMARY KEY,
+ label TEXT NOT NULL,
+ google_email TEXT UNIQUE NOT NULL,
+ status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','connected','disabled')),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE store_products ADD COLUMN IF NOT EXISTS drive_account_id BIGINT REFERENCES store_drive_accounts(id);
+ALTER TABLE store_order_items ADD COLUMN IF NOT EXISTS drive_account_id_snapshot BIGINT REFERENCES store_drive_accounts(id);

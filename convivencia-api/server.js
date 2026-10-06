@@ -64,6 +64,15 @@ app.use((req,res,next)=>{
   next();
 });
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:false});
+const storeImageUpload=multer({
+  storage:multer.memoryStorage(),
+  limits:{files:1,fileSize:5*1024*1024},
+  fileFilter:(req,file,cb)=>{
+    const type=String(file.mimetype||'').toLowerCase();
+    const name=String(file.originalname||'').toLowerCase();
+    cb(null,(type==='image/jpeg'||type==='image/png')&&/\.(jpe?g|png)$/.test(name));
+  }
+});
 const matrículaUpload=multer({
   storage:multer.memoryStorage(),
   limits:{files:20,fileSize:10*1024*1024},

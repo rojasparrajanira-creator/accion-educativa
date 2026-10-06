@@ -375,7 +375,53 @@ app.post('/api/auth/change-password',requireAuth,async(req,res)=>{try{
   ok(res,{changed:true});
 }catch(e){res.status(400).json({ok:false,error:'password_change_failed'})}});
 
-app.post('/api/pgce/interventions',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const b=req.body||{};const required=['source_application_id','dimension_code','priority','professional_decision','responsible','start_date','end_date','indicator','target'];for(const k of required)if(b[k]===undefined||b[k]===null||b[k]==='')throw new Error('missing_'+k);if(!/^D(0[1-9]|1[0-6])$/.test(b.dimension_code))throw new Error('invalid_dimension');if(!['high','medium','low'].includes(b.priority))throw new Error('invalid_priority');if(!['aprobar','ajustar'].includes(b.professional_decision))throw new Error('invalid_professional_decision');if(!/^\d{4}-\d{2}-\d{2}$/.test(String(b.start_date))||!/^\d{4}-\d{2}-\d{2}$/.test(String(b.end_date)))throw new Error('invalid_dates');if(new Date(b.end_date+'T00:00:00')<new Date(b.start_date+'T00:00:00'))throw new Error('end_date_before_start_date');const a=await pool.query("select s.establishment_id,a.status from survey_applications a join students s on s.id=a.student_id where a.id=$1",[b.source_application_id]);if(!a.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});if(Number(a.rows[0].establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(a.rows[0].status!=='completed')return res.status(409).json({ok:false,error:'application_not_completed'});const review=await pool.query("select status from application_reviews where application_id=$1 and establishment_id=$2",[b.source_application_id,req.auth.establishment_id]);if(!review.rowCount||review.rows[0].status!=='reviewed')return res.status(409).json({ok:false,error:'professional_review_required'});const q=await pool.query("insert into pgce_interventions(establishment_id,source_application_id,dimension_code,priority,professional_decision,responsible,start_date,end_date,indicator,target,evidence,rationale,pgce_objectives,pgce_action_ids,created_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) returning *",[a.rows[0].establishment_id,b.source_application_id,b.dimension_code,b.priority,b.professional_decision,b.responsible,b.start_date,b.end_date,b.indicator,b.target,Array.isArray(b.evidence)?b.evidence:[],Array.isArray(b.rationale)?b.rationale:[],Array.isArray(b.pgce_objectives)?b.pgce_objectives:[],Array.isArray(b.pgce_action_ids)?b.pgce_action_ids:[],req.auth.id]);await auditProfessional(req,'pgce_intervention_created','pgce_intervention',q.rows[0].id,{source_application_id:b.source_application_id,dimension_code:b.dimension_code,priority:b.priority,professional_decision:b.professional_decision});res.status(201).json({ok:true,intervention:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.post('/api/pgce/interventions',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
+  const b=req.body||{};
+  const required=['source_application_id','dimension_code','priority','professional_decision','start_date','end_date','indicator','target'];
+  for(const k of required)if(b[k]===undefined||b[k]===null||b[k]==='')throw new Error('missing_'+k);
+  if(!/^D(0[1-9]|1[0-6])$/.test(b.dimension_code))throw new Error('invalid_dimension');
+  if(!['high','medium','low'].includes(b.priority))throw new Error('invalid_priority');
+  if(!['aprobar','ajustar'].includes(b.professional_decision))throw new Error('invalid_professional_decision');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(b.start_date))||!/^\d{4}-\d{2}-\d{2}$/.test(String(b.end_date)))throw new Error('invalid_dates');
+  if(new Date(b.end_date+'T00:00:00')<new Date(b.start_date+'T00:00:00'))throw new Error('end_date_before_start_date');
+
+  const app=await client.query("select s.establishment_id,a.status from survey_applications a join students s on s.id=a.student_id where a.id=$1",[b.source_application_id]);
+  if(!app.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});
+  if(Number(app.rows[0].establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
+  if(app.rows[0].status!=='completed')return res.status(409).json({ok:false,error:'application_not_completed'});
+  const review=await client.query("select status from application_reviews where application_id=$1 and establishment_id=$2",[b.source_application_id,req.auth.establishment_id]);
+  if(!review.rowCount||review.rows[0].status!=='reviewed')return res.status(409).json({ok:false,error:'professional_review_required'});
+
+  let responsibleUserId=Number(b.responsible_user_id)||null,responsible=String(b.responsible||'').trim(),linkedUser=null;
+  if(responsibleUserId){
+    const ru=await client.query("select id,name,role from users where id=$1 and establishment_id=$2 and active=true",[responsibleUserId,req.auth.establishment_id]);
+    if(!ru.rowCount)return res.status(404).json({ok:false,error:'responsible_user_not_found'});
+    linkedUser=ru.rows[0];responsible=linkedUser.name;
+  }
+  if(!responsible)throw new Error('missing_responsible');
+
+  await client.query('begin');
+  const q=await client.query(`insert into pgce_interventions(establishment_id,source_application_id,dimension_code,priority,professional_decision,responsible,responsible_user_id,start_date,end_date,indicator,target,evidence,rationale,pgce_objectives,pgce_action_ids,created_by)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) returning *`,
+    [app.rows[0].establishment_id,b.source_application_id,b.dimension_code,b.priority,b.professional_decision,responsible,responsibleUserId,b.start_date,b.end_date,b.indicator,b.target,Array.isArray(b.evidence)?b.evidence:[],Array.isArray(b.rationale)?b.rationale:[],Array.isArray(b.pgce_objectives)?b.pgce_objectives:[],Array.isArray(b.pgce_action_ids)?b.pgce_action_ids:[],req.auth.id]);
+
+  let task=null;
+  if(responsibleUserId){
+    const tq=await client.query(`insert into professional_tasks(establishment_id,title,description,assigned_to,assigned_by,due_date,priority,related_type,related_id)
+      values($1,$2,$3,$4,$5,$6,$7,'pgce_intervention',$8) returning *`,
+      [req.auth.establishment_id,'PGCE '+b.dimension_code+' · '+String(b.indicator).slice(0,150),String(b.target).slice(0,2000),responsibleUserId,req.auth.id,b.end_date,b.priority,String(q.rows[0].id)]);
+    task=tq.rows[0];
+    await client.query(`insert into professional_notifications(establishment_id,user_id,kind,title,message,link)
+      values($1,$2,'pgce_task',$3,$4,'notificaciones.html#tareas')`,
+      [req.auth.establishment_id,responsibleUserId,'Nueva tarea PGCE: '+b.dimension_code,(req.auth.name||'El equipo de Convivencia')+' te asignó una intervención con plazo '+b.end_date+'.']);
+  }
+
+  await client.query('commit');
+  await auditProfessional(req,'pgce_intervention_created','pgce_intervention',q.rows[0].id,{source_application_id:b.source_application_id,dimension_code:b.dimension_code,priority:b.priority,professional_decision:b.professional_decision,responsible_user_id:responsibleUserId});
+  if(task)await auditProfessional(req,'professional_task_created','task',task.id,{assigned_to:responsibleUserId,due_date:b.end_date,priority:b.priority,related_type:'pgce_intervention',related_id:q.rows[0].id});
+  res.status(201).json({ok:true,intervention:q.rows[0],task});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+
 app.get('/api/pgce/interventions',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const q=await pool.query("select * from pgce_interventions where establishment_id=$1 order by created_at desc",[establishmentId]);res.json({ok:true,interventions:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.post('/api/pgce/interventions/:id/updates',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const b=req.body||{};if(!['approved','in_progress','completed','reprogrammed','suspended'].includes(b.status))throw new Error('invalid_status');if(!['M1','M2','M3'].includes(b.measurement_code))throw new Error('invalid_measurement_code');if(b.progress_percent!==null&&b.progress_percent!==undefined&&(Number(b.progress_percent)<0||Number(b.progress_percent)>100||!Number.isFinite(Number(b.progress_percent))))throw new Error('invalid_progress_percent');const establishmentId=Number(b.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const intervention=await pool.query("select id from pgce_interventions where id=$1 and establishment_id=$2",[req.params.id,establishmentId]);if(!intervention.rowCount)return res.status(404).json({ok:false,error:'intervention_not_found'});const q=await pool.query("insert into pgce_intervention_updates(intervention_id,measurement_code,status,progress_percent,evidence_note,adjustment_note,created_by) values($1,$2,$3,$4,$5,$6,$7) returning *",[req.params.id,b.measurement_code||null,b.status,b.progress_percent??null,b.evidence_note||null,b.adjustment_note||null,req.auth.id]);await pool.query("update pgce_interventions set status=$1,updated_at=now() where id=$2",[b.status,req.params.id]);await auditProfessional(req,'pgce_followup_recorded','pgce_intervention',req.params.id,{measurement_code:b.measurement_code,status:b.status,progress_percent:b.progress_percent??null});res.status(201).json({ok:true,update:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/pgce/interventions/:id/updates',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const intervention=await pool.query("select id from pgce_interventions where id=$1 and establishment_id=$2",[req.params.id,establishmentId]);if(!intervention.rowCount)return res.status(404).json({ok:false,error:'intervention_not_found'});const q=await pool.query("select * from pgce_intervention_updates where intervention_id=$1 order by created_at",[req.params.id]);res.json({ok:true,updates:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});

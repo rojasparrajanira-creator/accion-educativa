@@ -42,7 +42,7 @@ form.addEventListener('submit',async e=>{
    if(!r.ok||!d.ok)throw new Error(d.error||'change_failed');
    status.style.color='#176B5B';status.textContent='Clave actualizada correctamente.';
    const user=await MECAuth.me();
-   location.href='inicio.html?establishment_id='+encodeURIComponent(user.establishment_id);
+   location.href=MECAuth.roleOf(user)==='platform_admin'?'admin-plataforma.html':'inicio.html?establishment_id='+encodeURIComponent(user.establishment_id);
  }catch(err){
    status.style.color='#9a3b32';
    status.textContent=err.message==='invalid_current_password'?'La clave actual no es correcta.':'No fue posible cambiar la clave.';

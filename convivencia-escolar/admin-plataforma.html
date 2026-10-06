@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administración de plataforma · Material Educativo Chile</title>
+<style>
+:root{--g:#173E35;--g2:#2F8067;--m:#EEF6F1;--l:#DCE6E0;--n:#0F2D52;--u:#718078}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
+main{max-width:1180px;margin:auto;padding:30px 22px 60px}.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:20px}.top h1{margin:5px 0;color:var(--g)}.top p{margin:0;color:var(--u);font-size:13px}
+.card{background:#fff;border:1px solid var(--l);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 8px 24px rgba(23,62,53,.05)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field label{display:block;font-size:10px;font-weight:850;color:#567064;margin-bottom:5px}.field input{width:100%;border:1px solid #D7E3DC;border-radius:11px;padding:11px;font:inherit}.actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+button{border:0;border-radius:11px;padding:11px 14px;font-weight:850;cursor:pointer}.primary{background:var(--g);color:#fff}.soft{background:var(--m);color:var(--g);border:1px solid var(--l)}.status{font-size:12px;color:var(--u);min-height:18px}
+table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;background:#F1F6F3;color:#567064;padding:10px}td{padding:11px 10px;border-bottom:1px solid #EDF1EE}.badge{display:inline-block;padding:5px 8px;border-radius:12px;background:#E3F4E9;color:#2F6A48;font-weight:800;font-size:10px}
+.note{background:#F6FAF8;border-radius:12px;padding:12px;color:var(--u);font-size:11px;line-height:1.5;margin-top:12px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.table-wrap{overflow:auto}table{min-width:720px}.top{display:block}}
+</style>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard({roles:['platform_admin'],bindEstablishment:false});</script>
+</head>
+<body><main>
+<div class="top"><div><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">ADMINISTRACIÓN DE PLATAFORMA</small><h1>Establecimientos</h1><p>Material Educativo Chile · alta inicial segura</p></div><button class="soft" type="button" onclick="MECAuth.logout()">Cerrar sesión</button></div>
+
+<section class="card">
+<h2 style="margin-top:0;font-size:18px">Dar de alta un establecimiento</h2>
+<div class="grid">
+  <div class="field"><label>Nombre del establecimiento</label><input id="name" autocomplete="organization"></div>
+  <div class="field"><label>RBD</label><input id="rbd" placeholder="Ej.: 6586-2"></div>
+  <div class="field"><label>Año escolar inicial</label><input id="year" type="number" min="2020" max="2100"></div>
+  <div></div>
+  <div class="field"><label>Nombre Coordinador/a de Convivencia</label><input id="coord-name" autocomplete="name"></div>
+  <div class="field"><label>Correo institucional</label><input id="coord-email" type="email" autocomplete="email"></div>
+  <div class="field"><label>RUT Coordinador/a (opcional)</label><input id="coord-rut" placeholder="12.345.678-9"></div>
+  <div class="field"><label>Clave temporal</label><input id="temp" type="password" minlength="10" autocomplete="new-password"></div>
+</div>
+<div class="actions"><button class="primary" id="create" type="button">Crear establecimiento y Coordinación</button></div>
+<p id="form-status" class="status" role="status" aria-live="polite"></p>
+<div class="note">La cuenta creada debe reemplazar la clave temporal al primer ingreso. El sistema prepara M1, M2 y M3 en estado borrador; ninguna medición queda habilitada automáticamente.</div>
+</section>
+
+<section class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0;font-size:18px">Establecimientos registrados</h2><button class="soft" id="refresh" type="button">Actualizar</button></div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Establecimiento</th><th>RBD</th><th>Usuarios activos</th><th>Coordinadores activos</th><th>Alta</th></tr></thead><tbody id="rows"><tr><td colspan="5">Cargando…</td></tr></tbody></table></div>
+</section>
+</main>
+<script>
+const API=MECAuth.API,rows=document.getElementById('rows'),status=document.getElementById('form-status');
+document.getElementById('year').value=new Date().getFullYear();
+const td=t=>{const x=document.createElement('td');x.textContent=t??'—';return x};
+const date=v=>v?new Date(v).toLocaleDateString('es-CL'):'—';
+
+async function load(){
+ try{
+  const r=await fetch(API+'/api/platform/establishments'),d=await r.json();
+  if(!r.ok||!d.ok)throw new Error('load_failed');
+  rows.replaceChildren();
+  if(!(d.establishments||[]).length){const tr=document.createElement('tr'),x=td('Aún no existen establecimientos dados de alta.');x.colSpan=5;tr.appendChild(x);rows.appendChild(tr);return}
+  for(const e of d.establishments){
+    const tr=document.createElement('tr');
+    tr.appendChild(td(e.name));tr.appendChild(td(e.rbd));
+    tr.appendChild(td(e.active_users));tr.appendChild(td(e.active_coordinators));tr.appendChild(td(date(e.created_at)));
+    rows.appendChild(tr);
+  }
+ }catch(e){rows.innerHTML='<tr><td colspan="5">No fue posible cargar los establecimientos.</td></tr>'}
+}
+document.getElementById('refresh').onclick=load;
+document.getElementById('create').onclick=async()=>{
+ const payload={
+  name:document.getElementById('name').value.trim(),
+  rbd:document.getElementById('rbd').value.trim(),
+  school_year:Number(document.getElementById('year').value),
+  coordinator_name:document.getElementById('coord-name').value.trim(),
+  coordinator_email:document.getElementById('coord-email').value.trim(),
+  coordinator_rut:document.getElementById('coord-rut').value.trim(),
+  temporary_password:document.getElementById('temp').value
+ };
+ if(!payload.name||!payload.rbd||!payload.coordinator_name||!payload.coordinator_email||payload.temporary_password.length<10){
+  status.textContent='Completa establecimiento, RBD, Coordinador/a, correo y una clave temporal de al menos 10 caracteres.';return
+ }
+ if(!/[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(payload.temporary_password)||!/[0-9]/.test(payload.temporary_password)){
+  status.textContent='La clave temporal debe incluir letras y números.';return
+ }
+ const b=document.getElementById('create');b.disabled=true;status.textContent='Creando establecimiento…';
+ try{
+  const r=await fetch(API+'/api/platform/onboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
+  if(!r.ok||!d.ok){
+    if(d.error==='rbd_exists')throw new Error('Ya existe un establecimiento con ese RBD.');
+    throw new Error('No fue posible crear el establecimiento.');
+  }
+  status.textContent='Establecimiento creado correctamente. Se prepararon M1, M2 y M3 en borrador y la Coordinación deberá cambiar su clave temporal.';
+  ['name','rbd','coord-name','coord-email','coord-rut','temp'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('year').value=new Date().getFullYear();
+  await load();
+ }catch(e){status.textContent=e.message}finally{b.disabled=false}
+};
+load();
+</script>
+</body></html>

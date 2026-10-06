@@ -39,7 +39,7 @@
 
       const allowed=options.roles||['coordinador_convivencia','dupla_psicosocial'];
       if(!options.allowAnyRole&&!allowed.includes(role)){
-        location.replace('acceso-restringido.html');
+        location.replace('ingreso.html?role_pending=1');
         return new Promise(()=>{});
       }
 

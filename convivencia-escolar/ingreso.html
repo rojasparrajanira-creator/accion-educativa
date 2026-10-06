@@ -36,7 +36,20 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 <script>
 const API='https://convivencia-escolar-api.onrender.com';
 const form=document.getElementById('login-form'),btn=document.getElementById('login-btn'),status=document.getElementById('login-status');
-(async()=>{try{const r=await fetch(API+'/api/auth/me',{credentials:'include'}),d=await r.json();if(r.ok&&d.ok&&d.user){location.href='inicio.html?establishment_id='+encodeURIComponent(d.user.establishment_id)}}catch(e){}})();
+(async()=>{try{
+  const r=await fetch(API+'/api/auth/me',{credentials:'include'}),d=await r.json();
+  if(!(r.ok&&d.ok&&d.user))return;
+  if(d.user.must_change_password){location.href='cambiar-clave.html';return}
+  const role=String(d.user.role||'').toLowerCase();
+  if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){
+    status.textContent='Tu cuenta está activa, pero este rol todavía no tiene un alcance habilitado dentro del módulo.';
+    btn.textContent='Cerrar sesión';
+    btn.disabled=false;
+    form.onsubmit=async ev=>{ev.preventDefault();await fetch(API+'/api/auth/logout',{method:'POST',credentials:'include'});location.reload()};
+    return;
+  }
+  location.href='inicio.html?establishment_id='+encodeURIComponent(d.user.establishment_id);
+}catch(e){}})();
 form.addEventListener('submit',async ev=>{
   ev.preventDefault();btn.disabled=true;status.textContent='Validando acceso…';
   try{
@@ -46,6 +59,9 @@ form.addEventListener('submit',async ev=>{
     });
     const d=await r.json();
     if(!r.ok||!d.ok)throw new Error(d.error||'invalid_credentials');
+    if(d.user.must_change_password){location.href='cambiar-clave.html';return}
+    const role=String(d.user.role||'').toLowerCase();
+    if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='ingreso.html?role_pending=1';return}
     const q=new URLSearchParams(location.search),next=q.get('next');
     const destination=next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:'inicio.html';
     const u=new URL(destination,location.href);

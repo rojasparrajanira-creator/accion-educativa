@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ingreso estudiantes · Convivencia Escolar</title>
+<style>
+:root{--g:#176B5B;--g2:#2F9B83;--m:#EEF9F5;--l:#D8EBE4;--n:#0F2D52;--u:#61766f}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(145deg,#eef9f5,#f8fcfb);display:grid;place-items:center;padding:22px;color:#203b34}
+.card{width:min(520px,100%);background:#fff;border:1px solid var(--l);border-radius:24px;padding:28px;box-shadow:0 15px 38px rgba(23,107,91,.10)}.brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}.brand img{width:62px;height:62px;object-fit:contain}.brand b{color:var(--n)}.brand span{display:block;color:var(--u);font-size:11px}
+h1{color:var(--g);font-size:27px;margin:7px 0}.sub{font-size:13px;color:var(--u);line-height:1.55}.field{margin:13px 0}.field label{display:block;font-size:11px;font-weight:850;color:#4f6c63;margin-bottom:6px}.field input,.field select{width:100%;padding:12px;border:1px solid #cfe2db;border-radius:11px;font:inherit}.btn{width:100%;border:0;border-radius:11px;padding:12px;background:var(--g);color:#fff;font-weight:850;cursor:pointer}.btn:disabled{opacity:.55}.notice{background:#eef9f5;border-left:5px solid var(--g2);border-radius:12px;padding:12px;font-size:11px;color:#526a62;line-height:1.5;margin:16px 0}.status{min-height:20px;font-size:12px;color:#9a3f37;margin-top:10px}.ok{color:#2d705e}.hidden{display:none}
+</style>
+</head>
+<body>
+<main class="card">
+<div class="brand"><img src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Ingreso de estudiantes</span></div></div>
+<section id="login-step">
+  <small style="font-weight:900;color:#2F9B83;letter-spacing:.1em">ACCESO ESTUDIANTIL</small>
+  <h1>Ingresa a tu encuesta</h1>
+  <p class="sub">Usa tu RUN y la clave de 4 dígitos indicada por tu establecimiento. Si ya creaste tu PIN personal, utiliza ese PIN.</p>
+  <div class="field"><label for="rut">RUN</label><input id="rut" autocomplete="username" placeholder="12.345.678-9"></div>
+  <div class="field"><label for="secret">Clave de curso o PIN personal</label><input id="secret" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="••••"></div>
+  <div id="measurement-wrap" class="field hidden"><label for="measurement">Medición disponible</label><select id="measurement"></select></div>
+  <button id="login" class="btn" type="button">Ingresar</button>
+  <p id="login-status" class="status" role="alert" aria-live="polite"></p>
+</section>
+
+<section id="pin-step" class="hidden">
+  <small style="font-weight:900;color:#2F9B83;letter-spacing:.1em">PRIMER INGRESO</small>
+  <h1>Crea tu PIN personal</h1>
+  <p class="sub" id="student-label">Tu identidad fue validada.</p>
+  <div class="notice">Desde ahora usarás este PIN personal en lugar de la clave general del curso. No lo compartas con otras personas.</div>
+  <div class="field"><label for="new-pin">Nuevo PIN de 4 dígitos</label><input id="new-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••"></div>
+  <div class="field"><label for="confirm-pin">Repite tu PIN</label><input id="confirm-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="••••"></div>
+  <button id="save-pin" class="btn" type="button">Guardar PIN y continuar</button>
+  <p id="pin-status" class="status" role="alert" aria-live="polite"></p>
+</section>
+
+<div class="notice"><strong>Privacidad:</strong> el acceso se valida solo para la aplicación activa de tu establecimiento. No se muestran resultados personales en esta pantalla.</div>
+</main>
+
+<script>
+const API='https://convivencia-escolar-api.onrender.com';
+const q=new URLSearchParams(location.search),eid=Number(q.get('establishment_id')||0);
+const loginBtn=document.getElementById('login'),loginStatus=document.getElementById('login-status'),measureWrap=document.getElementById('measurement-wrap'),measure=document.getElementById('measurement');
+let pending=null,lastRut='',lastSecret='';
+
+function safeDigits(input){input.value=input.value.replace(/\D/g,'').slice(0,4)}
+document.getElementById('secret').addEventListener('input',e=>safeDigits(e.target));
+document.getElementById('new-pin').addEventListener('input',e=>safeDigits(e.target));
+document.getElementById('confirm-pin').addEventListener('input',e=>safeDigits(e.target));
+
+function humanError(error){
+ return ({
+  invalid_student_credentials:'RUN o clave incorrectos.',
+  student_access_temporarily_locked:'El acceso está temporalmente bloqueado por varios intentos fallidos. Intenta nuevamente más tarde.',
+  course_access_code_not_configured:'Tu curso todavía no tiene una clave inicial configurada. Comunícate con el equipo responsable.',
+  no_active_application:'No tienes una encuesta activa disponible en este momento.'
+ })[error]||'No fue posible validar el acceso.';
+}
+function goWelcome(data){
+ const url='encuesta-bienvenida.html?application_id='+encodeURIComponent(data.application.id)+'&access='+encodeURIComponent(data.access_token);
+ location.href=url;
+}
+async function login(measurementId=0){
+ if(!eid){loginStatus.textContent='Este enlace de ingreso no identifica al establecimiento. Solicita el enlace correcto al equipo responsable.';return}
+ const rut=document.getElementById('rut').value.trim(),secret=document.getElementById('secret').value.trim();
+ if(!rut||!/^\d{4}$/.test(secret)){loginStatus.textContent='Ingresa tu RUN y una clave de 4 dígitos.';return}
+ lastRut=rut;lastSecret=secret;loginBtn.disabled=true;loginStatus.textContent='Validando acceso…';
+ try{
+  const r=await fetch(API+'/api/student-access/login',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',referrerPolicy:'no-referrer',body:JSON.stringify({establishment_id:eid,rut,secret,measurement_id:measurementId||undefined})});
+  const d=await r.json();
+  if(!r.ok||!d.ok)throw new Error(d.error||'login_failed');
+  if(d.selection_required){
+    measure.replaceChildren();
+    for(const x of d.applications||[]){const o=document.createElement('option');o.value=x.measurement_id;o.textContent=x.measurement+' · '+x.school_year;measure.appendChild(o)}
+    measureWrap.classList.remove('hidden');loginStatus.textContent='Hay más de una medición disponible. Selecciona cuál responder.';loginBtn.textContent='Continuar';loginBtn.disabled=false;return;
+  }
+  pending=d;
+  if(d.requires_pin_setup){
+    document.getElementById('login-step').classList.add('hidden');
+    document.getElementById('pin-step').classList.remove('hidden');
+    document.getElementById('student-label').textContent=(d.student?.name||'Estudiante')+' · '+(d.student?.course||'');
+    document.getElementById('new-pin').focus();
+  }else goWelcome(d);
+ }catch(e){loginStatus.textContent=humanError(e.message);loginBtn.disabled=false}
+}
+loginBtn.onclick=()=>login(Number(measureWrap.classList.contains('hidden')?0:measure.value||0));
+measure.onchange=()=>{loginStatus.textContent='Medición seleccionada. Presiona Continuar.'};
+
+document.getElementById('save-pin').onclick=async()=>{
+ const pin=document.getElementById('new-pin').value,confirm=document.getElementById('confirm-pin').value,st=document.getElementById('pin-status'),btn=document.getElementById('save-pin');
+ if(!/^\d{4}$/.test(pin)){st.textContent='El PIN debe contener exactamente 4 dígitos.';return}
+ if(pin!==confirm){st.textContent='Los PIN no coinciden.';return}
+ btn.disabled=true;st.textContent='Guardando PIN…';
+ try{
+  const r=await fetch(API+'/api/student-access/set-pin',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',referrerPolicy:'no-referrer',body:JSON.stringify({application_id:pending.application.id,access:pending.access_token,new_pin:pin})});
+  const d=await r.json();
+  if(!r.ok||!d.ok){
+    if(d.error==='pin_must_differ_from_course_code')throw new Error('Elige un PIN distinto de la clave general de tu curso.');
+    throw new Error('No fue posible guardar el PIN.');
+  }
+  st.className='status ok';st.textContent='PIN guardado. Ingresando a tu encuesta…';
+  setTimeout(()=>goWelcome(pending),350);
+ }catch(e){st.textContent=e.message;btn.disabled=false}
+};
+</script>
+</body></html>

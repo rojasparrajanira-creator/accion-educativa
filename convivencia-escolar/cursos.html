@@ -1,57 +1,96 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cursos</title><style>body{font-family:Arial;margin:0;background:#eef9f5;color:#29443d}main{max-width:1000px;margin:32px auto;padding:20px}.card{background:white;border:1px solid #d8ebe4;border-radius:20px;padding:26px}h1{color:#176b5b}</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><main>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cursos · Convivencia Escolar</title>
+<style>
+:root{--g:#176B5B;--m:#eef9f5;--l:#d8ebe4;--u:#61766f}
+*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;background:var(--m);color:#29443d}main{max-width:1080px;margin:32px auto;padding:20px}.card{background:white;border:1px solid var(--l);border-radius:20px;padding:24px;margin-top:14px}h1,h2{color:var(--g)}.grid{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end}.course{display:grid;grid-template-columns:1fr minmax(250px,360px);gap:18px;align-items:center}.field label,label{font-size:12px;font-weight:800;color:#4f6c63}.field input,label input{display:block;width:100%;padding:10px;margin-top:6px;border:1px solid var(--l);border-radius:10px}.btn{padding:11px 14px;border:0;border-radius:10px;background:var(--g);color:white;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex}.soft{background:#fff;color:var(--g);border:1px solid var(--l)}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.hint{font-size:12px;color:var(--u);line-height:1.5}.status{font-size:11px;font-weight:800;padding:5px 8px;border-radius:10px;background:#e7f5ef;color:#2a705e}.warn{background:#fff4d0;color:#7a6200}
+@media(max-width:760px){.grid,.course{grid-template-columns:1fr}}
+</style>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><main>
 <section class="card">
   <small>CONVIVENCIA EDUCATIVA</small>
   <h1>Cursos</h1>
-  <p>Administración de cursos del establecimiento activo.</p>
-  <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:10px;margin-top:18px;align-items:end">
-    <label>Nombre del curso<input id="course-name" placeholder="Ej.: 7° A" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #d8ebe4;border-radius:10px"></label>
-    <label>Año<input id="course-year" type="number" min="2020" max="2100" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #d8ebe4;border-radius:10px"></label>
-    <button id="course-add" style="padding:11px 16px;border:0;border-radius:10px;background:#176B5B;color:white;font-weight:800;cursor:pointer">Agregar curso</button>
+  <p class="hint">Administra cursos y define la clave inicial de 4 dígitos que utilizarán los estudiantes solo en su primer ingreso.</p>
+  <div class="grid">
+    <label>Nombre del curso<input id="course-name" placeholder="Ej.: 7° A"></label>
+    <label>Año<input id="course-year" type="number" min="2020" max="2100"></label>
+    <button id="course-add" class="btn">Agregar curso</button>
   </div>
-  <p id="course-status" style="color:#61766f;font-size:13px"></p>
+  <p id="course-status" class="hint"></p>
 </section>
-<section class="card" style="margin-top:16px">
+
+<section class="card">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+    <div><h2 style="margin:0">Acceso estudiantil</h2><p class="hint">El estudiante ingresa con su RUN y la clave inicial de su curso. En el primer acceso debe crear un PIN personal.</p></div>
+    <div class="row"><button id="copy-student-login" class="btn soft" type="button">Copiar enlace de ingreso</button><a id="open-student-login" class="btn" target="_blank" rel="noopener">Abrir ingreso estudiantes</a></div>
+  </div>
+  <p id="login-status" class="hint"></p>
+</section>
+
+<section class="card">
   <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
     <h2 style="margin:0">Cursos registrados</h2>
     <a id="students-link" href="estudiantes.html" style="color:#176B5B;font-weight:700">Ver estudiantes →</a>
   </div>
   <div id="cursos" style="margin-top:20px">Cargando…</div>
 </section>
+
 <script>
-const API='https://convivencia-escolar-api.onrender.com';
-const qs=new URLSearchParams(location.search),eid=Number(qs.get('establishment_id')||0);
+const API=MECAuth.API,qs=new URLSearchParams(location.search),eid=Number(qs.get('establishment_id')||0);
 const root=document.getElementById('cursos'),status=document.getElementById('course-status'),year=document.getElementById('course-year');
 year.value=new Date().getFullYear();
 document.getElementById('students-link').href='estudiantes.html?establishment_id='+encodeURIComponent(eid);
+const studentLogin=new URL('acceso-estudiante.html?establishment_id='+encodeURIComponent(eid),location.href).href;
+document.getElementById('open-student-login').href=studentLogin;
+document.getElementById('copy-student-login').onclick=async()=>{
+ try{await navigator.clipboard.writeText(studentLogin);document.getElementById('login-status').textContent='Enlace copiado.'}catch(e){document.getElementById('login-status').textContent='No fue posible copiar automáticamente. Puedes abrir el enlace y copiarlo desde el navegador.'}
+};
 
+function randomCode(){return String(Math.floor(1000+Math.random()*9000))}
+async function saveCode(course,input,msg){
+ const code=input.value.trim();
+ if(!/^\d{4}$/.test(code)){msg.textContent='La clave debe contener exactamente 4 dígitos.';return}
+ msg.textContent='Guardando clave…';
+ try{
+  const r=await fetch(API+'/api/courses/'+course.id+'/access-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})}),d=await r.json();
+  if(!r.ok||!d.ok)throw 0;
+  input.value='';msg.textContent='Clave actualizada. Comunícala solo al curso correspondiente.';
+  await loadCourses();
+ }catch(e){msg.textContent='No fue posible actualizar la clave.'}
+}
 function courseCard(x){
- const d=document.createElement('div');d.className='card';d.style.marginTop='12px';
- const b=document.createElement('b');b.textContent=x.name;
- const p=document.createElement('p');p.textContent='Año '+x.school_year;
- d.append(b,p);return d;
+ const d=document.createElement('div');d.className='card course';
+ const left=document.createElement('div');
+ const title=document.createElement('h3');title.style.margin='0 0 5px';title.textContent=x.name+' · '+x.school_year;
+ const p=document.createElement('p');p.className='hint';p.textContent='Instrumento asignado automáticamente según el nivel del curso.';
+ const badge=document.createElement('span');badge.className='status '+(x.access_code_configured?'':'warn');badge.textContent=x.access_code_configured?'Clave inicial configurada':'Clave inicial pendiente';
+ left.append(title,p,badge);
+
+ const right=document.createElement('div');
+ const label=document.createElement('label');label.textContent=x.access_code_configured?'Rotar clave inicial (4 dígitos)':'Definir clave inicial (4 dígitos)';
+ const input=document.createElement('input');input.type='password';input.inputMode='numeric';input.autocomplete='new-password';input.maxLength=4;input.placeholder='••••';label.appendChild(input);
+ const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
+ const generate=document.createElement('button');generate.type='button';generate.className='btn soft';generate.textContent='Generar';generate.onclick=()=>{input.type='text';input.value=randomCode();input.focus()};
+ const save=document.createElement('button');save.type='button';save.className='btn';save.textContent=x.access_code_configured?'Rotar clave':'Guardar clave';
+ const msg=document.createElement('div');msg.className='hint';msg.style.marginTop='7px';save.onclick=()=>saveCode(x,input,msg);
+ row.append(generate,save);right.append(label,row,msg);
+ d.append(left,right);return d;
 }
 async function loadCourses(){
  if(!eid){root.textContent='Falta el contexto del establecimiento.';document.getElementById('course-add').disabled=true;return}
  try{
   const r=await fetch(API+'/api/courses?establishment_id='+encodeURIComponent(eid)),d=await r.json();
-  if(!r.ok||!d.ok)throw 0;
-  root.replaceChildren();
+  if(!r.ok||!d.ok)throw 0;root.replaceChildren();
   if(!(d.courses||[]).length){root.textContent='Aún no hay cursos cargados.';return}
   d.courses.forEach(x=>root.appendChild(courseCard(x)));
  }catch(e){root.textContent='No fue posible cargar los cursos.'}
 }
-document.getElementById('course-add').addEventListener('click',async()=>{
+document.getElementById('course-add').onclick=async()=>{
  const name=document.getElementById('course-name').value.trim(),school_year=Number(year.value);
  if(!name||!school_year){status.textContent='Completa nombre y año del curso.';return}
  status.textContent='Guardando curso…';
  try{
   const r=await fetch(API+'/api/courses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({establishment_id:eid,name,school_year})}),d=await r.json();
-  if(!r.ok||!d.ok)throw 0;
-  document.getElementById('course-name').value='';
-  status.textContent='Curso guardado correctamente.';
-  await loadCourses();
+  if(!r.ok||!d.ok)throw 0;document.getElementById('course-name').value='';status.textContent='Curso guardado correctamente.';await loadCourses();
  }catch(e){status.textContent='No fue posible guardar el curso.'}
-});
+};
 loadCourses();
-</script>
-</main></body></html>
+</script></main></body></html>

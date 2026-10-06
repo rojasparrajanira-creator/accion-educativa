@@ -28,7 +28,43 @@
       return d;
     },
 
+    async loadProgress(){
+      if(!this.applicationId||!this.accessToken)throw new Error('student_access_missing');
+      const r=await fetch(this.API+'/api/applications/'+encodeURIComponent(this.applicationId)+'/progress',{
+        headers:{'X-Student-Access':this.accessToken},
+        cache:'no-store',
+        referrerPolicy:'no-referrer'
+      });
+      const d=await r.json();
+      if(!r.ok||!d.ok)throw new Error(d.error||'progress_load_failed');
+      return d;
+    },
+
+    _progressTimer:null,
+    _progressPayload:null,
+
+    queueProgress(responses){
+      if(!this.applicationId||!this.accessToken||!Array.isArray(responses))return;
+      this._progressPayload=responses.map(x=>({item_code:x.item_code,value:Number(x.value)}));
+      clearTimeout(this._progressTimer);
+      this._progressTimer=setTimeout(async()=>{
+        const payload=this._progressPayload;
+        this._progressTimer=null;
+        try{
+          await fetch(this.API+'/api/applications/'+encodeURIComponent(this.applicationId)+'/progress',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            cache:'no-store',
+            referrerPolicy:'no-referrer',
+            body:JSON.stringify({access:this.accessToken,responses:payload})
+          });
+        }catch(e){}
+      },450);
+    },
+
     async save(responses){
+      clearTimeout(this._progressTimer);
+      this._progressTimer=null;
       if(!this.applicationId||!this.accessToken)throw new Error('student_access_missing');
       if(!Array.isArray(responses)||!responses.length)throw new Error('responses_missing');
       const r=await fetch(this.API+'/api/applications/'+encodeURIComponent(this.applicationId)+'/responses',{

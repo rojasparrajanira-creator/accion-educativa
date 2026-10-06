@@ -69,7 +69,9 @@ form.addEventListener('submit',async ev=>{
     u.searchParams.set('establishment_id',String(d.user.establishment_id));
     location.href=u.pathname.split('/').pop()+u.search;
   }catch(e){
-    status.textContent='Correo/RUT o clave incorrectos.';
+    status.textContent=e.message==='account_temporarily_locked'
+      ? 'La cuenta está temporalmente bloqueada por varios intentos fallidos. Intenta nuevamente más tarde.'
+      : 'Correo/RUT o clave incorrectos.';
     btn.disabled=false;
   }
 });

@@ -109,3 +109,35 @@ CREATE TABLE IF NOT EXISTS professional_audit_events(
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_professional_audit_establishment_created ON professional_audit_events(establishment_id,created_at DESC);
+
+CREATE TABLE IF NOT EXISTS professional_tasks(
+ id BIGSERIAL PRIMARY KEY,
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id),
+ title TEXT NOT NULL,
+ description TEXT,
+ assigned_to BIGINT NOT NULL REFERENCES users(id),
+ assigned_by BIGINT NOT NULL REFERENCES users(id),
+ due_date DATE,
+ priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('low','medium','high')),
+ status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','in_progress','completed','cancelled')),
+ related_type TEXT,
+ related_id TEXT,
+ completed_at TIMESTAMPTZ,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_professional_tasks_assigned_to ON professional_tasks(assigned_to,status,due_date);
+CREATE INDEX IF NOT EXISTS idx_professional_tasks_establishment ON professional_tasks(establishment_id,status,due_date);
+
+CREATE TABLE IF NOT EXISTS professional_notifications(
+ id BIGSERIAL PRIMARY KEY,
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id),
+ user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ kind TEXT NOT NULL,
+ title TEXT NOT NULL,
+ message TEXT,
+ link TEXT,
+ read_at TIMESTAMPTZ,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_professional_notifications_user ON professional_notifications(user_id,read_at,created_at DESC);

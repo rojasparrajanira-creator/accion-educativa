@@ -52,7 +52,7 @@ async function cargarTrayectoria(){
    fetch(API+'/api/students?establishment_id='+encodeURIComponent(eid))
   ]);
   const d=await r.json(),sd=await sr.json();
-  if(!r.ok||!d.ok)throw new Error('trajectory_failed');
+  if(!r.ok||!d.ok||!sr.ok||!sd.ok)throw new Error('trajectory_failed');
   const apps=(d.applications||[]).sort((a,b)=>(Number(a.school_year)-Number(b.school_year))||(measureOrder(a.measurement)-measureOrder(b.measurement)));
   root.replaceChildren();
   const selectedStudent=(sd.students||[]).find(x=>Number(x.id)===Number(studentId));

@@ -7,7 +7,26 @@ const multer=require('multer');
 const ExcelJS=require('@ayocore/exceljs');
 const app=express();
 app.use(express.json({limit:'5mb'}));
-app.use((req,res,next)=>{res.setHeader('Access-Control-Allow-Origin','https://convivencia-escolar-material-educativo.onrender.com');res.setHeader('Access-Control-Allow-Credentials','true');res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Student-Access');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');if(req.method==='OPTIONS')return res.sendStatus(204);next()});
+const DEFAULT_WEB_ORIGIN='https://convivencia-escolar-material-educativo.onrender.com';
+const allowedOrigins=new Set([
+  DEFAULT_WEB_ORIGIN,
+  ...String(process.env.MEC_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean)
+]);
+app.use((req,res,next)=>{
+  const origin=String(req.headers.origin||'');
+  if(origin&&allowedOrigins.has(origin)){
+    res.setHeader('Access-Control-Allow-Origin',origin);
+    res.setHeader('Vary','Origin');
+    res.setHeader('Access-Control-Allow-Credentials','true');
+    res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Student-Access');
+    res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');
+  }
+  if(req.method==='OPTIONS'){
+    if(origin&&!allowedOrigins.has(origin))return res.sendStatus(403);
+    return res.sendStatus(204);
+  }
+  next();
+});
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:false});
 const matrículaUpload=multer({
   storage:multer.memoryStorage(),

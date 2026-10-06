@@ -1326,12 +1326,8 @@ app.post('/api/store/admin/product-image',requireAuth,storeImageUpload.single('i
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
   if(!req.file)return res.status(400).json({ok:false,error:'jpg_png_required'});
   const ext=req.file.mimetype==='image/png'?'png':'jpg';
-  const name=crypto.randomBytes(18).toString('hex')+'.'+ext;
-  const dir=String(process.env.MEC_STORE_IMAGE_DIR||'').trim();
-  if(!dir)return res.status(503).json({ok:false,error:'store_image_storage_not_configured'});
-  fs.mkdirSync(dir,{recursive:true});
-  fs.writeFileSync(path.join(dir,name),req.file.buffer,{flag:'wx'});
-  ok(res,{image_url:'/api/store/images/'+name});
+  const q=await pool.query("insert into store_product_images(mime_type,image_data) values($1,$2) returning id",[req.file.mimetype,req.file.buffer]);
+  ok(res,{image_url:'/api/store/images/'+q.rows[0].id});
 }catch(e){res.status(400).json({ok:false,error:'store_image_upload_failed'})}});
 app.get('/api/store/images/:name',async(req,res)=>{
   const name=String(req.params.name||'');

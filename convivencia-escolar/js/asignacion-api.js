@@ -3,15 +3,21 @@ window.MECAssign={
   students:[],
 
   levelForCourse(name){
-    const n=String(name||'').trim().toLowerCase().replace(/º/g,'°').replace(/\s+/g,' ');
-    if(/^\s*(i|ii)\s*°?\b/.test(n)) return '1-2-medio';
-    if(/^\s*(iii|iv)\s*°?\b/.test(n)) return '3-4-medio';
+    const n=String(name||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/º/g,'°').replace(/\s+/g,' ');
+    if(/^\s*(i|ii)\s*°?(?:\s|$)/.test(n)) return '1-2-medio';
+    if(/^\s*(iii|iv)\s*°?(?:\s|$)/.test(n)) return '3-4-medio';
+
+    const compact=n.replace(/\s+/g,'');
+    const short=compact.match(/^([1-4])°?(m|em)(?:[a-z]{0,3})?$/);
+    if(short){
+      const g=Number(short[1]);
+      return g<=2?'1-2-medio':'3-4-medio';
+    }
 
     const m=n.match(/^\s*([1-8])\s*°?\s*(.*)$/);
     if(!m) return '';
-    const grade=Number(m[1]);
-    const rest=m[2]||'';
-    const medio=/\b(medio|media|em|enseñanza media)\b/.test(rest);
+    const grade=Number(m[1]),rest=m[2]||'';
+    const medio=/^(m|em)\b|\b(medio|media|ensenanza media|humanista|cientifico|tecnico|tp|hc)\b/.test(rest);
 
     if(medio){
       if(grade===1||grade===2) return '1-2-medio';

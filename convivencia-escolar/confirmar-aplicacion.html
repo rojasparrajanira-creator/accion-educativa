@@ -56,12 +56,21 @@ function modalityLabel(v){
       dateLabel(cfg.start_date)+" al "+dateLabel(cfg.end_date)+" · "+
       modalityLabel(cfg.modality)+" · "+(cfg.estimated_minutes||25)+" min · Estado: "+(m.status||"draft");
 
+    const today=new Date();today.setHours(0,0,0,0);
+    const startDate=cfg.start_date?new Date(String(cfg.start_date).slice(0,10)+"T12:00:00"):null;
+    const endDate=cfg.end_date?new Date(String(cfg.end_date).slice(0,10)+"T12:00:00"):null;
     if(!cfg.start_date||!cfg.end_date){
       activateBtn.disabled=true;
       activationStatus.textContent="Debes guardar la configuración antes de habilitar la medición.";
     }else if(!appCount){
       activateBtn.disabled=true;
       activationStatus.textContent="Debes tener al menos una aplicación asignada antes de habilitar la medición.";
+    }else if(startDate&&today<startDate){
+      activateBtn.disabled=true;
+      activationStatus.textContent="El período configurado aún no comienza. Ajusta la fecha de inicio o espera al período definido.";
+    }else if(endDate&&today>endDate){
+      activateBtn.disabled=true;
+      activationStatus.textContent="El período configurado ya finalizó. Actualiza las fechas antes de habilitar la medición.";
     }else if(m.status==="active"){
       activationStatus.textContent="La medición ya está habilitada.";
       activateBtn.textContent="Ir a seguimiento →";

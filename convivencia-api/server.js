@@ -776,8 +776,12 @@ app.post('/api/courses/:id/access-code',...requireRole('coordinador_convivencia'
     values($1,$2,$3,$4,now())
     on conflict(course_id) do update set code_hash=excluded.code_hash,code_salt=excluded.code_salt,updated_by=excluded.updated_by,updated_at=now()`,
     [req.params.id,cred.hash,cred.salt,req.auth.id]);
-  await auditProfessional(req,'course_access_code_changed','course',req.params.id,{course:course.rows[0].name,school_year:course.rows[0].school_year});
-  ok(res,{course_id:Number(req.params.id),configured:true});
+  const invalidated=await pool.query(`update survey_applications a set access_token_hash=null,access_token_created_at=null,access_method=null,access_requires_pin_setup=false
+    where a.student_id in (select id from students where course_id=$1)
+      and a.status<>'completed' and a.access_method='course_code' and a.access_requires_pin_setup=true
+    returning a.id`,[req.params.id]);
+  await auditProfessional(req,'course_access_code_changed','course',req.params.id,{course:course.rows[0].name,school_year:course.rows[0].school_year,invalidated_initial_accesses:invalidated.rowCount});
+  ok(res,{course_id:Number(req.params.id),configured:true,invalidated_initial_accesses:invalidated.rowCount});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
 
 app.post('/api/students/:id/reset-pin',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
@@ -787,8 +791,10 @@ app.post('/api/students/:id/reset-pin',...requireRole('coordinador_convivencia',
   await pool.query(`insert into student_credentials(student_id,pin_hash,pin_salt,failed_login_count,locked_until,updated_at)
     values($1,null,null,0,null,now())
     on conflict(student_id) do update set pin_hash=null,pin_salt=null,failed_login_count=0,locked_until=null,updated_at=now()`,[req.params.id]);
-  await auditProfessional(req,'student_pin_reset','student',req.params.id,{student:student.rows[0].name});
-  ok(res,{student_id:Number(req.params.id),pin_reset:true});
+  const invalidated=await pool.query(`update survey_applications set access_token_hash=null,access_token_created_at=null,access_method=null,access_requires_pin_setup=false
+    where student_id=$1 and status<>'completed' and access_method in ('personal_pin','course_code') returning id`,[req.params.id]);
+  await auditProfessional(req,'student_pin_reset','student',req.params.id,{student:student.rows[0].name,invalidated_pin_accesses:invalidated.rowCount});
+  ok(res,{student_id:Number(req.params.id),pin_reset:true,invalidated_pin_accesses:invalidated.rowCount});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
 
 app.post('/api/student-access/login',async(req,res)=>{try{

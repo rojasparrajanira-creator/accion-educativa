@@ -37,15 +37,57 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0;font-size:18px">Equipo con acceso</h2><button class="soft" id="refresh" type="button">Actualizar</button></div>
 <div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Profesional</th><th>Correo / RUT</th><th>Rol</th><th>Clave</th><th>Último ingreso</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="rows"><tr><td colspan="7">Cargando…</td></tr></tbody></table></div>
 </section>
+
+<section class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2 style="margin:0;font-size:18px">Trazabilidad profesional</h2><p class="status" style="margin:4px 0 0">Últimas acciones registradas en el establecimiento. No incluye respuestas de estudiantes ni contraseñas.</p></div><button class="soft" id="audit-refresh" type="button">Actualizar</button></div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Fecha</th><th>Profesional</th><th>Acción</th><th>Elemento</th></tr></thead><tbody id="audit-rows"><tr><td colspan="4">Cargando…</td></tr></tbody></table></div>
+</section>
 </main>
 <script>
 const API=MECAuth.API,qs=new URLSearchParams(location.search),eid=Number(qs.get('establishment_id')||0);
-const rows=document.getElementById('rows'),formStatus=document.getElementById('form-status');
+const rows=document.getElementById('rows'),formStatus=document.getElementById('form-status'),auditRows=document.getElementById('audit-rows');
 document.getElementById('back').href='inicio.html?establishment_id='+encodeURIComponent(eid);
 
 function roleLabel(r){return r==='coordinador_convivencia'?'Coordinación de Convivencia':r==='dupla_psicosocial'?'Dupla Psicosocial':r}
 function dateLabel(v){if(!v)return 'Nunca';return new Date(v).toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'})}
 function td(text){const x=document.createElement('td');x.textContent=text??'—';return x}
+
+function auditActionLabel(a){
+ return ({
+  professional_account_upserted:'Cuenta creada / restablecida',
+  professional_account_reactivated:'Cuenta reactivada',
+  professional_account_deactivated:'Cuenta desactivada',
+  measurement_configured:'Medición configurada',
+  measurement_activated:'Medición habilitada',
+  application_professional_review:'Revisión profesional',
+  pgce_intervention_created:'Intervención PGCE creada',
+  pgce_followup_recorded:'Seguimiento PGCE registrado'
+ })[a]||a;
+}
+function auditEntity(e){
+ const m=e.metadata||{};
+ if(e.entity_type==='measurement')return 'Medición'+(m.code?' '+m.code:'')+(m.school_year?' · '+m.school_year:'');
+ if(e.entity_type==='application')return 'Aplicación #'+(e.entity_id||'—')+(m.status?' · '+(m.status==='reviewed'?'Revisada':'Requiere contexto'):'');
+ if(e.entity_type==='pgce_intervention')return 'PGCE #'+(e.entity_id||'—')+(m.dimension_code?' · '+m.dimension_code:'');
+ if(e.entity_type==='user')return 'Cuenta profesional #'+(e.entity_id||'—');
+ return e.entity_type+' #'+(e.entity_id||'—');
+}
+async function loadAudit(){
+ try{
+  const r=await fetch(API+'/api/audit?establishment_id='+encodeURIComponent(eid)+'&limit=50'),d=await r.json();
+  if(!r.ok||!d.ok)throw new Error('audit_failed');
+  auditRows.replaceChildren();
+  if(!(d.events||[]).length){const tr=document.createElement('tr'),x=td('Aún no hay acciones auditadas.');x.colSpan=4;tr.appendChild(x);auditRows.appendChild(tr);return}
+  for(const e of d.events){
+    const tr=document.createElement('tr');
+    tr.appendChild(td(dateLabel(e.created_at)));
+    tr.appendChild(td(e.professional||'Sistema'));
+    tr.appendChild(td(auditActionLabel(e.action)));
+    tr.appendChild(td(auditEntity(e)));
+    auditRows.appendChild(tr);
+  }
+ }catch(e){auditRows.innerHTML='<tr><td colspan="4">No fue posible cargar la trazabilidad.</td></tr>'}
+}
 
 async function changeStatus(user,button){
  const active=!user.active;
@@ -60,6 +102,7 @@ async function changeStatus(user,button){
     throw new Error('No fue posible cambiar el estado.');
   }
   await load();
+  await loadAudit();
  }catch(e){alert(e.message)}finally{button.disabled=false}
 }
 async function load(){
@@ -94,7 +137,7 @@ async function load(){
   }
  }catch(e){rows.innerHTML='<tr><td colspan="7">No fue posible cargar las cuentas profesionales.</td></tr>'}
 }
-document.getElementById('refresh').onclick=load;
+document.getElementById('refresh').onclick=load;document.getElementById('audit-refresh').onclick=loadAudit;
 document.getElementById('save').onclick=async()=>{
  const payload={establishment_id:eid,name:document.getElementById('name').value.trim(),email:document.getElementById('email').value.trim(),rut:document.getElementById('rut').value.trim(),role:document.getElementById('role').value,temporary_password:document.getElementById('temp').value};
  if(!payload.name||!payload.email||payload.temporary_password.length<10){formStatus.textContent='Completa nombre, correo y una clave temporal de al menos 10 caracteres.';return}
@@ -105,7 +148,8 @@ document.getElementById('save').onclick=async()=>{
   document.getElementById('name').value='';document.getElementById('email').value='';document.getElementById('rut').value='';document.getElementById('temp').value='';
   formStatus.textContent='Cuenta guardada. La persona deberá cambiar su clave temporal al ingresar.';
   await load();
+  await loadAudit();
  }catch(e){formStatus.textContent='No fue posible guardar la cuenta. Revisa los datos y vuelve a intentarlo.'}finally{b.disabled=false}
 };
-load();
+load();loadAudit();
 </script></body></html>

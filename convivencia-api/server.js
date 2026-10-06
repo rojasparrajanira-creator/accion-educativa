@@ -563,7 +563,86 @@ app.get('/api/measurements/:id/config',...requireRole('coordinador_convivencia',
 app.post('/api/measurements/:id/config',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const b=req.body||{},establishmentId=Number(b.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});const minutes=Number(b.estimated_minutes);if(!establishmentId)throw new Error('establishment_id_required');const m=await pool.query("select id from measurements where id=$1 and establishment_id=$2",[req.params.id,establishmentId]);if(!m.rowCount)return res.status(404).json({ok:false,error:'measurement_not_found'});if(!/^\d{4}-\d{2}-\d{2}$/.test(String(b.start_date||''))||!/^\d{4}-\d{2}-\d{2}$/.test(String(b.end_date||'')))throw new Error('invalid_dates');if(new Date(b.end_date+'T00:00:00')<new Date(b.start_date+'T00:00:00'))throw new Error('end_date_before_start_date');if(!['individual','group_support'].includes(b.modality))throw new Error('invalid_modality');if(!Number.isInteger(minutes)||minutes<5||minutes>90)throw new Error('invalid_estimated_minutes');const message=String(b.initial_message||'').trim();if(!message||message.length>500)throw new Error('invalid_initial_message');const q=await pool.query("insert into measurement_settings(measurement_id,start_date,end_date,modality,estimated_minutes,initial_message,updated_at) values($1,$2,$3,$4,$5,$6,now()) on conflict(measurement_id) do update set start_date=excluded.start_date,end_date=excluded.end_date,modality=excluded.modality,estimated_minutes=excluded.estimated_minutes,initial_message=excluded.initial_message,updated_at=now() returning *",[req.params.id,b.start_date,b.end_date,b.modality,minutes,message]);await pool.query("update measurements set status='configured' where id=$1",[req.params.id]);await auditProfessional(req,'measurement_configured','measurement',req.params.id,{start_date:b.start_date,end_date:b.end_date,modality:b.modality,estimated_minutes:minutes});ok(res,{config:q.rows[0],measurement_status:'configured'})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.post('/api/measurements/:id/activate',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number((req.body||{}).establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const m=await pool.query("select id,code,school_year,status from measurements where id=$1 and establishment_id=$2",[req.params.id,establishmentId]);if(!m.rowCount)return res.status(404).json({ok:false,error:'measurement_not_found'});const cfg=await pool.query("select measurement_id,start_date,end_date,case when ((now() at time zone 'America/Santiago')::date)<start_date then 'scheduled' when ((now() at time zone 'America/Santiago')::date)>end_date then 'closed' else 'open' end period_state from measurement_settings where measurement_id=$1",[req.params.id]);if(!cfg.rowCount)return res.status(409).json({ok:false,error:'measurement_not_configured'});if(cfg.rows[0].period_state!=='open')return res.status(409).json({ok:false,error:'measurement_period_not_open',period_state:cfg.rows[0].period_state,start_date:cfg.rows[0].start_date,end_date:cfg.rows[0].end_date});const apps=await pool.query("select count(*)::int total from survey_applications a join students s on s.id=a.student_id where a.measurement_id=$1 and s.establishment_id=$2",[req.params.id,establishmentId]);if(Number(apps.rows[0].total)<1)return res.status(409).json({ok:false,error:'measurement_without_applications'});const q=await pool.query("update measurements set status='active' where id=$1 returning id,establishment_id,code,school_year,status",[req.params.id]);await auditProfessional(req,'measurement_activated','measurement',req.params.id,{code:q.rows[0].code,school_year:q.rows[0].school_year,applications:Number(apps.rows[0].total)});ok(res,{measurement:q.rows[0],applications:Number(apps.rows[0].total)})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/applications',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id||0);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});const studentId=Number(req.query.student_id||0);const measurementId=Number(req.query.measurement_id||0);const values=[];const filters=[];if(establishmentId){values.push(establishmentId);filters.push('s.establishment_id=$'+values.length)}if(studentId){values.push(studentId);filters.push('s.id=$'+values.length)}if(measurementId){values.push(measurementId);filters.push('a.measurement_id=$'+values.length)}const sql="select a.id,a.measurement_id,a.student_id,a.survey_level,a.status,a.started_at,a.completed_at,(a.access_token_hash is not null) has_access,coalesce(rv.status,'pending_review') review_status,s.name student,s.establishment_id,c.name course,m.code measurement,m.school_year,e.name establishment from survey_applications a join students s on s.id=a.student_id left join courses c on c.id=s.course_id join establishments e on e.id=s.establishment_id join measurements m on m.id=a.measurement_id left join application_reviews rv on rv.application_id=a.id"+(filters.length?" where "+filters.join(" and "):"")+" order by a.id desc";const q=await pool.query(sql,values);ok(res,{applications:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
-app.post('/api/applications',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const {measurement_id,student_id,survey_level}=req.body;if(!measurement_id||!student_id||!survey_level)return res.status(400).json({ok:false,error:'required_fields'});if(!['1-2','3-4','5-6','7-8','1-2-medio','3-4-medio'].includes(survey_level))return res.status(400).json({ok:false,error:'invalid_survey_level'});const ctx=await pool.query('select s.establishment_id student_establishment,s.course_id,s.active student_active,c.name course_name,m.establishment_id measurement_establishment from students s left join courses c on c.id=s.course_id cross join measurements m where s.id=$1 and m.id=$2',[student_id,measurement_id]);if(!ctx.rowCount)return res.status(404).json({ok:false,error:'student_or_measurement_not_found'});if(Number(ctx.rows[0].student_establishment)!==Number(ctx.rows[0].measurement_establishment))return res.status(400).json({ok:false,error:'establishment_mismatch'});if(Number(ctx.rows[0].student_establishment)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!ctx.rows[0].student_active)return res.status(409).json({ok:false,error:'student_inactive'});const expected=surveyLevelForCourse(ctx.rows[0].course_name);if(!expected)return res.status(400).json({ok:false,error:'course_level_unrecognized'});if(survey_level!==expected)return res.status(400).json({ok:false,error:'survey_level_course_mismatch',expected_level:expected});const prior=await pool.query("select id,status from survey_applications where measurement_id=$1 and student_id=$2",[measurement_id,student_id]);if(prior.rowCount&&prior.rows[0].status==='completed')return res.status(409).json({ok:false,error:'application_already_completed'});if(prior.rowCount&&prior.rows[0].status==='in_progress')return res.status(409).json({ok:false,error:'application_already_started'});const accessToken=newStudentAccessToken(),accessHash=sha256(accessToken);const q=await pool.query('insert into survey_applications(measurement_id,student_id,survey_level,access_token_hash,access_token_created_at) values($1,$2,$3,$4,now()) on conflict(measurement_id,student_id) do update set survey_level=excluded.survey_level,access_token_hash=excluded.access_token_hash,access_token_created_at=now() returning *',[measurement_id,student_id,survey_level,accessHash]);ok(res,{application:q.rows[0],access_token:accessToken})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.post('/api/applications',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const {measurement_id,student_id,survey_level}=req.body||{};
+  if(!measurement_id||!student_id||!survey_level)return res.status(400).json({ok:false,error:'required_fields'});
+  if(!['1-2','3-4','5-6','7-8','1-2-medio','3-4-medio'].includes(survey_level))return res.status(400).json({ok:false,error:'invalid_survey_level'});
+
+  const ctx=await pool.query(`select s.establishment_id student_establishment,s.course_id,s.active student_active,c.name course_name,m.establishment_id measurement_establishment
+    from students s left join courses c on c.id=s.course_id cross join measurements m
+    where s.id=$1 and m.id=$2`,[student_id,measurement_id]);
+  if(!ctx.rowCount)return res.status(404).json({ok:false,error:'student_or_measurement_not_found'});
+  const row=ctx.rows[0];
+  if(Number(row.student_establishment)!==Number(row.measurement_establishment))return res.status(400).json({ok:false,error:'establishment_mismatch'});
+  if(Number(row.student_establishment)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
+  if(!row.student_active)return res.status(409).json({ok:false,error:'student_inactive'});
+  const expected=surveyLevelForCourse(row.course_name);
+  if(!expected)return res.status(400).json({ok:false,error:'course_level_unrecognized'});
+  if(survey_level!==expected)return res.status(400).json({ok:false,error:'survey_level_course_mismatch',expected_level:expected});
+
+  const prior=await pool.query("select id,measurement_id,student_id,survey_level,status,started_at,completed_at,(access_token_hash is not null) has_access from survey_applications where measurement_id=$1 and student_id=$2",[measurement_id,student_id]);
+  if(prior.rowCount){
+    if(prior.rows[0].status==='completed')return res.status(409).json({ok:false,error:'application_already_completed'});
+    if(prior.rows[0].status==='in_progress')return res.status(409).json({ok:false,error:'application_already_started'});
+    if(prior.rows[0].survey_level!==expected){
+      await pool.query("update survey_applications set survey_level=$1 where id=$2",[expected,prior.rows[0].id]);
+      prior.rows[0].survey_level=expected;
+    }
+    return ok(res,{application:prior.rows[0],created:false});
+  }
+
+  const q=await pool.query(`insert into survey_applications(measurement_id,student_id,survey_level)
+    values($1,$2,$3)
+    returning id,measurement_id,student_id,survey_level,status,started_at,completed_at,false has_access`,[measurement_id,student_id,expected]);
+  await auditProfessional(req,'survey_application_assigned','application',q.rows[0].id,{measurement_id:Number(measurement_id),student_id:Number(student_id),survey_level:expected});
+  res.status(201).json({ok:true,application:q.rows[0],created:true});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/applications/bulk-course',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
+  const courseId=Number((req.body||{}).course_id),measurementId=Number((req.body||{}).measurement_id);
+  if(!courseId||!measurementId)return res.status(400).json({ok:false,error:'required_fields'});
+
+  const ctx=await client.query(`select c.id course_id,c.name course_name,c.establishment_id course_establishment,m.id measurement_id,m.code measurement_code,m.school_year,m.establishment_id measurement_establishment
+    from courses c cross join measurements m where c.id=$1 and m.id=$2`,[courseId,measurementId]);
+  if(!ctx.rowCount)return res.status(404).json({ok:false,error:'course_or_measurement_not_found'});
+  const row=ctx.rows[0];
+  if(Number(row.course_establishment)!==Number(row.measurement_establishment))return res.status(400).json({ok:false,error:'establishment_mismatch'});
+  if(Number(row.course_establishment)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
+
+  const surveyLevel=surveyLevelForCourse(row.course_name);
+  if(!surveyLevel)return res.status(400).json({ok:false,error:'course_level_unrecognized'});
+
+  const students=await client.query("select id,name from students where establishment_id=$1 and course_id=$2 and active=true order by name",[req.auth.establishment_id,courseId]);
+  if(!students.rowCount)return res.status(409).json({ok:false,error:'course_without_active_students'});
+
+  await client.query('begin');
+  let created=0,existing=0,locked=0;
+  const applications=[];
+  for(const student of students.rows){
+    const prior=await client.query("select id,status,survey_level,(access_token_hash is not null) has_access from survey_applications where measurement_id=$1 and student_id=$2",[measurementId,student.id]);
+    if(prior.rowCount){
+      const app=prior.rows[0];
+      if(app.status==='completed'||app.status==='in_progress'){
+        locked++;
+        applications.push({student_id:student.id,student:student.name,application_id:app.id,status:app.status,result:'preserved'});
+        continue;
+      }
+      if(app.survey_level!==surveyLevel)await client.query("update survey_applications set survey_level=$1 where id=$2",[surveyLevel,app.id]);
+      existing++;
+      applications.push({student_id:student.id,student:student.name,application_id:app.id,status:app.status,result:'existing',has_access:app.has_access});
+      continue;
+    }
+
+    const ins=await client.query("insert into survey_applications(measurement_id,student_id,survey_level) values($1,$2,$3) returning id,status",[measurementId,student.id,surveyLevel]);
+    created++;
+    applications.push({student_id:student.id,student:student.name,application_id:ins.rows[0].id,status:ins.rows[0].status,result:'created',has_access:false});
+  }
+  await client.query('commit');
+
+  await auditProfessional(req,'survey_course_assigned','course',courseId,{measurement_id:measurementId,measurement_code:row.measurement_code,course_name:row.course_name,survey_level:surveyLevel,active_students:students.rowCount,created,existing,preserved_locked:locked});
+  ok(res,{course:{id:courseId,name:row.course_name},measurement:{id:measurementId,code:row.measurement_code,school_year:row.school_year},survey_level:surveyLevel,active_students:students.rowCount,created,existing,preserved_locked:locked,applications});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+
 app.post('/api/applications/:id/access',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
   const q=await pool.query("select a.id,a.status,s.establishment_id from survey_applications a join students s on s.id=a.student_id where a.id=$1",[req.params.id]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});

@@ -29,7 +29,14 @@ a{background:var(--g2);color:#fff;text-decoration:none;padding:13px 20px;border-
 const API="https://convivencia-escolar-api.onrender.com";
 const q=new URLSearchParams(location.search);
 const id=q.get("application_id");
-const access=q.get("access");
+const key=id?"mec_student_access_"+id:"";
+const urlAccess=q.get("access");
+if(id&&urlAccess){
+  try{sessionStorage.setItem(key,urlAccess)}catch(e){}
+  q.delete("access");
+  history.replaceState(null,"",location.pathname+(q.toString()?"?"+q.toString():""));
+}
+const access=urlAccess||(key?sessionStorage.getItem(key):null);
 const btn=document.getElementById("start");
 const tag=document.getElementById("measurement");
 const pages={
@@ -47,7 +54,7 @@ const pages={
     return;
   }
   try{
-    const r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/context?access="+encodeURIComponent(access));
+    const r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/context?access="+encodeURIComponent(access),{cache:"no-store",referrerPolicy:"no-referrer"});
     const d=await r.json();
     if(!r.ok||!d.ok||!pages[d.application.survey_level])throw new Error("invalid_context");
 
@@ -85,7 +92,7 @@ const pages={
     const time=document.getElementById("time-estimate");
     if(intro&&d.application.initial_message)intro.textContent=d.application.initial_message;
     if(time&&d.application.estimated_minutes)time.textContent="Tiempo aproximado: "+d.application.estimated_minutes+" minutos";
-    const target=pages[d.application.survey_level]+"?application_id="+encodeURIComponent(id)+"&access="+encodeURIComponent(access);
+    const target=pages[d.application.survey_level]+"?application_id="+encodeURIComponent(id);
     btn.href=target;
     btn.removeAttribute("aria-disabled");
     btn.textContent=d.application.status==="in_progress"?"Continuar →":"Comenzar →";
@@ -98,6 +105,8 @@ const pages={
         const sr=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/start",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
+          cache:"no-store",
+          referrerPolicy:"no-referrer",
           body:JSON.stringify({access})
         });
         const sd=await sr.json();

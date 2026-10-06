@@ -466,6 +466,97 @@ app.get('/api/audit',...requireRole('coordinador_convivencia'),async(req,res)=>{
   ok(res,{events:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'audit_load_failed'})}});
 
+app.get('/api/team',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const q=await pool.query("select id,name,role,active from users where establishment_id=$1 and active=true order by name",[req.auth.establishment_id]);
+  ok(res,{users:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'team_load_failed'})}});
+
+app.get('/api/tasks',requireAuth,async(req,res)=>{try{
+  const scope=String(req.query.scope||'mine');
+  const role=canonicalRole(req.auth.role,req.auth.rbd);
+  const manager=['coordinador_convivencia','dupla_psicosocial'].includes(role);
+  const values=[req.auth.establishment_id];
+  let where="t.establishment_id=$1";
+  if(scope==='all'){
+    if(!manager)return res.status(403).json({ok:false,error:'role_forbidden'});
+  }else if(scope==='created'){
+    if(!manager)return res.status(403).json({ok:false,error:'role_forbidden'});
+    values.push(req.auth.id);where+=" and t.assigned_by=$2";
+  }else{
+    values.push(req.auth.id);where+=" and t.assigned_to=$2";
+  }
+  const q=await pool.query(`select t.id,t.establishment_id,t.title,t.description,t.assigned_to,t.assigned_by,t.due_date,t.priority,t.status,t.related_type,t.related_id,t.completed_at,t.created_at,t.updated_at,
+    assignee.name assigned_to_name,assignee.role assigned_to_role,assigner.name assigned_by_name
+    from professional_tasks t
+    join users assignee on assignee.id=t.assigned_to
+    join users assigner on assigner.id=t.assigned_by
+    where ${where}
+    order by case when t.status='completed' then 2 when t.status='cancelled' then 3 else 1 end,
+      t.due_date nulls last,t.created_at desc`,values);
+  ok(res,{tasks:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'tasks_load_failed'})}});
+
+app.post('/api/tasks',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
+  const b=req.body||{},title=String(b.title||'').trim(),description=String(b.description||'').trim();
+  const assignedTo=Number(b.assigned_to),priority=String(b.priority||'medium'),dueDate=b.due_date?String(b.due_date):null;
+  if(!title||title.length>200||description.length>2000||!assignedTo||!['low','medium','high'].includes(priority))return res.status(400).json({ok:false,error:'invalid_task_payload'});
+  if(dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))return res.status(400).json({ok:false,error:'invalid_due_date'});
+  const target=await client.query("select id,name,role from users where id=$1 and establishment_id=$2 and active=true",[assignedTo,req.auth.establishment_id]);
+  if(!target.rowCount)return res.status(404).json({ok:false,error:'assignee_not_found'});
+  await client.query('begin');
+  const q=await client.query(`insert into professional_tasks(establishment_id,title,description,assigned_to,assigned_by,due_date,priority,related_type,related_id)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    returning *`,[req.auth.establishment_id,title,description||null,assignedTo,req.auth.id,dueDate,priority,b.related_type||null,b.related_id==null?null:String(b.related_id)]);
+  await client.query(`insert into professional_notifications(establishment_id,user_id,kind,title,message,link)
+    values($1,$2,'task_assigned',$3,$4,'notificaciones.html#tareas')`,
+    [req.auth.establishment_id,assignedTo,'Nueva tarea: '+title,(req.auth.name||'Un profesional')+' te asignó una tarea'+(dueDate?' con plazo '+dueDate:'')+'.']);
+  await client.query('commit');
+  await auditProfessional(req,'professional_task_created','task',q.rows[0].id,{assigned_to:assignedTo,due_date:dueDate,priority});
+  res.status(201).json({ok:true,task:{...q.rows[0],assigned_to_name:target.rows[0].name,assigned_by_name:req.auth.name||null}});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+
+app.post('/api/tasks/:id/status',requireAuth,async(req,res)=>{const client=await pool.connect();try{
+  const status=String((req.body||{}).status||'');
+  if(!['pending','in_progress','completed','cancelled'].includes(status))return res.status(400).json({ok:false,error:'invalid_task_status'});
+  const q=await client.query("select * from professional_tasks where id=$1 and establishment_id=$2",[req.params.id,req.auth.establishment_id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'task_not_found'});
+  const task=q.rows[0],role=canonicalRole(req.auth.role,req.auth.rbd),manager=['coordinador_convivencia','dupla_psicosocial'].includes(role);
+  if(Number(task.assigned_to)!==Number(req.auth.id)&&!manager)return res.status(403).json({ok:false,error:'task_forbidden'});
+  if(!manager&&status==='cancelled')return res.status(403).json({ok:false,error:'task_cancel_forbidden'});
+
+  await client.query('begin');
+  const upd=await client.query(`update professional_tasks set status=$1,completed_at=case when $1='completed' then now() else null end,updated_at=now()
+    where id=$2 returning *`,[status,req.params.id]);
+  if(Number(task.assigned_by)!==Number(req.auth.id)){
+    await client.query(`insert into professional_notifications(establishment_id,user_id,kind,title,message,link)
+      values($1,$2,'task_status',$3,$4,'notificaciones.html#tareas')`,
+      [req.auth.establishment_id,task.assigned_by,'Actualización de tarea: '+task.title,(req.auth.name||'El responsable')+' cambió el estado a '+status+'.']);
+  }
+  await client.query('commit');
+  await auditProfessional(req,'professional_task_status_changed','task',req.params.id,{status});
+  ok(res,{task:upd.rows[0]});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+
+app.get('/api/notifications',requireAuth,async(req,res)=>{try{
+  const limit=Math.min(100,Math.max(1,Number(req.query.limit)||50));
+  const q=await pool.query(`select id,kind,title,message,link,read_at,created_at
+    from professional_notifications where establishment_id=$1 and user_id=$2
+    order by created_at desc limit $3`,[req.auth.establishment_id,req.auth.id,limit]);
+  const unread=await pool.query("select count(*)::int total from professional_notifications where establishment_id=$1 and user_id=$2 and read_at is null",[req.auth.establishment_id,req.auth.id]);
+  ok(res,{notifications:q.rows,unread:Number(unread.rows[0].total)});
+}catch(e){res.status(400).json({ok:false,error:'notifications_load_failed'})}});
+
+app.post('/api/notifications/:id/read',requireAuth,async(req,res)=>{try{
+  const q=await pool.query("update professional_notifications set read_at=coalesce(read_at,now()) where id=$1 and establishment_id=$2 and user_id=$3 returning id,read_at",[req.params.id,req.auth.establishment_id,req.auth.id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'notification_not_found'});
+  ok(res,{notification:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:'notification_update_failed'})}});
+
+app.post('/api/notifications/read-all',requireAuth,async(req,res)=>{try{
+  const q=await pool.query("update professional_notifications set read_at=coalesce(read_at,now()) where establishment_id=$1 and user_id=$2 and read_at is null",[req.auth.establishment_id,req.auth.id]);
+  ok(res,{updated:q.rowCount});
+}catch(e){res.status(400).json({ok:false,error:'notifications_update_failed'})}});
+
 app.post('/api/courses',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const {establishment_id,name,school_year}=req.body,year=Number(school_year),clean=String(name||'').trim();if(Number(establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishment_id||!clean||!Number.isInteger(year)||year<2020||year>2100)return res.status(400).json({ok:false,error:'required_fields'});const q=await pool.query('insert into courses(establishment_id,name,school_year) values($1,$2,$3) on conflict(establishment_id,name,school_year) do update set name=excluded.name returning *',[establishment_id,clean,year]);ok(res,{course:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/courses',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const q=await pool.query('select c.*,e.name establishment from courses c join establishments e on e.id=c.establishment_id where c.establishment_id=$1 order by c.school_year desc,c.name',[establishmentId]);ok(res,{courses:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 

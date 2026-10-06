@@ -179,7 +179,15 @@ async function runPilotSelfTest(base){
   ]}});
   if(protocolSteps.steps?.length!==2)throw new Error('protocol_steps_save_failed');
   const cs=await prof('/api/cases',{method:'POST',body:{title:'CASO AUTO E2E '+stamp,protocol_id:protocol.protocol.id,student_id:st.id,priority:'medium',summary:'Antecedentes ficticios'}});
-  if(!cs.case?.id)throw new Error('case_create_failed');
+  if(!cs.case?.id||Number(cs.required_steps_created)!==2)throw new Error('case_create_or_steps_snapshot_failed');
+  const caseDetail=await prof('/api/cases/'+cs.case.id);
+  if(caseDetail.required_steps?.length!==2)throw new Error('case_required_steps_missing');
+  await expectError('case_close_with_required_steps_pending',()=>prof('/api/cases/'+cs.case.id+'/status',{method:'POST',body:{status:'closed'}}),'required_protocol_steps_pending');
+  const firstStep=caseDetail.required_steps[0],secondStep=caseDetail.required_steps[1];
+  const firstDone=await prof('/api/cases/'+cs.case.id+'/steps/'+firstStep.id+'/status',{method:'POST',body:{status:'completed',note:'Prueba técnica completada'}});
+  if(firstDone.step?.status!=='completed')throw new Error('case_step_complete_failed');
+  const secondDone=await prof('/api/cases/'+cs.case.id+'/steps/'+secondStep.id+'/status',{method:'POST',body:{status:'completed',note:'Prueba técnica completada'}});
+  if(secondDone.step?.status!=='completed')throw new Error('case_step_second_complete_failed');
   const ca=await prof('/api/cases/'+cs.case.id+'/actions',{method:'POST',body:{action_type:'Seguimiento AUTO E2E',note:'Actuación ficticia',responsible_user_id:self.id,due_date:dates.end}});
   if(!ca.action?.id||!ca.task?.id)throw new Error('case_action_task_failed');
   const closed=await prof('/api/cases/'+cs.case.id+'/status',{method:'POST',body:{status:'closed'}});

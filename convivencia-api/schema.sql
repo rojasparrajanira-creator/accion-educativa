@@ -227,3 +227,34 @@ CREATE TABLE IF NOT EXISTS student_credentials(
 
 ALTER TABLE survey_applications ADD COLUMN IF NOT EXISTS access_method TEXT;
 ALTER TABLE survey_applications ADD COLUMN IF NOT EXISTS access_requires_pin_setup BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS case_protocol_steps(
+ id BIGSERIAL PRIMARY KEY,
+ protocol_id BIGINT NOT NULL REFERENCES case_protocols(id) ON DELETE CASCADE,
+ step_order INT NOT NULL CHECK(step_order BETWEEN 1 AND 100),
+ title TEXT NOT NULL,
+ description TEXT,
+ due_offset_days INT CHECK(due_offset_days IS NULL OR due_offset_days BETWEEN 0 AND 365),
+ required BOOLEAN NOT NULL DEFAULT true,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ UNIQUE(protocol_id,step_order)
+);
+CREATE INDEX IF NOT EXISTS idx_case_protocol_steps_protocol ON case_protocol_steps(protocol_id,step_order);
+
+CREATE TABLE IF NOT EXISTS case_required_steps(
+ id BIGSERIAL PRIMARY KEY,
+ case_id BIGINT NOT NULL REFERENCES case_records(id) ON DELETE CASCADE,
+ protocol_step_id BIGINT REFERENCES case_protocol_steps(id) ON DELETE SET NULL,
+ step_order INT NOT NULL,
+ title TEXT NOT NULL,
+ description TEXT,
+ due_date DATE,
+ required BOOLEAN NOT NULL DEFAULT true,
+ status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','completed','not_applicable')),
+ completed_at TIMESTAMPTZ,
+ completed_by BIGINT REFERENCES users(id),
+ completion_note TEXT,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ UNIQUE(case_id,protocol_step_id)
+);
+CREATE INDEX IF NOT EXISTS idx_case_required_steps_case ON case_required_steps(case_id,step_order);

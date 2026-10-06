@@ -18,7 +18,8 @@
 
     async context(){
       if(!this.applicationId||!this.accessToken)throw new Error('student_access_missing');
-      const r=await fetch(this.API+'/api/applications/'+encodeURIComponent(this.applicationId)+'/context?access='+encodeURIComponent(this.accessToken),{
+      const r=await fetch(this.API+'/api/applications/'+encodeURIComponent(this.applicationId)+'/context',{
+        headers:{'X-Student-Access':this.accessToken},
         cache:'no-store',
         referrerPolicy:'no-referrer'
       });

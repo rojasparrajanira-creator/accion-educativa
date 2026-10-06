@@ -77,6 +77,26 @@ async function cargarInforme(){
     box.appendChild(sul);
   }
 
+  try{
+    const rr=await fetch(API+'/api/applications/'+encodeURIComponent(id)+'/review'),rv=await rr.json();
+    if(rr.ok&&rv.ok){
+      const review=rv.review||{status:'pending_review'};
+      const rh=document.createElement('h4');rh.textContent='Estado de revisión profesional';box.appendChild(rh);
+      const statusMap={pending_review:'Pendiente de revisión',reviewed:'Revisión realizada',context_required:'Requiere más contexto'};
+      const rp=document.createElement('p');
+      rp.textContent='Estado: '+(statusMap[review.status]||review.status);
+      if(review.reviewed_by_name)rp.textContent+=' · Profesional: '+review.reviewed_by_name;
+      if(review.reviewed_at)rp.textContent+=' · Fecha: '+new Date(review.reviewed_at).toLocaleString('es-CL');
+      box.appendChild(rp);
+      if(review.note){
+        const rn=document.createElement('div');rn.className='call';const rb=document.createElement('b');rb.textContent='Observación profesional';const rtext=document.createElement('p');rtext.textContent=review.note;rn.append(rb,rtext);box.appendChild(rn);
+      }
+      if(review.status!=='reviewed'){
+        const warn=document.createElement('div');warn.className='call yellow';const wb=document.createElement('b');wb.textContent='Documento pendiente de cierre profesional';const wp=document.createElement('p');wp.textContent='Este informe puede utilizarse como insumo descriptivo, pero la revisión profesional todavía no figura como realizada.';warn.append(wb,wp);box.appendChild(warn);
+      }
+    }
+  }catch(e){}
+
   const foot=document.createElement('p');foot.style.fontSize='11px';foot.style.color='#66788a';
   foot.textContent='El informe es un insumo educativo descriptivo. Debe integrarse con antecedentes institucionales, observación profesional y trayectoria M1–M2–M3.';
   box.appendChild(foot);

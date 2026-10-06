@@ -10,7 +10,7 @@ header{height:82px;background:#fff;border-bottom:1px solid var(--l);display:flex
 main{max-width:1240px;margin:auto;padding:28px 20px 60px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-end}.top h1{margin:5px 0;color:var(--g)}.top p{margin:0;color:var(--u);font-size:13px}.btn{border:0;border-radius:11px;padding:10px 13px;font-weight:850;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.primary{background:var(--g);color:#fff}.soft{background:var(--m);color:var(--g);border:1px solid var(--l)}.danger{background:#f7eaea;color:#8a3d39;border:1px solid #eed4d1}
 .card{background:#fff;border:1px solid var(--l);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 8px 24px rgba(23,62,53,.05)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field label{display:block;font-size:10px;font-weight:850;color:#567064;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #D7E3DC;border-radius:11px;padding:10px;font:inherit}.field textarea{min-height:90px}.status{font-size:12px;color:var(--u);min-height:18px}.note{background:var(--m);border-left:5px solid #48BFA0;border-radius:13px;padding:13px;color:#526a62;line-height:1.5;font-size:12px}
 table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;background:#F1F6F3;color:#567064;padding:10px}td{padding:11px 10px;border-bottom:1px solid #EDF1EE;vertical-align:top}.badge{display:inline-block;padding:5px 8px;border-radius:11px;background:#E3F4E9;color:#2F6A48;font-size:10px;font-weight:800}.badge.high,.badge.late{background:#FCE8E6;color:#8D3C36}.badge.medium{background:#FFF3C5;color:#705B00}.badge.closed{background:#E7EEF8;color:#315A86}
-.action{padding:13px 0;border-bottom:1px solid #EDF1EE}.action:last-child{border-bottom:0}.action b{font-size:12px}.action p{font-size:12px;color:#526a62;white-space:pre-wrap}.meta{font-size:11px;color:var(--u);line-height:1.5}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.tab{padding:9px 12px;border:1px solid var(--l);border-radius:10px;text-decoration:none;color:var(--g);font-size:11px;font-weight:800;background:#fff}
+.action{padding:13px 0;border-bottom:1px solid #EDF1EE}.action:last-child{border-bottom:0}.action b{font-size:12px}.action p{font-size:12px;color:#526a62;white-space:pre-wrap}.step-editor,.required-step{border:1px solid var(--l);border-radius:14px;padding:13px;margin:10px 0;background:#fbfdfc}.step-editor{display:grid;grid-template-columns:58px minmax(180px,1fr) minmax(190px,1.4fr) 120px 115px auto;gap:8px;align-items:end}.required-step{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:start}.required-step .num{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--m);font-weight:900;color:var(--g)}.step-complete{background:#edf8f2}.step-na{background:#f3f5f6}@media(max-width:900px){.step-editor{grid-template-columns:1fr 1fr}.required-step{grid-template-columns:36px 1fr}}.meta{font-size:11px;color:var(--u);line-height:1.5}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.tab{padding:9px 12px;border:1px solid var(--l);border-radius:10px;text-decoration:none;color:var(--g);font-size:11px;font-weight:800;background:#fff}
 @media(max-width:800px){.grid,.grid3{grid-template-columns:1fr}.top{display:block}.table-wrap{overflow:auto}table{min-width:850px}}
 </style>
 <script src="js/auth-professional.js"></script><script>MECAuth.guard();</script>
@@ -35,6 +35,19 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 <div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Protocolo</th><th>Plazo sugerido</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="protocol-rows"><tr><td colspan="4">Cargando…</td></tr></tbody></table></div>
 </section>
 
+<section id="protocol-steps-card" class="card" hidden>
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+ <div><small style="font-weight:900;color:#2F8067">RUTA DEL PROTOCOLO</small><h2 id="protocol-steps-title" style="margin:5px 0;font-size:18px">Configurar pasos</h2><p class="status">Define la secuencia institucional. No se agregan actuaciones ni plazos legales automáticamente.</p></div>
+ <button id="protocol-step-add" class="btn soft" type="button">+ Agregar paso</button>
+</div>
+<div id="protocol-step-list"></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:12px">
+ <button id="protocol-step-cancel" class="btn soft" type="button">Cerrar editor</button>
+ <button id="protocol-step-save" class="btn primary" type="button">Guardar ruta del protocolo</button>
+</div>
+<p id="protocol-step-status" class="status"></p>
+</section>
+
 <section id="nuevo" class="card">
 <h2 style="margin-top:0;font-size:18px">Abrir nuevo caso</h2>
 <div class="grid3">
@@ -50,14 +63,17 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 
 <section id="casos" class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0;font-size:18px">Casos registrados</h2><div><select id="case-filter"><option value="">Todos</option><option value="open">Abiertos</option><option value="in_progress">En seguimiento</option><option value="closed">Cerrados</option></select> <button id="case-refresh" class="btn soft" type="button">Actualizar</button></div></div>
-<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Caso</th><th>Protocolo</th><th>Estudiante / curso</th><th>Prioridad</th><th>Estado</th><th>Plazo</th><th>Actuaciones</th><th></th></tr></thead><tbody id="case-rows"><tr><td colspan="8">Cargando…</td></tr></tbody></table></div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Caso</th><th>Protocolo</th><th>Estudiante / curso</th><th>Prioridad</th><th>Estado</th><th>Plazo</th><th>Actuaciones</th><th>Pasos obligatorios</th><th></th></tr></thead><tbody id="case-rows"><tr><td colspan="9">Cargando…</td></tr></tbody></table></div>
 </section>
 
 <section id="case-detail" class="card" hidden>
 <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><small style="color:#2F8067;font-weight:900">EXPEDIENTE PROFESIONAL</small><h2 id="detail-title" style="margin:5px 0">Caso</h2><p id="detail-meta" class="status"></p></div><a class="btn soft" id="detail-close-link" href="#casos">Cerrar vista</a></div>
 <div id="detail-summary" class="note"></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0"><button class="btn soft" data-case-status="open">Marcar abierto</button><button class="btn primary" data-case-status="in_progress">En seguimiento</button><button class="btn danger" data-case-status="closed">Cerrar caso</button></div>
-<h3 style="font-size:15px">Bitácora de actuaciones</h3><div id="action-list"></div>
+<h3 style="font-size:15px">Ruta del protocolo</h3>
+<p class="status">Los pasos obligatorios deben quedar completados o justificados como “No aplica” antes de cerrar el caso.</p>
+<div id="required-step-list"></div>
+<h3 style="font-size:15px;margin-top:22px">Bitácora de actuaciones</h3><div id="action-list"></div>
 <div id="action-form">
  <h3 style="font-size:15px;margin-top:20px">Registrar actuación</h3>
  <div class="grid3">
@@ -74,7 +90,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 
 <script>
 const API=MECAuth.API,q=new URLSearchParams(location.search);
-let eid=Number(q.get('establishment_id')||0),user=null,manager=false,protocols=[],students=[],team=[],cases=[],currentCaseId=Number(q.get('case_id')||0);
+let eid=Number(q.get('establishment_id')||0),user=null,manager=false,protocols=[],students=[],team=[],cases=[],currentCaseId=Number(q.get('case_id')||0),editingProtocolId=0,protocolStepDraft=[];
 const roleLabel=r=>({coordinador_convivencia:'Coordinación de Convivencia',dupla_psicosocial:'Dupla Psicosocial',profesor:'Profesor/a',asistente_educacion:'Asistente',prevencionista:'Prevencionista',nutricionista:'Nutricionista'})[r]||r;
 const date=v=>v?new Date(String(v).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL'):'—';
 const statusLabel=s=>({open:'Abierto',in_progress:'En seguimiento',closed:'Cerrado'})[s]||s;
@@ -88,12 +104,54 @@ async function loadProtocols(){
  for(const p of protocols){
   const tr=document.createElement('tr');const cells=[p.name,p.default_days?p.default_days+' días':'Sin plazo sugerido',p.active?'Activo':'Inactivo'];
   cells.forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
-  const act=document.createElement('td');
-  if(manager){const b=document.createElement('button');b.className='btn soft';b.textContent=p.active?'Desactivar':'Activar';b.onclick=()=>setProtocol(p.id,!p.active);act.appendChild(b)}
-  tr.appendChild(act);body.appendChild(tr);
+  const act=document.createElement('td'),wrap=document.createElement('div');wrap.style.display='flex';wrap.style.gap='6px';wrap.style.flexWrap='wrap';
+  if(manager){
+    const steps=document.createElement('button');steps.className='btn soft';steps.textContent='Configurar pasos';steps.onclick=()=>editProtocolSteps(p);wrap.appendChild(steps);
+    const b=document.createElement('button');b.className='btn soft';b.textContent=p.active?'Desactivar':'Activar';b.onclick=()=>setProtocol(p.id,!p.active);wrap.appendChild(b);
+  }else{
+    const steps=document.createElement('button');steps.className='btn soft';steps.textContent='Ver pasos';steps.onclick=()=>editProtocolSteps(p);wrap.appendChild(steps);
+  }
+  act.appendChild(wrap);tr.appendChild(act);body.appendChild(tr);
  }
  const sel=document.getElementById('case-protocol'),current=sel.value;sel.innerHTML='<option value="">Sin protocolo asociado</option>'+protocols.filter(x=>x.active).map(x=>'<option value="'+x.id+'">'+String(x.name).replace(/[&<>"]/g,'')+'</option>').join('');if(current)sel.value=current;
 }
+function renderProtocolStepDraft(){
+ const box=document.getElementById('protocol-step-list');box.replaceChildren();
+ if(!protocolStepDraft.length){const p=document.createElement('p');p.className='status';p.textContent='Este protocolo aún no tiene pasos configurados.';box.appendChild(p);return}
+ protocolStepDraft.forEach((s,index)=>{
+  const row=document.createElement('div');row.className='step-editor';
+  const order=document.createElement('div');order.className='field';const ol=document.createElement('label');ol.textContent='Orden';const ov=document.createElement('div');ov.style.padding='10px';ov.textContent=String(index+1);order.append(ol,ov);
+  const title=document.createElement('div');title.className='field';const tl=document.createElement('label');tl.textContent='Paso';const ti=document.createElement('input');ti.maxLength=220;ti.value=s.title||'';ti.disabled=!manager;ti.oninput=()=>s.title=ti.value;title.append(tl,ti);
+  const desc=document.createElement('div');desc.className='field';const dl=document.createElement('label');dl.textContent='Descripción';const di=document.createElement('input');di.maxLength=2000;di.value=s.description||'';di.disabled=!manager;di.oninput=()=>s.description=di.value;desc.append(dl,di);
+  const due=document.createElement('div');due.className='field';const dul=document.createElement('label');dul.textContent='Días desde apertura';const dui=document.createElement('input');dui.type='number';dui.min='0';dui.max='365';dui.value=s.due_offset_days??'';dui.disabled=!manager;dui.oninput=()=>s.due_offset_days=dui.value===''?null:Number(dui.value);due.append(dul,dui);
+  const req=document.createElement('label');req.style.display='flex';req.style.gap='7px';req.style.alignItems='center';req.style.paddingBottom='10px';const cb=document.createElement('input');cb.type='checkbox';cb.checked=s.required!==false;cb.disabled=!manager;cb.onchange=()=>s.required=cb.checked;req.append(cb,document.createTextNode('Obligatorio'));
+  const actions=document.createElement('div');
+  if(manager){const rm=document.createElement('button');rm.type='button';rm.className='btn danger';rm.textContent='Quitar';rm.onclick=()=>{protocolStepDraft.splice(index,1);renderProtocolStepDraft()};actions.appendChild(rm)}
+  row.append(order,title,desc,due,req,actions);box.appendChild(row);
+ });
+}
+async function editProtocolSteps(protocol){
+ editingProtocolId=Number(protocol.id);document.getElementById('protocol-steps-title').textContent=(manager?'Configurar':'Ruta de')+' · '+protocol.name;
+ document.getElementById('protocol-step-add').hidden=!manager;document.getElementById('protocol-step-save').hidden=!manager;
+ document.getElementById('protocol-step-status').textContent='Cargando ruta…';document.getElementById('protocol-steps-card').hidden=false;
+ try{
+  const r=await fetch(API+'/api/protocols/'+protocol.id+'/steps'),d=await r.json();if(!r.ok||!d.ok)throw 0;
+  protocolStepDraft=(d.steps||[]).map(x=>({title:x.title,description:x.description||'',due_offset_days:x.due_offset_days,required:x.required!==false}));
+  renderProtocolStepDraft();document.getElementById('protocol-step-status').textContent=protocolStepDraft.length?protocolStepDraft.length+' paso(s) configurado(s).':'Sin pasos configurados.';
+  document.getElementById('protocol-steps-card').scrollIntoView({behavior:'smooth'});
+ }catch(e){document.getElementById('protocol-step-status').textContent='No fue posible cargar la ruta del protocolo.'}
+}
+document.getElementById('protocol-step-add').onclick=()=>{protocolStepDraft.push({title:'',description:'',due_offset_days:null,required:true});renderProtocolStepDraft()};
+document.getElementById('protocol-step-cancel').onclick=()=>{document.getElementById('protocol-steps-card').hidden=true;editingProtocolId=0;protocolStepDraft=[]};
+document.getElementById('protocol-step-save').onclick=async()=>{
+ const st=document.getElementById('protocol-step-status');if(!editingProtocolId)return;
+ if(protocolStepDraft.some(x=>!String(x.title||'').trim())){st.textContent='Todos los pasos deben tener un nombre.';return}
+ st.textContent='Guardando ruta del protocolo…';
+ try{
+  const r=await fetch(API+'/api/protocols/'+editingProtocolId+'/steps',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({steps:protocolStepDraft})}),d=await r.json();
+  if(!r.ok||!d.ok)throw 0;protocolStepDraft=(d.steps||[]).map(x=>({title:x.title,description:x.description||'',due_offset_days:x.due_offset_days,required:x.required!==false}));renderProtocolStepDraft();st.textContent='Ruta guardada correctamente.';
+ }catch(e){st.textContent='No fue posible guardar la ruta del protocolo.'}
+};
 async function setProtocol(id,active){await fetch(API+'/api/protocols/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});await loadProtocols()}
 async function loadReferenceData(){
  const [sr,tr]=await Promise.all([fetch(API+'/api/students?establishment_id='+eid).then(r=>r.json()),fetch(API+'/api/team').then(r=>r.json())]);
@@ -105,30 +163,60 @@ async function loadCases(){
  const filter=document.getElementById('case-filter').value;
  const r=await fetch(API+'/api/cases'+(filter?'?status='+encodeURIComponent(filter):'')),d=await r.json();if(!r.ok||!d.ok)throw 0;cases=d.cases||[];
  const body=document.getElementById('case-rows');body.replaceChildren();
- if(!cases.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=8;td.textContent='No hay casos registrados para este filtro.';tr.appendChild(td);body.appendChild(tr);return}
+ if(!cases.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=9;td.textContent='No hay casos registrados para este filtro.';tr.appendChild(td);body.appendChild(tr);return}
  for(const x of cases){
   const tr=document.createElement('tr');
-  const values=[x.title,x.protocol||'Sin protocolo',(x.student||'Caso general')+(x.course?' · '+x.course:''),priorityLabel(x.priority),statusLabel(x.status),date(x.due_date),x.actions_count];
+  const values=[x.title,x.protocol||'Sin protocolo',(x.student||'Caso general')+(x.course?' · '+x.course:''),priorityLabel(x.priority),statusLabel(x.status),date(x.due_date),x.actions_count,(Number(x.required_steps_count)||0)?((Number(x.pending_required_steps)||0)+' pendiente(s) de '+Number(x.required_steps_count)):'Sin ruta obligatoria'];
   values.forEach((v,i)=>{const td=document.createElement('td');td.textContent=v;if(i===3)td.innerHTML='<span class="badge '+x.priority+'">'+priorityLabel(x.priority)+'</span>';if(i===4)td.innerHTML='<span class="badge '+(x.status==='closed'?'closed':'')+'">'+statusLabel(x.status)+'</span>';if(i===5&&late(x))td.innerHTML='<span class="badge late">Vencido · '+date(x.due_date)+'</span>';tr.appendChild(td)});
   const act=document.createElement('td'),a=document.createElement('a');a.className='btn soft';a.textContent='Abrir';a.href='ver-caso.html?establishment_id='+eid+'&case_id='+x.id;act.appendChild(a);tr.appendChild(act);body.appendChild(tr);
  }
 }
 async function loadDetail(id){
- const r=await fetch(API+'/api/cases/'+id),d=await r.json();if(!r.ok||!d.ok)throw 0;const cs=d.case,actions=d.actions||[];currentCaseId=Number(cs.id);
+ const r=await fetch(API+'/api/cases/'+id),d=await r.json();if(!r.ok||!d.ok)throw 0;const cs=d.case,actions=d.actions||[],requiredSteps=d.required_steps||[];currentCaseId=Number(cs.id);
  document.getElementById('case-detail').hidden=false;document.getElementById('detail-title').textContent='#'+cs.id+' · '+cs.title;
  document.getElementById('detail-meta').textContent=(cs.protocol||'Sin protocolo')+' · '+(cs.student||'Caso general')+(cs.course?' · '+cs.course:'')+' · '+priorityLabel(cs.priority)+' · '+statusLabel(cs.status)+' · Plazo '+date(cs.due_date);
  document.getElementById('detail-summary').textContent=cs.summary||'Sin antecedentes iniciales registrados.';
  document.getElementById('action-form').hidden=cs.status==='closed';
+ const stepsBox=document.getElementById('required-step-list');stepsBox.replaceChildren();
+ if(!requiredSteps.length){const p=document.createElement('p');p.className='status';p.textContent=cs.protocol?'Este protocolo no tenía pasos parametrizados al momento de abrir el caso.':'Este caso no tiene protocolo asociado.';stepsBox.appendChild(p)}
+ requiredSteps.forEach(s=>{
+  const row=document.createElement('div');row.className='required-step '+(s.status==='completed'?'step-complete':s.status==='not_applicable'?'step-na':'');
+  const n=document.createElement('div');n.className='num';n.textContent=s.step_order;
+  const info=document.createElement('div');const b=document.createElement('b');b.textContent=s.title+(s.required?' · Obligatorio':' · Opcional');
+  const p=document.createElement('p');p.className='meta';p.textContent=(s.description||'Sin descripción')+(s.due_date?' · Plazo '+date(s.due_date):'');
+  const state=document.createElement('div');state.className='meta';state.textContent=s.status==='completed'?'Completado'+(s.completed_by_name?' por '+s.completed_by_name:''):s.status==='not_applicable'?'No aplica · '+(s.completion_note||'Justificado'):'Pendiente';
+  info.append(b,p,state);
+  const actions=document.createElement('div');actions.style.display='flex';actions.style.gap='6px';actions.style.flexWrap='wrap';
+  if(cs.status!=='closed'){
+    if(s.status!=='completed'){const done=document.createElement('button');done.type='button';done.className='btn primary';done.textContent='Completar';done.onclick=()=>updateCaseStep(s.id,'completed','');actions.appendChild(done)}
+    if(s.status!=='not_applicable'){const na=document.createElement('button');na.type='button';na.className='btn soft';na.textContent='No aplica';na.onclick=()=>{const note=prompt('Indica por qué este paso no aplica a este caso:');if(note&&note.trim())updateCaseStep(s.id,'not_applicable',note.trim())};actions.appendChild(na)}
+    if(s.status!=='pending'){const undo=document.createElement('button');undo.type='button';undo.className='btn soft';undo.textContent='Reabrir paso';undo.onclick=()=>updateCaseStep(s.id,'pending','');actions.appendChild(undo)}
+  }
+  row.append(n,info,actions);stepsBox.appendChild(row);
+ });
  const box=document.getElementById('action-list');box.replaceChildren();
  if(!actions.length){const p=document.createElement('p');p.className='status';p.textContent='Aún no existen actuaciones registradas.';box.appendChild(p)}
  actions.forEach(a=>{const row=document.createElement('div');row.className='action';const b=document.createElement('b');b.textContent=a.action_type;const p=document.createElement('p');p.textContent=a.note;const m=document.createElement('div');m.className='meta';m.textContent='Fecha: '+new Date(a.action_date).toLocaleString('es-CL')+(a.responsible?' · Responsable: '+a.responsible:'')+(a.due_date?' · Plazo: '+date(a.due_date):'')+' · Registrado por: '+a.created_by_name;row.append(b,p,m);box.appendChild(row)});
  document.getElementById('case-detail').scrollIntoView({behavior:'smooth'});
 }
+async function updateCaseStep(stepId,status,note){
+ if(!currentCaseId)return;
+ try{
+  const r=await fetch(API+'/api/cases/'+currentCaseId+'/steps/'+stepId+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,note})}),d=await r.json();
+  if(!r.ok||!d.ok)throw new Error(d.error||'step_update_failed');
+  await loadDetail(currentCaseId);await loadCases();
+ }catch(e){alert(e.message==='not_applicable_note_required'?'Debes justificar cuando un paso no aplica.':'No fue posible actualizar el paso del protocolo.')}
+}
 async function setCaseStatus(status){
  if(!currentCaseId)return;
  if(status==='closed'&&!confirm('Cerrar el caso cancelará las tareas pendientes vinculadas a sus actuaciones. ¿Deseas continuar?'))return;
  const r=await fetch(API+'/api/cases/'+currentCaseId+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})}),d=await r.json();
- if(r.ok&&d.ok){if(status==='closed'&&Array.isArray(d.cancelled_tasks)&&d.cancelled_tasks.length)alert('Caso cerrado. Se cancelaron '+d.cancelled_tasks.length+' tarea(s) pendiente(s) vinculada(s).');await loadCases();await loadDetail(currentCaseId)}
+ if(!r.ok||!d.ok){
+  if(d.error==='required_protocol_steps_pending'){alert('No es posible cerrar el caso: quedan '+Number(d.pending_required_steps||0)+' paso(s) obligatorio(s) pendientes. Complétalos o justifica “No aplica”.');return}
+  alert('No fue posible actualizar el estado del caso.');return;
+ }
+ if(status==='closed'&&Array.isArray(d.cancelled_tasks)&&d.cancelled_tasks.length)alert('Caso cerrado. Se cancelaron '+d.cancelled_tasks.length+' tarea(s) pendiente(s) vinculada(s).');
+ await loadCases();await loadDetail(currentCaseId);
 }
 document.querySelectorAll('[data-case-status]').forEach(b=>b.onclick=()=>setCaseStatus(b.dataset.caseStatus));
 document.getElementById('case-refresh').onclick=loadCases;document.getElementById('case-filter').onchange=loadCases;

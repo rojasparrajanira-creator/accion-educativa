@@ -173,6 +173,11 @@ async function runPilotSelfTest(base){
 
   const protocol=await prof('/api/protocols',{method:'POST',body:{name:'PROTOCOLO AUTO E2E '+stamp,description:'Protocolo ficticio',default_days:7}});
   if(!protocol.protocol?.id)throw new Error('protocol_create_failed');
+  const protocolSteps=await prof('/api/protocols/'+protocol.protocol.id+'/steps',{method:'POST',body:{steps:[
+    {title:'Paso E2E 1',description:'Prueba técnica',due_offset_days:1,required:true},
+    {title:'Paso E2E 2',description:'Prueba técnica',due_offset_days:2,required:true}
+  ]}});
+  if(protocolSteps.steps?.length!==2)throw new Error('protocol_steps_save_failed');
   const cs=await prof('/api/cases',{method:'POST',body:{title:'CASO AUTO E2E '+stamp,protocol_id:protocol.protocol.id,student_id:st.id,priority:'medium',summary:'Antecedentes ficticios'}});
   if(!cs.case?.id)throw new Error('case_create_failed');
   const ca=await prof('/api/cases/'+cs.case.id+'/actions',{method:'POST',body:{action_type:'Seguimiento AUTO E2E',note:'Actuación ficticia',responsible_user_id:self.id,due_date:dates.end}});

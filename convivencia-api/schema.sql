@@ -86,3 +86,14 @@ CREATE TABLE IF NOT EXISTS response_drafts(
  PRIMARY KEY(application_id,item_code)
 );
 CREATE INDEX IF NOT EXISTS idx_response_drafts_application ON response_drafts(application_id);
+
+CREATE TABLE IF NOT EXISTS application_reviews(
+ application_id BIGINT PRIMARY KEY REFERENCES survey_applications(id) ON DELETE CASCADE,
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id),
+ status TEXT NOT NULL CHECK(status IN ('reviewed','context_required')),
+ note TEXT,
+ reviewed_by BIGINT NOT NULL REFERENCES users(id),
+ reviewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_application_reviews_establishment ON application_reviews(establishment_id);

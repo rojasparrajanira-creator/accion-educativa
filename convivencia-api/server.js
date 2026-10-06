@@ -1331,16 +1331,13 @@ app.post('/api/store/admin/product-image',requireAuth,storeImageUpload.single('i
   const q=await pool.query("insert into store_product_images(mime_type,image_data) values($1,$2) returning id",[req.file.mimetype,req.file.buffer]);
   ok(res,{image_url:'/api/store/images/'+q.rows[0].id});
 }catch(e){res.status(400).json({ok:false,error:'store_image_upload_failed'})}});
-app.get('/api/store/images/:name',async(req,res)=>{
-  const name=String(req.params.name||'');
-  if(!/^[a-f0-9]{36}\.(jpg|png)$/.test(name))return res.sendStatus(404);
-  const dir=String(process.env.MEC_STORE_IMAGE_DIR||'').trim();
-  if(!dir)return res.sendStatus(404);
-  const file=path.join(dir,name);
-  if(!fs.existsSync(file))return res.sendStatus(404);
+app.get('/api/store/images/:name',async(req,res)=>{try{
+  const id=Number(req.params.name);if(!Number.isInteger(id)||id<1)return res.sendStatus(404);
+  const q=await pool.query("select mime_type,image_data from store_product_images where id=$1",[id]);
+  if(!q.rowCount)return res.sendStatus(404);
   res.setHeader('Cache-Control','public, max-age=31536000, immutable');
-  res.type(name.endsWith('.png')?'png':'jpg').sendFile(file);
-});
+  res.type(q.rows[0].mime_type).send(q.rows[0].image_data);
+}catch(e){res.sendStatus(404)}});
 app.get('/api/store/products',async(req,res)=>{try{
   const q=await pool.query("select id,title,slug,objective,description,included_materials,audience,image_url,price_clp,compare_at_price_clp,updated_at from store_products where status='published' order by updated_at desc");
   ok(res,{products:q.rows});

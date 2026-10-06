@@ -27,6 +27,7 @@ return {dimension:result.dimension,dimension_name:d.name,priority:result.priorit
 },
 validateDecision(p){
 if(!p||!["aprobar","ajustar"].includes(p.decision))throw new Error("professional_decision_required");
+if(!["high","medium","low"].includes(p.priority))throw new Error("professional_priority_required");
 for(const k of ["responsible","start_date","end_date","indicator_selected","target"])if(!p[k])throw new Error("missing_"+k);
 if(!Array.isArray(p.evidence_selected)||!p.evidence_selected.length)throw new Error("evidence_required");
 return {...p,status:p.decision==="aprobar"?"aprobada":"ajustada",reviewed_at:new Date().toISOString()};

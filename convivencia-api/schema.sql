@@ -207,3 +207,23 @@ CREATE TABLE IF NOT EXISTS institutional_resources(
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_institutional_resources_establishment ON institutional_resources(establishment_id,active,resource_type);
+
+CREATE TABLE IF NOT EXISTS course_access_codes(
+ course_id BIGINT PRIMARY KEY REFERENCES courses(id) ON DELETE CASCADE,
+ code_hash TEXT NOT NULL,
+ code_salt TEXT NOT NULL,
+ updated_by BIGINT REFERENCES users(id),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS student_credentials(
+ student_id BIGINT PRIMARY KEY REFERENCES students(id) ON DELETE CASCADE,
+ pin_hash TEXT,
+ pin_salt TEXT,
+ failed_login_count INT NOT NULL DEFAULT 0,
+ locked_until TIMESTAMPTZ,
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE survey_applications ADD COLUMN IF NOT EXISTS access_method TEXT;
+ALTER TABLE survey_applications ADD COLUMN IF NOT EXISTS access_requires_pin_setup BOOLEAN NOT NULL DEFAULT false;

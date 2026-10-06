@@ -76,7 +76,20 @@ async function load(){
     const pass=td('');const pb=document.createElement('span');pb.className='badge '+(user.must_change_password?'temp':'');pb.textContent=user.must_change_password?'Cambio pendiente':'Definida';pass.appendChild(pb);tr.appendChild(pass);
     tr.appendChild(td(dateLabel(user.last_login_at)));
     const st=td('');const badge=document.createElement('span');badge.className='badge '+(user.active?'':'off');badge.textContent=user.active?'Activo':'Inactivo';st.appendChild(badge);tr.appendChild(st);
-    const action=td('');const b=document.createElement('button');b.type='button';b.className='soft';b.textContent=user.active?'Desactivar':'Reactivar';b.onclick=()=>changeStatus(user,b);action.appendChild(b);tr.appendChild(action);
+    const action=td('');
+    const reset=document.createElement('button');reset.type='button';reset.className='soft';reset.textContent='Restablecer clave';reset.style.marginRight='6px';
+    reset.onclick=()=>{
+      document.getElementById('name').value=user.name||'';
+      document.getElementById('email').value=user.email||'';
+      document.getElementById('rut').value=user.rut||'';
+      document.getElementById('role').value=user.role;
+      document.getElementById('temp').value='';
+      formStatus.textContent='Cuenta cargada. Define una nueva clave temporal y pulsa “Guardar cuenta”.';
+      document.getElementById('temp').focus();
+      window.scrollTo({top:0,behavior:'smooth'});
+    };
+    const b=document.createElement('button');b.type='button';b.className='soft';b.textContent=user.active?'Desactivar':'Reactivar';b.onclick=()=>changeStatus(user,b);
+    action.append(reset,b);tr.appendChild(action);
     rows.appendChild(tr);
   }
  }catch(e){rows.innerHTML='<tr><td colspan="7">No fue posible cargar las cuentas profesionales.</td></tr>'}

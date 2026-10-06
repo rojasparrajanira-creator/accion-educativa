@@ -72,3 +72,5 @@ CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at
 ALTER TABLE survey_applications ADD COLUMN IF NOT EXISTS access_token_hash TEXT;
 ALTER TABLE survey_applications ADD COLUMN IF NOT EXISTS access_token_created_at TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_survey_applications_access_token_hash ON survey_applications(access_token_hash) WHERE access_token_hash IS NOT NULL;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false;

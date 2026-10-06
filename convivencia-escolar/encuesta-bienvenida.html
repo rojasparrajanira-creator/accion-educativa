@@ -75,6 +75,14 @@ const pages={
       btn.textContent="Aplicación ya completada";
       return;
     }
+    if(d.application.access_requires_pin_setup){
+      tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
+      btn.textContent="Configurar PIN personal";
+      btn.href="acceso-estudiante.html?establishment_id="+encodeURIComponent(d.application.establishment_id);
+      btn.removeAttribute("aria-disabled");
+      document.getElementById("intro-message").textContent="Antes de comenzar debes crear tu PIN personal de 4 dígitos. Vuelve al ingreso estudiantil y completa ese paso.";
+      return;
+    }
     if(d.application.student_active===false){
       tag.textContent=d.application.measurement+" · "+d.application.school_year+" · "+d.application.course;
       btn.textContent="Acceso no disponible";

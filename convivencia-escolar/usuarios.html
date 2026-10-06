@@ -25,7 +25,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
  <div class="field"><label>Nombre completo</label><input id="name" autocomplete="name"></div>
  <div class="field"><label>Correo institucional</label><input id="email" type="email" autocomplete="email"></div>
  <div class="field"><label>RUT (opcional)</label><input id="rut" placeholder="12.345.678-9"></div>
- <div class="field"><label>Rol</label><select id="role"><option value="dupla_psicosocial">Dupla Psicosocial</option><option value="coordinador_convivencia">Coordinación de Convivencia</option></select></div>
+ <div class="field"><label>Rol</label><select id="role"><option value="dupla_psicosocial">Dupla Psicosocial</option><option value="coordinador_convivencia">Coordinación de Convivencia</option><option value="profesor">Profesor/a</option><option value="asistente_educacion">Asistente de la Educación</option><option value="prevencionista">Prevencionista</option><option value="nutricionista">Nutricionista</option></select></div>
  <div class="field"><label>Clave temporal</label><input id="temp" type="password" minlength="10" autocomplete="new-password"></div>
 </div>
 <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="primary" id="save" type="button">Guardar cuenta</button></div>
@@ -48,7 +48,7 @@ const API=MECAuth.API,qs=new URLSearchParams(location.search),eid=Number(qs.get(
 const rows=document.getElementById('rows'),formStatus=document.getElementById('form-status'),auditRows=document.getElementById('audit-rows');
 document.getElementById('back').href='inicio.html?establishment_id='+encodeURIComponent(eid);
 
-function roleLabel(r){return r==='coordinador_convivencia'?'Coordinación de Convivencia':r==='dupla_psicosocial'?'Dupla Psicosocial':r}
+function roleLabel(r){return ({coordinador_convivencia:'Coordinación de Convivencia',dupla_psicosocial:'Dupla Psicosocial',profesor:'Profesor/a',asistente_educacion:'Asistente de la Educación',prevencionista:'Prevencionista',nutricionista:'Nutricionista'})[r]||r}
 function dateLabel(v){if(!v)return 'Nunca';return new Date(v).toLocaleString('es-CL',{dateStyle:'short',timeStyle:'short'})}
 function td(text){const x=document.createElement('td');x.textContent=text??'—';return x}
 

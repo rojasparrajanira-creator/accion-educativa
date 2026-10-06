@@ -258,3 +258,25 @@ CREATE TABLE IF NOT EXISTS case_required_steps(
  UNIQUE(case_id,protocol_step_id)
 );
 CREATE INDEX IF NOT EXISTS idx_case_required_steps_case ON case_required_steps(case_id,step_order);
+
+
+-- Catálogo comercial Material Educativo Chile.
+-- El contenido se carga manualmente desde el panel; Drive no se indexa ni importa.
+CREATE TABLE IF NOT EXISTS store_products(
+ id BIGSERIAL PRIMARY KEY,
+ title TEXT NOT NULL,
+ slug TEXT UNIQUE NOT NULL,
+ objective TEXT NOT NULL,
+ description TEXT NOT NULL,
+ included_materials TEXT NOT NULL,
+ audience TEXT,
+ image_url TEXT,
+ drive_delivery_url TEXT NOT NULL,
+ price_clp INT NOT NULL CHECK(price_clp >= 0),
+ compare_at_price_clp INT CHECK(compare_at_price_clp IS NULL OR compare_at_price_clp >= price_clp),
+ status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published','archived')),
+ created_by BIGINT REFERENCES users(id),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_products_status_updated ON store_products(status,updated_at DESC);

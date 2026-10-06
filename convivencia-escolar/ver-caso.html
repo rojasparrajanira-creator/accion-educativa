@@ -4,20 +4,154 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Casos y seguimiento · Convivencia Escolar</title>
 <style>
-body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
-.card{width:min(680px,100%);background:#fff;border:1px solid #DCE6E0;border-radius:22px;padding:28px;box-shadow:0 10px 30px rgba(23,62,53,.06)}
-h1{color:#173E35;margin:7px 0 10px}.sub{color:#718078;line-height:1.6}.note{background:#EEF6F1;border-left:5px solid #48BFA0;border-radius:13px;padding:14px;color:#526a62;line-height:1.55}
-.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.btn{display:inline-block;text-decoration:none;background:#173E35;color:#fff;padding:11px 14px;border-radius:11px;font-weight:800;font-size:12px}.soft{background:#EEF6F1;color:#173E35;border:1px solid #DCE6E0}
+:root{--g:#173E35;--g2:#2F8067;--m:#EEF6F1;--l:#DCE6E0;--u:#718078;--n:#0F2D52;--y:#FFD200}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
+header{height:82px;background:#fff;border-bottom:1px solid var(--l);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:20}.brand{display:flex;gap:12px;align-items:center}.brand img{width:58px;height:58px;object-fit:contain}.brand b{color:var(--n)}.brand span{display:block;font-size:11px;color:var(--u)}
+main{max-width:1240px;margin:auto;padding:28px 20px 60px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-end}.top h1{margin:5px 0;color:var(--g)}.top p{margin:0;color:var(--u);font-size:13px}.btn{border:0;border-radius:11px;padding:10px 13px;font-weight:850;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.primary{background:var(--g);color:#fff}.soft{background:var(--m);color:var(--g);border:1px solid var(--l)}.danger{background:#f7eaea;color:#8a3d39;border:1px solid #eed4d1}
+.card{background:#fff;border:1px solid var(--l);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 8px 24px rgba(23,62,53,.05)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field label{display:block;font-size:10px;font-weight:850;color:#567064;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #D7E3DC;border-radius:11px;padding:10px;font:inherit}.field textarea{min-height:90px}.status{font-size:12px;color:var(--u);min-height:18px}.note{background:var(--m);border-left:5px solid #48BFA0;border-radius:13px;padding:13px;color:#526a62;line-height:1.5;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;background:#F1F6F3;color:#567064;padding:10px}td{padding:11px 10px;border-bottom:1px solid #EDF1EE;vertical-align:top}.badge{display:inline-block;padding:5px 8px;border-radius:11px;background:#E3F4E9;color:#2F6A48;font-size:10px;font-weight:800}.badge.high,.badge.late{background:#FCE8E6;color:#8D3C36}.badge.medium{background:#FFF3C5;color:#705B00}.badge.closed{background:#E7EEF8;color:#315A86}
+.action{padding:13px 0;border-bottom:1px solid #EDF1EE}.action:last-child{border-bottom:0}.action b{font-size:12px}.action p{font-size:12px;color:#526a62;white-space:pre-wrap}.meta{font-size:11px;color:var(--u);line-height:1.5}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.tab{padding:9px 12px;border:1px solid var(--l);border-radius:10px;text-decoration:none;color:var(--g);font-size:11px;font-weight:800;background:#fff}
+@media(max-width:800px){.grid,.grid3{grid-template-columns:1fr}.top{display:block}.table-wrap{overflow:auto}table{min-width:850px}}
 </style>
 <script src="js/auth-professional.js"></script><script>MECAuth.guard();</script>
 </head>
 <body>
-<main class="card">
-<small style="font-weight:900;color:#2F8067;letter-spacing:.08em">GESTIÓN INSTITUCIONAL</small>
-<h1>Casos y seguimiento</h1>
-<p class="sub">El módulo de casos y protocolos todavía no está habilitado para expedientes reales.</p>
-<div class="note"><strong>Sin datos demostrativos.</strong><br>Antes de habilitar este módulo se incorporarán almacenamiento seguro, responsables, plazos, evidencias, permisos por rol y trazabilidad. Hasta entonces no se mostrarán casos, actuaciones ni alertas ficticias como si pertenecieran al establecimiento.</div>
-<div class="btns"><a class="btn" href="inicio.html">Volver al inicio</a><a class="btn soft" href="plan-gestion.html">Plan de Gestión</a></div>
+<header><div class="brand"><img src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span data-establishment-name>Establecimiento</span></div></div><div><b data-professional-name>Profesional</b> · <span data-professional-role>Rol</span></div></header>
+<main>
+<div class="top"><div><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">GESTIÓN INSTITUCIONAL</small><h1>Casos y seguimiento</h1><p>Registro profesional de casos, protocolos, plazos y actuaciones.</p></div><a id="home" class="btn soft" href="inicio.html">← Volver al inicio</a></div>
+<div class="tabs"><a class="tab" href="#casos">Casos</a><a class="tab" href="#protocolos">Protocolos</a><a class="tab" href="#nuevo">Nuevo caso</a></div>
+<div class="note" style="margin-top:16px"><strong>Uso profesional.</strong> Este módulo no determina automáticamente vulneraciones, sanciones ni medidas legales. Los protocolos y plazos deben corresponder a los instrumentos vigentes del establecimiento. No adjuntes evidencia sensible hasta que el módulo de archivos seguros esté habilitado.</div>
+
+<section id="protocolos" class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2 style="margin:0;font-size:18px">Protocolos institucionales</h2><p class="status">Catálogo parametrizable del establecimiento.</p></div></div>
+<div id="protocol-form" hidden>
+ <div class="grid">
+  <div class="field"><label>Nombre del protocolo</label><input id="protocol-name" maxlength="180"></div>
+  <div class="field"><label>Plazo institucional sugerido (días, opcional)</label><input id="protocol-days" type="number" min="1" max="365"></div>
+ </div>
+ <div class="field"><label>Descripción / alcance</label><textarea id="protocol-description" maxlength="3000"></textarea></div>
+ <button id="protocol-save" class="btn primary" type="button">Guardar protocolo</button><p id="protocol-status" class="status"></p>
+</div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Protocolo</th><th>Plazo sugerido</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="protocol-rows"><tr><td colspan="4">Cargando…</td></tr></tbody></table></div>
+</section>
+
+<section id="nuevo" class="card">
+<h2 style="margin-top:0;font-size:18px">Abrir nuevo caso</h2>
+<div class="grid3">
+ <div class="field"><label>Título / referencia profesional</label><input id="case-title" maxlength="220"></div>
+ <div class="field"><label>Protocolo</label><select id="case-protocol"><option value="">Sin protocolo asociado</option></select></div>
+ <div class="field"><label>Prioridad</label><select id="case-priority"><option value="medium">Media</option><option value="high">Alta</option><option value="low">Baja</option></select></div>
+ <div class="field"><label>Estudiante (opcional)</label><select id="case-student"><option value="">Caso general / sin estudiante</option></select></div>
+ <div class="field"><label>Fecha límite (opcional)</label><input id="case-due" type="date"></div>
+</div>
+<div class="field"><label>Antecedentes iniciales</label><textarea id="case-summary" maxlength="5000"></textarea></div>
+<button id="case-create" class="btn primary" type="button">Abrir caso</button><p id="case-create-status" class="status"></p>
+</section>
+
+<section id="casos" class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0;font-size:18px">Casos registrados</h2><div><select id="case-filter"><option value="">Todos</option><option value="open">Abiertos</option><option value="in_progress">En seguimiento</option><option value="closed">Cerrados</option></select> <button id="case-refresh" class="btn soft" type="button">Actualizar</button></div></div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Caso</th><th>Protocolo</th><th>Estudiante / curso</th><th>Prioridad</th><th>Estado</th><th>Plazo</th><th>Actuaciones</th><th></th></tr></thead><tbody id="case-rows"><tr><td colspan="8">Cargando…</td></tr></tbody></table></div>
+</section>
+
+<section id="case-detail" class="card" hidden>
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><small style="color:#2F8067;font-weight:900">EXPEDIENTE PROFESIONAL</small><h2 id="detail-title" style="margin:5px 0">Caso</h2><p id="detail-meta" class="status"></p></div><a class="btn soft" id="detail-close-link" href="#casos">Cerrar vista</a></div>
+<div id="detail-summary" class="note"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0"><button class="btn soft" data-case-status="open">Marcar abierto</button><button class="btn primary" data-case-status="in_progress">En seguimiento</button><button class="btn danger" data-case-status="closed">Cerrar caso</button></div>
+<h3 style="font-size:15px">Bitácora de actuaciones</h3><div id="action-list"></div>
+<div id="action-form">
+ <h3 style="font-size:15px;margin-top:20px">Registrar actuación</h3>
+ <div class="grid3">
+  <div class="field"><label>Tipo de actuación</label><input id="action-type" value="Seguimiento" maxlength="120"></div>
+  <div class="field"><label>Responsable (opcional)</label><select id="action-user"><option value="">Sin tarea asociada</option></select></div>
+  <div class="field"><label>Plazo de la actuación (opcional)</label><input id="action-due" type="date"></div>
+ </div>
+ <div class="field"><label>Registro profesional</label><textarea id="action-note" maxlength="5000"></textarea></div>
+ <button id="action-save" class="btn primary" type="button">Guardar actuación</button><p id="action-status" class="status"></p>
+ <p class="status">Si seleccionas responsable y plazo, se crea una tarea interna y una notificación para esa persona.</p>
+</div>
+</section>
 </main>
-</body>
-</html>
+
+<script>
+const API=MECAuth.API,q=new URLSearchParams(location.search);
+let eid=Number(q.get('establishment_id')||0),user=null,manager=false,protocols=[],students=[],team=[],cases=[],currentCaseId=Number(q.get('case_id')||0);
+const roleLabel=r=>({coordinador_convivencia:'Coordinación de Convivencia',dupla_psicosocial:'Dupla Psicosocial',profesor:'Profesor/a',asistente_educacion:'Asistente',prevencionista:'Prevencionista',nutricionista:'Nutricionista'})[r]||r;
+const date=v=>v?new Date(String(v).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL'):'—';
+const statusLabel=s=>({open:'Abierto',in_progress:'En seguimiento',closed:'Cerrado'})[s]||s;
+const priorityLabel=p=>({high:'Alta',medium:'Media',low:'Baja'})[p]||p;
+const late=c=>c.due_date&&c.status!=='closed'&&new Date(String(c.due_date).slice(0,10)+'T23:59:59')<new Date();
+
+async function loadProtocols(){
+ const r=await fetch(API+'/api/protocols'),d=await r.json();if(!r.ok||!d.ok)throw 0;protocols=d.protocols||[];
+ const body=document.getElementById('protocol-rows');body.replaceChildren();
+ if(!protocols.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.textContent='Aún no existen protocolos parametrizados.';tr.appendChild(td);body.appendChild(tr)}
+ for(const p of protocols){
+  const tr=document.createElement('tr');const cells=[p.name,p.default_days?p.default_days+' días':'Sin plazo sugerido',p.active?'Activo':'Inactivo'];
+  cells.forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
+  const act=document.createElement('td');
+  if(manager){const b=document.createElement('button');b.className='btn soft';b.textContent=p.active?'Desactivar':'Activar';b.onclick=()=>setProtocol(p.id,!p.active);act.appendChild(b)}
+  tr.appendChild(act);body.appendChild(tr);
+ }
+ const sel=document.getElementById('case-protocol'),current=sel.value;sel.innerHTML='<option value="">Sin protocolo asociado</option>'+protocols.filter(x=>x.active).map(x=>'<option value="'+x.id+'">'+String(x.name).replace(/[&<>"]/g,'')+'</option>').join('');if(current)sel.value=current;
+}
+async function setProtocol(id,active){await fetch(API+'/api/protocols/'+id+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({active})});await loadProtocols()}
+async function loadReferenceData(){
+ const [sr,tr]=await Promise.all([fetch(API+'/api/students?establishment_id='+eid).then(r=>r.json()),fetch(API+'/api/team').then(r=>r.json())]);
+ students=sr.ok?(sr.students||[]):[];team=tr.ok?(tr.users||[]):[];
+ const ss=document.getElementById('case-student');ss.innerHTML='<option value="">Caso general / sin estudiante</option>'+students.map(x=>'<option value="'+x.id+'">'+String(x.name).replace(/[&<>"]/g,'')+' · '+String(x.course||'Sin curso').replace(/[&<>"]/g,'')+(x.active===false?' · Retirado':'')+'</option>').join('');
+ const us=document.getElementById('action-user');us.innerHTML='<option value="">Sin tarea asociada</option>'+team.map(x=>'<option value="'+x.id+'">'+String(x.name).replace(/[&<>"]/g,'')+' · '+roleLabel(x.role)+'</option>').join('');
+}
+async function loadCases(){
+ const filter=document.getElementById('case-filter').value;
+ const r=await fetch(API+'/api/cases'+(filter?'?status='+encodeURIComponent(filter):'')),d=await r.json();if(!r.ok||!d.ok)throw 0;cases=d.cases||[];
+ const body=document.getElementById('case-rows');body.replaceChildren();
+ if(!cases.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=8;td.textContent='No hay casos registrados para este filtro.';tr.appendChild(td);body.appendChild(tr);return}
+ for(const x of cases){
+  const tr=document.createElement('tr');
+  const values=[x.title,x.protocol||'Sin protocolo',(x.student||'Caso general')+(x.course?' · '+x.course:''),priorityLabel(x.priority),statusLabel(x.status),date(x.due_date),x.actions_count];
+  values.forEach((v,i)=>{const td=document.createElement('td');td.textContent=v;if(i===3)td.innerHTML='<span class="badge '+x.priority+'">'+priorityLabel(x.priority)+'</span>';if(i===4)td.innerHTML='<span class="badge '+(x.status==='closed'?'closed':'')+'">'+statusLabel(x.status)+'</span>';if(i===5&&late(x))td.innerHTML='<span class="badge late">Vencido · '+date(x.due_date)+'</span>';tr.appendChild(td)});
+  const act=document.createElement('td'),a=document.createElement('a');a.className='btn soft';a.textContent='Abrir';a.href='ver-caso.html?establishment_id='+eid+'&case_id='+x.id;act.appendChild(a);tr.appendChild(act);body.appendChild(tr);
+ }
+}
+async function loadDetail(id){
+ const r=await fetch(API+'/api/cases/'+id),d=await r.json();if(!r.ok||!d.ok)throw 0;const cs=d.case,actions=d.actions||[];currentCaseId=Number(cs.id);
+ document.getElementById('case-detail').hidden=false;document.getElementById('detail-title').textContent='#'+cs.id+' · '+cs.title;
+ document.getElementById('detail-meta').textContent=(cs.protocol||'Sin protocolo')+' · '+(cs.student||'Caso general')+(cs.course?' · '+cs.course:'')+' · '+priorityLabel(cs.priority)+' · '+statusLabel(cs.status)+' · Plazo '+date(cs.due_date);
+ document.getElementById('detail-summary').textContent=cs.summary||'Sin antecedentes iniciales registrados.';
+ document.getElementById('action-form').hidden=cs.status==='closed';
+ const box=document.getElementById('action-list');box.replaceChildren();
+ if(!actions.length){const p=document.createElement('p');p.className='status';p.textContent='Aún no existen actuaciones registradas.';box.appendChild(p)}
+ actions.forEach(a=>{const row=document.createElement('div');row.className='action';const b=document.createElement('b');b.textContent=a.action_type;const p=document.createElement('p');p.textContent=a.note;const m=document.createElement('div');m.className='meta';m.textContent='Fecha: '+new Date(a.action_date).toLocaleString('es-CL')+(a.responsible?' · Responsable: '+a.responsible:'')+(a.due_date?' · Plazo: '+date(a.due_date):'')+' · Registrado por: '+a.created_by_name;row.append(b,p,m);box.appendChild(row)});
+ document.getElementById('case-detail').scrollIntoView({behavior:'smooth'});
+}
+async function setCaseStatus(status){
+ if(!currentCaseId)return;
+ const r=await fetch(API+'/api/cases/'+currentCaseId+'/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})}),d=await r.json();
+ if(r.ok&&d.ok){await loadCases();await loadDetail(currentCaseId)}
+}
+document.querySelectorAll('[data-case-status]').forEach(b=>b.onclick=()=>setCaseStatus(b.dataset.caseStatus));
+document.getElementById('case-refresh').onclick=loadCases;document.getElementById('case-filter').onchange=loadCases;
+document.getElementById('protocol-save').onclick=async()=>{
+ const st=document.getElementById('protocol-status'),payload={name:document.getElementById('protocol-name').value.trim(),description:document.getElementById('protocol-description').value.trim(),default_days:document.getElementById('protocol-days').value||null};
+ if(!payload.name){st.textContent='Indica un nombre para el protocolo.';return}st.textContent='Guardando…';
+ try{const r=await fetch(API+'/api/protocols',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok||!d.ok)throw 0;document.getElementById('protocol-name').value='';document.getElementById('protocol-description').value='';document.getElementById('protocol-days').value='';st.textContent='Protocolo guardado.';await loadProtocols()}catch(e){st.textContent='No fue posible guardar el protocolo.'}
+};
+document.getElementById('case-create').onclick=async()=>{
+ const st=document.getElementById('case-create-status'),payload={title:document.getElementById('case-title').value.trim(),protocol_id:Number(document.getElementById('case-protocol').value)||null,student_id:Number(document.getElementById('case-student').value)||null,priority:document.getElementById('case-priority').value,due_date:document.getElementById('case-due').value||null,summary:document.getElementById('case-summary').value.trim()};
+ if(!payload.title){st.textContent='Indica un título o referencia profesional.';return}st.textContent='Abriendo caso…';
+ try{const r=await fetch(API+'/api/cases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok||!d.ok)throw 0;st.textContent='Caso abierto correctamente.';document.getElementById('case-title').value='';document.getElementById('case-summary').value='';document.getElementById('case-due').value='';await loadCases();location.href='ver-caso.html?establishment_id='+eid+'&case_id='+d.case.id}catch(e){st.textContent='No fue posible abrir el caso.'}
+};
+document.getElementById('action-save').onclick=async()=>{
+ if(!currentCaseId)return;const st=document.getElementById('action-status'),payload={action_type:document.getElementById('action-type').value.trim(),note:document.getElementById('action-note').value.trim(),responsible_user_id:Number(document.getElementById('action-user').value)||null,due_date:document.getElementById('action-due').value||null};
+ if(!payload.note){st.textContent='Registra el contenido de la actuación.';return}st.textContent='Guardando actuación…';
+ try{const r=await fetch(API+'/api/cases/'+currentCaseId+'/actions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok||!d.ok)throw 0;document.getElementById('action-note').value='';document.getElementById('action-due').value='';st.textContent=d.task?'Actuación guardada y tarea interna creada.':'Actuación guardada.';await loadDetail(currentCaseId);await loadCases()}catch(e){st.textContent='No fue posible guardar la actuación.'}
+};
+(async()=>{
+ try{
+  user=await MECAuth.me();eid=Number(user.establishment_id||eid);manager=MECAuth.roleOf(user)==='coordinador_convivencia';document.getElementById('home').href='inicio.html?establishment_id='+eid;document.getElementById('protocol-form').hidden=!manager;
+  await Promise.all([loadProtocols(),loadReferenceData(),loadCases()]);
+  if(currentCaseId)await loadDetail(currentCaseId);
+ }catch(e){}
+})();
+</script>
+</body></html>

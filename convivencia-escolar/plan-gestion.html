@@ -1,6 +1,61 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Plan de Gestión · Convivencia Escolar</title><style>
-:root{--green:#173E35;--mint:#EEF6F1;--line:#DCE6E0;--muted:#718078;--navy:#0F2D52;--yellow:#FFD200}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan de Gestión · Convivencia Escolar</title>
+<style>
+:root{--g:#173E35;--g2:#2F8067;--m:#EEF6F1;--l:#DCE6E0;--u:#718078;--n:#0F2D52;--y:#FFD200}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#F5F7F5;color:#20352F}
-main{max-width:960px;margin:auto;padding:34px 22px 60px}.brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.brand img{width:64px;height:64px;object-fit:contain}.brand b{color:var(--navy)}.brand span{display:block;color:var(--muted);font-size:11px}
-.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 10px 30px rgba(23,62,53,.06)}h1{color:var(--green);margin:6px 0 8px}.sub{color:var(--muted);line-height:1.6}.call{background:var(--mint);border-left:5px solid #48BFA0;border-radius:14px;padding:15px;margin:18px 0}.call b{display:block;color:var(--green);margin-bottom:5px}.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.btn{display:inline-block;text-decoration:none;border-radius:11px;padding:11px 14px;font-weight:850;font-size:12px}.primary{background:var(--green);color:#fff}.soft{background:#fff;color:var(--green);border:1px solid var(--line)}
-</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><main><div class="brand"><img src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span></div></div><section class="card"><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">GESTIÓN INSTITUCIONAL</small><h1>Plan de Gestión</h1><p class="sub">La gestión operativa disponible hoy se realiza desde el Panel PGCE, donde se registran intervenciones reales, responsables, plazos, estados, avances y evidencias.</p><div class="call"><b>Sin datos demostrativos</b>Esta pantalla ya no presenta actividades, cifras ni responsables ficticios. La carta Gantt institucional se habilitará cuando su persistencia y trazabilidad estén implementadas.</div><div class="btns"><a class="btn primary" href="pgce-panel.html">Abrir Panel PGCE</a><a class="btn soft" href="inicio.html">Volver al inicio</a></div></section></main></body></html>
+main{max-width:1400px;margin:auto;padding:28px 20px 60px}.top{display:flex;justify-content:space-between;gap:18px;align-items:flex-end}.top h1{margin:5px 0;color:var(--g)}.top p{margin:0;color:var(--u);font-size:13px}.btn{border:0;border-radius:11px;padding:10px 13px;font-weight:850;font-size:11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.primary{background:var(--g);color:#fff}.soft{background:var(--m);color:var(--g);border:1px solid var(--l)}
+.card{background:#fff;border:1px solid var(--l);border-radius:20px;padding:20px;margin-top:16px;box-shadow:0 8px 24px rgba(23,62,53,.05)}.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.stat{border:1px solid var(--l);border-radius:14px;padding:13px;background:#fff}.stat strong{display:block;font-size:24px;color:var(--g)}.stat span{font-size:10px;color:var(--u)}
+.gantt{overflow:auto}.gantt table{border-collapse:collapse;min-width:1500px;width:100%;font-size:10px}.gantt th,.gantt td{padding:9px;border:1px solid #E3ECE7;vertical-align:middle}.gantt th{background:#F1F6F3;color:#45675c;position:sticky;top:0}.gantt .name{min-width:210px}.gantt .responsible{min-width:150px}.gantt .month{text-align:center;min-width:54px}.mark{height:16px;border-radius:5px;background:#D8EEE6}.mark.active{background:#2F8067}.mark.completed{background:#829FA8}.mark.suspended{background:#E6D8AD}.badge{display:inline-block;padding:4px 7px;border-radius:10px;background:#E3F4E9;color:#2F6A48;font-size:9px;font-weight:800}.late{background:#FCE8E6;color:#8D3C36}.status{font-size:12px;color:var(--u)}
+@media(max-width:800px){.stats{grid-template-columns:1fr 1fr}.top{display:block}}
+@media print{@page{size:landscape;margin:1cm}body{background:#fff}.actions,.filters{display:none!important}main{max-width:none;padding:0}.card{box-shadow:none;border:0;padding:0}.gantt table{font-family:"Times New Roman",serif;font-size:9pt}.gantt th,.gantt td{color:#000!important;border-color:#000!important}.mark.active,.mark.completed,.mark.suspended{background:#000!important}.mark{border:1px solid #000!important}}
+</style>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard();</script>
+</head>
+<body><main>
+<div class="top"><div><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">PLANIFICACIÓN INSTITUCIONAL</small><h1>Plan de Gestión · Carta Gantt</h1><p id="school">Establecimiento autenticado</p></div><div class="actions" style="display:flex;gap:7px;flex-wrap:wrap"><a id="back" class="btn soft" href="pgce-panel.html">← Panel PGCE</a><button class="btn primary" onclick="window.print()">Imprimir / PDF</button></div></div>
+
+<section class="card filters"><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><label style="font-size:11px;font-weight:800;color:#567064">Año<br><select id="year" style="margin-top:5px;padding:9px;border:1px solid #D7E3DC;border-radius:10px"></select></label><button id="refresh" class="btn soft" type="button">Actualizar</button></div><p class="status">La Carta Gantt se construye exclusivamente desde intervenciones PGCE registradas.</p></section>
+
+<section class="stats card"><div class="stat"><strong id="s-total">—</strong><span>Intervenciones del año</span></div><div class="stat"><strong id="s-progress">—</strong><span>En ejecución</span></div><div class="stat"><strong id="s-done">—</strong><span>Completadas</span></div><div class="stat"><strong id="s-overdue">—</strong><span>Plazo vencido</span></div><div class="stat"><strong id="s-follow">—</strong><span>Sin seguimiento</span></div></section>
+
+<section class="card"><div class="gantt"><table><thead><tr><th class="name">Intervención / dimensión</th><th class="responsible">Responsable</th><th>Estado</th><th>Avance</th><th class="month">Ene</th><th class="month">Feb</th><th class="month">Mar</th><th class="month">Abr</th><th class="month">May</th><th class="month">Jun</th><th class="month">Jul</th><th class="month">Ago</th><th class="month">Sep</th><th class="month">Oct</th><th class="month">Nov</th><th class="month">Dic</th></tr></thead><tbody id="rows"><tr><td colspan="16">Cargando…</td></tr></tbody></table></div><p id="msg" class="status"></p></section>
+</main>
+<script>
+const API=MECAuth.API,q=new URLSearchParams(location.search),eid=Number(q.get('establishment_id')||0);
+let data=null;
+const statusLabel=s=>({approved:'Aprobada',in_progress:'En ejecución',completed:'Completada',reprogrammed:'Reprogramada',suspended:'Suspendida'})[s]||s;
+function localDate(v){return v?new Date(String(v).slice(0,10)+'T12:00:00'):null}
+function overlapsMonth(x,year,month){
+ const s=localDate(x.start_date),e=localDate(x.end_date);if(!s||!e)return false;
+ const first=new Date(year,month,1,12),last=new Date(year,month+1,0,12);
+ return s<=last&&e>=first;
+}
+function isLate(x){return !['completed','suspended'].includes(x.status)&&localDate(x.end_date)&&localDate(x.end_date)<new Date()}
+function render(){
+ const year=Number(document.getElementById('year').value),all=data?.interventions||[],rows=all.filter(x=>{const s=localDate(x.start_date),e=localDate(x.end_date);return (s&&s.getFullYear()===year)||(e&&e.getFullYear()===year)||(s&&e&&s.getFullYear()<year&&e.getFullYear()>year)});
+ document.getElementById('s-total').textContent=rows.length;document.getElementById('s-progress').textContent=rows.filter(x=>x.status==='in_progress').length;document.getElementById('s-done').textContent=rows.filter(x=>x.status==='completed').length;document.getElementById('s-overdue').textContent=rows.filter(isLate).length;document.getElementById('s-follow').textContent=rows.filter(x=>Number(x.updates_count)===0).length;
+ const body=document.getElementById('rows');body.replaceChildren();
+ if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=16;td.textContent='No existen intervenciones PGCE registradas para '+year+'.';tr.appendChild(td);body.appendChild(tr);return}
+ for(const x of rows){
+  const tr=document.createElement('tr');
+  const label=document.createElement('td');label.innerHTML='<strong>'+x.dimension_code+'</strong> · '+x.indicator+(isLate(x)?' <span class="badge late">Vencida</span>':'');tr.appendChild(label);
+  [x.responsible,statusLabel(x.status),(x.last_progress??'—')+'%'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
+  for(let m=0;m<12;m++){const td=document.createElement('td');const mark=document.createElement('div');mark.className='mark'+(overlapsMonth(x,year,m)?' '+(x.status==='completed'?'completed':x.status==='suspended'?'suspended':'active'):'');td.appendChild(mark);tr.appendChild(td)}
+  body.appendChild(tr);
+ }
+}
+async function load(){
+ if(!eid){document.getElementById('msg').textContent='Falta el contexto del establecimiento.';return}
+ document.getElementById('back').href='pgce-panel.html?establishment_id='+eid;
+ try{
+  const r=await fetch(API+'/api/pgce/dashboard?establishment_id='+eid),d=await r.json();if(!r.ok||!d.ok)throw 0;data=d;
+  document.getElementById('school').textContent=d.establishment.name+(d.establishment.rbd?' · RBD '+d.establishment.rbd:'');
+  const years=new Set((d.interventions||[]).flatMap(x=>[localDate(x.start_date)?.getFullYear(),localDate(x.end_date)?.getFullYear()]).filter(Boolean));if(!years.size)years.add(new Date().getFullYear());
+  const sel=document.getElementById('year'),preferred=Number(q.get('year')||Math.max(...years));sel.innerHTML=[...years].sort((a,b)=>b-a).map(y=>'<option value="'+y+'"'+(y===preferred?' selected':'')+'>'+y+'</option>').join('');render();
+ }catch(e){document.getElementById('msg').textContent='No fue posible cargar el Plan de Gestión.'}
+}
+document.getElementById('year').onchange=render;document.getElementById('refresh').onclick=load;load();
+</script></body></html>

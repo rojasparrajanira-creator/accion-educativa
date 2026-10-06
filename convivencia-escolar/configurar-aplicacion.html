@@ -64,7 +64,17 @@ async function cfgLoad(){
     document.getElementById('cfg-modality').value=x.modality||'individual';
     document.getElementById('cfg-minutes').value=String(x.estimated_minutes||25);
     document.getElementById('cfg-message').value=x.initial_message||'Responde con tranquilidad. No existen respuestas correctas o incorrectas. Tu opinión es importante.';
-    cfgContext.querySelector('p').textContent=(d.measurement.code||'Medición')+' · '+d.measurement.school_year+(x.updated_at?' · configuración guardada':' · aún sin configuración guardada');
+    const today=new Date();today.setHours(0,0,0,0);
+    const start=x.start_date?new Date(cfgDate(x.start_date)+'T12:00:00'):null;
+    const end=x.end_date?new Date(cfgDate(x.end_date)+'T12:00:00'):null;
+    let period='';
+    if(start&&end){
+      if(today<start)period=' · período aún no iniciado';
+      else if(today>end)period=' · período finalizado: actualiza las fechas antes de habilitar';
+      else period=' · período vigente';
+    }
+    cfgContext.querySelector('p').textContent=(d.measurement.code||'Medición')+' · '+d.measurement.school_year+(x.updated_at?' · configuración guardada'+period:' · aún sin configuración guardada');
+    if(x.updated_at&&end&&today>end)cfgStatus.textContent='Esta medición conserva una configuración anterior cuyo período ya terminó. Revisa y guarda nuevas fechas antes de continuar.';
   }catch(e){
     cfgSave.disabled=true;
     cfgStatus.textContent='No fue posible cargar la configuración de esta medición.';

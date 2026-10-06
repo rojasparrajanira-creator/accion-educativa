@@ -43,13 +43,7 @@ const form=document.getElementById('login-form'),btn=document.getElementById('lo
   if(d.user.must_change_password){location.href='cambiar-clave.html';return}
   const role=String(d.user.role||'').toLowerCase();
   if(role==='platform_admin'){location.href='admin-plataforma.html';return}
-  if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){
-    status.textContent='Tu cuenta está activa, pero este rol todavía no tiene un alcance habilitado dentro del módulo.';
-    btn.textContent='Cerrar sesión';
-    btn.disabled=false;
-    form.onsubmit=async ev=>{ev.preventDefault();await fetch(API+'/api/auth/logout',{method:'POST',credentials:'include'});location.reload()};
-    return;
-  }
+  if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(d.user.establishment_id);return}
   location.href='inicio.html?establishment_id='+encodeURIComponent(d.user.establishment_id);
 }catch(e){}})();
 form.addEventListener('submit',async ev=>{
@@ -64,7 +58,7 @@ form.addEventListener('submit',async ev=>{
     if(d.user.must_change_password){location.href='cambiar-clave.html';return}
     const role=String(d.user.role||'').toLowerCase();
     if(role==='platform_admin'){location.href='admin-plataforma.html';return}
-    if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='ingreso.html?role_pending=1';return}
+    if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(d.user.establishment_id);return}
     const q=new URLSearchParams(location.search),next=q.get('next');
     const destination=next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:'inicio.html';
     const u=new URL(destination,location.href);

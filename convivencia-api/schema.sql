@@ -141,3 +141,6 @@ CREATE TABLE IF NOT EXISTS professional_notifications(
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_professional_notifications_user ON professional_notifications(user_id,read_at,created_at DESC);
+
+ALTER TABLE pgce_interventions ADD COLUMN IF NOT EXISTS responsible_user_id BIGINT REFERENCES users(id);
+CREATE INDEX IF NOT EXISTS idx_pgce_interventions_responsible_user ON pgce_interventions(responsible_user_id);

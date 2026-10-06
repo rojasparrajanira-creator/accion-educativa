@@ -56,6 +56,10 @@
       document.querySelectorAll('[data-professional-name]').forEach(x=>x.textContent=user.name||'Profesional');
       document.querySelectorAll('[data-establishment-name]').forEach(x=>x.textContent=user.establishment||'Establecimiento');
       document.querySelectorAll('[data-professional-role]').forEach(x=>x.textContent=role==='coordinador_convivencia'?'Coordinación de Convivencia':role==='dupla_psicosocial'?'Dupla Psicosocial':role);
+      document.querySelectorAll('[data-role-allow]').forEach(x=>{
+        const allowed=String(x.dataset.roleAllow||'').split(',').map(v=>v.trim()).filter(Boolean);
+        x.hidden=!allowed.includes(role);
+      });
       return user;
     }catch(e){
       const next=location.pathname.split('/').pop()+location.search;

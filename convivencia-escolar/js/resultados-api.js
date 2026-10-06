@@ -164,13 +164,42 @@ window.MECResults={
     };
   },
 
+  async renderPicker(box){
+    const params=new URLSearchParams(location.search),eid=Number(params.get('establishment_id')||0);
+    if(!eid){box.textContent='Falta el contexto del establecimiento.';return}
+    try{
+      const r=await fetch(this.API+'/api/applications?establishment_id='+encodeURIComponent(eid)),d=await r.json();
+      if(!r.ok||!d.ok)throw new Error('applications_failed');
+      const completed=(d.applications||[]).filter(x=>x.status==='completed');
+      box.replaceChildren();
+      const h=document.createElement('h3');h.textContent='Aplicaciones completadas';box.appendChild(h);
+      const p=document.createElement('p');p.textContent='Selecciona una aplicación para revisar resultados, informe individual y estado de revisión profesional.';box.appendChild(p);
+      if(!completed.length){
+        const empty=document.createElement('p');empty.textContent='Aún no existen aplicaciones completadas en este establecimiento.';box.appendChild(empty);return;
+      }
+      const wrap=document.createElement('div');
+      completed.forEach(x=>{
+        const card=document.createElement('div');card.style.border='1px solid #dcebe5';card.style.borderRadius='12px';card.style.padding='12px';card.style.margin='9px 0';card.style.display='flex';card.style.justifyContent='space-between';card.style.gap='12px';card.style.alignItems='center';card.style.flexWrap='wrap';
+        const info=document.createElement('div');
+        const b=document.createElement('b');b.textContent=x.student||'Estudiante';
+        const meta=document.createElement('div');meta.style.fontSize='12px';meta.style.color='#66788a';
+        const review=x.review_status==='reviewed'?'Revisión realizada':x.review_status==='context_required'?'Requiere más contexto':'Revisión pendiente';
+        meta.textContent=(x.course||'Sin curso')+' · '+(x.measurement||'Medición')+' · '+(x.school_year||'')+' · '+review;
+        info.append(b,meta);
+        const a=document.createElement('a');a.className='btn secondary';a.textContent='Abrir resultados';a.href='resultados.html?establishment_id='+encodeURIComponent(eid)+'&application_id='+encodeURIComponent(x.id);
+        card.append(info,a);wrap.appendChild(card);
+      });
+      box.appendChild(wrap);
+    }catch(e){box.textContent='No fue posible cargar las aplicaciones completadas.'}
+  },
+
   async load(){
     const box=document.getElementById('pilot-result');
     if(!box)return;
 
     const id=new URLSearchParams(location.search).get('application_id');
     if(!id){
-      box.textContent='Selecciona una aplicación completada para ver sus resultados.';
+      await this.renderPicker(box);
       return;
     }
 

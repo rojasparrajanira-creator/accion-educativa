@@ -16,7 +16,7 @@ const API='https://convivencia-escolar-api.onrender.com';
 (async()=>{
  try{
   const r=await fetch(API+'/api/auth/me',{credentials:'include'}),d=await r.json();
-  if(r.ok&&d.ok&&d.user){location.replace('inicio.html?establishment_id='+encodeURIComponent(d.user.establishment_id));return}
+  if(r.ok&&d.ok&&d.user){if(String(d.user.role||'').toLowerCase()==='platform_admin'){location.replace('admin-plataforma.html');return}location.replace('inicio.html?establishment_id='+encodeURIComponent(d.user.establishment_id));return}
  }catch(e){}
  location.replace('ingreso.html');
 })();

@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trayectorias</title><style>body{margin:0;font-family:Arial,sans-serif;background:#eef9f5;color:#29443d}.w{max-width:1000px;margin:32px auto;padding:20px}.c{background:#fff;border:1px solid #d8ebe4;border-radius:20px;padding:26px}h1{color:#176B5B}.row{display:grid;grid-template-columns:110px 1fr 90px;gap:12px;align-items:center;margin:16px 0}.track{height:12px;background:#e2efea;border-radius:99px;overflow:hidden}.track i{display:block;height:100%;background:#2F9B83;border-radius:99px}.tag{font-weight:bold;color:#176B5B}@media(max-width:600px){.row{grid-template-columns:70px 1fr 55px}}</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><main class="w"><section class="c"><small>CONVIVENCIA EDUCATIVA</small><h1>Trayectorias M1 · M2 · M3</h1><p>Registro longitudinal de las aplicaciones M1, M2 y M3. La evolución dimensional se mostrará únicamente cuando existan mediciones completadas y comparables.</p><div><p><strong>M1</strong> · Línea base y priorización</p><p><strong>M2</strong> · Evaluación intermedia y ajuste</p><p><strong>M3</strong> · Evaluación final y prioridades del año siguiente</p></div></section><section class="card" id="trayectoria-real"><h2>Trayectoria real</h2><p>Selecciona un estudiante para consultar sus mediciones.</p></section></main><script>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trayectorias</title><style>body{margin:0;font-family:Arial,sans-serif;background:#eef9f5;color:#29443d}.w{max-width:1000px;margin:32px auto;padding:20px}.c{background:#fff;border:1px solid #d8ebe4;border-radius:20px;padding:26px}h1{color:#176B5B}.row{display:grid;grid-template-columns:110px 1fr 90px;gap:12px;align-items:center;margin:16px 0}.track{height:12px;background:#e2efea;border-radius:99px;overflow:hidden}.track i{display:block;height:100%;background:#2F9B83;border-radius:99px}.tag{font-weight:bold;color:#176B5B}.card{background:#fff;border:1px solid #d8ebe4;border-radius:20px;padding:26px;margin-top:16px}.field label{display:block;font-size:12px;font-weight:800;color:#176B5B;margin-bottom:6px}.field input,.field select{width:100%;padding:11px;border:1px solid #d8ebe4;border-radius:10px;font:inherit}.btn{display:inline-block;border:0;border-radius:10px;padding:10px 13px;background:#176B5B;color:#fff;text-decoration:none;font-weight:800;cursor:pointer}.muted{color:#718078;font-size:12px}.picker{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}@media(max-width:600px){.row{grid-template-columns:70px 1fr 55px}.picker{grid-template-columns:1fr}}</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><main class="w"><section class="c"><small>CONVIVENCIA EDUCATIVA</small><h1>Trayectorias M1 · M2 · M3</h1><p>Registro longitudinal de las aplicaciones M1, M2 y M3. La evolución dimensional se mostrará únicamente cuando existan mediciones completadas y comparables.</p><div><p><strong>M1</strong> · Línea base y priorización</p><p><strong>M2</strong> · Evaluación intermedia y ajuste</p><p><strong>M3</strong> · Evaluación final y prioridades del año siguiente</p></div></section><section class="card" id="trayectoria-real"><h2>Trayectoria real</h2><p>Selecciona un estudiante para consultar sus mediciones.</p></section></main><script>
 const API='https://convivencia-escolar-api.onrender.com';
 const labels={
  D01:'Seguridad y protección',D02:'Buen trato y respeto',D03:'Relaciones entre pares',D04:'Violencia y victimización',
@@ -14,15 +14,51 @@ function valueCell(result,code){
  return x&&Number.isFinite(Number(x.average))?Number(x.average).toFixed(2):'—';
 }
 async function cargarTrayectoria(){
- const params=new URLSearchParams(location.search),studentId=params.get('student_id'),eid=params.get('establishment_id');
+ const params=new URLSearchParams(location.search),studentId=params.get('student_id'),eid=Number(params.get('establishment_id')||0);
  const root=document.getElementById('trayectoria-real');
- if(!studentId||!eid){root.innerHTML='<h2>Trayectoria real</h2><p>Abre la trayectoria desde Resultados para conservar el contexto institucional.</p>';return}
+ if(!eid){root.innerHTML='<h2>Trayectoria real</h2><p>Falta el contexto del establecimiento.</p>';return}
+
+ if(!studentId){
+  try{
+   const r=await fetch(API+'/api/students?establishment_id='+encodeURIComponent(eid)),d=await r.json();
+   if(!r.ok||!d.ok)throw new Error('students_failed');
+   const students=(d.students||[]).sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'));
+   root.replaceChildren();
+   const h=document.createElement('h2');h.textContent='Seleccionar estudiante';root.appendChild(h);
+   const p=document.createElement('p');p.className='muted';p.textContent='Busca por nombre o RUN. La trayectoria se conserva aunque el estudiante figure retirado.';root.appendChild(p);
+   if(!students.length){const e=document.createElement('p');e.textContent='No hay estudiantes registrados en este establecimiento.';root.appendChild(e);return}
+   const wrap=document.createElement('div');wrap.className='picker';
+   const f1=document.createElement('div');f1.className='field';const l1=document.createElement('label');l1.textContent='Buscar';const search=document.createElement('input');search.placeholder='Nombre o RUN';f1.append(l1,search);
+   const f2=document.createElement('div');f2.className='field';const l2=document.createElement('label');l2.textContent='Estudiante';const select=document.createElement('select');f2.append(l2,select);
+   const go=document.createElement('button');go.type='button';go.className='btn';go.textContent='Ver trayectoria';
+   wrap.append(f1,f2,go);root.appendChild(wrap);
+
+   const renderOptions=()=>{
+    const term=search.value.trim().toLowerCase();
+    const filtered=students.filter(x=>!term||String(x.name||'').toLowerCase().includes(term)||String(x.rut||'').toLowerCase().includes(term));
+    select.replaceChildren();
+    filtered.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=(x.name||'Estudiante')+' · '+(x.course||'Sin curso')+(x.active===false?' · Retirado':'');select.appendChild(o)});
+    go.disabled=!filtered.length;
+   };
+   search.oninput=renderOptions;renderOptions();
+   go.onclick=()=>{if(select.value)location.href='trayectorias.html?establishment_id='+encodeURIComponent(eid)+'&student_id='+encodeURIComponent(select.value)};
+  }catch(e){root.textContent='No fue posible cargar la nómina de estudiantes.'}
+  return;
+ }
+
  try{
-  const r=await fetch(API+'/api/students/'+encodeURIComponent(studentId)+'/applications?establishment_id='+encodeURIComponent(eid)),d=await r.json();
+  const [r,sr]=await Promise.all([
+   fetch(API+'/api/students/'+encodeURIComponent(studentId)+'/applications?establishment_id='+encodeURIComponent(eid)),
+   fetch(API+'/api/students?establishment_id='+encodeURIComponent(eid))
+  ]);
+  const d=await r.json(),sd=await sr.json();
   if(!r.ok||!d.ok)throw new Error('trajectory_failed');
   const apps=(d.applications||[]).sort((a,b)=>(Number(a.school_year)-Number(b.school_year))||(measureOrder(a.measurement)-measureOrder(b.measurement)));
   root.replaceChildren();
-  const h=document.createElement('h2');h.textContent='Trayectoria registrada';root.appendChild(h);
+  const selectedStudent=(sd.students||[]).find(x=>Number(x.id)===Number(studentId));
+  const h=document.createElement('h2');h.textContent='Trayectoria registrada'+(selectedStudent?' · '+selectedStudent.name:'');root.appendChild(h);
+  const change=document.createElement('a');change.className='btn';change.href='trayectorias.html?establishment_id='+encodeURIComponent(eid);change.textContent='Cambiar estudiante';change.style.marginBottom='14px';root.appendChild(change);
+  if(selectedStudent){const meta=document.createElement('p');meta.className='muted';meta.textContent=(selectedStudent.course||'Sin curso')+(selectedStudent.active===false?' · Estudiante retirado':' · Estudiante activo');root.appendChild(meta)}
   if(!apps.length){const p=document.createElement('p');p.textContent='Este estudiante aún no tiene aplicaciones registradas.';root.appendChild(p);return}
 
   const list=document.createElement('div');

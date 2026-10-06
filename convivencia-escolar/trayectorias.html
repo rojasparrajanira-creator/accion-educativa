@@ -1,14 +1,94 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trayectorias</title><style>body{margin:0;font-family:Arial,sans-serif;background:#eef9f5;color:#29443d}.w{max-width:1000px;margin:32px auto;padding:20px}.c{background:#fff;border:1px solid #d8ebe4;border-radius:20px;padding:26px}h1{color:#176B5B}.row{display:grid;grid-template-columns:110px 1fr 90px;gap:12px;align-items:center;margin:16px 0}.track{height:12px;background:#e2efea;border-radius:99px;overflow:hidden}.track i{display:block;height:100%;background:#2F9B83;border-radius:99px}.tag{font-weight:bold;color:#176B5B}@media(max-width:600px){.row{grid-template-columns:70px 1fr 55px}}</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><main class="w"><section class="c"><small>CONVIVENCIA EDUCATIVA</small><h1>Trayectorias M1 · M2 · M3</h1><p>Registro longitudinal de las aplicaciones M1, M2 y M3. La evolución dimensional se mostrará únicamente cuando existan mediciones completadas y comparables.</p><div><p><strong>M1</strong> · Línea base y priorización</p><p><strong>M2</strong> · Evaluación intermedia y ajuste</p><p><strong>M3</strong> · Evaluación final y prioridades del año siguiente</p></div></section><section class="card" id="trayectoria-real"><h2>Trayectoria real</h2><p>Selecciona un estudiante para consultar sus mediciones.</p></section></main><script>
 const API='https://convivencia-escolar-api.onrender.com';
+const labels={
+ D01:'Seguridad y protección',D02:'Buen trato y respeto',D03:'Relaciones entre pares',D04:'Violencia y victimización',
+ D05:'Normas y justicia',D06:'Resolución de conflictos',D07:'Inclusión y diversidad',D08:'Pertenencia escolar',
+ D09:'Participación estudiantil',D10:'Bienestar socioemocional',D11:'Regulación emocional',D12:'Autoestima académica y motivación',
+ D13:'Apoyo adulto y búsqueda de ayuda',D14:'Respuesta institucional',D15:'Convivencia digital',D16:'Conducta prosocial y cuidado colectivo'
+};
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+function measureOrder(code){return ({M1:1,M2:2,M3:3})[code]||9}
+function scaleMax(level){return level==='1-2'?3:level==='3-4'?4:5}
+function valueCell(result,code){
+ const x=(result.dimension_summary||{})[code];
+ return x&&Number.isFinite(Number(x.average))?Number(x.average).toFixed(2):'—';
+}
 async function cargarTrayectoria(){
- const params=new URLSearchParams(location.search),s=params.get('student_id'),eid=params.get('establishment_id');
- if(!s||!eid){document.getElementById('trayectoria-real').innerHTML='<h2>Trayectoria real</h2><p>Abra la trayectoria desde Resultados para conservar el contexto institucional.</p>';return;}
+ const params=new URLSearchParams(location.search),studentId=params.get('student_id'),eid=params.get('establishment_id');
+ const root=document.getElementById('trayectoria-real');
+ if(!studentId||!eid){root.innerHTML='<h2>Trayectoria real</h2><p>Abre la trayectoria desde Resultados para conservar el contexto institucional.</p>';return}
  try{
-  const r=await fetch(API+'/api/students/'+encodeURIComponent(s)+'/applications?establishment_id='+encodeURIComponent(eid)),d=await r.json();
-  if(!d.ok)throw 0;
-  const root=document.getElementById('trayectoria-real');
-  if(root){const apps=d.applications||[];root.replaceChildren();const h=document.createElement('h2');h.textContent='Trayectoria registrada';root.appendChild(h);if(!apps.length){const p=document.createElement('p');p.textContent='Este estudiante aún no tiene aplicaciones registradas.';root.appendChild(p);return}apps.forEach(a=>{const p=document.createElement('p');const b=document.createElement('strong');b.textContent=(a.measurement||'Medición')+' '+(a.school_year||'');p.appendChild(b);const label=a.status==='completed'?'Completada':a.status==='in_progress'?'En curso':'Pendiente';let extra=' · '+a.survey_level+' · '+label;if(a.started_at)extra+=' · inicio '+new Date(a.started_at).toLocaleString('es-CL');if(a.completed_at)extra+=' · cierre '+new Date(a.completed_at).toLocaleString('es-CL');p.appendChild(document.createTextNode(extra));if(a.status==='completed'){const link=document.createElement('a');link.href='resultados.html?establishment_id='+encodeURIComponent(eid)+'&application_id='+encodeURIComponent(a.id);link.textContent='Ver resultado';link.style.marginLeft='12px';link.style.fontWeight='700';link.style.color='#176B5B';p.appendChild(link)}root.appendChild(p)});const completed=apps.filter(a=>a.status==='completed');const n=document.createElement('p');n.textContent=completed.length>=2?'Hay mediciones completadas para una futura comparación dimensional. La plataforma no interpretará cambios hasta validar la regla longitudinal.':'Se requieren al menos dos mediciones completadas para comparar cambios. No se presenta evolución con una sola medición.';root.appendChild(n)}
- }catch(e){const root=document.getElementById('trayectoria-real');if(root)root.textContent='No fue posible cargar la trayectoria.'}
+  const r=await fetch(API+'/api/students/'+encodeURIComponent(studentId)+'/applications?establishment_id='+encodeURIComponent(eid)),d=await r.json();
+  if(!r.ok||!d.ok)throw new Error('trajectory_failed');
+  const apps=(d.applications||[]).sort((a,b)=>(Number(a.school_year)-Number(b.school_year))||(measureOrder(a.measurement)-measureOrder(b.measurement)));
+  root.replaceChildren();
+  const h=document.createElement('h2');h.textContent='Trayectoria registrada';root.appendChild(h);
+  if(!apps.length){const p=document.createElement('p');p.textContent='Este estudiante aún no tiene aplicaciones registradas.';root.appendChild(p);return}
+
+  const list=document.createElement('div');
+  apps.forEach(a=>{
+    const p=document.createElement('p');
+    const b=document.createElement('strong');b.textContent=(a.measurement||'Medición')+' · '+(a.school_year||'');p.appendChild(b);
+    const label=a.status==='completed'?'Completada':a.status==='in_progress'?'En curso':'Pendiente';
+    let extra=' · '+a.survey_level+' · '+label;
+    if(a.started_at)extra+=' · inicio '+new Date(a.started_at).toLocaleString('es-CL');
+    if(a.completed_at)extra+=' · cierre '+new Date(a.completed_at).toLocaleString('es-CL');
+    p.appendChild(document.createTextNode(extra));
+    if(a.status==='completed'){
+      const link=document.createElement('a');link.href='resultados.html?establishment_id='+encodeURIComponent(eid)+'&application_id='+encodeURIComponent(a.id);link.textContent='Ver resultado';link.style.marginLeft='12px';link.style.fontWeight='700';link.style.color='#176B5B';p.appendChild(link);
+    }
+    list.appendChild(p);
+  });
+  root.appendChild(list);
+
+  const completed=apps.filter(a=>a.status==='completed');
+  if(completed.length<2){
+    const n=document.createElement('p');n.textContent='Se requieren al menos dos mediciones completadas para mostrar una comparación dimensional.';root.appendChild(n);return
+  }
+
+  const results=[];
+  for(const a of completed){
+    const rr=await fetch(API+'/api/applications/'+encodeURIComponent(a.id)+'/results'),rd=await rr.json();
+    if(rr.ok&&rd.ok)results.push(rd);
+  }
+  if(results.length<2){
+    const n=document.createElement('p');n.textContent='No fue posible recuperar al menos dos resultados comparables.';root.appendChild(n);return
+  }
+
+  const levels=[...new Set(results.map(x=>x.application.survey_level))];
+  const title=document.createElement('h3');title.textContent='Comparación dimensional descriptiva';title.style.color='#176B5B';root.appendChild(title);
+  const note=document.createElement('p');
+  note.textContent=levels.length===1
+    ? 'Los valores se muestran por medición con la misma escala del instrumento. Las diferencias son descriptivas y requieren interpretación profesional contextual.'
+    : 'Existen mediciones realizadas con instrumentos de distinto tramo educativo. Se muestran los valores por separado, pero no se calcula cambio automático entre escalas diferentes.';
+  root.appendChild(note);
+
+  const wrap=document.createElement('div');wrap.style.overflow='auto';
+  const table=document.createElement('table');table.style.width='100%';table.style.borderCollapse='collapse';table.style.fontSize='12px';
+  const thead=document.createElement('thead'),hr=document.createElement('tr');
+  ['Dimensión',...results.map(x=>(x.application.measurement||'Medición')+' '+(x.application.school_year||'')),...(levels.length===1?['Cambio último - primero']:[])].forEach(t=>{
+    const th=document.createElement('th');th.textContent=t;th.style.textAlign='left';th.style.padding='9px';th.style.background='#eef7f3';th.style.borderBottom='1px solid #d8ebe4';hr.appendChild(th);
+  });
+  thead.appendChild(hr);table.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  Object.keys(labels).forEach(code=>{
+    const tr=document.createElement('tr');
+    const name=document.createElement('td');name.textContent=code+' · '+labels[code];name.style.padding='9px';name.style.borderBottom='1px solid #edf1ef';tr.appendChild(name);
+    results.forEach(x=>{const td=document.createElement('td');td.textContent=valueCell(x,code)+' / '+scaleMax(x.application.survey_level);td.style.padding='9px';td.style.borderBottom='1px solid #edf1ef';tr.appendChild(td)});
+    if(levels.length===1){
+      const first=Number((results[0].dimension_summary||{})[code]?.average),last=Number((results[results.length-1].dimension_summary||{})[code]?.average);
+      const td=document.createElement('td');td.style.padding='9px';td.style.borderBottom='1px solid #edf1ef';
+      td.textContent=Number.isFinite(first)&&Number.isFinite(last)?((last-first)>=0?'+':'')+(last-first).toFixed(2):'—';
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);wrap.appendChild(table);root.appendChild(wrap);
+
+  const caution=document.createElement('p');caution.style.marginTop='14px';caution.style.fontSize='12px';caution.style.color='#5d746e';
+  caution.textContent='Esta comparación no atribuye cambios a una intervención, no establece causalidad y no constituye diagnóstico clínico. Debe revisarse junto con contexto, implementación y evidencia profesional.';
+  root.appendChild(caution);
+ }catch(e){root.textContent='No fue posible cargar la trayectoria.'}
 }
 document.addEventListener('DOMContentLoaded',cargarTrayectoria);
 </script></body></html>

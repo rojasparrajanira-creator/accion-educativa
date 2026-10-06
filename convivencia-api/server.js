@@ -1350,8 +1350,8 @@ app.get('/api/store/admin/products',requireAuth,async(req,res)=>{try{
 app.post('/api/store/admin/products',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
   const b=req.body||{},driveAccountId=b.drive_account_id?Number(b.drive_account_id):null,title=String(b.title||'').trim(),objective=String(b.objective||'').trim(),description=String(b.description||'').trim(),included=String(b.included_materials||'').trim(),drive=String(b.drive_delivery_url||'').trim(),image=String(b.image_url||'').trim(),audience=String(b.audience||'').trim(),price=Number(b.price_clp),compare=b.compare_at_price_clp==null||b.compare_at_price_clp===''?null:Number(b.compare_at_price_clp),status=['draft','published','archived'].includes(b.status)?b.status:'draft';
-  if(!title||!objective||!description||!included||!drive||!Number.isInteger(price)||price<0)return res.status(400).json({ok:false,error:'required_store_fields'});
-  if(!/^https:\/\//i.test(drive)||image&&!/^https:\/\//i.test(image))return res.status(400).json({ok:false,error:'https_url_required'});
+  if(!title||!objective||!description||!included||!drive||!driveAccountId||!Number.isInteger(driveAccountId)||!Number.isInteger(price)||price<0)return res.status(400).json({ok:false,error:'required_store_fields'});
+  if(!/^https:\/\/drive\.google\.com\//i.test(drive)||image&&!/^https:\/\//i.test(image))return res.status(400).json({ok:false,error:'invalid_store_url'});
   if(compare!==null&&(!Number.isInteger(compare)||compare<price))return res.status(400).json({ok:false,error:'invalid_compare_price'});
   let slug=storeSlug(b.slug||title);if(!slug)slug='material-'+Date.now();
   const q=await pool.query(`insert into store_products(title,slug,objective,description,included_materials,audience,image_url,drive_delivery_url,price_clp,compare_at_price_clp,status,created_by)
@@ -1363,8 +1363,8 @@ app.post('/api/store/admin/products',requireAuth,async(req,res)=>{try{
 app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
   const b=req.body||{},driveAccountId=b.drive_account_id?Number(b.drive_account_id):null,id=Number(req.params.id),title=String(b.title||'').trim(),objective=String(b.objective||'').trim(),description=String(b.description||'').trim(),included=String(b.included_materials||'').trim(),drive=String(b.drive_delivery_url||'').trim(),image=String(b.image_url||'').trim(),audience=String(b.audience||'').trim(),price=Number(b.price_clp),compare=b.compare_at_price_clp==null||b.compare_at_price_clp===''?null:Number(b.compare_at_price_clp),status=['draft','published','archived'].includes(b.status)?b.status:'draft',slug=storeSlug(b.slug||title);
-  if(!id||!title||!slug||!objective||!description||!included||!drive||!Number.isInteger(price)||price<0)return res.status(400).json({ok:false,error:'required_store_fields'});
-  if(!/^https:\/\//i.test(drive)||image&&!/^https:\/\//i.test(image))return res.status(400).json({ok:false,error:'https_url_required'});
+  if(!id||!title||!slug||!objective||!description||!included||!drive||!driveAccountId||!Number.isInteger(driveAccountId)||!Number.isInteger(price)||price<0)return res.status(400).json({ok:false,error:'required_store_fields'});
+  if(!/^https:\/\/drive\.google\.com\//i.test(drive)||image&&!/^https:\/\//i.test(image))return res.status(400).json({ok:false,error:'invalid_store_url'});
   if(compare!==null&&(!Number.isInteger(compare)||compare<price))return res.status(400).json({ok:false,error:'invalid_compare_price'});
   const q=await pool.query(`update store_products set title=$1,slug=$2,objective=$3,description=$4,included_materials=$5,audience=$6,image_url=$7,drive_delivery_url=$8,price_clp=$9,compare_at_price_clp=$10,status=$11,updated_at=now() where id=$12 returning id,title,slug,status,price_clp,updated_at`,
     [title,slug,objective,description,included,audience||null,image||null,drive,price,compare,status,id]);

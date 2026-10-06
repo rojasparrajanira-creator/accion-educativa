@@ -7,6 +7,33 @@ const multer=require('multer');
 const ExcelJS=require('@ayocore/exceljs');
 const app=express();
 app.use(express.json({limit:'5mb'}));
+app.disable('x-powered-by');
+app.use((req,res,next)=>{
+  res.setHeader('X-Frame-Options','DENY');
+  res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Resource-Policy','same-site');
+  next();
+});
+const publicRateBuckets=new Map();
+function publicRateLimit({windowMs=60000,max=30}={}){
+  return (req,res,next)=>{
+    const now=Date.now();
+    const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();
+    const key=(forwarded||req.ip||'unknown')+'|'+req.path;
+    let bucket=publicRateBuckets.get(key);
+    if(!bucket||bucket.resetAt<=now){bucket={count:0,resetAt:now+windowMs};publicRateBuckets.set(key,bucket)}
+    bucket.count++;
+    res.setHeader('RateLimit-Limit',String(max));
+    res.setHeader('RateLimit-Remaining',String(Math.max(0,max-bucket.count)));
+    if(bucket.count>max)return res.status(429).json({ok:false,error:'too_many_requests'});
+    if(publicRateBuckets.size>5000){
+      for(const [k,v] of publicRateBuckets)if(v.resetAt<=now)publicRateBuckets.delete(k);
+    }
+    next();
+  };
+}
+const studentLoginRateLimit=publicRateLimit({windowMs:60000,max:20});
+const studentPinRateLimit=publicRateLimit({windowMs:60000,max:15});
 app.use((req,res,next)=>{
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('Referrer-Policy','no-referrer');
@@ -870,7 +897,7 @@ app.post('/api/students/:id/reset-pin',...requireRole('coordinador_convivencia',
   ok(res,{student_id:Number(req.params.id),pin_reset:true,invalidated_pin_accesses:invalidated.rowCount});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
 
-app.post('/api/student-access/login',async(req,res)=>{try{
+app.post('/api/student-access/login',studentLoginRateLimit,async(req,res)=>{try{
   const b=req.body||{},establishmentId=Number(b.establishment_id),measurementId=Number(b.measurement_id||0);
   const rut=normalizeRut(b.rut),secret=String(b.secret||'').trim();
   if(!establishmentId||!rut||!validRut(rut)||!/^\d{4}$/.test(secret))return res.status(401).json({ok:false,error:'invalid_student_credentials'});
@@ -923,7 +950,7 @@ app.post('/api/student-access/login',async(req,res)=>{try{
   ok(res,{selection_required:false,student:{name:student.name,course:student.course},application:{id:Number(app.application_id),measurement_id:Number(app.measurement_id),measurement:app.measurement,school_year:app.school_year,status:app.status,survey_level:app.survey_level},access_token:token,requires_pin_setup:firstAccess});
 }catch(e){res.status(400).json({ok:false,error:'student_access_login_failed'})}});
 
-app.post('/api/student-access/set-pin',async(req,res)=>{try{
+app.post('/api/student-access/set-pin',studentPinRateLimit,async(req,res)=>{try{
   const b=req.body||{},applicationId=Number(b.application_id),access=String(b.access||''),pin=String(b.new_pin||'').trim();
   if(!applicationId||!/^\d{4}$/.test(pin))return res.status(400).json({ok:false,error:'pin_must_be_4_digits'});
   const q=await pool.query(`select a.id,a.access_token_hash,a.access_method,a.access_requires_pin_setup,s.id student_id,s.course_id,cac.code_hash,cac.code_salt

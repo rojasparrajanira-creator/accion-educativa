@@ -36,7 +36,20 @@ const matrículaUpload=multer({
     cb(null,/\.(xlsx|csv)$/.test(n));
   }
 });
-async function initDatabase(){if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL no configurada');await pool.query(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));const q=await pool.query("select current_database() database");console.log('Convivencia DB connected:',q.rows[0].database);}
+async function initDatabase(){
+  if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL no configurada');
+  await pool.query(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));
+  await pool.query("delete from auth_sessions where expires_at<=now()");
+  await pool.query(`delete from response_drafts d using survey_applications a,measurement_settings ms
+    where d.application_id=a.id and ms.measurement_id=a.measurement_id
+      and ms.end_date < ((now() at time zone 'America/Santiago')::date - 7)`);
+  await pool.query(`update survey_applications a set access_token_hash=null,access_token_created_at=null
+    from measurement_settings ms where ms.measurement_id=a.measurement_id
+      and ms.end_date < (now() at time zone 'America/Santiago')::date
+      and a.status<>'completed'`);
+  const q=await pool.query("select current_database() database");
+  console.log('Convivencia DB connected:',q.rows[0].database);
+}
 const ok=(res,data)=>res.json({ok:true,...data});
 function studentErrorStatus(message){
   if(message==='invalid_student_access')return 403;

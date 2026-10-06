@@ -39,7 +39,7 @@
 
       const allowed=options.roles||['coordinador_convivencia','dupla_psicosocial'];
       if(!options.allowAnyRole&&!allowed.includes(role)){
-        location.replace('ingreso.html?role_pending=1');
+        location.replace('notificaciones.html');
         return new Promise(()=>{});
       }
 
@@ -55,7 +55,8 @@
 
       document.querySelectorAll('[data-professional-name]').forEach(x=>x.textContent=user.name||'Profesional');
       document.querySelectorAll('[data-establishment-name]').forEach(x=>x.textContent=user.establishment||'Establecimiento');
-      document.querySelectorAll('[data-professional-role]').forEach(x=>x.textContent=role==='coordinador_convivencia'?'Coordinación de Convivencia':role==='dupla_psicosocial'?'Dupla Psicosocial':role);
+      const roleLabels={coordinador_convivencia:'Coordinación de Convivencia',dupla_psicosocial:'Dupla Psicosocial',profesor:'Profesor/a',asistente_educacion:'Asistente de la Educación',prevencionista:'Prevencionista',nutricionista:'Nutricionista',platform_admin:'Administración de Plataforma'};
+      document.querySelectorAll('[data-professional-role]').forEach(x=>x.textContent=roleLabels[role]||role);
       document.querySelectorAll('[data-role-allow]').forEach(x=>{
         const allowed=String(x.dataset.roleAllow||'').split(',').map(v=>v.trim()).filter(Boolean);
         x.hidden=!allowed.includes(role);

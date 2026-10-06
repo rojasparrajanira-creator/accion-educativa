@@ -708,7 +708,7 @@ app.post('/api/cases/:id/steps/:stepId/status',...requireRole('coordinador_convi
   if(cs.rows[0].status==='closed')return res.status(409).json({ok:false,error:'case_closed'});
   const step=await pool.query("select id,title,required from case_required_steps where id=$1 and case_id=$2",[req.params.stepId,req.params.id]);
   if(!step.rowCount)return res.status(404).json({ok:false,error:'case_step_not_found'});
-  const q=await pool.query("update case_required_steps set status=$1,completed_at=case when $1='pending' then null else now() end,completed_by=case when $1='pending' then null else $2 end,completion_note=case when $1='pending' then null else nullif($3,'') end where id=$4 returning *",[status,req.auth.id,note,req.params.stepId]);
+  const q=await pool.query("update case_required_steps set status=$1,completed_at=case when $1='pending' then null else now() end,completed_by=case when $1='pending' then null else $2::bigint end,completion_note=case when $1='pending' then null else nullif($3,'') end where id=$4 returning *",[status,req.auth.id,note,req.params.stepId]);
   await auditProfessional(req,'case_protocol_step_updated','case',req.params.id,{step_id:Number(req.params.stepId),step_title:step.rows[0].title,status,required:step.rows[0].required});
   ok(res,{step:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});

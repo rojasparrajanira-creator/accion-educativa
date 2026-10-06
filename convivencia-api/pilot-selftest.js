@@ -214,7 +214,7 @@ async function runPilotSelfTest(base){
 
   const audit=await prof('/api/audit?establishment_id='+eid+'&limit=100');
   const actions=new Set((audit.events||[]).map(x=>x.action));
-  const required=['measurement_configured','survey_course_assigned','survey_course_access_issued','measurement_activated','application_professional_review','pgce_intervention_created','pgce_followup_recorded','professional_task_created','professional_task_status_changed','case_protocol_saved','case_opened','case_action_added','case_status_changed','institutional_resource_created','institutional_resource_deactivated','course_access_code_changed','student_pin_reset'];
+  const required=['measurement_configured','survey_course_assigned','survey_course_access_issued','measurement_activated','application_professional_review','pgce_intervention_created','pgce_followup_recorded','professional_task_created','professional_task_status_changed','case_protocol_saved','case_protocol_steps_saved','case_opened','case_protocol_step_updated','case_action_added','case_status_changed','institutional_resource_created','institutional_resource_deactivated','course_access_code_changed','student_pin_reset'];
   for(const x of required)if(!actions.has(x))throw new Error('audit_missing:'+x);
   log.push('audit');
 

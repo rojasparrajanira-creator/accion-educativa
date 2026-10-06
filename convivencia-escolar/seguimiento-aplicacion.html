@@ -46,7 +46,7 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&g
         const time=inProgress&&x.started_at?" · iniciada "+new Date(x.started_at).toLocaleString("es-CL"):"";
         const action=completed
           ? "<a class='btn secondary' href='resultados.html?establishment_id="+encodeURIComponent(eid)+"&application_id="+encodeURIComponent(x.id)+"'>Ver resultados</a>"
-          : "<a class='btn primary' href='encuesta-bienvenida.html?application_id="+encodeURIComponent(x.id)+"'>"+(inProgress?"Continuar acceso":"Abrir acceso")+"</a>";
+          : "<a class='btn primary' href='generar-accesos.html?establishment_id="+encodeURIComponent(eid)+"&measurement_id="+encodeURIComponent(x.measurement_id)+"'>"+(inProgress?"Renovar / administrar acceso":"Generar acceso seguro")+"</a>";
         return "<div class='access-card'><div><strong>"+esc(x.student)+"</strong><div class='hint'>"+
           esc(x.course||"Sin curso")+" · "+esc(x.measurement)+" · "+esc(x.school_year)+" · "+esc(x.survey_level||"")+(x.has_access?" · acceso seguro emitido":" · sin acceso emitido")+esc(time)+
           "</div></div><div style='display:flex;align-items:center;gap:10px;flex-wrap:wrap'><span class='status "+statusClass+"'>"+

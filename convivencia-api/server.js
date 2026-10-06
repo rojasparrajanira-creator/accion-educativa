@@ -110,7 +110,7 @@ async function initDatabase(){
       console.log('Platform administrator role verified.');
     }
   }
-  if(true){
+  if(String(process.env.RUN_STORE_SELFTEST||'')==='1'){
     const checks=[];
     const cols=await pool.query("select table_name,column_name from information_schema.columns where table_schema='public' and table_name in ('store_products','store_drive_accounts','store_product_images','store_orders','store_order_items','store_delivery_events')");
     const have=new Set(cols.rows.map(x=>x.table_name+'.'+x.column_name));

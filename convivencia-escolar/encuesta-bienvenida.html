@@ -54,7 +54,7 @@ const pages={
     return;
   }
   try{
-    const r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/context?access="+encodeURIComponent(access),{cache:"no-store",referrerPolicy:"no-referrer"});
+    const r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/context",{headers:{"X-Student-Access":access},cache:"no-store",referrerPolicy:"no-referrer"});
     const d=await r.json();
     if(!r.ok||!d.ok||!pages[d.application.survey_level])throw new Error("invalid_context");
 

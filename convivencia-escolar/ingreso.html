@@ -42,6 +42,7 @@ const form=document.getElementById('login-form'),btn=document.getElementById('lo
   if(!(r.ok&&d.ok&&d.user))return;
   if(d.user.must_change_password){location.href='cambiar-clave.html';return}
   const role=String(d.user.role||'').toLowerCase();
+  if(role==='platform_admin'){location.href='admin-plataforma.html';return}
   if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){
     status.textContent='Tu cuenta está activa, pero este rol todavía no tiene un alcance habilitado dentro del módulo.';
     btn.textContent='Cerrar sesión';
@@ -62,6 +63,7 @@ form.addEventListener('submit',async ev=>{
     if(!r.ok||!d.ok)throw new Error(d.error||'invalid_credentials');
     if(d.user.must_change_password){location.href='cambiar-clave.html';return}
     const role=String(d.user.role||'').toLowerCase();
+    if(role==='platform_admin'){location.href='admin-plataforma.html';return}
     if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='ingreso.html?role_pending=1';return}
     const q=new URLSearchParams(location.search),next=q.get('next');
     const destination=next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:'inicio.html';

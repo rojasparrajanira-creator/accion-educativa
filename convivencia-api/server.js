@@ -82,6 +82,7 @@ function canonicalRole(role,rbd){
 }
 function requireRole(...allowed){
   return [requireAuth,(req,res,next)=>{
+    if(req.auth.must_change_password)return res.status(403).json({ok:false,error:'password_change_required'});
     const role=canonicalRole(req.auth.role,req.auth.rbd);
     if(!allowed.includes(role))return res.status(403).json({ok:false,error:'role_forbidden'});
     req.auth.canonical_role=role;next();
@@ -303,7 +304,7 @@ app.post('/api/users',...requireRole('coordinador_convivencia'),async(req,res)=>
   if(Number(establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
   const allowedRoles=['coordinador_convivencia','dupla_psicosocial'];
   const cleanRole=canonicalRole(role||'',req.auth.rbd);
-  if(!establishment_id||!email||!name||!allowedRoles.includes(cleanRole)||temporaryPassword.length<10)return res.status(400).json({ok:false,error:'required_fields'});
+  if(!establishment_id||!email||!name||!allowedRoles.includes(cleanRole)||temporaryPassword.length<10||!/[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(temporaryPassword)||!/[0-9]/.test(temporaryPassword))return res.status(400).json({ok:false,error:'required_fields'});
   const cred=await makePassword(temporaryPassword);
   const q=await pool.query(`insert into users(establishment_id,email,rut,name,role,password_hash,password_salt,must_change_password)
     values($1,$2,$3,$4,$5,$6,$7,true)

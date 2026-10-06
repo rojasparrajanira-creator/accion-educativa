@@ -351,3 +351,10 @@ ALTER TABLE store_order_items ADD COLUMN IF NOT EXISTS drive_account_id_snapshot
 
 ALTER TABLE store_products ADD COLUMN IF NOT EXISTS image_mime TEXT;
 ALTER TABLE store_products ADD COLUMN IF NOT EXISTS image_data BYTEA;
+
+CREATE TABLE IF NOT EXISTS store_product_images(
+ id BIGSERIAL PRIMARY KEY,
+ mime_type TEXT NOT NULL CHECK(mime_type IN ('image/jpeg','image/png')),
+ image_data BYTEA NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

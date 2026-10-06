@@ -90,8 +90,8 @@ main{padding-top:27px}
 <div><span class="sige-kicker">MATRÍCULA Y ACCESOS</span><h2>Subir matrícula SIGE y gestionar estudiantes</h2><p>Administra cursos y estudiantes registrados, con carga masiva XLSX/CSV, validación previa y control de altas, actualizaciones y retiros.</p></div>
 <div class="sige-buttons"><a href="estudiantes.html">Gestionar estudiantes →</a><a class="secondary" href="cursos.html">Ver cursos</a></div>
 </section>
-<section class="sige-action" style="border-left-color:#FFD200"><div><span class="sige-kicker">GESTIÓN DEL EQUIPO</span><h2>Asignaciones, tareas y notificaciones</h2><p>Coordina talleres, entrevistas, derivaciones y seguimientos. Cada responsable recibe su tarea en plataforma y aviso por correo.</p></div><div class="sige-buttons"><a href="#" aria-disabled="true" onclick="return false">Ver mis tareas →</a><a class="secondary" href="usuarios.html" data-role-allow="coordinador_convivencia">Usuarios y roles</a></div></section>
-<section class="stats"><div class="stat"><small>Estado del sistema</small><strong>—</strong><em>Los indicadores se habilitarán con datos reales.</em></div><div class="stat"><small>Seguimientos</small><strong>—</strong><em>Sin cifras demostrativas.</em></div><div class="stat"><small>Acciones PGCE</small><strong>—</strong><em>Se mostrarán desde registros reales.</em></div><div class="stat"><small>Participación diagnóstica</small><strong>—</strong><em>Se calculará desde aplicaciones reales.</em></div></section>
+<section class="sige-action" style="border-left-color:#FFD200"><div><span class="sige-kicker">GESTIÓN DEL EQUIPO</span><h2>Usuarios, roles y trazabilidad</h2><p>Administra accesos profesionales y revisa la trazabilidad de acciones institucionales. La asignación de tareas y los avisos por correo se habilitarán en una etapa posterior.</p></div><div class="sige-buttons"><a href="#" aria-disabled="true" onclick="return false">Mis tareas · Próximamente</a><a class="secondary" href="usuarios.html" data-role-allow="coordinador_convivencia">Usuarios y roles</a></div></section>
+<section class="stats"><div class="stat"><small>Estudiantes activos</small><strong id="home-students">—</strong><em>Matrícula activa del establecimiento.</em></div><div class="stat"><small>Aplicaciones en curso</small><strong id="home-progress">—</strong><em>Encuestas iniciadas y aún no completadas.</em></div><div class="stat"><small>Intervenciones PGCE</small><strong id="home-pgce">—</strong><em>Acciones institucionales registradas.</em></div><div class="stat"><small>Cobertura diagnóstica</small><strong id="home-coverage">—</strong><em>Completadas respecto del total asignado.</em></div></section>
 
  <div class="section-title"><h2>Gestión de la convivencia</h2><span>Accesos principales</span></div>
  <section class="grid">
@@ -109,4 +109,26 @@ main{padding-top:27px}
  <section class="bottom"><div class="attention"><h2>Atención profesional</h2><div class="alert"><span>Las alertas aparecerán únicamente cuando existan registros reales que requieran revisión.</span><span class="pill">Sin datos</span></div></div><div class="agenda"><h2>Próximas acciones</h2><div class="agenda-row"><b>Sin acciones demostrativas</b><span>Las tareas y plazos se mostrarán desde la gestión real del establecimiento.</span></div></div></section>
  <div class="note">ENTORNO DE CONVIVENCIA ESCOLAR · Los datos operativos se muestran únicamente desde registros reales. Sistema independiente de Orientación Vocacional e IDPS.</div>
 <a href="piloto.html" style="display:inline-block;margin:12px 0;padding:12px 18px;border-radius:12px;background:#176B5B;color:#fff;text-decoration:none;font-weight:700">Abrir prueba piloto ficticia</a></main></div>
+<script>
+(async()=>{
+  const q=new URLSearchParams(location.search),eid=Number(q.get('establishment_id')||0);
+  if(!eid)return;
+  const set=(id,value)=>{const x=document.getElementById(id);if(x)x.textContent=value};
+  try{
+    const [sr,ar,pr]=await Promise.all([
+      fetch(MECAuth.API+'/api/students?establishment_id='+encodeURIComponent(eid)+'&active=true').then(r=>r.json()),
+      fetch(MECAuth.API+'/api/applications?establishment_id='+encodeURIComponent(eid)).then(r=>r.json()),
+      fetch(MECAuth.API+'/api/pgce/dashboard?establishment_id='+encodeURIComponent(eid)).then(r=>r.json())
+    ]);
+    const students=sr.ok?(sr.students||[]):[],apps=ar.ok?(ar.applications||[]):[];
+    const inProgress=apps.filter(x=>x.status==='in_progress').length;
+    const completed=apps.filter(x=>x.status==='completed').length;
+    const coverage=apps.length?Math.round(completed/apps.length*100):0;
+    set('home-students',students.length);
+    set('home-progress',inProgress);
+    set('home-pgce',pr.ok?(pr.summary?.total||0):'—');
+    set('home-coverage',apps.length?coverage+'%':'0%');
+  }catch(e){}
+})();
+</script>
 </body></html>

@@ -56,6 +56,22 @@ async function initDatabase(){
     from measurement_settings ms where ms.measurement_id=a.measurement_id
       and ms.end_date < (now() at time zone 'America/Santiago')::date
       and a.status<>'completed'`);
+
+  const platformEmail=String(process.env.MEC_PLATFORM_ADMIN_EMAIL||'').trim().toLowerCase();
+  const platformPassword=String(process.env.MEC_PLATFORM_ADMIN_PASSWORD||'');
+  if(platformEmail&&platformPassword.length>=12){
+    const est=await pool.query("insert into establishments(name,rbd) values('Material Educativo Chile','MEC-PLATFORM') on conflict(rbd) do update set name=excluded.name returning id");
+    const existing=await pool.query("select id,password_hash,password_salt,role from users where establishment_id=$1 and lower(email)=lower($2) limit 1",[est.rows[0].id,platformEmail]);
+    if(!existing.rowCount){
+      const cred=await makePassword(platformPassword);
+      await pool.query("insert into users(establishment_id,email,name,role,password_hash,password_salt,must_change_password,active) values($1,$2,'Administración de Plataforma','platform_admin',$3,$4,false,true)",[est.rows[0].id,platformEmail,cred.hash,cred.salt]);
+      console.log('Platform administrator initialized.');
+    }else if(existing.rows[0].role!=='platform_admin'||!existing.rows[0].password_hash){
+      const cred=await makePassword(platformPassword);
+      await pool.query("update users set role='platform_admin',password_hash=coalesce(password_hash,$1),password_salt=coalesce(password_salt,$2),active=true where id=$3",[cred.hash,cred.salt,existing.rows[0].id]);
+      console.log('Platform administrator role verified.');
+    }
+  }
   const q=await pool.query("select current_database() database");
   console.log('Convivencia DB connected:',q.rows[0].database);
 }
@@ -366,6 +382,45 @@ app.get('/api/pgce/interventions/:id/updates',...requireRole('coordinador_conviv
 app.get('/api/pgce/dashboard',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const est=await pool.query("select id,name,rbd from establishments where id=$1",[establishmentId]);if(!est.rowCount)return res.status(404).json({ok:false,error:'establishment_not_found'});const q=await pool.query(`select i.*,coalesce(u.updates_count,0)::int updates_count,u.last_measurement,u.last_progress,u.last_evidence_at from pgce_interventions i left join lateral (select count(*) updates_count,(array_agg(x.measurement_code order by x.created_at desc))[1] last_measurement,(array_agg(x.progress_percent order by x.created_at desc))[1] last_progress,max(x.created_at) last_evidence_at from pgce_intervention_updates x where x.intervention_id=i.id) u on true where i.establishment_id=$1 order by i.created_at desc`,[establishmentId]);const rows=q.rows;const byStatus={},byDimension={};for(const x of rows){byStatus[x.status]=(byStatus[x.status]||0)+1;byDimension[x.dimension_code]=(byDimension[x.dimension_code]||0)+1}const overdue=rows.filter(x=>!['completed','suspended'].includes(x.status)&&new Date(x.end_date)<new Date()).length;const withoutUpdates=rows.filter(x=>Number(x.updates_count)===0).length;res.json({ok:true,establishment:est.rows[0],summary:{total:rows.length,by_status:byStatus,by_dimension:byDimension,overdue,without_updates:withoutUpdates},interventions:rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/health',async(req,res)=>{try{await pool.query("select 1");ok(res,{service:'convivencia-escolar-api',database:true})}catch(e){res.status(500).json({ok:false,service:'convivencia-escolar-api',database:false})}});
 app.get('/api/status',(req,res)=>ok(res,{module:'convivencia-escolar',isolation:'independent'}));
+app.get('/api/platform/establishments',...requireRole('platform_admin'),async(req,res)=>{try{
+  const q=await pool.query(`select e.id,e.name,e.rbd,e.created_at,
+    count(u.id) filter(where u.active=true)::int active_users,
+    count(u.id) filter(where u.active=true and u.role='coordinador_convivencia')::int active_coordinators
+    from establishments e left join users u on u.establishment_id=e.id
+    where e.rbd is distinct from 'MEC-PLATFORM'
+    group by e.id order by e.name`);
+  ok(res,{establishments:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'platform_establishments_failed'})}});
+
+app.post('/api/platform/onboard',...requireRole('platform_admin'),async(req,res)=>{const client=await pool.connect();try{
+  const b=req.body||{};
+  const schoolYear=Number(b.school_year);
+  const name=String(b.name||'').trim(),rbd=String(b.rbd||'').trim();
+  const coordinatorName=String(b.coordinator_name||'').trim(),coordinatorEmail=String(b.coordinator_email||'').trim().toLowerCase();
+  const coordinatorRut=String(b.coordinator_rut||'').trim()||null;
+  const temporaryPassword=String(b.temporary_password||'');
+  if(!name||!rbd||!coordinatorName||!coordinatorEmail||!coordinatorEmail.includes('@')||!Number.isInteger(schoolYear)||schoolYear<2020||schoolYear>2100)return res.status(400).json({ok:false,error:'required_fields'});
+  if(temporaryPassword.length<10||!/[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(temporaryPassword)||!/[0-9]/.test(temporaryPassword))return res.status(400).json({ok:false,error:'weak_temporary_password'});
+  const existing=await client.query("select id from establishments where rbd=$1",[rbd]);
+  if(existing.rowCount)return res.status(409).json({ok:false,error:'rbd_exists'});
+
+  await client.query('begin');
+  const est=await client.query("insert into establishments(name,rbd) values($1,$2) returning id,name,rbd,created_at",[name,rbd]);
+  const cred=await makePassword(temporaryPassword);
+  const user=await client.query(`insert into users(establishment_id,email,rut,name,role,password_hash,password_salt,must_change_password,active)
+    values($1,$2,$3,$4,'coordinador_convivencia',$5,$6,true,true)
+    returning id,establishment_id,email,rut,name,role,active,must_change_password,created_at`,
+    [est.rows[0].id,coordinatorEmail,coordinatorRut,coordinatorName,cred.hash,cred.salt]);
+  const measurements=[];
+  for(const code of ['M1','M2','M3']){
+    const m=await client.query("insert into measurements(establishment_id,code,school_year,status) values($1,$2,$3,'draft') returning id,code,school_year,status",[est.rows[0].id,code,schoolYear]);
+    measurements.push(m.rows[0]);
+  }
+  await client.query("insert into professional_audit_events(establishment_id,user_id,action,entity_type,entity_id,metadata) values($1,$2,'establishment_onboarded','establishment',$3,$4::jsonb)",[est.rows[0].id,req.auth.id,String(est.rows[0].id),JSON.stringify({rbd,school_year:schoolYear,coordinator_user_id:user.rows[0].id})]);
+  await client.query('commit');
+  res.status(201).json({ok:true,establishment:est.rows[0],coordinator:user.rows[0],measurements});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+
 app.post('/api/establishments',...requireRole('platform_admin'),async(req,res)=>{try{const {name,rbd}=req.body;if(!name)return res.status(400).json({ok:false,error:'name_required'});const q=await pool.query('insert into establishments(name,rbd) values($1,$2) on conflict(rbd) do update set name=excluded.name returning *',[name,rbd||null]);ok(res,{establishment:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/establishments',requireAuth,async(req,res)=>{const q=await pool.query('select id,name,rbd,created_at from establishments where id=$1',[req.auth.establishment_id]);ok(res,{establishments:q.rows})});
 app.post('/api/users',...requireRole('coordinador_convivencia'),async(req,res)=>{try{

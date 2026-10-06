@@ -1368,7 +1368,7 @@ app.post('/api/store/admin/products',requireAuth,async(req,res)=>{try{
   const q=await pool.query(`insert into store_products(title,slug,objective,description,included_materials,audience,image_url,drive_delivery_url,price_clp,compare_at_price_clp,status,created_by)
     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning id,title,slug,status,price_clp,updated_at`,
     [title,slug,objective,description,included,audience||null,image||null,drive,price,compare,status,req.auth.id]);
-  if(driveAccountId)await pool.query("update store_products set drive_account_id=$1 where id=$2",[driveAccountId,q.rows[0].id]);
+  const da=await pool.query("select id from store_drive_accounts where id=$1 and status<>'disabled'",[driveAccountId]);if(!da.rowCount){await pool.query("delete from store_products where id=$1",[q.rows[0].id]);return res.status(400).json({ok:false,error:'invalid_drive_account'});}await pool.query("update store_products set drive_account_id=$1 where id=$2",[driveAccountId,q.rows[0].id]);
   ok(res,{product:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_create_failed'})}});
 app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
@@ -1377,10 +1377,9 @@ app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
   if(!id||!title||!slug||!objective||!description||!included||!drive||!driveAccountId||!Number.isInteger(driveAccountId)||!Number.isInteger(price)||price<0)return res.status(400).json({ok:false,error:'required_store_fields'});
   if(!/^https:\/\/drive\.google\.com\//i.test(drive)||image&&!/^https:\/\//i.test(image))return res.status(400).json({ok:false,error:'invalid_store_url'});
   if(compare!==null&&(!Number.isInteger(compare)||compare<price))return res.status(400).json({ok:false,error:'invalid_compare_price'});
-  const q=await pool.query(`update store_products set title=$1,slug=$2,objective=$3,description=$4,included_materials=$5,audience=$6,image_url=$7,drive_delivery_url=$8,price_clp=$9,compare_at_price_clp=$10,status=$11,updated_at=now() where id=$12 returning id,title,slug,status,price_clp,updated_at`,
-    [title,slug,objective,description,included,audience||null,image||null,drive,price,compare,status,id]);
+  const da=await pool.query("select id from store_drive_accounts where id=$1 and status<>'disabled'",[driveAccountId]);if(!da.rowCount)return res.status(400).json({ok:false,error:'invalid_drive_account'});const q=await pool.query(`update store_products set title=$1,slug=$2,objective=$3,description=$4,included_materials=$5,audience=$6,image_url=$7,drive_delivery_url=$8,drive_account_id=$9,price_clp=$10,compare_at_price_clp=$11,status=$12,updated_at=now() where id=$13 returning id,title,slug,status,price_clp,updated_at`,
+    [title,slug,objective,description,included,audience||null,image||null,drive,driveAccountId,price,compare,status,id]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'store_product_not_found'});
-  await pool.query("update store_products set drive_account_id=$1 where id=$2",[driveAccountId||null,id]);
   ok(res,{product:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_update_failed'})}});
 

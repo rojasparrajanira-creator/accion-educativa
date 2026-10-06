@@ -643,13 +643,48 @@ app.post('/api/applications/bulk-course',...requireRole('coordinador_convivencia
   ok(res,{course:{id:courseId,name:row.course_name},measurement:{id:measurementId,code:row.measurement_code,school_year:row.school_year},survey_level:surveyLevel,active_students:students.rowCount,created,existing,preserved_locked:locked,applications});
 }catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
 
+app.post('/api/applications/access/bulk-course',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
+  const courseId=Number((req.body||{}).course_id),measurementId=Number((req.body||{}).measurement_id),regenerateExisting=(req.body||{}).regenerate_existing===true;
+  if(!courseId||!measurementId)return res.status(400).json({ok:false,error:'required_fields'});
+
+  const ctx=await client.query(`select c.id course_id,c.name course_name,c.establishment_id course_establishment,m.id measurement_id,m.code measurement_code,m.school_year,m.establishment_id measurement_establishment
+    from courses c cross join measurements m where c.id=$1 and m.id=$2`,[courseId,measurementId]);
+  if(!ctx.rowCount)return res.status(404).json({ok:false,error:'course_or_measurement_not_found'});
+  const row=ctx.rows[0];
+  if(Number(row.course_establishment)!==Number(row.measurement_establishment))return res.status(400).json({ok:false,error:'establishment_mismatch'});
+  if(Number(row.course_establishment)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
+
+  const apps=await client.query(`select a.id,a.status,(a.access_token_hash is not null) has_access,s.id student_id,s.name student
+    from survey_applications a join students s on s.id=a.student_id
+    where a.measurement_id=$1 and s.course_id=$2 and s.establishment_id=$3 and s.active=true
+    order by s.name`,[measurementId,courseId,req.auth.establishment_id]);
+  if(!apps.rowCount)return res.status(409).json({ok:false,error:'course_without_applications'});
+
+  await client.query('begin');
+  let generated=0,regenerated=0,existing_access=0,skipped_in_progress=0,skipped_completed=0;
+  const accesses=[];
+  for(const app of apps.rows){
+    if(app.status==='completed'){skipped_completed++;continue}
+    if(app.status==='in_progress'){skipped_in_progress++;continue}
+    if(app.has_access&&!regenerateExisting){existing_access++;continue}
+    const token=newStudentAccessToken();
+    await client.query("update survey_applications set access_token_hash=$1,access_token_created_at=now() where id=$2",[sha256(token),app.id]);
+    if(app.has_access)regenerated++;else generated++;
+    accesses.push({application_id:Number(app.id),student_id:Number(app.student_id),student:app.student,access_token:token,regenerated:!!app.has_access});
+  }
+  await client.query('commit');
+
+  await auditProfessional(req,'survey_course_access_issued','course',courseId,{measurement_id:measurementId,measurement_code:row.measurement_code,course_name:row.course_name,generated,regenerated,existing_access,skipped_in_progress,skipped_completed});
+  ok(res,{course:{id:courseId,name:row.course_name},measurement:{id:measurementId,code:row.measurement_code,school_year:row.school_year},generated,regenerated,existing_access,skipped_in_progress,skipped_completed,accesses});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
+
 app.post('/api/applications/:id/access',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
-  const q=await pool.query("select a.id,a.status,s.establishment_id from survey_applications a join students s on s.id=a.student_id where a.id=$1",[req.params.id]);
+  const q=await pool.query("select a.id,a.status,(a.access_token_hash is not null) has_access,s.establishment_id from survey_applications a join students s on s.id=a.student_id where a.id=$1",[req.params.id]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});
   const a=q.rows[0];
   if(Number(a.establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
   if(a.status==='completed')return res.status(409).json({ok:false,error:'application_already_completed'});
-  if(a.status==='in_progress'&&!(req.body||{}).confirm_regenerate)return res.status(409).json({ok:false,error:'application_in_progress_confirm_required'});
+  if((a.status==='in_progress'||a.has_access)&&!(req.body||{}).confirm_regenerate)return res.status(409).json({ok:false,error:a.status==='in_progress'?'application_in_progress_confirm_required':'access_regeneration_confirm_required'});
   const token=newStudentAccessToken();
   await pool.query("update survey_applications set access_token_hash=$1,access_token_created_at=now() where id=$2",[sha256(token),req.params.id]);
   ok(res,{application_id:Number(req.params.id),access_token:token,regenerated:a.status==='in_progress'});

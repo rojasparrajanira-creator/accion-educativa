@@ -49,8 +49,21 @@ const pages={
 };
 
 (async()=>{
-  if(!id||!access){
+  if(!id){
     btn.textContent="Acceso no válido";
+    return;
+  }
+  if(!access){
+    try{
+      const ar=await fetch(API+"/api/auth/me",{credentials:"include",cache:"no-store"});
+      const ad=await ar.json();
+      if(ar.ok&&ad.ok&&ad.user&&ad.user.establishment_id){
+        location.replace("generar-accesos.html?establishment_id="+encodeURIComponent(ad.user.establishment_id));
+        return;
+      }
+    }catch(e){}
+    btn.textContent="Acceso no válido";
+    document.getElementById("intro-message").textContent="Este enlace no contiene un acceso seguro vigente. Solicita un nuevo enlace al equipo responsable.";
     return;
   }
   try{

@@ -1310,6 +1310,36 @@ function storeSlug(v){return plain(v).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+
 function storeAdmin(req,res,next){
   return requireRole('platform_admin')(req,res,next);
 }
+app.get('/api/store/admin/drive-accounts',requireAuth,async(req,res)=>{try{
+  if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
+  const q=await pool.query("select id,label,google_email,status,created_at,updated_at from store_drive_accounts order by id");
+  ok(res,{accounts:q.rows});
+}catch(e){res.status(400).json({ok:false,error:'drive_accounts_failed'})}});
+app.post('/api/store/admin/drive-accounts',requireAuth,async(req,res)=>{try{
+  if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
+  const label=String((req.body||{}).label||'').trim(),email=String((req.body||{}).google_email||'').trim().toLowerCase();
+  if(!label||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return res.status(400).json({ok:false,error:'invalid_drive_account'});
+  const q=await pool.query("insert into store_drive_accounts(label,google_email) values($1,$2) on conflict(google_email) do update set label=excluded.label,updated_at=now() returning id,label,google_email,status",[label,email]);
+  ok(res,{account:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:'drive_account_save_failed'})}});
+app.post('/api/store/admin/product-image',requireAuth,storeImageUpload.single('image'),async(req,res)=>{try{
+  if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
+  if(!req.file)return res.status(400).json({ok:false,error:'jpg_png_required'});
+  const ext=req.file.mimetype==='image/png'?'png':'jpg';
+  const name=crypto.randomBytes(18).toString('hex')+'.'+ext;
+  const dir=path.join(__dirname,'store-images');
+  fs.mkdirSync(dir,{recursive:true});
+  fs.writeFileSync(path.join(dir,name),req.file.buffer,{flag:'wx'});
+  ok(res,{image_url:'/api/store/images/'+name});
+}catch(e){res.status(400).json({ok:false,error:'store_image_upload_failed'})}});
+app.get('/api/store/images/:name',async(req,res)=>{
+  const name=String(req.params.name||'');
+  if(!/^[a-f0-9]{36}\.(jpg|png)$/.test(name))return res.sendStatus(404);
+  const file=path.join(__dirname,'store-images',name);
+  if(!fs.existsSync(file))return res.sendStatus(404);
+  res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+  res.type(name.endsWith('.png')?'png':'jpg').sendFile(file);
+});
 app.get('/api/store/products',async(req,res)=>{try{
   const q=await pool.query("select id,title,slug,objective,description,included_materials,audience,image_url,price_clp,compare_at_price_clp,updated_at from store_products where status='published' order by updated_at desc");
   ok(res,{products:q.rows});

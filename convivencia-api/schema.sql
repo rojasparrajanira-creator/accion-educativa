@@ -77,3 +77,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_count INT NOT NULL DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS response_drafts(
+ application_id BIGINT NOT NULL REFERENCES survey_applications(id) ON DELETE CASCADE,
+ item_code TEXT NOT NULL,
+ value TEXT NOT NULL,
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ PRIMARY KEY(application_id,item_code)
+);
+CREATE INDEX IF NOT EXISTS idx_response_drafts_application ON response_drafts(application_id);

@@ -56,11 +56,11 @@ main{padding-top:27px}
 .module:nth-of-type(3n+2) .brand-icon:before{background:#1E7FBC}
 .module:nth-of-type(3n) .brand-icon{background:linear-gradient(145deg,#FFFDF1,#F3FAF7)}
 .module:hover .brand-icon{transform:translateY(-2px);transition:.18s ease}
-.user .bell-icon{position:relative;width:39px;height:39px;border-radius:50%;display:grid;place-items:center;text-decoration:none;background:#F0F7F3;border:1px solid #D8E6DE;font-size:18px;flex:0 0 auto}.user .bell-icon:after{content:"3";position:absolute;right:-4px;top:-5px;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:#FFD200;color:#0F2D52;font:900 9px Arial;border:2px solid #fff}.task{grid-template-columns:74px minmax(0,1fr) minmax(110px,max-content)!important}.task>div:nth-child(2){min-width:0}.task>a,.task>button,.task>span{justify-self:end;white-space:nowrap}.badge{display:inline-flex!important;align-items:center;white-space:nowrap;line-height:1.2;min-height:24px;box-sizing:border-box}.case-table{overflow-x:auto}.case-table table{min-width:950px}.case-table th,.case-table td{padding:13px 14px!important}.case-table td:last-child{min-width:120px}@media(max-width:720px){.task{grid-template-columns:60px minmax(0,1fr)!important}.task>a,.task>button,.task>span{grid-column:2;justify-self:start}}.user{gap:10px!important}.user .bell-icon{order:8;margin-left:8px}.user .avatar{order:9}.user>div:not(.avatar){order:7} .nav-disabled{display:block;color:#91a7b8;padding:12px 13px;border-radius:12px;font-size:14px;cursor:not-allowed}.module.future{cursor:not-allowed;opacity:.72}</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head>
+.user .bell-icon{position:relative;width:39px;height:39px;border-radius:50%;display:grid;place-items:center;text-decoration:none;background:#F0F7F3;border:1px solid #D8E6DE;font-size:18px;flex:0 0 auto}.bell-count{position:absolute;right:-7px;top:-7px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;display:none;place-items:center;background:#FFD200;color:#0F2D52;font:900 9px Arial;border:2px solid #fff}.task{grid-template-columns:74px minmax(0,1fr) minmax(110px,max-content)!important}.task>div:nth-child(2){min-width:0}.task>a,.task>button,.task>span{justify-self:end;white-space:nowrap}.badge{display:inline-flex!important;align-items:center;white-space:nowrap;line-height:1.2;min-height:24px;box-sizing:border-box}.case-table{overflow-x:auto}.case-table table{min-width:950px}.case-table th,.case-table td{padding:13px 14px!important}.case-table td:last-child{min-width:120px}@media(max-width:720px){.task{grid-template-columns:60px minmax(0,1fr)!important}.task>a,.task>button,.task>span{grid-column:2;justify-self:start}}.user{gap:10px!important}.user .bell-icon{order:8;margin-left:8px}.user .avatar{order:9}.user>div:not(.avatar){order:7} .nav-disabled{display:block;color:#91a7b8;padding:12px 13px;border-radius:12px;font-size:14px;cursor:not-allowed}.module.future{cursor:not-allowed;opacity:.72}</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head>
 <body>
 <header>
  <div class="brand"><img class="official-logo" src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span><em>Solución digital institucional</em></div></div>
- <div class="user"><div><b data-professional-name>Profesional</b><br><span data-professional-role>Rol profesional</span></div><button type="button" onclick="MECAuth.logout()" style="border:0;background:#EEF6F1;color:#173E35;border-radius:10px;padding:9px 10px;font-weight:800;cursor:pointer">Salir</button><div class="avatar">CE</div></div>
+ <div class="user"><div><b data-professional-name>Profesional</b><br><span data-professional-role>Rol profesional</span></div><a id="home-bell" class="bell-icon" href="notificaciones.html" aria-label="Tareas y notificaciones">🔔<span id="home-bell-count" class="bell-count">0</span></a><button type="button" onclick="MECAuth.logout()" style="border:0;background:#EEF6F1;color:#173E35;border-radius:10px;padding:9px 10px;font-weight:800;cursor:pointer">Salir</button><div class="avatar">CE</div></div>
 </header>
 <div class="layout">
 <aside>
@@ -75,7 +75,7 @@ main{padding-top:27px}
   <a href="asignar-encuestas.html"><i>✓</i>Encuestas</a>
   <a href="resultados.html"><i>▥</i>Reportes</a>
   <span class="nav-disabled" aria-disabled="true"><i>□</i>Recursos · Próximamente</span>
-  <a href="#" aria-disabled="true" onclick="return false"><i>✓</i>Mis tareas</a><a href="notificaciones.html"><i>◌</i>Notificaciones</a><a href="usuarios.html" data-role-allow="coordinador_convivencia"><i>♙</i>Usuarios y roles</a><a href="estudiantes.html"><i>▦</i>Matrícula y accesos</a><span class="nav-disabled" aria-disabled="true"><i>⚙</i>Configuración · Próximamente</span>
+  <a href="notificaciones.html#tareas"><i>✓</i>Mis tareas</a><a href="notificaciones.html"><i>◌</i>Notificaciones</a><a href="usuarios.html" data-role-allow="coordinador_convivencia"><i>♙</i>Usuarios y roles</a><a href="estudiantes.html"><i>▦</i>Matrícula y accesos</a><span class="nav-disabled" aria-disabled="true"><i>⚙</i>Configuración · Próximamente</span>
  </nav>
 </aside>
 <main>
@@ -90,7 +90,7 @@ main{padding-top:27px}
 <div><span class="sige-kicker">MATRÍCULA Y ACCESOS</span><h2>Subir matrícula SIGE y gestionar estudiantes</h2><p>Administra cursos y estudiantes registrados, con carga masiva XLSX/CSV, validación previa y control de altas, actualizaciones y retiros.</p></div>
 <div class="sige-buttons"><a href="estudiantes.html">Gestionar estudiantes →</a><a class="secondary" href="cursos.html">Ver cursos</a></div>
 </section>
-<section class="sige-action" style="border-left-color:#FFD200"><div><span class="sige-kicker">GESTIÓN DEL EQUIPO</span><h2>Usuarios, roles y trazabilidad</h2><p>Administra accesos profesionales y revisa la trazabilidad de acciones institucionales. La asignación de tareas y los avisos por correo se habilitarán en una etapa posterior.</p></div><div class="sige-buttons"><a href="#" aria-disabled="true" onclick="return false">Mis tareas · Próximamente</a><a class="secondary" href="usuarios.html" data-role-allow="coordinador_convivencia">Usuarios y roles</a></div></section>
+<section class="sige-action" style="border-left-color:#FFD200"><div><span class="sige-kicker">GESTIÓN DEL EQUIPO</span><h2>Tareas, notificaciones, usuarios y trazabilidad</h2><p>Asigna tareas con responsable y plazo, recibe avisos internos y administra accesos profesionales. El envío automático por correo se habilitará cuando exista un servicio de email conectado.</p></div><div class="sige-buttons"><a href="notificaciones.html#tareas">Mis tareas →</a><a class="secondary" href="usuarios.html" data-role-allow="coordinador_convivencia">Usuarios y roles</a></div></section>
 <section class="stats"><div class="stat"><small>Estudiantes activos</small><strong id="home-students">—</strong><em>Matrícula activa del establecimiento.</em></div><div class="stat"><small>Aplicaciones en curso</small><strong id="home-progress">—</strong><em>Encuestas iniciadas y aún no completadas.</em></div><div class="stat"><small>Intervenciones PGCE</small><strong id="home-pgce">—</strong><em>Acciones institucionales registradas.</em></div><div class="stat"><small>Cobertura diagnóstica</small><strong id="home-coverage">—</strong><em>Completadas respecto del total asignado.</em></div></section>
 
  <div class="section-title"><h2>Gestión de la convivencia</h2><span>Accesos principales</span></div>
@@ -106,7 +106,7 @@ main{padding-top:27px}
   <a class="module future" href="#"><div class="ico brand-icon"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15"/><path d="M11 24l6-7 5 4 8-11M11 30h19"/></svg><span class="accent-dot"></span></div><div class="future-tag">PRÓXIMAMENTE</div><h3>Indicadores de Desarrollo Personal y Social</h3><p>Integración con diagnóstico, resultados e intervención asociada a IDPS.</p><b>→</b></a>
  </section>
 
- <section class="bottom"><div class="attention"><h2>Atención profesional</h2><div class="alert"><span>Las alertas aparecerán únicamente cuando existan registros reales que requieran revisión.</span><span class="pill">Sin datos</span></div></div><div class="agenda"><h2>Próximas acciones</h2><div class="agenda-row"><b>Sin acciones demostrativas</b><span>Las tareas y plazos se mostrarán desde la gestión real del establecimiento.</span></div></div></section>
+ <section class="bottom"><div class="attention"><h2>Atención profesional</h2><div class="alert"><span>Las alertas aparecerán únicamente cuando existan registros reales que requieran revisión.</span><span class="pill">Sin datos</span></div></div><div class="agenda"><h2>Próximas acciones</h2><div id="home-tasks"><div class="agenda-row"><b>Cargando tareas…</b><span>Consultando asignaciones reales.</span></div></div></div></section>
  <div class="note">ENTORNO DE CONVIVENCIA ESCOLAR · Los datos operativos se muestran únicamente desde registros reales. Sistema independiente de Orientación Vocacional e IDPS.</div>
 <a href="piloto.html" style="display:inline-block;margin:12px 0;padding:12px 18px;border-radius:12px;background:#176B5B;color:#fff;text-decoration:none;font-weight:700">Abrir prueba piloto ficticia</a></main></div>
 <script>
@@ -115,10 +115,12 @@ main{padding-top:27px}
   if(!eid)return;
   const set=(id,value)=>{const x=document.getElementById(id);if(x)x.textContent=value};
   try{
-    const [sr,ar,pr]=await Promise.all([
+    const [sr,ar,pr,tr,nr]=await Promise.all([
       fetch(MECAuth.API+'/api/students?establishment_id='+encodeURIComponent(eid)+'&active=true').then(r=>r.json()),
       fetch(MECAuth.API+'/api/applications?establishment_id='+encodeURIComponent(eid)).then(r=>r.json()),
-      fetch(MECAuth.API+'/api/pgce/dashboard?establishment_id='+encodeURIComponent(eid)).then(r=>r.json())
+      fetch(MECAuth.API+'/api/pgce/dashboard?establishment_id='+encodeURIComponent(eid)).then(r=>r.json()),
+      fetch(MECAuth.API+'/api/tasks?scope=mine').then(r=>r.json()),
+      fetch(MECAuth.API+'/api/notifications?limit=20').then(r=>r.json())
     ]);
     const students=sr.ok?(sr.students||[]):[],apps=ar.ok?(ar.applications||[]):[];
     const inProgress=apps.filter(x=>x.status==='in_progress').length;
@@ -128,6 +130,16 @@ main{padding-top:27px}
     set('home-progress',inProgress);
     set('home-pgce',pr.ok?(pr.summary?.total||0):'—');
     set('home-coverage',apps.length?coverage+'%':'0%');
+
+    const unread=nr.ok?Number(nr.unread||0):0,bell=document.getElementById('home-bell-count');
+    if(bell&&unread>0){bell.textContent=unread>99?'99+':String(unread);bell.style.display='grid'}
+    const taskBox=document.getElementById('home-tasks');
+    if(taskBox){
+      const open=(tr.ok?(tr.tasks||[]):[]).filter(x=>!['completed','cancelled'].includes(x.status)).slice(0,4);
+      taskBox.replaceChildren();
+      if(!open.length){const row=document.createElement('div');row.className='agenda-row';const b=document.createElement('b');b.textContent='Sin tareas pendientes';const s=document.createElement('span');s.textContent='No tienes acciones internas pendientes.';row.append(b,s);taskBox.appendChild(row)}
+      else open.forEach(t=>{const row=document.createElement('div');row.className='agenda-row';const b=document.createElement('b');b.textContent=t.title;const s=document.createElement('span');s.textContent=(t.due_date?'Plazo '+new Date(String(t.due_date).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL'):'Sin fecha límite')+' · '+(t.status==='in_progress'?'En curso':'Pendiente');row.append(b,s);taskBox.appendChild(row)})
+    }
   }catch(e){}
 })();
 </script>

@@ -98,7 +98,7 @@ activateBtn.addEventListener("click",async()=>{
     activateBtn.disabled=false;
   }catch(e){
     activateBtn.disabled=false;
-    activationStatus.textContent=e.message==="measurement_not_configured"?"La medición aún no tiene configuración guardada.":e.message==="measurement_without_applications"?"No existen aplicaciones asignadas para esta medición.":"No fue posible habilitar la medición.";
+    activationStatus.textContent=e.message==="measurement_not_configured"?"La medición aún no tiene configuración guardada.":e.message==="measurement_without_applications"?"No existen aplicaciones asignadas para esta medición.":e.message==="measurement_period_not_open"?"La medición no puede habilitarse porque el período configurado todavía no comienza o ya finalizó. Revisa las fechas.":"No fue posible habilitar la medición.";
   }
 });
 </script></body></html>

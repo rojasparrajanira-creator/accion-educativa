@@ -763,7 +763,109 @@ app.post('/api/notifications/read-all',requireAuth,async(req,res)=>{try{
 }catch(e){res.status(400).json({ok:false,error:'notifications_update_failed'})}});
 
 app.post('/api/courses',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const {establishment_id,name,school_year}=req.body,year=Number(school_year),clean=String(name||'').trim();if(Number(establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishment_id||!clean||!Number.isInteger(year)||year<2020||year>2100)return res.status(400).json({ok:false,error:'required_fields'});const q=await pool.query('insert into courses(establishment_id,name,school_year) values($1,$2,$3) on conflict(establishment_id,name,school_year) do update set name=excluded.name returning *',[establishment_id,clean,year]);ok(res,{course:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
-app.get('/api/courses',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const q=await pool.query('select c.*,e.name establishment from courses c join establishments e on e.id=c.establishment_id where c.establishment_id=$1 order by c.school_year desc,c.name',[establishmentId]);ok(res,{courses:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.get('/api/courses',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const q=await pool.query(`select c.*,e.name establishment,exists(select 1 from course_access_codes cac where cac.course_id=c.id) access_code_configured from courses c join establishments e on e.id=c.establishment_id where c.establishment_id=$1 order by c.school_year desc,c.name`,[establishmentId]);ok(res,{courses:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/courses/:id/access-code',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const code=String((req.body||{}).code||'').trim();
+  if(!/^\d{4}$/.test(code))return res.status(400).json({ok:false,error:'course_code_must_be_4_digits'});
+  const course=await pool.query("select id,establishment_id,name,school_year from courses where id=$1",[req.params.id]);
+  if(!course.rowCount)return res.status(404).json({ok:false,error:'course_not_found'});
+  if(Number(course.rows[0].establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
+  const cred=await makePassword(code);
+  await pool.query(`insert into course_access_codes(course_id,code_hash,code_salt,updated_by,updated_at)
+    values($1,$2,$3,$4,now())
+    on conflict(course_id) do update set code_hash=excluded.code_hash,code_salt=excluded.code_salt,updated_by=excluded.updated_by,updated_at=now()`,
+    [req.params.id,cred.hash,cred.salt,req.auth.id]);
+  await auditProfessional(req,'course_access_code_changed','course',req.params.id,{course:course.rows[0].name,school_year:course.rows[0].school_year});
+  ok(res,{course_id:Number(req.params.id),configured:true});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/students/:id/reset-pin',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+  const student=await pool.query("select id,establishment_id,name from students where id=$1",[req.params.id]);
+  if(!student.rowCount)return res.status(404).json({ok:false,error:'student_not_found'});
+  if(Number(student.rows[0].establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
+  await pool.query(`insert into student_credentials(student_id,pin_hash,pin_salt,failed_login_count,locked_until,updated_at)
+    values($1,null,null,0,null,now())
+    on conflict(student_id) do update set pin_hash=null,pin_salt=null,failed_login_count=0,locked_until=null,updated_at=now()`,[req.params.id]);
+  await auditProfessional(req,'student_pin_reset','student',req.params.id,{student:student.rows[0].name});
+  ok(res,{student_id:Number(req.params.id),pin_reset:true});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/student-access/login',async(req,res)=>{try{
+  const b=req.body||{},establishmentId=Number(b.establishment_id),measurementId=Number(b.measurement_id||0);
+  const rut=normalizeRut(b.rut),secret=String(b.secret||'').trim();
+  if(!establishmentId||!rut||!validRut(rut)||!/^\d{4}$/.test(secret))return res.status(401).json({ok:false,error:'invalid_student_credentials'});
+
+  const sq=await pool.query(`select s.id,s.name,s.rut,s.course_id,s.active,c.name course,c.school_year,c.establishment_id
+    from students s join courses c on c.id=s.course_id
+    where s.establishment_id=$1 and s.rut=$2 and s.active=true limit 1`,[establishmentId,rut]);
+  if(!sq.rowCount)return res.status(401).json({ok:false,error:'invalid_student_credentials'});
+  const student=sq.rows[0];
+
+  let credQ=await pool.query("select student_id,pin_hash,pin_salt,failed_login_count,locked_until from student_credentials where student_id=$1",[student.id]);
+  if(!credQ.rowCount){
+    await pool.query("insert into student_credentials(student_id) values($1) on conflict(student_id) do nothing",[student.id]);
+    credQ=await pool.query("select student_id,pin_hash,pin_salt,failed_login_count,locked_until from student_credentials where student_id=$1",[student.id]);
+  }
+  const cred=credQ.rows[0];
+  if(cred.locked_until&&new Date(cred.locked_until)>new Date())return res.status(429).json({ok:false,error:'student_access_temporarily_locked'});
+
+  let valid=false,firstAccess=!cred.pin_hash;
+  if(firstAccess){
+    const cq=await pool.query("select code_hash,code_salt from course_access_codes where course_id=$1",[student.course_id]);
+    if(!cq.rowCount)return res.status(409).json({ok:false,error:'course_access_code_not_configured'});
+    valid=await verifyPassword(secret,cq.rows[0].code_salt,cq.rows[0].code_hash);
+  }else{
+    valid=await verifyPassword(secret,cred.pin_salt,cred.pin_hash);
+  }
+
+  if(!valid){
+    const fails=Number(cred.failed_login_count||0)+1;
+    if(fails>=5)await pool.query("update student_credentials set failed_login_count=0,locked_until=now()+interval '15 minutes',updated_at=now() where student_id=$1",[student.id]);
+    else await pool.query("update student_credentials set failed_login_count=$1,updated_at=now() where student_id=$2",[fails,student.id]);
+    return res.status(401).json({ok:false,error:'invalid_student_credentials'});
+  }
+  await pool.query("update student_credentials set failed_login_count=0,locked_until=null,updated_at=now() where student_id=$1",[student.id]);
+
+  const values=[student.id,establishmentId];
+  let sql=`select a.id application_id,a.status,a.survey_level,m.id measurement_id,m.code measurement,m.school_year
+    from survey_applications a join measurements m on m.id=a.measurement_id join measurement_settings ms on ms.measurement_id=m.id
+    where a.student_id=$1 and m.establishment_id=$2 and a.status in ('pending','in_progress') and m.status='active'
+      and ((now() at time zone 'America/Santiago')::date) between ms.start_date and ms.end_date`;
+  if(measurementId){values.push(measurementId);sql+=' and m.id=$3'}
+  sql+=" order by m.school_year desc,case m.code when 'M1' then 1 when 'M2' then 2 when 'M3' then 3 else 9 end";
+  const apps=await pool.query(sql,values);
+  if(!apps.rowCount)return res.status(409).json({ok:false,error:'no_active_application'});
+  if(apps.rowCount>1&&!measurementId)return ok(res,{selection_required:true,student:{name:student.name,course:student.course},applications:apps.rows.map(x=>({measurement_id:Number(x.measurement_id),measurement:x.measurement,school_year:x.school_year}))});
+
+  const app=apps.rows[0],token=newStudentAccessToken();
+  await pool.query(`update survey_applications set access_token_hash=$1,access_token_created_at=now(),access_method=$2,access_requires_pin_setup=$3 where id=$4`,
+    [sha256(token),firstAccess?'course_code':'personal_pin',firstAccess,app.application_id]);
+  ok(res,{selection_required:false,student:{name:student.name,course:student.course},application:{id:Number(app.application_id),measurement_id:Number(app.measurement_id),measurement:app.measurement,school_year:app.school_year,status:app.status,survey_level:app.survey_level},access_token:token,requires_pin_setup:firstAccess});
+}catch(e){res.status(400).json({ok:false,error:'student_access_login_failed'})}});
+
+app.post('/api/student-access/set-pin',async(req,res)=>{try{
+  const b=req.body||{},applicationId=Number(b.application_id),access=String(b.access||''),pin=String(b.new_pin||'').trim();
+  if(!applicationId||!/^\d{4}$/.test(pin))return res.status(400).json({ok:false,error:'pin_must_be_4_digits'});
+  const q=await pool.query(`select a.id,a.access_token_hash,a.access_method,a.access_requires_pin_setup,s.id student_id,s.course_id,cac.code_hash,cac.code_salt
+    from survey_applications a join students s on s.id=a.student_id
+    left join course_access_codes cac on cac.course_id=s.course_id
+    where a.id=$1`,[applicationId]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});
+  const row=q.rows[0];
+  if(!studentAccessValid(row.access_token_hash,access))return res.status(403).json({ok:false,error:'invalid_student_access'});
+  if(row.access_method!=='course_code'||row.access_requires_pin_setup!==true)return res.status(409).json({ok:false,error:'pin_setup_not_required'});
+  if(row.code_hash&&await verifyPassword(pin,row.code_salt,row.code_hash))return res.status(400).json({ok:false,error:'pin_must_differ_from_course_code'});
+  const cred=await makePassword(pin);
+  await pool.query(`insert into student_credentials(student_id,pin_hash,pin_salt,failed_login_count,locked_until,updated_at)
+    values($1,$2,$3,0,null,now())
+    on conflict(student_id) do update set pin_hash=excluded.pin_hash,pin_salt=excluded.pin_salt,failed_login_count=0,locked_until=null,updated_at=now()`,
+    [row.student_id,cred.hash,cred.salt]);
+  await pool.query("update survey_applications set access_method='personal_pin',access_requires_pin_setup=false where id=$1",[applicationId]);
+  ok(res,{pin_set:true,application_id:applicationId});
+}catch(e){res.status(400).json({ok:false,error:'pin_setup_failed'})}});
+
+
 
 app.post('/api/students/import/preview',...requireRole('coordinador_convivencia','dupla_psicosocial'),matrículaUpload.array('files',20),async(req,res)=>{try{
   const establishmentId=Number(req.body.establishment_id),schoolYear=Number(req.body.school_year);
@@ -964,7 +1066,7 @@ app.post('/api/applications/access/bulk-course',...requireRole('coordinador_conv
     if(app.status==='in_progress'){skipped_in_progress++;continue}
     if(app.has_access&&!regenerateExisting){existing_access++;continue}
     const token=newStudentAccessToken();
-    await client.query("update survey_applications set access_token_hash=$1,access_token_created_at=now() where id=$2",[sha256(token),app.id]);
+    await client.query("update survey_applications set access_token_hash=$1,access_token_created_at=now(),access_method='secure_link',access_requires_pin_setup=false where id=$2",[sha256(token),app.id]);
     if(app.has_access)regenerated++;else generated++;
     accesses.push({application_id:Number(app.id),student_id:Number(app.student_id),student:app.student,access_token:token,regenerated:!!app.has_access});
   }
@@ -982,11 +1084,11 @@ app.post('/api/applications/:id/access',...requireRole('coordinador_convivencia'
   if(a.status==='completed')return res.status(409).json({ok:false,error:'application_already_completed'});
   if((a.status==='in_progress'||a.has_access)&&!(req.body||{}).confirm_regenerate)return res.status(409).json({ok:false,error:a.status==='in_progress'?'application_in_progress_confirm_required':'access_regeneration_confirm_required'});
   const token=newStudentAccessToken();
-  await pool.query("update survey_applications set access_token_hash=$1,access_token_created_at=now() where id=$2",[sha256(token),req.params.id]);
+  await pool.query("update survey_applications set access_token_hash=$1,access_token_created_at=now(),access_method='secure_link',access_requires_pin_setup=false where id=$2",[sha256(token),req.params.id]);
   ok(res,{application_id:Number(req.params.id),access_token:token,regenerated:a.status==='in_progress'});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
-app.post('/api/applications/:id/start',async(req,res)=>{try{const q=await pool.query(`select a.id,a.status,a.started_at,a.access_token_hash,s.establishment_id student_establishment,s.active student_active,c.establishment_id course_establishment,m.establishment_id measurement_establishment,m.status measurement_status,case when ms.start_date is null or ms.end_date is null then 'unconfigured' when ((now() at time zone 'America/Santiago')::date)<ms.start_date then 'scheduled' when ((now() at time zone 'America/Santiago')::date)>ms.end_date then 'closed' else 'open' end period_state from survey_applications a join students s on s.id=a.student_id left join courses c on c.id=s.course_id join measurements m on m.id=a.measurement_id left join measurement_settings ms on ms.measurement_id=m.id where a.id=$1`,[req.params.id]);if(!q.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});const a=q.rows[0];if(!studentAccessValid(a.access_token_hash,(req.body||{}).access))return res.status(403).json({ok:false,error:'invalid_student_access'});if(Number(a.student_establishment)!==Number(a.measurement_establishment)||!a.course_establishment||Number(a.student_establishment)!==Number(a.course_establishment))return res.status(409).json({ok:false,error:'application_context_mismatch'});if(!a.student_active)return res.status(409).json({ok:false,error:'student_inactive'});if(a.status==='completed')return ok(res,{application:{id:Number(a.id),status:'completed',started_at:a.started_at}});if(a.measurement_status!=='active')return res.status(409).json({ok:false,error:'measurement_not_active'});if(a.period_state==='unconfigured')return res.status(409).json({ok:false,error:'measurement_not_configured'});if(a.period_state==='scheduled')return res.status(409).json({ok:false,error:'application_not_open'});if(a.period_state==='closed')return res.status(409).json({ok:false,error:'application_closed'});const u=await pool.query("update survey_applications set status='in_progress',started_at=coalesce(started_at,now()) where id=$1 returning id,status,started_at,completed_at",[req.params.id]);ok(res,{application:u.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
-app.get('/api/applications/:id/context',async(req,res)=>{try{const q=await pool.query("select a.id,a.status,a.survey_level,a.access_token_hash,s.id student_id,s.name student,s.establishment_id,s.active student_active,c.id course_id,c.name course,m.id measurement_id,m.code measurement,m.school_year,m.status measurement_status,e.name establishment,e.rbd,ms.start_date,ms.end_date,ms.modality,ms.estimated_minutes,ms.initial_message,case when ms.start_date is null or ms.end_date is null then 'unconfigured' when ((now() at time zone 'America/Santiago')::date)<ms.start_date then 'scheduled' when ((now() at time zone 'America/Santiago')::date)>ms.end_date then 'closed' else 'open' end period_state from survey_applications a join students s on s.id=a.student_id left join courses c on c.id=s.course_id join measurements m on m.id=a.measurement_id join establishments e on e.id=s.establishment_id left join measurement_settings ms on ms.measurement_id=m.id where a.id=$1",[req.params.id]);if(!q.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});if(!studentAccessValid(q.rows[0].access_token_hash,req.get('X-Student-Access')))return res.status(403).json({ok:false,error:'invalid_student_access'});delete q.rows[0].access_token_hash;if(Number(q.rows[0].establishment_id)!==Number((await pool.query('select establishment_id from measurements where id=$1',[q.rows[0].measurement_id])).rows[0].establishment_id))return res.status(409).json({ok:false,error:'application_context_mismatch'});ok(res,{application:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.post('/api/applications/:id/start',async(req,res)=>{try{const q=await pool.query(`select a.id,a.status,a.started_at,a.access_token_hash,a.access_requires_pin_setup,s.establishment_id student_establishment,s.active student_active,c.establishment_id course_establishment,m.establishment_id measurement_establishment,m.status measurement_status,case when ms.start_date is null or ms.end_date is null then 'unconfigured' when ((now() at time zone 'America/Santiago')::date)<ms.start_date then 'scheduled' when ((now() at time zone 'America/Santiago')::date)>ms.end_date then 'closed' else 'open' end period_state from survey_applications a join students s on s.id=a.student_id left join courses c on c.id=s.course_id join measurements m on m.id=a.measurement_id left join measurement_settings ms on ms.measurement_id=m.id where a.id=$1`,[req.params.id]);if(!q.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});const a=q.rows[0];if(!studentAccessValid(a.access_token_hash,(req.body||{}).access))return res.status(403).json({ok:false,error:'invalid_student_access'});if(Number(a.student_establishment)!==Number(a.measurement_establishment)||!a.course_establishment||Number(a.student_establishment)!==Number(a.course_establishment))return res.status(409).json({ok:false,error:'application_context_mismatch'});if(!a.student_active)return res.status(409).json({ok:false,error:'student_inactive'});if(a.access_requires_pin_setup)return res.status(409).json({ok:false,error:'student_pin_required'});if(a.status==='completed')return ok(res,{application:{id:Number(a.id),status:'completed',started_at:a.started_at}});if(a.measurement_status!=='active')return res.status(409).json({ok:false,error:'measurement_not_active'});if(a.period_state==='unconfigured')return res.status(409).json({ok:false,error:'measurement_not_configured'});if(a.period_state==='scheduled')return res.status(409).json({ok:false,error:'application_not_open'});if(a.period_state==='closed')return res.status(409).json({ok:false,error:'application_closed'});const u=await pool.query("update survey_applications set status='in_progress',started_at=coalesce(started_at,now()) where id=$1 returning id,status,started_at,completed_at",[req.params.id]);ok(res,{application:u.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
+app.get('/api/applications/:id/context',async(req,res)=>{try{const q=await pool.query("select a.id,a.status,a.survey_level,a.access_token_hash,a.access_method,a.access_requires_pin_setup,s.id student_id,s.name student,s.establishment_id,s.active student_active,c.id course_id,c.name course,m.id measurement_id,m.code measurement,m.school_year,m.status measurement_status,e.name establishment,e.rbd,ms.start_date,ms.end_date,ms.modality,ms.estimated_minutes,ms.initial_message,case when ms.start_date is null or ms.end_date is null then 'unconfigured' when ((now() at time zone 'America/Santiago')::date)<ms.start_date then 'scheduled' when ((now() at time zone 'America/Santiago')::date)>ms.end_date then 'closed' else 'open' end period_state from survey_applications a join students s on s.id=a.student_id left join courses c on c.id=s.course_id join measurements m on m.id=a.measurement_id join establishments e on e.id=s.establishment_id left join measurement_settings ms on ms.measurement_id=m.id where a.id=$1",[req.params.id]);if(!q.rowCount)return res.status(404).json({ok:false,error:'application_not_found'});if(!studentAccessValid(q.rows[0].access_token_hash,req.get('X-Student-Access')))return res.status(403).json({ok:false,error:'invalid_student_access'});delete q.rows[0].access_token_hash;if(Number(q.rows[0].establishment_id)!==Number((await pool.query('select establishment_id from measurements where id=$1',[q.rows[0].measurement_id])).rows[0].establishment_id))return res.status(409).json({ok:false,error:'application_context_mismatch'});ok(res,{application:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/students/:id/applications',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const student=await pool.query("select id from students where id=$1 and establishment_id=$2",[req.params.id,establishmentId]);if(!student.rowCount)return res.status(404).json({ok:false,error:'student_not_found'});const q=await pool.query("select a.id,a.survey_level,a.status,a.started_at,a.completed_at,m.code measurement,m.school_year from survey_applications a join measurements m on m.id=a.measurement_id where a.student_id=$1 and m.establishment_id=$2 order by m.school_year,case m.code when 'M1' then 1 when 'M2' then 2 when 'M3' then 3 else 9 end,m.code",[req.params.id,establishmentId]);ok(res,{applications:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/applications/:id/progress',async(req,res)=>{try{
   const q=await pool.query(`select a.id,a.status,a.access_token_hash,s.active student_active,s.establishment_id student_establishment,c.establishment_id course_establishment,m.establishment_id measurement_establishment,m.status measurement_status,case when ms.start_date is null or ms.end_date is null then 'unconfigured' when ((now() at time zone 'America/Santiago')::date)<ms.start_date then 'scheduled' when ((now() at time zone 'America/Santiago')::date)>ms.end_date then 'closed' else 'open' end period_state from survey_applications a join students s on s.id=a.student_id left join courses c on c.id=s.course_id join measurements m on m.id=a.measurement_id left join measurement_settings ms on ms.measurement_id=m.id where a.id=$1`,[req.params.id]);

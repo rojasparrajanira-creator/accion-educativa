@@ -312,7 +312,22 @@ app.post('/api/users',...requireRole('coordinador_convivencia'),async(req,res)=>
     [establishment_id,String(email).trim().toLowerCase(),rut||null,String(name).trim(),cleanRole,cred.hash,cred.salt]);
   ok(res,{user:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
-app.get('/api/users',...requireRole('coordinador_convivencia'),async(req,res)=>{const q=await pool.query('select u.id,u.establishment_id,e.name establishment,u.email,u.rut,u.name,u.role,u.active,u.created_at from users u join establishments e on e.id=u.establishment_id where u.establishment_id=$1 order by u.name',[req.auth.establishment_id]);ok(res,{users:q.rows})});
+app.get('/api/users',...requireRole('coordinador_convivencia'),async(req,res)=>{const q=await pool.query('select u.id,u.establishment_id,e.name establishment,u.email,u.rut,u.name,u.role,u.active,u.must_change_password,u.last_login_at,u.created_at from users u join establishments e on e.id=u.establishment_id where u.establishment_id=$1 order by u.name',[req.auth.establishment_id]);ok(res,{users:q.rows})});
+app.post('/api/users/:id/status',...requireRole('coordinador_convivencia'),async(req,res)=>{try{
+  const active=(req.body||{}).active;
+  if(typeof active!=='boolean')return res.status(400).json({ok:false,error:'invalid_status_payload'});
+  const target=await pool.query("select id,establishment_id,role,active from users where id=$1 and establishment_id=$2",[req.params.id,req.auth.establishment_id]);
+  if(!target.rowCount)return res.status(404).json({ok:false,error:'user_not_found'});
+  if(Number(target.rows[0].id)===Number(req.auth.id)&&active===false)return res.status(409).json({ok:false,error:'cannot_deactivate_self'});
+  if(active===false&&canonicalRole(target.rows[0].role,req.auth.rbd)==='coordinador_convivencia'){
+    const q=await pool.query("select count(*)::int total from users where establishment_id=$1 and active=true and id<>$2 and role='coordinador_convivencia'",[req.auth.establishment_id,req.params.id]);
+    if(Number(q.rows[0].total)<1)return res.status(409).json({ok:false,error:'last_coordinator'});
+  }
+  const q=await pool.query("update users set active=$1 where id=$2 and establishment_id=$3 returning id,establishment_id,email,rut,name,role,active,must_change_password,last_login_at,created_at",[active,req.params.id,req.auth.establishment_id]);
+  if(active===false)await pool.query("delete from auth_sessions where user_id=$1",[req.params.id]);
+  ok(res,{user:q.rows[0]});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
 app.post('/api/courses',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const {establishment_id,name,school_year}=req.body,year=Number(school_year),clean=String(name||'').trim();if(Number(establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishment_id||!clean||!Number.isInteger(year)||year<2020||year>2100)return res.status(400).json({ok:false,error:'required_fields'});const q=await pool.query('insert into courses(establishment_id,name,school_year) values($1,$2,$3) on conflict(establishment_id,name,school_year) do update set name=excluded.name returning *',[establishment_id,clean,year]);ok(res,{course:q.rows[0]})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 app.get('/api/courses',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{const establishmentId=Number(req.query.establishment_id);if(establishmentId!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});if(!establishmentId)throw new Error('establishment_id_required');const q=await pool.query('select c.*,e.name establishment from courses c join establishments e on e.id=c.establishment_id where c.establishment_id=$1 order by c.school_year desc,c.name',[establishmentId]);ok(res,{courses:q.rows})}catch(e){res.status(400).json({ok:false,error:e.message})}});
 

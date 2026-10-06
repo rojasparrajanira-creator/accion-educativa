@@ -48,7 +48,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padd
 .user .bell-icon{position:relative;width:39px;height:39px;border-radius:50%;display:grid;place-items:center;text-decoration:none;background:#F0F7F3;border:1px solid #D8E6DE;font-size:18px;flex:0 0 auto}.task{grid-template-columns:74px minmax(0,1fr) minmax(110px,max-content)!important}.task>div:nth-child(2){min-width:0}.task>a,.task>button,.task>span{justify-self:end;white-space:nowrap}.badge{display:inline-flex!important;align-items:center;white-space:nowrap;line-height:1.2;min-height:24px;box-sizing:border-box}.case-table{overflow-x:auto}.case-table table{min-width:950px}.case-table th,.case-table td{padding:13px 14px!important}.case-table td:last-child{min-width:120px}@media(max-width:720px){.task{grid-template-columns:60px minmax(0,1fr)!important}.task>a,.task>button,.task>span{grid-column:2;justify-self:start}}.user{gap:10px!important}.user .bell-icon{order:8;margin-left:8px}.user .avatar{order:9}.user>div:not(.avatar){order:7}.nav-pending{display:block;color:#91a7b8;padding:12px 13px;font-size:12px;cursor:not-allowed}</style><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head>
 <body><header><div class="brand"><img class="official-logo" src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span><em>Solución digital institucional</em></div></div><div class="user"><div><b>Equipo de Convivencia</b><br><span>Administrador establecimiento</span></div><a class="bell-icon" href="notificaciones.html" title="Centro de notificaciones" aria-label="Centro de notificaciones">🔔</a><div class="avatar">EC</div></div></header>
 <div class="layout"><aside><div class="year">AÑO ESCOLAR 2026</div><nav class="nav"><a class="" href="inicio.html"><i>⌂</i>Inicio</a><a class="active" href="estudiantes.html"><i>▦</i>Matrícula y accesos</a><a class="" href="asignar-encuestas.html"><i>✓</i>Encuestas</a><a class="" href="diagnostico.html"><i>◎</i>Diagnóstico</a><span class="nav-pending"><i>◉</i>Casos y seguimiento · Próximamente</span><a class="" href="pgce-panel.html"><i>◇</i>Intervenciones</a><span class="nav-pending"><i>▤</i>Protocolos · Próximamente</span><a class="" href="resultados.html"><i>▥</i>Reportes</a></nav></aside><main class="page"><div class="topline"><div><div class="eyebrow">MATRÍCULA Y ACCESOS</div><h1>Estudiantes</h1><p>Administración de matrícula, PIE, datos básicos, altas, retiros y accesos.</p></div><a class="btn soft" href="inicio.html">← Inicio</a></div>
-<div class="tabs"><a class="on" href="estudiantes.html">Estudiantes</a><a href="cursos.html">Cursos</a><a href="solicitar-clave.html">Solicitar clave</a><a href="cambiar-clave.html">Cambiar clave</a></div>
+<div class="tabs"><a class="on" href="estudiantes.html">Estudiantes</a><a href="cursos.html">Cursos y claves</a><a href="acceso-estudiante.html" id="student-login-tab" target="_blank" rel="noopener">Ingreso estudiantes</a><a href="generar-accesos.html">Accesos seguros</a></div>
 <section class="card"><div class="row" style="justify-content:space-between"><div class="row"><input id="buscar-estudiante" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Buscar por nombre o RUN"><select id="filtro-curso" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los cursos</option></select><select id="filtro-estado" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los estados</option><option value="active">Activos</option><option value="inactive">Retirados</option></select></div><button class="btn primary" id="show-add-student" type="button">+ Agregar estudiante</button></div><div style="overflow:auto;margin-top:16px"><table><tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th><th>Acción</th></tr><tr><td colspan="5">Cargando estudiantes registrados…</td></tr></table></div></section>
 <section class="card" style="margin-top:16px">
 <h3>Carga masiva desde SIGE / Excel</h3>
@@ -133,12 +133,15 @@ function buildRow(s){
   td.appendChild(badge);tr.appendChild(td);
 
   const action=document.createElement('td');
+  const wrap=document.createElement('div');wrap.className='row';wrap.style.gap='6px';
   const btn=document.createElement('button');
-  btn.type='button';
-  btn.className='btn soft';
-  btn.textContent=s.active?'Retirar':'Reactivar';
-  btn.addEventListener('click',()=>changeStudentStatus(s));
-  action.appendChild(btn);
+  btn.type='button';btn.className='btn soft';btn.textContent=s.active?'Retirar':'Reactivar';
+  btn.addEventListener('click',()=>changeStudentStatus(s));wrap.appendChild(btn);
+  if(s.rut){
+    const reset=document.createElement('button');reset.type='button';reset.className='btn soft';reset.textContent='Restablecer PIN';
+    reset.addEventListener('click',()=>resetStudentPin(s));wrap.appendChild(reset);
+  }
+  action.appendChild(wrap);
   tr.appendChild(action);
   return tr;
 }
@@ -238,6 +241,14 @@ function renderBulkPreview(data){
   document.getElementById('bulk-commit').disabled=!bulkRows.length;
   bulkReview.style.display='block';
 }
+async function resetStudentPin(s){
+  if(!confirm('¿Restablecer el PIN personal de '+s.name+'? En su próximo ingreso deberá usar nuevamente la clave inicial del curso y crear un PIN nuevo.'))return;
+  try{
+    const r=await fetch(API+'/api/students/'+encodeURIComponent(s.id)+'/reset-pin',{method:'POST'}),d=await r.json();
+    if(!r.ok||!d.ok)throw new Error(d.error||'reset_failed');
+    formStatus.textContent='PIN restablecido. En el próximo ingreso deberá crear uno nuevo.';
+  }catch(e){formStatus.textContent='No fue posible restablecer el PIN.'}
+}
 async function changeStudentStatus(s){
   const next=!s.active;
   if(!next&&!confirm('¿Confirmas el retiro de '+s.name+'? Su historial de encuestas e informes se conservará.'))return;
@@ -321,6 +332,7 @@ document.getElementById('bulk-commit').addEventListener('click',async()=>{
     btn.disabled=false;
   }
 });
+const studentLoginTab=document.getElementById('student-login-tab');if(studentLoginTab)studentLoginTab.href='acceso-estudiante.html?establishment_id='+encodeURIComponent(eid);
 preserveContext();
 loadData();
 </script></body></html>

@@ -1327,7 +1327,8 @@ app.post('/api/store/admin/product-image',requireAuth,storeImageUpload.single('i
   if(!req.file)return res.status(400).json({ok:false,error:'jpg_png_required'});
   const ext=req.file.mimetype==='image/png'?'png':'jpg';
   const name=crypto.randomBytes(18).toString('hex')+'.'+ext;
-  const dir=path.join(__dirname,'store-images');
+  const dir=String(process.env.MEC_STORE_IMAGE_DIR||'').trim();
+  if(!dir)return res.status(503).json({ok:false,error:'store_image_storage_not_configured'});
   fs.mkdirSync(dir,{recursive:true});
   fs.writeFileSync(path.join(dir,name),req.file.buffer,{flag:'wx'});
   ok(res,{image_url:'/api/store/images/'+name});
@@ -1335,7 +1336,9 @@ app.post('/api/store/admin/product-image',requireAuth,storeImageUpload.single('i
 app.get('/api/store/images/:name',async(req,res)=>{
   const name=String(req.params.name||'');
   if(!/^[a-f0-9]{36}\.(jpg|png)$/.test(name))return res.sendStatus(404);
-  const file=path.join(__dirname,'store-images',name);
+  const dir=String(process.env.MEC_STORE_IMAGE_DIR||'').trim();
+  if(!dir)return res.sendStatus(404);
+  const file=path.join(dir,name);
   if(!fs.existsSync(file))return res.sendStatus(404);
   res.setHeader('Cache-Control','public, max-age=31536000, immutable');
   res.type(name.endsWith('.png')?'png':'jpg').sendFile(file);

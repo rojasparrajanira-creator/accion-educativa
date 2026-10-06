@@ -562,7 +562,7 @@ app.post('/api/cases',...requireRole('coordinador_convivencia','dupla_psicosocia
   if(protocolId){const p=await pool.query("select id,name,default_days,active from case_protocols where id=$1 and establishment_id=$2",[protocolId,req.auth.establishment_id]);if(!p.rowCount)return res.status(404).json({ok:false,error:'protocol_not_found'});if(!p.rows[0].active)return res.status(409).json({ok:false,error:'protocol_inactive'});protocol=p.rows[0]}
   if(studentId){const s=await pool.query("select id,name,course_id from students where id=$1 and establishment_id=$2",[studentId,req.auth.establishment_id]);if(!s.rowCount)return res.status(404).json({ok:false,error:'student_not_found'});student=s.rows[0];courseId=student.course_id}
   let finalDue=dueDate;
-  if(!finalDue&&protocol?.default_days){const d=new Date();d.setDate(d.getDate()+Number(protocol.default_days));finalDue=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')}
+  if(!finalDue&&protocol?.default_days){const dq=await pool.query("select (((now() at time zone 'America/Santiago')::date + $1::int))::text due",[Number(protocol.default_days)]);finalDue=dq.rows[0].due}
   const q=await pool.query(`insert into case_records(establishment_id,protocol_id,student_id,course_id,title,summary,priority,due_date,created_by)
     values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
     [req.auth.establishment_id,protocolId,studentId,courseId,title,summary||null,priority,finalDue,req.auth.id]);
@@ -609,15 +609,33 @@ app.post('/api/cases/:id/actions',...requireRole('coordinador_convivencia','dupl
   res.status(201).json({ok:true,action:{...q.rows[0],responsible:responsible?.name||null},task});
 }catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
 
-app.post('/api/cases/:id/status',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+app.post('/api/cases/:id/status',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
   const status=String((req.body||{}).status||'');
   if(!['open','in_progress','closed'].includes(status))return res.status(400).json({ok:false,error:'invalid_case_status'});
-  const q=await pool.query(`update case_records set status=$1,closed_at=case when $1='closed' then now() else null end,updated_at=now()
+  await client.query('begin');
+  const q=await client.query(`update case_records set status=$1,closed_at=case when $1='closed' then now() else null end,updated_at=now()
     where id=$2 and establishment_id=$3 returning *`,[status,req.params.id,req.auth.establishment_id]);
-  if(!q.rowCount)return res.status(404).json({ok:false,error:'case_not_found'});
-  await auditProfessional(req,'case_status_changed','case',req.params.id,{status});
-  ok(res,{case:q.rows[0]});
-}catch(e){res.status(400).json({ok:false,error:e.message})}});
+  if(!q.rowCount){await client.query('rollback');return res.status(404).json({ok:false,error:'case_not_found'})}
+
+  let cancelledTasks=[];
+  if(status==='closed'){
+    const tq=await client.query(`update professional_tasks t set status='cancelled',updated_at=now()
+      where t.establishment_id=$1 and t.related_type='case_action' and t.status not in ('completed','cancelled')
+      and t.related_id in (select a.id::text from case_actions a where a.case_id=$2)
+      returning t.id,t.assigned_to,t.title`,[req.auth.establishment_id,req.params.id]);
+    cancelledTasks=tq.rows;
+    for(const task of cancelledTasks){
+      await client.query(`insert into professional_notifications(establishment_id,user_id,kind,title,message,link)
+        values($1,$2,'case_closed',$3,$4,'notificaciones.html#tareas')`,
+        [req.auth.establishment_id,task.assigned_to,'Tarea cancelada por cierre de caso: '+task.title,'El caso asociado fue cerrado por el equipo de Convivencia.']);
+    }
+  }
+
+  await client.query('commit');
+  await auditProfessional(req,'case_status_changed','case',req.params.id,{status,cancelled_tasks:cancelledTasks.length});
+  for(const task of cancelledTasks)await auditProfessional(req,'professional_task_status_changed','task',task.id,{status:'cancelled',source:'case_closed'});
+  ok(res,{case:q.rows[0],cancelled_tasks:cancelledTasks});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
 
 app.get('/api/team',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
   const q=await pool.query("select id,name,role,active from users where establishment_id=$1 and active=true order by name",[req.auth.establishment_id]);

@@ -144,3 +144,49 @@ CREATE INDEX IF NOT EXISTS idx_professional_notifications_user ON professional_n
 
 ALTER TABLE pgce_interventions ADD COLUMN IF NOT EXISTS responsible_user_id BIGINT REFERENCES users(id);
 CREATE INDEX IF NOT EXISTS idx_pgce_interventions_responsible_user ON pgce_interventions(responsible_user_id);
+
+CREATE TABLE IF NOT EXISTS case_protocols(
+ id BIGSERIAL PRIMARY KEY,
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id),
+ name TEXT NOT NULL,
+ description TEXT,
+ default_days INT CHECK(default_days IS NULL OR default_days BETWEEN 1 AND 365),
+ active BOOLEAN NOT NULL DEFAULT true,
+ created_by BIGINT REFERENCES users(id),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ UNIQUE(establishment_id,name)
+);
+CREATE INDEX IF NOT EXISTS idx_case_protocols_establishment ON case_protocols(establishment_id,active);
+
+CREATE TABLE IF NOT EXISTS case_records(
+ id BIGSERIAL PRIMARY KEY,
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id),
+ protocol_id BIGINT REFERENCES case_protocols(id),
+ student_id BIGINT REFERENCES students(id),
+ course_id BIGINT REFERENCES courses(id),
+ title TEXT NOT NULL,
+ summary TEXT,
+ priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('low','medium','high')),
+ status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','closed')),
+ opened_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ due_date DATE,
+ closed_at TIMESTAMPTZ,
+ created_by BIGINT NOT NULL REFERENCES users(id),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_case_records_establishment ON case_records(establishment_id,status,due_date);
+CREATE INDEX IF NOT EXISTS idx_case_records_student ON case_records(student_id);
+
+CREATE TABLE IF NOT EXISTS case_actions(
+ id BIGSERIAL PRIMARY KEY,
+ case_id BIGINT NOT NULL REFERENCES case_records(id) ON DELETE CASCADE,
+ action_type TEXT NOT NULL,
+ note TEXT NOT NULL,
+ action_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+ responsible_user_id BIGINT REFERENCES users(id),
+ due_date DATE,
+ created_by BIGINT NOT NULL REFERENCES users(id),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_case_actions_case ON case_actions(case_id,action_date);

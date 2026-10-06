@@ -66,9 +66,19 @@ window.MECInstitution={
       box.appendChild(note);
 
       const entries=Object.entries(d.dimension_summary||{});
+      if(d.suppressed){
+        const privacy=document.createElement('div');
+        privacy.className='call yellow';
+        const pb=document.createElement('b');
+        pb.textContent='Resultados agregados protegidos por privacidad';
+        const pp=document.createElement('p');
+        pp.textContent='La medición cuenta con '+d.completed_students+' estudiante(s) completado(s). Los promedios institucionales se habilitan desde '+d.minimum_group_size+' estudiantes para reducir el riesgo de identificación indirecta.';
+        privacy.append(pb,pp);
+        box.appendChild(privacy);
+      }
       if(!entries.length){
         const empty=document.createElement('p');
-        empty.textContent='No existen resultados dimensionales suficientes para esta medición.';
+        empty.textContent=d.suppressed?'Los resultados dimensionales agregados están suprimidos por tamaño de grupo.':'No existen resultados dimensionales suficientes para esta medición.';
         box.appendChild(empty);
         return;
       }

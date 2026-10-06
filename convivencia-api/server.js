@@ -473,7 +473,7 @@ app.post('/api/users',...requireRole('coordinador_convivencia'),async(req,res)=>
   const {establishment_id,email,rut,name,role}=req.body;
   const temporaryPassword=String((req.body||{}).temporary_password||'');
   if(Number(establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
-  const allowedRoles=['coordinador_convivencia','dupla_psicosocial'];
+  const allowedRoles=['coordinador_convivencia','dupla_psicosocial','profesor','asistente_educacion','prevencionista','nutricionista'];
   const cleanRole=canonicalRole(role||'',req.auth.rbd);
   if(!establishment_id||!email||!name||!allowedRoles.includes(cleanRole)||temporaryPassword.length<10||!/[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(temporaryPassword)||!/[0-9]/.test(temporaryPassword))return res.status(400).json({ok:false,error:'required_fields'});
   const cred=await makePassword(temporaryPassword);

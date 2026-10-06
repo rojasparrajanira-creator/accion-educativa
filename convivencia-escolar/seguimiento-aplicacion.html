@@ -42,7 +42,7 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&g
         const completed=x.status==="completed";
         const inProgress=x.status==="in_progress";
         const statusClass=completed?"":(inProgress?"active":"pending");
-        const statusLabel=completed?"Completada":(inProgress?"En curso":"Pendiente");
+        const reviewLabel=x.review_status==="reviewed"?"Revisada":x.review_status==="context_required"?"Requiere contexto":"Revisión pendiente";const statusLabel=completed?"Completada · "+reviewLabel:(inProgress?"En curso":"Pendiente");
         const time=inProgress&&x.started_at?" · iniciada "+new Date(x.started_at).toLocaleString("es-CL"):"";
         const action=completed
           ? "<a class='btn secondary' href='resultados.html?establishment_id="+encodeURIComponent(eid)+"&application_id="+encodeURIComponent(x.id)+"'>Ver resultados</a>"

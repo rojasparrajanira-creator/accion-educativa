@@ -186,11 +186,13 @@ async function runPilotSelfTest(base){
   if(withdrawn.student?.active!==false)throw new Error('withdraw_failed');
   const reactivated=await prof('/api/students/'+st.id+'/status',{method:'POST',body:{establishment_id:eid,active:true}});
   if(reactivated.student?.active!==true)throw new Error('reactivate_failed');
-  log.push('trajectory_status');
+  const resetPin=await prof('/api/students/'+st.id+'/reset-pin',{method:'POST'});
+  if(resetPin.pin_reset!==true)throw new Error('student_pin_reset_failed');
+  log.push('trajectory_status_pin_reset');
 
   const audit=await prof('/api/audit?establishment_id='+eid+'&limit=100');
   const actions=new Set((audit.events||[]).map(x=>x.action));
-  const required=['measurement_configured','survey_course_assigned','survey_course_access_issued','measurement_activated','application_professional_review','pgce_intervention_created','pgce_followup_recorded','professional_task_created','professional_task_status_changed','case_protocol_saved','case_opened','case_action_added','case_status_changed','institutional_resource_created','institutional_resource_deactivated'];
+  const required=['measurement_configured','survey_course_assigned','survey_course_access_issued','measurement_activated','application_professional_review','pgce_intervention_created','pgce_followup_recorded','professional_task_created','professional_task_status_changed','case_protocol_saved','case_opened','case_action_added','case_status_changed','institutional_resource_created','institutional_resource_deactivated','course_access_code_changed','student_pin_reset'];
   for(const x of required)if(!actions.has(x))throw new Error('audit_missing:'+x);
   log.push('audit');
 

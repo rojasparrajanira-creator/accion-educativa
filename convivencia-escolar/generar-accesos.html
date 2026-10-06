@@ -10,81 +10,114 @@ const q=new URLSearchParams(location.search);
 const eid=Number(q.get("establishment_id")||0);
 const mid=Number(q.get("measurement_id")||0);
 const root=document.getElementById("real-access");
+let applications=[],bulkIssued=[];
 const esc=s=>String(s??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]));
-const issued=new Map();
 
 function secureUrl(id,token){
   return new URL("encuesta-bienvenida.html?application_id="+encodeURIComponent(id)+"&access="+encodeURIComponent(token),location.href).href;
 }
 async function copyText(text,button){
-  try{await navigator.clipboard.writeText(text);button.textContent="Acceso copiado ✓"}catch(e){button.textContent="No se pudo copiar"}
+  try{await navigator.clipboard.writeText(text);if(button)button.textContent="Copiado ✓"}catch(e){if(button)button.textContent="No se pudo copiar"}
 }
-async function issueAccess(id,status,button){
-  button.disabled=true;
-  button.textContent=status==="in_progress"?"Renovando…":"Generando…";
-  let confirmRegenerate=false;
-  try{
-    let r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/access",{
-      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirm_regenerate:false})
-    });
-    let d=await r.json();
-    if(r.status===409&&d.error==="application_in_progress_confirm_required"){
-      const ok=confirm("Esta aplicación ya está en curso. Renovar el enlace invalidará el acceso anterior. ¿Deseas continuar?");
-      if(!ok){button.disabled=false;button.textContent="Renovar acceso";return}
-      confirmRegenerate=true;
-      r=await fetch(API+"/api/applications/"+encodeURIComponent(id)+"/access",{
-        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({confirm_regenerate:true})
-      });
-      d=await r.json();
-    }
-    if(!r.ok||!d.ok||!d.access_token)throw new Error(d.error||"access_failed");
-    const url=secureUrl(id,d.access_token);
-    issued.set(Number(id),url);
-    button.disabled=false;
-    button.textContent="Copiar acceso seguro";
-    button.onclick=()=>copyText(url,button);
-    const open=button.parentElement.querySelector("[data-open]");
-    if(open){open.href=url;open.style.display="inline-flex"}
-    await copyText(url,button);
-  }catch(e){
-    button.disabled=false;
-    button.textContent=status==="in_progress"?"Renovar acceso":"Generar acceso";
-  }
+function csvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'}
+function downloadCsv(){
+  if(!bulkIssued.length)return;
+  const rows=[['Estudiante','Curso','Medición','Enlace seguro'],...bulkIssued.map(x=>[x.student,x.course,x.measurement,x.url])];
+  const csv='\uFEFF'+rows.map(r=>r.map(csvCell).join(';')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='accesos-seguros-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
 }
-async function load(){
-  if(!eid){
-    root.innerHTML='<p class="hint">Falta seleccionar el establecimiento. Regresa a Asignar encuestas e ingresa desde su contexto institucional.</p>';
-    return;
-  }
+function courseOptions(){
+  const map=new Map();
+  for(const x of applications)if(x.course_id&&!map.has(Number(x.course_id)))map.set(Number(x.course_id),x.course||('Curso '+x.course_id));
+  return [...map.entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),'es')).map(([id,name])=>'<option value="'+id+'">'+esc(name)+'</option>').join('');
+}
+function renderBulkResult(d){
+  const course=d.course?.name||'Curso',measurement=d.measurement?.code||'Medición';
+  bulkIssued=(d.accesses||[]).map(x=>({...x,course,measurement,url:secureUrl(x.application_id,x.access_token)}));
+  const box=document.getElementById('bulk-result');
+  if(!box)return;
+  const summary='<div class="callout"><h3>Resultado de generación masiva</h3><p>'+d.generated+' nuevo(s) · '+d.regenerated+' regenerado(s) · '+d.existing_access+' ya emitido(s) sin cambios · '+d.skipped_in_progress+' en curso preservado(s) · '+d.skipped_completed+' completado(s).</p></div>';
+  const rows=bulkIssued.length?'<div style="margin-top:12px">'+bulkIssued.map(x=>'<div class="access-card"><div><strong>'+esc(x.student)+'</strong><div class="hint">'+esc(course)+' · '+esc(measurement)+(x.regenerated?' · acceso regenerado':' · acceso nuevo')+'</div></div><div class="btns"><a class="btn primary" target="_blank" rel="noopener noreferrer" href="'+esc(x.url)+'">Abrir</a><button class="btn secondary" type="button" data-copy-url="'+esc(x.url)+'">Copiar</button></div></div>').join('')+'</div>':'<p class="hint" style="margin-top:12px">No se generaron enlaces nuevos en esta operación.</p>';
+  box.innerHTML=summary+rows+(bulkIssued.length?'<p style="margin-top:12px"><button id="download-csv" class="btn secondary" type="button">Descargar CSV de accesos</button></p>':'');
+  box.querySelectorAll('[data-copy-url]').forEach(b=>b.onclick=()=>copyText(b.dataset.copyUrl,b));
+  document.getElementById('download-csv')?.addEventListener('click',downloadCsv);
+}
+async function bulkIssue(regenerateExisting){
+  const courseId=Number(document.getElementById('bulk-course')?.value||0);
+  const msg=document.getElementById('bulk-msg');
+  if(!mid){msg.textContent='Selecciona una medición antes de generar accesos por curso.';return}
+  if(!courseId){msg.textContent='Selecciona un curso.';return}
+  if(regenerateExisting&&!confirm('Regenerar los accesos pendientes ya emitidos invalidará sus enlaces anteriores. ¿Deseas continuar?'))return;
+  msg.textContent=regenerateExisting?'Regenerando accesos pendientes…':'Generando accesos faltantes…';
   try{
-    const r=await fetch(API+"/api/applications?establishment_id="+encodeURIComponent(eid)+(mid?"&measurement_id="+encodeURIComponent(mid):""));
+    const r=await fetch(API+'/api/applications/access/bulk-course',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({course_id:courseId,measurement_id:mid,regenerate_existing:regenerateExisting})});
     const d=await r.json();
-    if(!r.ok||!d.ok)throw new Error("load_failed");
-    const a=d.applications||[];
-    if(!a.length){root.innerHTML='<p class="hint">Aún no existen aplicaciones para esta medición.</p>';return}
-    root.innerHTML=a.map(x=>{
-      const done=x.status==="completed",active=x.status==="in_progress";
-      const statusClass=done?"":(active?"active":"pending");
-      const statusLabel=done?"Completada":(active?"En curso":"Pendiente");
-      const action=done
-        ? '<a class="btn secondary" href="resultados.html?establishment_id='+encodeURIComponent(eid)+'&application_id='+encodeURIComponent(x.id)+'">Ver resultados</a>'
-        : '<a class="btn primary" data-open style="display:none" target="_blank" rel="noopener">Abrir acceso</a>'+
-          '<button class="btn secondary" type="button" data-issue="'+encodeURIComponent(x.id)+'" data-status="'+esc(x.status)+'">'+(active?"Renovar acceso":"Generar acceso seguro")+'</button>';
-      return '<div class="access-card"><div><strong>'+esc(x.student)+'</strong><div class="hint">'+esc(x.course||"Sin curso")+' · '+esc(x.measurement)+' · '+esc(x.school_year)+' · '+esc(x.survey_level)+'</div><span class="status '+statusClass+'">'+statusLabel+'</span></div><div class="btns">'+action+'</div></div>';
-    }).join("");
-    root.querySelectorAll("button[data-issue]").forEach(b=>{
-      b.onclick=()=>issueAccess(Number(b.dataset.issue),b.dataset.status,b);
-    });
+    if(!r.ok||!d.ok)throw new Error(d.error||'bulk_access_failed');
+    renderBulkResult(d);
+    msg.textContent='Operación completada. Guarda el CSV o copia los enlaces antes de salir de esta pantalla.';
+    await loadApplications(false);
   }catch(e){
-    root.innerHTML='<p class="hint">No fue posible cargar las aplicaciones reales.</p>';
+    msg.textContent=e.message==='course_without_applications'?'Este curso aún no tiene aplicaciones asignadas.':'No fue posible generar los accesos del curso.';
   }
 }
-
-const backLink=document.querySelector("a[href='configurar-aplicacion.html']");
-const confirmLink=document.querySelector("a[href='confirmar-aplicacion.html']");
-if(eid){
-  if(backLink)backLink.href="configurar-aplicacion.html?establishment_id="+encodeURIComponent(eid)+(mid?"&measurement_id="+encodeURIComponent(mid):"");
-  if(confirmLink)confirmLink.href="confirmar-aplicacion.html?establishment_id="+encodeURIComponent(eid)+(mid?"&measurement_id="+encodeURIComponent(mid):"");
+async function issueAccess(id,status,hasAccess,button){
+  let confirmRegenerate=false;
+  if(status==='in_progress'||hasAccess){
+    const warning=status==='in_progress'
+      ?'Esta aplicación ya está en curso. Renovar el enlace invalidará el acceso anterior. ¿Deseas continuar?'
+      :'Ya existe un acceso emitido para esta aplicación. Regenerarlo invalidará el enlace anterior. ¿Deseas continuar?';
+    if(!confirm(warning))return;
+    confirmRegenerate=true;
+  }
+  button.disabled=true;button.textContent=confirmRegenerate?'Regenerando…':'Generando…';
+  try{
+    const r=await fetch(API+'/api/applications/'+encodeURIComponent(id)+'/access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm_regenerate:confirmRegenerate})});
+    const d=await r.json();
+    if(!r.ok||!d.ok||!d.access_token)throw new Error(d.error||'access_failed');
+    const url=secureUrl(id,d.access_token);
+    button.disabled=false;button.textContent='Copiar acceso seguro';button.onclick=()=>copyText(url,button);
+    const open=button.parentElement.querySelector('[data-open]');if(open){open.href=url;open.style.display='inline-flex'}
+    await copyText(url,button);
+  }catch(e){button.disabled=false;button.textContent=hasAccess||status==='in_progress'?'Regenerar acceso':'Generar acceso seguro'}
 }
-load();
+function renderApplications(){
+  const list=document.getElementById('access-list');
+  if(!list)return;
+  if(!applications.length){list.innerHTML='<p class="hint">Aún no existen aplicaciones para esta medición.</p>';return}
+  list.innerHTML=applications.map(x=>{
+    const done=x.status==='completed',active=x.status==='in_progress',has=!!x.has_access;
+    const statusClass=done?'':(active?'active':'pending');
+    const statusLabel=done?'Completada':active?'En curso':has?'Pendiente · acceso emitido':'Pendiente · sin acceso';
+    const action=done
+      ? '<a class="btn secondary" href="resultados.html?establishment_id='+encodeURIComponent(eid)+'&application_id='+encodeURIComponent(x.id)+'">Ver resultados</a>'
+      : '<a class="btn primary" data-open style="display:none" target="_blank" rel="noopener noreferrer">Abrir acceso</a><button class="btn secondary" type="button" data-issue="'+Number(x.id)+'" data-status="'+esc(x.status)+'" data-has="'+(has?'1':'0')+'">'+(has||active?'Regenerar acceso':'Generar acceso seguro')+'</button>';
+    return '<div class="access-card"><div><strong>'+esc(x.student)+'</strong><div class="hint">'+esc(x.course||'Sin curso')+' · '+esc(x.measurement)+' · '+esc(x.school_year)+' · '+esc(x.survey_level)+'</div><span class="status '+statusClass+'">'+statusLabel+'</span></div><div class="btns">'+action+'</div></div>';
+  }).join('');
+  list.querySelectorAll('[data-issue]').forEach(b=>{b.onclick=()=>issueAccess(Number(b.dataset.issue),b.dataset.status,b.dataset.has==='1',b)});
+}
+async function loadApplications(rebuild=true){
+  if(!eid){root.innerHTML='<p class="hint">Falta seleccionar el establecimiento. Regresa a Asignar encuestas e ingresa desde su contexto institucional.</p>';return}
+  try{
+    const r=await fetch(API+'/api/applications?establishment_id='+encodeURIComponent(eid)+(mid?'&measurement_id='+encodeURIComponent(mid):'')),d=await r.json();
+    if(!r.ok||!d.ok)throw new Error('load_failed');
+    applications=d.applications||[];
+    if(rebuild){
+      root.innerHTML=
+        '<div class="callout"><h3>Generación masiva por curso</h3><p>Genera de una vez los accesos pendientes de un curso. Los tokens solo se muestran en esta operación y la base conserva únicamente su hash.</p>'+
+        '<div class="fields" style="margin-top:12px"><div class="field"><label>Curso</label><select id="bulk-course">'+courseOptions()+'</select></div><div class="field"><label>Medición</label><input value="'+(mid?esc(applications[0]?.measurement||'Medición seleccionada'):'Seleccione una medición desde el flujo')+'" disabled></div></div>'+
+        '<div class="btns" style="justify-content:flex-start;gap:8px"><button id="bulk-missing" class="btn primary" type="button">Generar accesos faltantes</button><button id="bulk-regenerate" class="btn secondary" type="button">Regenerar pendientes ya emitidos</button></div><p id="bulk-msg" class="hint"></p></div>'+
+        '<div id="bulk-result"></div><h3 style="margin-top:22px">Aplicaciones individuales</h3><div id="access-list"></div>';
+      document.getElementById('bulk-missing').onclick=()=>bulkIssue(false);
+      document.getElementById('bulk-regenerate').onclick=()=>bulkIssue(true);
+    }
+    renderApplications();
+  }catch(e){root.innerHTML='<p class="hint">No fue posible cargar las aplicaciones reales.</p>'}
+}
+const backLink=document.querySelector("a[href='configurar-aplicacion.html']"),confirmLink=document.querySelector("a[href='confirmar-aplicacion.html']");
+if(eid){
+  if(backLink)backLink.href='configurar-aplicacion.html?establishment_id='+encodeURIComponent(eid)+(mid?'&measurement_id='+encodeURIComponent(mid):'');
+  if(confirmLink)confirmLink.href='confirmar-aplicacion.html?establishment_id='+encodeURIComponent(eid)+(mid?'&measurement_id='+encodeURIComponent(mid):'');
+}
+loadApplications(true);
 </script></body></html>

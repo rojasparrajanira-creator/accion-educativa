@@ -619,23 +619,41 @@ app.get('/api/cases',...requireRole('coordinador_convivencia','dupla_psicosocial
   ok(res,{cases:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'cases_load_failed'})}});
 
-app.post('/api/cases',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
+app.post('/api/cases',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
   const b=req.body||{},title=String(b.title||'').trim(),summary=String(b.summary||'').trim(),priority=String(b.priority||'medium');
   const protocolId=Number(b.protocol_id)||null,studentId=Number(b.student_id)||null,dueDate=b.due_date?String(b.due_date):null;
   if(!title||title.length>220||summary.length>5000||!['low','medium','high'].includes(priority))return res.status(400).json({ok:false,error:'invalid_case_payload'});
   if(dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))return res.status(400).json({ok:false,error:'invalid_due_date'});
   let protocol=null,student=null,courseId=null;
-  if(protocolId){const p=await pool.query("select id,name,default_days,active from case_protocols where id=$1 and establishment_id=$2",[protocolId,req.auth.establishment_id]);if(!p.rowCount)return res.status(404).json({ok:false,error:'protocol_not_found'});if(!p.rows[0].active)return res.status(409).json({ok:false,error:'protocol_inactive'});protocol=p.rows[0]}
-  if(studentId){const s=await pool.query("select id,name,course_id from students where id=$1 and establishment_id=$2",[studentId,req.auth.establishment_id]);if(!s.rowCount)return res.status(404).json({ok:false,error:'student_not_found'});student=s.rows[0];courseId=student.course_id}
+  if(protocolId){
+    const p=await client.query("select id,name,default_days,active from case_protocols where id=$1 and establishment_id=$2",[protocolId,req.auth.establishment_id]);
+    if(!p.rowCount)return res.status(404).json({ok:false,error:'protocol_not_found'});
+    if(!p.rows[0].active)return res.status(409).json({ok:false,error:'protocol_inactive'});
+    protocol=p.rows[0];
+  }
+  if(studentId){
+    const s=await client.query("select id,name,course_id from students where id=$1 and establishment_id=$2",[studentId,req.auth.establishment_id]);
+    if(!s.rowCount)return res.status(404).json({ok:false,error:'student_not_found'});
+    student=s.rows[0];courseId=student.course_id;
+  }
   let finalDue=dueDate;
-  if(!finalDue&&protocol?.default_days){const dq=await pool.query("select (((now() at time zone 'America/Santiago')::date + $1::int))::text due",[Number(protocol.default_days)]);finalDue=dq.rows[0].due}
-  const q=await pool.query(`insert into case_records(establishment_id,protocol_id,student_id,course_id,title,summary,priority,due_date,created_by)
-    values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
-    [req.auth.establishment_id,protocolId,studentId,courseId,title,summary||null,priority,finalDue,req.auth.id]);
-  await auditProfessional(req,'case_opened','case',q.rows[0].id,{protocol_id:protocolId,student_id:studentId,priority,due_date:finalDue});
-  res.status(201).json({ok:true,case:q.rows[0]});
-}catch(e){res.status(400).json({ok:false,error:e.message})}});
-
+  if(!finalDue&&protocol?.default_days){const dq=await client.query("select (((now() at time zone 'America/Santiago')::date + $1::int))::text due",[Number(protocol.default_days)]);finalDue=dq.rows[0].due}
+  await client.query('begin');
+  const q=await client.query("insert into case_records(establishment_id,protocol_id,student_id,course_id,title,summary,priority,due_date,created_by) values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *",[req.auth.establishment_id,protocolId,studentId,courseId,title,summary||null,priority,finalDue,req.auth.id]);
+  let stepsCreated=0;
+  if(protocolId){
+    const templates=await client.query("select id,step_order,title,description,due_offset_days,required from case_protocol_steps where protocol_id=$1 order by step_order",[protocolId]);
+    for(const step of templates.rows){
+      let stepDue=null;
+      if(step.due_offset_days!==null){const dq=await client.query("select (((now() at time zone 'America/Santiago')::date + $1::int))::text due",[Number(step.due_offset_days)]);stepDue=dq.rows[0].due}
+      await client.query("insert into case_required_steps(case_id,protocol_step_id,step_order,title,description,due_date,required) values($1,$2,$3,$4,$5,$6,$7)",[q.rows[0].id,step.id,step.step_order,step.title,step.description,stepDue,step.required]);
+      stepsCreated++;
+    }
+  }
+  await client.query('commit');
+  await auditProfessional(req,'case_opened','case',q.rows[0].id,{protocol_id:protocolId,student_id:studentId,priority,due_date:finalDue,required_steps_created:stepsCreated});
+  res.status(201).json({ok:true,case:q.rows[0],required_steps_created:stepsCreated});
+}catch(e){try{await client.query('rollback')}catch(_){}res.status(400).json({ok:false,error:e.message})}finally{client.release()}});
 app.get('/api/cases/:id',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{try{
   const q=await pool.query(`select c.*,p.name protocol,p.description protocol_description,s.name student,co.name course,u.name created_by_name
     from case_records c left join case_protocols p on p.id=c.protocol_id left join students s on s.id=c.student_id left join courses co on co.id=c.course_id join users u on u.id=c.created_by

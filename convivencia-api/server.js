@@ -250,13 +250,24 @@ app.post('/api/auth/login',async(req,res)=>{try{
     const compact=identifier.toUpperCase().replace(/[^0-9K]/g,'');
     candidates=await pool.query("select u.*,e.name establishment,e.rbd from users u join establishments e on e.id=u.establishment_id where regexp_replace(upper(coalesce(u.rut,'')),'[^0-9K]','','g')=$1 and u.active=true",[compact]);
   }
-  let user=null;
-  for(const candidate of candidates.rows){if(await verifyPassword(password,candidate.password_salt,candidate.password_hash)){user=candidate;break}}
-  if(!user)return res.status(401).json({ok:false,error:'invalid_credentials'});
+  let user=null,matchedIdentity=null;
+  for(const candidate of candidates.rows){
+    matchedIdentity=candidate;
+    if(candidate.locked_until&&new Date(candidate.locked_until)>new Date())return res.status(429).json({ok:false,error:'account_temporarily_locked'});
+    if(await verifyPassword(password,candidate.password_salt,candidate.password_hash)){user=candidate;break}
+  }
+  if(!user){
+    if(matchedIdentity){
+      const fails=Number(matchedIdentity.failed_login_count||0)+1;
+      if(fails>=5)await pool.query("update users set failed_login_count=0,locked_until=now()+interval '15 minutes' where id=$1",[matchedIdentity.id]);
+      else await pool.query("update users set failed_login_count=$1 where id=$2",[fails,matchedIdentity.id]);
+    }
+    return res.status(401).json({ok:false,error:'invalid_credentials'});
+  }
   const token=crypto.randomBytes(32).toString('base64url'),tokenHash=sha256(token);
   await pool.query("delete from auth_sessions where expires_at<=now()");
   await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '8 hours')",[tokenHash,user.id]);
-  await pool.query("update users set last_login_at=now() where id=$1",[user.id]);
+  await pool.query("update users set last_login_at=now(),failed_login_count=0,locked_until=null where id=$1",[user.id]);
   setSessionCookie(res,token);
   ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,establishment:user.establishment,rbd:user.rbd}});
 }catch(e){res.status(400).json({ok:false,error:'login_failed'})}});
@@ -290,7 +301,7 @@ app.post('/api/users',...requireRole('coordinador_convivencia'),async(req,res)=>
   const {establishment_id,email,rut,name,role}=req.body;
   const temporaryPassword=String((req.body||{}).temporary_password||'');
   if(Number(establishment_id)!==Number(req.auth.establishment_id))return res.status(403).json({ok:false,error:'establishment_forbidden'});
-  const allowedRoles=['coordinador_convivencia','dupla_psicosocial','profesor','asistente_educacion','prevencionista','nutricionista'];
+  const allowedRoles=['coordinador_convivencia','dupla_psicosocial'];
   const cleanRole=canonicalRole(role||'',req.auth.rbd);
   if(!establishment_id||!email||!name||!allowedRoles.includes(cleanRole)||temporaryPassword.length<10)return res.status(400).json({ok:false,error:'required_fields'});
   const cred=await makePassword(temporaryPassword);

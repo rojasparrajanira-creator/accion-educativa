@@ -448,9 +448,17 @@ app.post('/api/auth/mfa/confirm',...requireRole('platform_admin'),async(req,res)
   if(q.rows[0].mfa_enabled)return res.status(409).json({ok:false,error:'mfa_already_enabled'});
   const valid=authenticator.check(token,decryptMfaSecret(q.rows[0].mfa_secret_encrypted));
   if(!valid)return res.status(401).json({ok:false,error:'invalid_mfa_code'});
-  await pool.query("update users set mfa_enabled=true,mfa_required=true,mfa_enrolled_at=now() where id=$1",[req.auth.id]);
-  await pool.query("insert into security_events(user_id,event_type,metadata) values($1,'mfa_enabled',$2::jsonb)",[req.auth.id,JSON.stringify({role:'platform_admin'})]);
-  ok(res,{mfa_enabled:true});
+  const recoveryCodes=Array.from({length:10},()=>crypto.randomBytes(6).toString('hex').toUpperCase());
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    await client.query("delete from mfa_recovery_codes where user_id=$1",[req.auth.id]);
+    for(const code of recoveryCodes)await client.query("insert into mfa_recovery_codes(user_id,code_hash) values($1,$2)",[req.auth.id,sha256(code)]);
+    await client.query("update users set mfa_enabled=true,mfa_required=true,mfa_enrolled_at=now() where id=$1",[req.auth.id]);
+    await client.query("insert into security_events(user_id,event_type,metadata) values($1,'mfa_enabled',$2::jsonb)",[req.auth.id,JSON.stringify({role:'platform_admin'})]);
+    await client.query('COMMIT');
+  }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
+  ok(res,{mfa_enabled:true,recovery_codes:recoveryCodes});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
 
 app.get('/api/auth/me',async(req,res)=>{try{const user=await sessionUser(req);if(!user)return res.status(401).json({ok:false,error:'authentication_required'});ok(res,{user})}catch(e){res.status(401).json({ok:false,error:'authentication_required'})}});

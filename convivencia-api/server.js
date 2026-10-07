@@ -128,9 +128,9 @@ async function initDatabase(){
   console.log('Platform administrator ready:',platformAdminReady.rows[0]?.ready?'yes':'no');
   if(String(process.env.RUN_STORE_SELFTEST||'')==='1'){
     const checks=[];
-    const cols=await pool.query("select table_name,column_name from information_schema.columns where table_schema='public' and table_name in ('store_products','store_drive_accounts','store_product_images','store_orders','store_order_items','store_delivery_events')");
+    const cols=await pool.query("select table_name,column_name from information_schema.columns where table_schema='public' and table_name in ('store_products','store_drive_accounts','store_drive_oauth_states','store_product_images','store_orders','store_order_items','store_delivery_events')");
     const have=new Set(cols.rows.map(x=>x.table_name+'.'+x.column_name));
-    for(const k of ['store_products.drive_account_id','store_drive_accounts.google_email','store_product_images.image_data','store_orders.order_code','store_order_items.delivery_url_snapshot','store_order_items.drive_account_id_snapshot','store_delivery_events.buyer_email'])if(!have.has(k))throw new Error('STORE_SELFTEST missing '+k);
+    for(const k of ['store_products.drive_account_id','store_drive_accounts.google_email','store_drive_accounts.oauth_refresh_token_encrypted','store_drive_oauth_states.token_hash','store_product_images.image_data','store_orders.order_code','store_order_items.delivery_url_snapshot','store_order_items.drive_account_id_snapshot','store_delivery_events.buyer_email'])if(!have.has(k))throw new Error('STORE_SELFTEST missing '+k);
     checks.push('schema');
     const pub=await pool.query("select column_name from information_schema.columns where table_name='store_products'");
     if(!pub.rowCount)throw new Error('STORE_SELFTEST products unavailable');
@@ -190,6 +190,31 @@ function decryptMfaSecret(payload){
   decipher.setAuthTag(Buffer.from(tag,'base64url'));
   return Buffer.concat([decipher.update(Buffer.from(data,'base64url')),decipher.final()]).toString('utf8');
 }
+function googleTokenKey(){
+  const raw=String(process.env.MEC_GOOGLE_TOKEN_ENCRYPTION_KEY||'');
+  if(!raw)return null;
+  return crypto.createHash('sha256').update(raw).digest();
+}
+function encryptGoogleToken(secret){
+  const key=googleTokenKey();if(!key)throw new Error('google_token_encryption_not_configured');
+  const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+  const enc=Buffer.concat([cipher.update(String(secret),'utf8'),cipher.final()]);
+  return [iv.toString('base64url'),cipher.getAuthTag().toString('base64url'),enc.toString('base64url')].join('.');
+}
+function decryptGoogleToken(payload){
+  const key=googleTokenKey();if(!key)throw new Error('google_token_encryption_not_configured');
+  const [iv,tag,data]=String(payload||'').split('.');if(!iv||!tag||!data)throw new Error('google_token_invalid');
+  const decipher=crypto.createDecipheriv('aes-256-gcm',key,Buffer.from(iv,'base64url'));
+  decipher.setAuthTag(Buffer.from(tag,'base64url'));
+  return Buffer.concat([decipher.update(Buffer.from(data,'base64url')),decipher.final()]).toString('utf8');
+}
+function googleOAuthConfig(){
+  const clientId=String(process.env.MEC_GOOGLE_OAUTH_CLIENT_ID||'').trim();
+  const clientSecret=String(process.env.MEC_GOOGLE_OAUTH_CLIENT_SECRET||'').trim();
+  const redirectUri=String(process.env.MEC_GOOGLE_OAUTH_REDIRECT_URI||'https://convivencia-escolar-api.onrender.com/api/store/admin/drive-oauth/callback').trim();
+  return {clientId,clientSecret,redirectUri,configured:!!(clientId&&clientSecret&&googleTokenKey())};
+}
+
 function newStudentAccessToken(){return crypto.randomBytes(32).toString('base64url')}
 function studentAccessValid(hash,token){
   if(!hash||!token)return false;
@@ -1431,7 +1456,7 @@ function storeAdmin(req,res,next){
 }
 app.get('/api/store/admin/drive-accounts',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
-  const q=await pool.query("select id,label,google_email,status,created_at,updated_at from store_drive_accounts order by id");
+  const q=await pool.query("select id,label,google_email,status,connected_at,disconnected_at,created_at,updated_at from store_drive_accounts order by id");
   ok(res,{accounts:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'drive_accounts_failed'})}});
 app.post('/api/store/admin/drive-accounts',requireAuth,async(req,res)=>{try{
@@ -1441,6 +1466,81 @@ app.post('/api/store/admin/drive-accounts',requireAuth,async(req,res)=>{try{
   const q=await pool.query("insert into store_drive_accounts(label,google_email) values($1,$2) on conflict(google_email) do update set label=excluded.label,updated_at=now() returning id,label,google_email,status",[label,email]);
   ok(res,{account:q.rows[0]});
 }catch(e){res.status(400).json({ok:false,error:'drive_account_save_failed'})}});
+app.get('/api/store/admin/drive-oauth/config',...requireRole('platform_admin'),async(req,res)=>{try{
+  const cfg=googleOAuthConfig();
+  const q=await pool.query("select count(*)::int connected from store_drive_accounts where status='connected' and oauth_refresh_token_encrypted is not null");
+  ok(res,{configured:cfg.configured,redirect_uri:cfg.redirectUri,scope:'https://www.googleapis.com/auth/drive.file',connected_accounts:q.rows[0].connected});
+}catch(e){res.status(400).json({ok:false,error:'drive_oauth_config_failed'})}});
+
+app.get('/api/store/admin/drive-accounts/:id/oauth/start',...requireRole('platform_admin'),async(req,res)=>{try{
+  const cfg=googleOAuthConfig();
+  if(!cfg.configured)return res.status(503).json({ok:false,error:'google_oauth_not_configured',redirect_uri:cfg.redirectUri});
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({ok:false,error:'invalid_drive_account'});
+  const aq=await pool.query("select id,google_email,status from store_drive_accounts where id=$1 and status<>'disabled'",[id]);
+  if(!aq.rowCount)return res.status(404).json({ok:false,error:'drive_account_not_found'});
+  await pool.query("delete from store_drive_oauth_states where expires_at<=now()");
+  const state=crypto.randomBytes(32).toString('base64url');
+  await pool.query("insert into store_drive_oauth_states(token_hash,drive_account_id,admin_user_id,expires_at) values($1,$2,$3,now()+interval '10 minutes')",[sha256(state),id,req.auth.id]);
+  const params=new URLSearchParams({
+    client_id:cfg.clientId,
+    redirect_uri:cfg.redirectUri,
+    response_type:'code',
+    scope:'openid email https://www.googleapis.com/auth/drive.file',
+    access_type:'offline',
+    include_granted_scopes:'true',
+    prompt:'consent',
+    state,
+    login_hint:aq.rows[0].google_email
+  });
+  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?'+params.toString());
+}catch(e){res.status(400).json({ok:false,error:'drive_oauth_start_failed'})}});
+
+app.get('/api/store/admin/drive-oauth/callback',async(req,res)=>{
+  const back=(result,id)=>res.redirect(DEFAULT_WEB_ORIGIN+'/admin-tienda.html?drive_oauth='+encodeURIComponent(result)+(id?'&account_id='+encodeURIComponent(id):''));
+  try{
+    const cfg=googleOAuthConfig();
+    if(!cfg.configured)return back('not_configured');
+    const state=String(req.query.state||''),code=String(req.query.code||'');
+    if(!state)return back('invalid_state');
+    const sq=await pool.query("delete from store_drive_oauth_states where token_hash=$1 and expires_at>now() returning drive_account_id,admin_user_id",[sha256(state)]);
+    if(!sq.rowCount)return back('invalid_state');
+    const accountId=Number(sq.rows[0].drive_account_id);
+    if(req.query.error)return back('denied',accountId);
+    if(!code)return back('missing_code',accountId);
+    const aq=await pool.query("select id,google_email,oauth_refresh_token_encrypted from store_drive_accounts where id=$1 and status<>'disabled'",[accountId]);
+    if(!aq.rowCount)return back('account_not_found',accountId);
+    const tokenBody=new URLSearchParams({code,client_id:cfg.clientId,client_secret:cfg.clientSecret,redirect_uri:cfg.redirectUri,grant_type:'authorization_code'});
+    const tr=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:tokenBody});
+    const td=await tr.json().catch(()=>({}));
+    if(!tr.ok||!td.access_token)return back('token_exchange_failed',accountId);
+    const ur=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:'Bearer '+td.access_token}});
+    const ud=await ur.json().catch(()=>({}));
+    if(!ur.ok||!ud.email)return back('identity_failed',accountId);
+    if(String(ud.email).trim().toLowerCase()!==String(aq.rows[0].google_email).trim().toLowerCase())return back('email_mismatch',accountId);
+    const encrypted=td.refresh_token?encryptGoogleToken(td.refresh_token):aq.rows[0].oauth_refresh_token_encrypted;
+    if(!encrypted)return back('refresh_token_missing',accountId);
+    await pool.query("update store_drive_accounts set status='connected',oauth_refresh_token_encrypted=$1,google_subject=$2,oauth_scope=$3,connected_at=now(),disconnected_at=null,updated_at=now() where id=$4",[encrypted,String(ud.sub||''),String(td.scope||'https://www.googleapis.com/auth/drive.file'),accountId]);
+    try{await pool.query("insert into security_events(user_id,event_type,metadata) values($1,'store_drive_oauth_connected',$2::jsonb)",[sq.rows[0].admin_user_id,JSON.stringify({drive_account_id:accountId})])}catch(_){}
+    back('connected',accountId);
+  }catch(e){back('failed')}
+});
+
+app.post('/api/store/admin/drive-accounts/:id/oauth/disconnect',...requireRole('platform_admin'),async(req,res)=>{try{
+  const id=Number(req.params.id);
+  if(!Number.isInteger(id)||id<1)return res.status(400).json({ok:false,error:'invalid_drive_account'});
+  const q=await pool.query("select oauth_refresh_token_encrypted from store_drive_accounts where id=$1",[id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'drive_account_not_found'});
+  if(q.rows[0].oauth_refresh_token_encrypted&&googleTokenKey()){
+    try{
+      const token=decryptGoogleToken(q.rows[0].oauth_refresh_token_encrypted);
+      await fetch('https://oauth2.googleapis.com/revoke',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({token})});
+    }catch(_){}
+  }
+  await pool.query("update store_drive_accounts set status='pending',oauth_refresh_token_encrypted=null,google_subject=null,oauth_scope=null,disconnected_at=now(),updated_at=now() where id=$1",[id]);
+  try{await pool.query("insert into security_events(user_id,event_type,metadata) values($1,'store_drive_oauth_disconnected',$2::jsonb)",[req.auth.id,JSON.stringify({drive_account_id:id})])}catch(_){}
+  ok(res,{disconnected:true});
+}catch(e){res.status(400).json({ok:false,error:'drive_oauth_disconnect_failed'})}});
 app.post('/api/store/admin/product-image',requireAuth,storeImageUpload.single('image'),async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
   if(!req.file)return res.status(400).json({ok:false,error:'jpg_png_required'});

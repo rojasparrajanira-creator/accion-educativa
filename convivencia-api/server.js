@@ -33,6 +33,8 @@ function publicRateLimit({windowMs=60000,max=30}={}){
     next();
   };
 }
+const authLoginRateLimit=publicRateLimit({windowMs:60000,max:10});
+const mfaVerifyRateLimit=publicRateLimit({windowMs:300000,max:10});
 const studentLoginRateLimit=publicRateLimit({windowMs:60000,max:20});
 const studentPinRateLimit=publicRateLimit({windowMs:60000,max:15});
 const storeOrderRateLimit=publicRateLimit({windowMs:60000,max:10});
@@ -394,7 +396,7 @@ function surveyLevelForCourse(name){
   if(grade<=8)return '7-8';
   return null;
 }
-app.post('/api/auth/login',async(req,res)=>{try{
+app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
   const identifier=String((req.body||{}).identifier||'').trim();
   const password=String((req.body||{}).password||'');
   if(!identifier||!password)return res.status(400).json({ok:false,error:'credentials_required'});
@@ -435,7 +437,7 @@ app.post('/api/auth/login',async(req,res)=>{try{
   ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,establishment:user.establishment,rbd:user.rbd}});
 }catch(e){res.status(400).json({ok:false,error:'login_failed'})}});
 
-app.post('/api/auth/mfa/verify',async(req,res)=>{try{
+app.post('/api/auth/mfa/verify',mfaVerifyRateLimit,async(req,res)=>{try{
   const challenge=String((req.body||{}).challenge||''),code=String((req.body||{}).code||'').replace(/[\s-]+/g,'').toUpperCase();
   if(!challenge||!code)return res.status(400).json({ok:false,error:'mfa_required'});
   const q=await pool.query("select c.token_hash,c.user_id,c.attempts,u.* from mfa_login_challenges c join users u on u.id=c.user_id where c.token_hash=$1 and c.expires_at>now() and u.active=true",[sha256(challenge)]);

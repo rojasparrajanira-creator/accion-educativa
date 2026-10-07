@@ -394,3 +394,12 @@ CREATE TABLE IF NOT EXISTS store_product_images(
  image_data BYTEA NOT NULL,
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+
+-- Recursos visuales institucionales del portal.
+CREATE TABLE IF NOT EXISTS site_assets(
+ asset_key TEXT PRIMARY KEY,
+ mime_type TEXT NOT NULL CHECK(mime_type IN ('image/jpeg','image/png','image/webp')),
+ image_data BYTEA NOT NULL,
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

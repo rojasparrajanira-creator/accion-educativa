@@ -419,6 +419,13 @@ app.post('/api/auth/login',async(req,res)=>{try{
     }
     return res.status(401).json({ok:false,error:'invalid_credentials'});
   }
+  if(user.role==='platform_admin'&&user.mfa_enabled){
+    const challenge=crypto.randomBytes(32).toString('base64url'),challengeHash=sha256(challenge);
+    await pool.query("delete from mfa_login_challenges where expires_at<=now()");
+    await pool.query("delete from mfa_login_challenges where user_id=$1",[user.id]);
+    await pool.query("insert into mfa_login_challenges(token_hash,user_id,expires_at) values($1,$2,now()+interval '5 minutes')",[challengeHash,user.id]);
+    return ok(res,{mfa_required:true,mfa_challenge:challenge,expires_in_seconds:300});
+  }
   const token=crypto.randomBytes(32).toString('base64url'),tokenHash=sha256(token);
   await pool.query("delete from auth_sessions where expires_at<=now()");
   await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '8 hours')",[tokenHash,user.id]);
@@ -427,6 +434,28 @@ app.post('/api/auth/login',async(req,res)=>{try{
   setSessionCookie(res,token);
   ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,establishment:user.establishment,rbd:user.rbd}});
 }catch(e){res.status(400).json({ok:false,error:'login_failed'})}});
+
+app.post('/api/auth/mfa/verify',async(req,res)=>{try{
+  const challenge=String((req.body||{}).challenge||''),code=String((req.body||{}).code||'').replace(/[\s-]+/g,'').toUpperCase();
+  if(!challenge||!code)return res.status(400).json({ok:false,error:'mfa_required'});
+  const q=await pool.query("select c.token_hash,c.user_id,c.attempts,u.* from mfa_login_challenges c join users u on u.id=c.user_id where c.token_hash=$1 and c.expires_at>now() and u.active=true",[sha256(challenge)]);
+  if(!q.rowCount)return res.status(401).json({ok:false,error:'mfa_challenge_invalid'});
+  const user=q.rows[0]; if(Number(user.attempts)>=5){await pool.query("delete from mfa_login_challenges where token_hash=$1",[sha256(challenge)]);return res.status(429).json({ok:false,error:'mfa_challenge_locked'})}
+  let valid=false,recovery=false;
+  if(/^\d{6}$/.test(code))valid=authenticator.check(code,decryptMfaSecret(user.mfa_secret_encrypted));
+  else{
+    const rc=await pool.query("select id from mfa_recovery_codes where user_id=$1 and code_hash=$2 and used_at is null",[user.id,sha256(code)]);
+    if(rc.rowCount){valid=true;recovery=true;await pool.query("update mfa_recovery_codes set used_at=now() where id=$1",[rc.rows[0].id])}
+  }
+  if(!valid){await pool.query("update mfa_login_challenges set attempts=attempts+1 where token_hash=$1",[sha256(challenge)]);return res.status(401).json({ok:false,error:'invalid_mfa_code'})}
+  await pool.query("delete from mfa_login_challenges where token_hash=$1",[sha256(challenge)]);
+  const token=crypto.randomBytes(32).toString('base64url');
+  await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '8 hours')",[sha256(token),user.id]);
+  await pool.query("update users set last_login_at=now(),failed_login_count=0,locked_until=null where id=$1",[user.id]);
+  try{await pool.query("insert into security_events(user_id,event_type,ip_hash,user_agent_hash,metadata) values($1,'mfa_login_success',$2,$3,$4::jsonb)",[user.id,sha256(String(req.headers['x-forwarded-for']||req.ip||'')),sha256(String(req.headers['user-agent']||'')),JSON.stringify({recovery_code:recovery})])}catch(_){}
+  setSessionCookie(res,token);
+  ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password}});
+}catch(e){res.status(400).json({ok:false,error:'mfa_verify_failed'})}});
 
 app.post('/api/auth/mfa/enroll',...requireRole('platform_admin'),async(req,res)=>{try{
   if(!mfaKey())return res.status(503).json({ok:false,error:'mfa_not_configured'});

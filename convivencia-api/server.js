@@ -126,6 +126,7 @@ async function initDatabase(){
   }
   const platformAdminReady=await pool.query("select exists(select 1 from users where role='platform_admin' and active=true and password_hash is not null) as ready");
   console.log('Platform administrator ready:',platformAdminReady.rows[0]?.ready?'yes':'no');
+  console.log('Google OAuth configured:',googleOAuthConfig().configured?'yes':'no');
   if(String(process.env.RUN_STORE_SELFTEST||'')==='1'){
     const checks=[];
     const cols=await pool.query("select table_name,column_name from information_schema.columns where table_schema='public' and table_name in ('store_products','store_drive_accounts','store_drive_oauth_states','store_product_images','store_orders','store_order_items','store_delivery_events')");

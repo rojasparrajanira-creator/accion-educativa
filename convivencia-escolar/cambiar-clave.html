@@ -29,6 +29,7 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 </main>
 <script>
 const form=document.getElementById('form'),status=document.getElementById('status'),save=document.getElementById('save');
+function safeNext(){const q=new URLSearchParams(location.search),next=q.get('next');return next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:null}
 form.addEventListener('submit',async e=>{
  e.preventDefault();
  const current=document.getElementById('current').value,next=document.getElementById('next').value,repeat=document.getElementById('repeat').value;
@@ -42,7 +43,8 @@ form.addEventListener('submit',async e=>{
    if(!r.ok||!d.ok)throw new Error(d.error||'change_failed');
    status.style.color='#176B5B';status.textContent='Clave actualizada correctamente.';
    const user=await MECAuth.me(),role=MECAuth.roleOf(user);
-   location.href=role==='platform_admin'?'admin-plataforma.html':['coordinador_convivencia','dupla_psicosocial'].includes(role)?'inicio.html?establishment_id='+encodeURIComponent(user.establishment_id):'notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);
+   const next=safeNext();
+   location.href=role==='platform_admin'?(next||'admin-plataforma.html'):['coordinador_convivencia','dupla_psicosocial'].includes(role)?'inicio.html?establishment_id='+encodeURIComponent(user.establishment_id):'notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);
  }catch(err){
    status.style.color='#9a3b32';
    status.textContent=err.message==='invalid_current_password'?'La clave actual no es correcta.':'No fue posible cambiar la clave.';

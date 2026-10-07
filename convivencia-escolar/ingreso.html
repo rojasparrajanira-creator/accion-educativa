@@ -21,10 +21,10 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 </head>
 <body>
 <main class="card">
-  <div class="brand"><img class="logo" src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span>Material Educativo Chile</span></div></div>
-  <div class="eyebrow">ACCESO PROFESIONAL</div>
-  <h1>Ingreso a la plataforma</h1>
-  <p class="sub">Ingresa con tu correo institucional o RUT y tu clave. El establecimiento se determina automáticamente según tu cuenta.</p>
+  <div class="brand"><img class="logo" src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b id="brand-title">Convivencia Escolar</b><span id="brand-subtitle">Material Educativo Chile</span></div></div>
+  <div class="eyebrow" id="login-eyebrow">ACCESO PROFESIONAL</div>
+  <h1 id="login-title">Ingreso a la plataforma</h1>
+  <p class="sub" id="login-subtitle">Ingresa con tu correo institucional o RUT y tu clave. El establecimiento se determina automáticamente según tu cuenta.</p>
   <form id="login-form">
     <div class="field"><label for="identifier">Correo o RUT</label><input id="identifier" autocomplete="username" required placeholder="correo@establecimiento.cl o 12.345.678-9"></div>
     <div class="field"><label for="password">Clave</label><input id="password" type="password" autocomplete="current-password" required></div>
@@ -42,15 +42,43 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 const API='https://convivencia-escolar-api.onrender.com';
 const form=document.getElementById('login-form'),btn=document.getElementById('login-btn'),status=document.getElementById('login-status'),mfaBox=document.getElementById('mfa-box'),mfaBtn=document.getElementById('mfa-btn'),mfaCode=document.getElementById('mfa-code');
 let mfaChallenge='';
-function safeNext(){const q=new URLSearchParams(location.search),next=q.get('next');return next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:null}function changePasswordUrl(){const next=safeNext();return 'cambiar-clave.html'+(next?'?next='+encodeURIComponent(next):'')}function redirectUser(user){if(user.must_change_password){location.href=changePasswordUrl();return}const role=String(user.role||'').toLowerCase(),next=safeNext();if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);return}const destination=next||'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;}
+function safeNext(){const q=new URLSearchParams(location.search),next=q.get('next');return next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:null}
+function isStoreAdminFlow(){return safeNext()==='admin-tienda.html'}
+function changePasswordUrl(){const next=safeNext();return 'cambiar-clave.html'+(next?'?next='+encodeURIComponent(next):'')}
+async function logoutQuiet(){try{await fetch(API+'/api/auth/logout',{method:'POST',credentials:'include'})}catch(e){}}
+async function redirectUser(user){
+  const role=String(user.role||'').toLowerCase(),next=safeNext();
+  if(isStoreAdminFlow()&&role!=='platform_admin'){
+    await logoutQuiet();
+    status.textContent='Este acceso es exclusivo para la cuenta de Superadministrador de Material Educativo Chile.';
+    btn.hidden=false;btn.disabled=false;
+    document.getElementById('identifier').disabled=false;document.getElementById('password').disabled=false;
+    mfaBox.hidden=true;
+    return;
+  }
+  if(user.must_change_password){location.href=changePasswordUrl();return}
+  if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}
+  if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);return}
+  const destination=next||'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;
+}
+if(isStoreAdminFlow()){
+  document.title='Superadministrador · Material Educativo Chile';
+  document.getElementById('brand-title').textContent='Material Educativo Chile';
+  document.getElementById('brand-subtitle').textContent='Administración de Tienda';
+  document.getElementById('login-eyebrow').textContent='ACCESO SUPERADMINISTRADOR';
+  document.getElementById('login-title').textContent='Administrar Tienda';
+  document.getElementById('login-subtitle').textContent='Ingresa con la cuenta de Superadministrador para gestionar productos, imágenes, precios y entregas de la tienda.';
+}
 (async()=>{try{
   const r=await fetch(API+'/api/auth/me',{credentials:'include'}),d=await r.json();
   if(!(r.ok&&d.ok&&d.user))return;
-  if(d.user.must_change_password){location.href=changePasswordUrl();return}
-  const role=String(d.user.role||'').toLowerCase(),next=safeNext();
-  if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}
-  if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(d.user.establishment_id);return}
-  const destination=next||'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(d.user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;
+  const role=String(d.user.role||'').toLowerCase();
+  if(isStoreAdminFlow()&&role!=='platform_admin'){
+    await logoutQuiet();
+    status.textContent='Se cerró una sesión de Convivencia Escolar que estaba activa. Ingresa ahora con la cuenta de Superadministrador.';
+    return;
+  }
+  await redirectUser(d.user);
 }catch(e){}})();
 form.addEventListener('submit',async ev=>{
   ev.preventDefault();btn.disabled=true;status.textContent='Validando acceso…';
@@ -62,7 +90,7 @@ form.addEventListener('submit',async ev=>{
     const d=await r.json();
     if(!r.ok||!d.ok)throw new Error(d.error||'invalid_credentials');
     if(d.mfa_required){mfaChallenge=d.mfa_challenge;mfaBox.hidden=false;document.getElementById('identifier').disabled=true;document.getElementById('password').disabled=true;btn.hidden=true;status.textContent='Ingresa el código de tu aplicación autenticadora.';mfaCode.focus();return}
-    redirectUser(d.user);
+    await redirectUser(d.user);
   }catch(e){
     status.textContent=e.message==='account_temporarily_locked'
       ? 'La cuenta está temporalmente bloqueada por varios intentos fallidos. Intenta nuevamente más tarde.'
@@ -70,7 +98,7 @@ form.addEventListener('submit',async ev=>{
     btn.disabled=false;
   }
 });
-mfaBtn.addEventListener('click',async()=>{mfaBtn.disabled=true;status.textContent='Verificando segundo factor…';try{const r=await fetch(API+'/api/auth/mfa/verify',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({challenge:mfaChallenge,code:mfaCode.value})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'invalid_mfa_code');redirectUser(d.user)}catch(e){status.textContent=e.message==='mfa_challenge_locked'?'Se agotaron los intentos. Vuelve a iniciar sesión.':'Código de verificación incorrecto o vencido.';mfaBtn.disabled=false}});
+mfaBtn.addEventListener('click',async()=>{mfaBtn.disabled=true;status.textContent='Verificando segundo factor…';try{const r=await fetch(API+'/api/auth/mfa/verify',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({challenge:mfaChallenge,code:mfaCode.value})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'invalid_mfa_code');await redirectUser(d.user)}catch(e){status.textContent=e.message==='mfa_challenge_locked'?'Se agotaron los intentos. Vuelve a iniciar sesión.':'Código de verificación incorrecto o vencido.';mfaBtn.disabled=false}});
 </script>
 </body>
 </html>

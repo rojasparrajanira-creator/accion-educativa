@@ -404,6 +404,7 @@ app.post('/api/auth/login',async(req,res)=>{try{
   await pool.query("delete from auth_sessions where expires_at<=now()");
   await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '8 hours')",[tokenHash,user.id]);
   await pool.query("update users set last_login_at=now(),failed_login_count=0,locked_until=null where id=$1",[user.id]);
+  try{await pool.query("insert into security_events(user_id,event_type,ip_hash,user_agent_hash,metadata) values($1,'login_success',$2,$3,$4::jsonb)",[user.id,sha256(String(req.headers['x-forwarded-for']||req.ip||'')),sha256(String(req.headers['user-agent']||'')),JSON.stringify({role:user.role})])}catch(_){}
   setSessionCookie(res,token);
   ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,establishment:user.establishment,rbd:user.rbd}});
 }catch(e){res.status(400).json({ok:false,error:'login_failed'})}});

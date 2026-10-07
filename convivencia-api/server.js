@@ -111,15 +111,14 @@ async function initDatabase(){
   const platformPassword=String(process.env.MEC_PLATFORM_ADMIN_PASSWORD||'');
   if(platformEmail&&platformPassword.length>=12){
     const est=await pool.query("insert into establishments(name,rbd) values('Material Educativo Chile','MEC-PLATFORM') on conflict(rbd) do update set name=excluded.name returning id");
-    const existing=await pool.query("select id,password_hash,password_salt,role from users where establishment_id=$1 and lower(email)=lower($2) limit 1",[est.rows[0].id,platformEmail]);
+    const existing=await pool.query("select id,role,active from users where establishment_id=$1 and lower(email)=lower($2) limit 1",[est.rows[0].id,platformEmail]);
+    const cred=await makePassword(platformPassword);
     if(!existing.rowCount){
-      const cred=await makePassword(platformPassword);
       await pool.query("insert into users(establishment_id,email,name,role,password_hash,password_salt,must_change_password,active) values($1,$2,'Administración de Plataforma','platform_admin',$3,$4,false,true)",[est.rows[0].id,platformEmail,cred.hash,cred.salt]);
       console.log('Platform administrator initialized.');
-    }else if(existing.rows[0].role!=='platform_admin'||!existing.rows[0].password_hash||existing.rows[0].active===false){
-      const cred=await makePassword(platformPassword);
-      await pool.query("update users set role='platform_admin',password_hash=coalesce(password_hash,$1),password_salt=coalesce(password_salt,$2),active=true where id=$3",[cred.hash,cred.salt,existing.rows[0].id]);
-      console.log('Platform administrator role verified.');
+    }else{
+      await pool.query("update users set role='platform_admin',password_hash=$1,password_salt=$2,must_change_password=false,active=true where id=$3",[cred.hash,cred.salt,existing.rows[0].id]);
+      console.log('Platform administrator credentials synchronized.');
     }
     const deactivated=await pool.query("update users set active=false where establishment_id=$1 and role='platform_admin' and lower(email)<>lower($2) and active=true returning id",[est.rows[0].id,platformEmail]);
     if(deactivated.rowCount)console.log('Previous platform administrator accounts deactivated:',deactivated.rowCount);

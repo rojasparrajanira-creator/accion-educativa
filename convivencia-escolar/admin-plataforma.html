@@ -36,6 +36,20 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 <div class="note">La cuenta creada debe reemplazar la clave temporal al primer ingreso. El sistema prepara M1, M2 y M3 en estado borrador; ninguna medición queda habilitada automáticamente.</div>
 </section>
 
+<section class="card" id="security-card">
+<h2 style="margin-top:0;font-size:18px">Seguridad de la cuenta administradora</h2>
+<p class="status">Protege la cuenta maestra con una aplicación autenticadora. No se usa llamada telefónica ni SMS como mecanismo para saltar esta protección.</p>
+<div id="mfa-start"><button class="primary" id="mfa-enroll" type="button">Configurar doble verificación</button></div>
+<div id="mfa-setup" hidden>
+ <div class="note"><strong>1.</strong> Agrega la cuenta en tu aplicación autenticadora usando la clave que aparecerá aquí. <strong>2.</strong> Escribe el código de 6 dígitos para confirmar.</div>
+ <div class="field" style="margin-top:12px"><label>Clave de configuración del autenticador</label><input id="mfa-secret" readonly autocomplete="off"></div>
+ <div class="field"><label>Código de 6 dígitos</label><input id="mfa-token" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div>
+ <div class="actions"><button class="primary" id="mfa-confirm" type="button">Confirmar y activar MFA</button></div>
+</div>
+<div id="recovery-box" hidden class="note"><strong>Códigos de recuperación: guárdalos ahora.</strong><pre id="recovery-codes" style="white-space:pre-wrap;user-select:all"></pre>Estos códigos se muestran una sola vez y cada uno sirve una sola vez.</div>
+<p id="mfa-status" class="status" role="status" aria-live="polite"></p>
+</section>
+
 <section class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0;font-size:18px">Establecimientos registrados</h2><button class="soft" id="refresh" type="button">Actualizar</button></div>
 <div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Establecimiento</th><th>RBD</th><th>Usuarios activos</th><th>Coordinadores activos</th><th>Alta</th></tr></thead><tbody id="rows"><tr><td colspan="5">Cargando…</td></tr></tbody></table></div>
@@ -91,6 +105,8 @@ document.getElementById('create').onclick=async()=>{
   await load();
  }catch(e){status.textContent=e.message}finally{b.disabled=false}
 };
+document.getElementById('mfa-enroll').onclick=async()=>{const s=document.getElementById('mfa-status');s.textContent='Preparando configuración segura…';try{const r=await fetch(API+'/api/auth/mfa/enroll',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:'{}'}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'mfa_error');document.getElementById('mfa-secret').value=d.secret;document.getElementById('mfa-start').hidden=true;document.getElementById('mfa-setup').hidden=false;s.textContent='Configura tu aplicación autenticadora y confirma el código.'}catch(e){s.textContent=e.message==='mfa_not_configured'?'La clave criptográfica del servidor aún no está configurada. No se activó MFA.':e.message==='mfa_already_enabled'?'La doble verificación ya está activa.':'No fue posible iniciar la configuración.'}};
+document.getElementById('mfa-confirm').onclick=async()=>{const s=document.getElementById('mfa-status'),token=document.getElementById('mfa-token').value.trim();if(!/^\d{6}$/.test(token)){s.textContent='Ingresa el código de 6 dígitos de tu autenticador.';return}try{const r=await fetch(API+'/api/auth/mfa/confirm',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'mfa_error');document.getElementById('mfa-setup').hidden=true;document.getElementById('recovery-codes').textContent=(d.recovery_codes||[]).join('\n');document.getElementById('recovery-box').hidden=false;s.textContent='Doble verificación activada. Guarda los códigos antes de cerrar esta página.'}catch(e){s.textContent=e.message==='invalid_mfa_code'?'El código no es válido. Revisa el autenticador e intenta nuevamente.':'No fue posible activar la doble verificación.'}};
 load();
 </script>
 </body></html>

@@ -95,6 +95,16 @@ CREATE TABLE IF NOT EXISTS security_events(
 );
 CREATE INDEX IF NOT EXISTS idx_security_events_user_created ON security_events(user_id,created_at DESC);
 
+CREATE TABLE IF NOT EXISTS mfa_recovery_codes(
+ id BIGSERIAL PRIMARY KEY,
+ user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ code_hash TEXT NOT NULL,
+ used_at TIMESTAMPTZ,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ UNIQUE(user_id,code_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_mfa_recovery_codes_user ON mfa_recovery_codes(user_id) WHERE used_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS response_drafts(
  application_id BIGINT NOT NULL REFERENCES survey_applications(id) ON DELETE CASCADE,
  item_code TEXT NOT NULL,

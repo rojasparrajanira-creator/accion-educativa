@@ -21,12 +21,12 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 </head>
 <body>
 <main class="card">
-  <div class="brand"><img class="logo" src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b id="brand-title">Convivencia Escolar</b><span id="brand-subtitle">Material Educativo Chile</span></div></div>
+  <div class="brand"><img class="logo" src="https://material-educativo-chile-portal.onrender.com/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile"><div><b id="brand-title">Convivencia Escolar</b><span id="brand-subtitle">Material Educativo Chile</span></div></div>
   <div class="eyebrow" id="login-eyebrow">ACCESO PROFESIONAL</div>
   <h1 id="login-title">Ingreso a la plataforma</h1>
   <p class="sub" id="login-subtitle">Ingresa con tu correo institucional o RUT y tu clave. El establecimiento se determina automáticamente según tu cuenta.</p>
   <form id="login-form">
-    <div class="field"><label for="identifier">Correo o RUT</label><input id="identifier" autocomplete="username" required placeholder="correo@establecimiento.cl o 12.345.678-9"></div>
+    <div class="field"><label for="identifier" id="identifier-label">Correo o RUT</label><input id="identifier" autocomplete="username" required placeholder="correo@establecimiento.cl o 12.345.678-9"></div>
     <div class="field"><label for="password">Clave</label><input id="password" type="password" autocomplete="current-password" required></div>
     <button id="login-btn" type="submit">Ingresar</button>
     <div id="mfa-box" hidden>
@@ -68,6 +68,8 @@ if(isStoreAdminFlow()){
   document.getElementById('login-eyebrow').textContent='ACCESO SUPERADMINISTRADOR';
   document.getElementById('login-title').textContent='Administrar Tienda';
   document.getElementById('login-subtitle').textContent='Ingresa con la cuenta de Superadministrador para gestionar productos, imágenes, precios y entregas de la tienda.';
+  document.getElementById('identifier-label').textContent='Correo de Superadministrador';
+  document.getElementById('identifier').placeholder='correo@materialeducativo.cl';
 }
 (async()=>{try{
   const r=await fetch(API+'/api/auth/me',{credentials:'include'}),d=await r.json();

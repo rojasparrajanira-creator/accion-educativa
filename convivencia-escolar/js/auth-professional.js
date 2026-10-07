@@ -40,7 +40,13 @@
 
       const allowed=options.roles||['coordinador_convivencia','dupla_psicosocial'];
       if(!options.allowAnyRole&&!allowed.includes(role)){
-        location.replace('notificaciones.html');
+        if(options.forbiddenToLogin){
+          try{await nativeFetch(API+'/api/auth/logout',{method:'POST',credentials:'include'})}catch(e){}
+          const next=page+location.search;
+          location.replace('ingreso.html?next='+encodeURIComponent(next));
+        }else{
+          location.replace('notificaciones.html');
+        }
         return new Promise(()=>{});
       }
 

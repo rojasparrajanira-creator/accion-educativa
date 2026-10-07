@@ -29,6 +29,10 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
     <div class="field"><label for="identifier">Correo o RUT</label><input id="identifier" autocomplete="username" required placeholder="correo@establecimiento.cl o 12.345.678-9"></div>
     <div class="field"><label for="password">Clave</label><input id="password" type="password" autocomplete="current-password" required></div>
     <button id="login-btn" type="submit">Ingresar</button>
+    <div id="mfa-box" hidden>
+      <div class="field"><label for="mfa-code">Código de verificación</label><input id="mfa-code" inputmode="numeric" autocomplete="one-time-code" placeholder="6 dígitos o código de recuperación"></div>
+      <button id="mfa-btn" type="button">Verificar segundo factor</button>
+    </div>
     <p class="status" id="login-status" role="alert" aria-live="polite"></p>
     <p style="text-align:center;margin:8px 0 0"><a href="solicitar-clave.html" style="font-size:12px;color:#2F8067;font-weight:750">¿Olvidaste tu clave?</a></p>
   </form>
@@ -36,7 +40,9 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 </main>
 <script>
 const API='https://convivencia-escolar-api.onrender.com';
-const form=document.getElementById('login-form'),btn=document.getElementById('login-btn'),status=document.getElementById('login-status');
+const form=document.getElementById('login-form'),btn=document.getElementById('login-btn'),status=document.getElementById('login-status'),mfaBox=document.getElementById('mfa-box'),mfaBtn=document.getElementById('mfa-btn'),mfaCode=document.getElementById('mfa-code');
+let mfaChallenge='';
+function redirectUser(user){if(user.must_change_password){location.href='cambiar-clave.html';return}const role=String(user.role||'').toLowerCase();if(role==='platform_admin'){location.href='admin-plataforma.html';return}if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);return}const q=new URLSearchParams(location.search),next=q.get('next');const destination=next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;}
 (async()=>{try{
   const r=await fetch(API+'/api/auth/me',{credentials:'include'}),d=await r.json();
   if(!(r.ok&&d.ok&&d.user))return;
@@ -55,15 +61,8 @@ form.addEventListener('submit',async ev=>{
     });
     const d=await r.json();
     if(!r.ok||!d.ok)throw new Error(d.error||'invalid_credentials');
-    if(d.user.must_change_password){location.href='cambiar-clave.html';return}
-    const role=String(d.user.role||'').toLowerCase();
-    if(role==='platform_admin'){location.href='admin-plataforma.html';return}
-    if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(d.user.establishment_id);return}
-    const q=new URLSearchParams(location.search),next=q.get('next');
-    const destination=next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:'inicio.html';
-    const u=new URL(destination,location.href);
-    u.searchParams.set('establishment_id',String(d.user.establishment_id));
-    location.href=u.pathname.split('/').pop()+u.search;
+    if(d.mfa_required){mfaChallenge=d.mfa_challenge;mfaBox.hidden=false;document.getElementById('identifier').disabled=true;document.getElementById('password').disabled=true;btn.hidden=true;status.textContent='Ingresa el código de tu aplicación autenticadora.';mfaCode.focus();return}
+    redirectUser(d.user);
   }catch(e){
     status.textContent=e.message==='account_temporarily_locked'
       ? 'La cuenta está temporalmente bloqueada por varios intentos fallidos. Intenta nuevamente más tarde.'
@@ -71,6 +70,7 @@ form.addEventListener('submit',async ev=>{
     btn.disabled=false;
   }
 });
+mfaBtn.addEventListener('click',async()=>{mfaBtn.disabled=true;status.textContent='Verificando segundo factor…';try{const r=await fetch(API+'/api/auth/mfa/verify',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({challenge:mfaChallenge,code:mfaCode.value})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'invalid_mfa_code');redirectUser(d.user)}catch(e){status.textContent=e.message==='mfa_challenge_locked'?'Se agotaron los intentos. Vuelve a iniciar sesión.':'Código de verificación incorrecto o vencido.';mfaBtn.disabled=false}});
 </script>
 </body>
 </html>

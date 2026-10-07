@@ -116,11 +116,13 @@ async function initDatabase(){
       const cred=await makePassword(platformPassword);
       await pool.query("insert into users(establishment_id,email,name,role,password_hash,password_salt,must_change_password,active) values($1,$2,'Administración de Plataforma','platform_admin',$3,$4,false,true)",[est.rows[0].id,platformEmail,cred.hash,cred.salt]);
       console.log('Platform administrator initialized.');
-    }else if(existing.rows[0].role!=='platform_admin'||!existing.rows[0].password_hash){
+    }else if(existing.rows[0].role!=='platform_admin'||!existing.rows[0].password_hash||existing.rows[0].active===false){
       const cred=await makePassword(platformPassword);
       await pool.query("update users set role='platform_admin',password_hash=coalesce(password_hash,$1),password_salt=coalesce(password_salt,$2),active=true where id=$3",[cred.hash,cred.salt,existing.rows[0].id]);
       console.log('Platform administrator role verified.');
     }
+    const deactivated=await pool.query("update users set active=false where establishment_id=$1 and role='platform_admin' and lower(email)<>lower($2) and active=true returning id",[est.rows[0].id,platformEmail]);
+    if(deactivated.rowCount)console.log('Previous platform administrator accounts deactivated:',deactivated.rowCount);
   }
   const platformAdminReady=await pool.query("select exists(select 1 from users where role='platform_admin' and active=true and password_hash is not null) as ready");
   console.log('Platform administrator ready:',platformAdminReady.rows[0]?.ready?'yes':'no');

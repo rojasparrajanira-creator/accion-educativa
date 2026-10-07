@@ -455,8 +455,8 @@ app.post('/api/auth/mfa/verify',mfaVerifyRateLimit,async(req,res)=>{try{
   let valid=false,recovery=false;
   if(/^\d{6}$/.test(code))valid=authenticator.check(code,decryptMfaSecret(user.mfa_secret_encrypted));
   else{
-    const rc=await pool.query("select id from mfa_recovery_codes where user_id=$1 and code_hash=$2 and used_at is null",[user.id,sha256(code)]);
-    if(rc.rowCount){valid=true;recovery=true;await pool.query("update mfa_recovery_codes set used_at=now() where id=$1",[rc.rows[0].id])}
+    const rc=await pool.query("update mfa_recovery_codes set used_at=now() where user_id=$1 and code_hash=$2 and used_at is null returning id",[user.id,sha256(code)]);
+    if(rc.rowCount){valid=true;recovery=true}
   }
   if(!valid){await pool.query("update mfa_login_challenges set attempts=attempts+1 where token_hash=$1",[sha256(challenge)]);return res.status(401).json({ok:false,error:'invalid_mfa_code'})}
   await pool.query("delete from mfa_login_challenges where token_hash=$1",[sha256(challenge)]);
@@ -470,14 +470,23 @@ app.post('/api/auth/mfa/verify',mfaVerifyRateLimit,async(req,res)=>{try{
 
 app.post('/api/auth/mfa/enroll',...requireRole('platform_admin'),async(req,res)=>{try{
   if(!mfaKey())return res.status(503).json({ok:false,error:'mfa_not_configured'});
-  const q=await pool.query("select email,mfa_enabled from users where id=$1",[req.auth.id]);
+  const currentPassword=String((req.body||{}).current_password||'');
+  if(!currentPassword)return res.status(400).json({ok:false,error:'current_password_required'});
+  const q=await pool.query("select email,mfa_enabled,password_hash,password_salt from users where id=$1",[req.auth.id]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'user_not_found'});
   if(q.rows[0].mfa_enabled)return res.status(409).json({ok:false,error:'mfa_already_enabled'});
+  if(!(await verifyPassword(currentPassword,q.rows[0].password_salt,q.rows[0].password_hash)))return res.status(401).json({ok:false,error:'invalid_current_password'});
   const secret=authenticator.generateSecret();
   await pool.query("update users set mfa_secret_encrypted=$1 where id=$2",[encryptMfaSecret(secret),req.auth.id]);
   const otpauth=authenticator.keyuri(q.rows[0].email,'Material Educativo Chile',secret);
   ok(res,{secret,otpauth_uri:otpauth});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.get('/api/auth/mfa/status',...requireRole('platform_admin'),async(req,res)=>{try{
+  const q=await pool.query("select mfa_required,mfa_enabled,mfa_enrolled_at from users where id=$1",[req.auth.id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'user_not_found'});
+  ok(res,{mfa_required:!!q.rows[0].mfa_required,mfa_enabled:!!q.rows[0].mfa_enabled,mfa_enrolled_at:q.rows[0].mfa_enrolled_at||null});
+}catch(e){res.status(400).json({ok:false,error:'mfa_status_failed'})}});
 
 app.post('/api/auth/mfa/confirm',...requireRole('platform_admin'),async(req,res)=>{try{
   if(!mfaKey())return res.status(503).json({ok:false,error:'mfa_not_configured'});

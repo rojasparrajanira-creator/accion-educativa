@@ -1392,7 +1392,7 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{const client=a
   if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
   if(pq.rows.some(p=>!p.drive_account_id||!p.drive_delivery_url))return res.status(409).json({ok:false,error:'product_delivery_not_configured'});
   let total=0;for(const p of pq.rows)total+=Number(p.price_clp)*qty.get(Number(p.id));
-  const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(8).toString('hex').toUpperCase();
+  const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(16).toString('hex').toUpperCase();
   await client.query('begin');
   const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp) values($1,$2,$3,$4) returning id,order_code,status,total_clp,created_at",[code,name,email,total]);
   for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[oq.rows[0].id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);

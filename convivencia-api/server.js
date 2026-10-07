@@ -78,6 +78,15 @@ const storeImageUpload=multer({
     cb(null,(type==='image/jpeg'||type==='image/png')&&/\.(jpe?g|png)$/.test(name));
   }
 });
+const siteAssetUpload=multer({
+  storage:multer.memoryStorage(),
+  limits:{files:1,fileSize:3*1024*1024},
+  fileFilter:(req,file,cb)=>{
+    const type=String(file.mimetype||'').toLowerCase();
+    const name=String(file.originalname||'').toLowerCase();
+    cb(null,(type==='image/jpeg'||type==='image/png'||type==='image/webp')&&/\.(jpe?g|png|webp)$/.test(name));
+  }
+});
 const matrículaUpload=multer({
   storage:multer.memoryStorage(),
   limits:{files:20,fileSize:10*1024*1024},
@@ -1493,6 +1502,41 @@ app.get('/api/store/admin/orders',requireAuth,async(req,res)=>{try{
   const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count from store_orders o left join store_order_items i on i.order_id=o.id group by o.id order by o.created_at desc limit 250");
   ok(res,{orders:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'store_orders_failed'})}});
+
+
+const siteAssetRateLimit=publicRateLimit({windowMs:60000,max:120});
+function assetUploadTokenValid(req){
+  const expected=String(process.env.MEC_ASSET_UPLOAD_TOKEN||'');
+  const supplied=String(req.get('x-mec-asset-token')||'');
+  if(expected.length<32||supplied.length!==expected.length)return false;
+  try{return crypto.timingSafeEqual(Buffer.from(supplied),Buffer.from(expected))}catch(e){return false}
+}
+app.get('/api/site-assets/:key',siteAssetRateLimit,async(req,res)=>{try{
+  const key=String(req.params.key||'').trim().toLowerCase();
+  if(!/^[a-z0-9][a-z0-9_-]{1,80}$/.test(key))return res.status(400).end();
+  const q=await pool.query("select mime_type,image_data,updated_at from site_assets where asset_key=$1 limit 1",[key]);
+  if(!q.rowCount)return res.status(404).end();
+  const row=q.rows[0];
+  res.setHeader('Content-Type',row.mime_type);
+  res.setHeader('Cache-Control','public, max-age=300, must-revalidate');
+  res.setHeader('Cross-Origin-Resource-Policy','cross-origin');
+  res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Content-Length',String(row.image_data.length));
+  return res.send(row.image_data);
+}catch(e){console.error('Site asset read failed:',e.message);return res.status(500).end()}});
+app.post('/api/site-assets/:key',siteAssetUpload.single('image'),async(req,res)=>{try{
+  if(!assetUploadTokenValid(req))return res.status(403).json({ok:false,error:'asset_upload_forbidden'});
+  const key=String(req.params.key||'').trim().toLowerCase();
+  if(!/^[a-z0-9][a-z0-9_-]{1,80}$/.test(key))return res.status(400).json({ok:false,error:'invalid_asset_key'});
+  if(!req.file||!req.file.buffer?.length)return res.status(400).json({ok:false,error:'invalid_asset_image'});
+  const mime=String(req.file.mimetype||'').toLowerCase();
+  if(!['image/jpeg','image/png','image/webp'].includes(mime))return res.status(400).json({ok:false,error:'invalid_asset_type'});
+  await pool.query(`insert into site_assets(asset_key,mime_type,image_data,updated_at)
+    values($1,$2,$3,now())
+    on conflict(asset_key) do update set mime_type=excluded.mime_type,image_data=excluded.image_data,updated_at=now()`,
+    [key,mime,req.file.buffer]);
+  return ok(res,{asset_key:key,mime_type:mime,bytes:req.file.buffer.length});
+}catch(e){console.error('Site asset upload failed:',e.message);return res.status(500).json({ok:false,error:'asset_upload_failed'})}});
 
 const port=process.env.PORT||3000;
 initDatabase().then(()=>app.listen(port,()=>{

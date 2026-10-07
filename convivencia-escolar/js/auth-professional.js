@@ -33,7 +33,8 @@
       const page=location.pathname.split('/').pop()||'index.html';
 
       if(user.must_change_password&&page!=='cambiar-clave.html'){
-        location.replace('cambiar-clave.html');
+        const next=page+location.search;
+        location.replace('cambiar-clave.html?next='+encodeURIComponent(next));
         return new Promise(()=>{});
       }
 

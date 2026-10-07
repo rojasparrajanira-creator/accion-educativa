@@ -5,6 +5,7 @@ const crypto=require('crypto');
 const {Pool}=require('pg');
 const multer=require('multer');
 const ExcelJS=require('@ayocore/exceljs');
+const {authenticator}=require('otplib');
 const app=express();
 app.use(express.json({limit:'5mb'}));
 app.disable('x-powered-by');
@@ -156,6 +157,24 @@ async function verifyPassword(password,salt,hash){
   }catch(e){return false}
 }
 function sha256(v){return crypto.createHash('sha256').update(String(v)).digest('hex')}
+function mfaKey(){
+  const raw=String(process.env.MEC_MFA_ENCRYPTION_KEY||'');
+  if(!raw)return null;
+  return crypto.createHash('sha256').update(raw).digest();
+}
+function encryptMfaSecret(secret){
+  const key=mfaKey();if(!key)throw new Error('mfa_not_configured');
+  const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+  const enc=Buffer.concat([cipher.update(String(secret),'utf8'),cipher.final()]);
+  return [iv.toString('base64url'),cipher.getAuthTag().toString('base64url'),enc.toString('base64url')].join('.');
+}
+function decryptMfaSecret(payload){
+  const key=mfaKey();if(!key)throw new Error('mfa_not_configured');
+  const [iv,tag,data]=String(payload||'').split('.');if(!iv||!tag||!data)throw new Error('mfa_secret_invalid');
+  const decipher=crypto.createDecipheriv('aes-256-gcm',key,Buffer.from(iv,'base64url'));
+  decipher.setAuthTag(Buffer.from(tag,'base64url'));
+  return Buffer.concat([decipher.update(Buffer.from(data,'base64url')),decipher.final()]).toString('utf8');
+}
 function newStudentAccessToken(){return crypto.randomBytes(32).toString('base64url')}
 function studentAccessValid(hash,token){
   if(!hash||!token)return false;
@@ -408,6 +427,31 @@ app.post('/api/auth/login',async(req,res)=>{try{
   setSessionCookie(res,token);
   ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,establishment:user.establishment,rbd:user.rbd}});
 }catch(e){res.status(400).json({ok:false,error:'login_failed'})}});
+
+app.post('/api/auth/mfa/enroll',...requireRole('platform_admin'),async(req,res)=>{try{
+  if(!mfaKey())return res.status(503).json({ok:false,error:'mfa_not_configured'});
+  const q=await pool.query("select email,mfa_enabled from users where id=$1",[req.auth.id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'user_not_found'});
+  if(q.rows[0].mfa_enabled)return res.status(409).json({ok:false,error:'mfa_already_enabled'});
+  const secret=authenticator.generateSecret();
+  await pool.query("update users set mfa_secret_encrypted=$1 where id=$2",[encryptMfaSecret(secret),req.auth.id]);
+  const otpauth=authenticator.keyuri(q.rows[0].email,'Material Educativo Chile',secret);
+  ok(res,{secret,otpauth_uri:otpauth});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
+
+app.post('/api/auth/mfa/confirm',...requireRole('platform_admin'),async(req,res)=>{try{
+  if(!mfaKey())return res.status(503).json({ok:false,error:'mfa_not_configured'});
+  const token=String((req.body||{}).token||'').replace(/\s+/g,'');
+  if(!/^\d{6}$/.test(token))return res.status(400).json({ok:false,error:'invalid_mfa_code'});
+  const q=await pool.query("select mfa_secret_encrypted,mfa_enabled from users where id=$1",[req.auth.id]);
+  if(!q.rowCount||!q.rows[0].mfa_secret_encrypted)return res.status(409).json({ok:false,error:'mfa_enrollment_required'});
+  if(q.rows[0].mfa_enabled)return res.status(409).json({ok:false,error:'mfa_already_enabled'});
+  const valid=authenticator.check(token,decryptMfaSecret(q.rows[0].mfa_secret_encrypted));
+  if(!valid)return res.status(401).json({ok:false,error:'invalid_mfa_code'});
+  await pool.query("update users set mfa_enabled=true,mfa_required=true,mfa_enrolled_at=now() where id=$1",[req.auth.id]);
+  await pool.query("insert into security_events(user_id,event_type,metadata) values($1,'mfa_enabled',$2::jsonb)",[req.auth.id,JSON.stringify({role:'platform_admin'})]);
+  ok(res,{mfa_enabled:true});
+}catch(e){res.status(400).json({ok:false,error:e.message})}});
 
 app.get('/api/auth/me',async(req,res)=>{try{const user=await sessionUser(req);if(!user)return res.status(401).json({ok:false,error:'authentication_required'});ok(res,{user})}catch(e){res.status(401).json({ok:false,error:'authentication_required'})}});
 app.post('/api/auth/logout',async(req,res)=>{try{const token=cookieValue(req,'mec_session');if(token)await pool.query("delete from auth_sessions where token_hash=$1",[sha256(token)]);setSessionCookie(res,'',0);ok(res,{logged_out:true})}catch(e){setSessionCookie(res,'',0);ok(res,{logged_out:true})}});

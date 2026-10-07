@@ -42,11 +42,11 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 const API='https://convivencia-escolar-api.onrender.com';
 const form=document.getElementById('login-form'),btn=document.getElementById('login-btn'),status=document.getElementById('login-status'),mfaBox=document.getElementById('mfa-box'),mfaBtn=document.getElementById('mfa-btn'),mfaCode=document.getElementById('mfa-code');
 let mfaChallenge='';
-function safeNext(){const q=new URLSearchParams(location.search),next=q.get('next');return next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:null}function redirectUser(user){if(user.must_change_password){location.href='cambiar-clave.html';return}const role=String(user.role||'').toLowerCase(),next=safeNext();if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);return}const destination=next||'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;}
+function safeNext(){const q=new URLSearchParams(location.search),next=q.get('next');return next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:null}function changePasswordUrl(){const next=safeNext();return 'cambiar-clave.html'+(next?'?next='+encodeURIComponent(next):'')}function redirectUser(user){if(user.must_change_password){location.href=changePasswordUrl();return}const role=String(user.role||'').toLowerCase(),next=safeNext();if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);return}const destination=next||'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;}
 (async()=>{try{
   const r=await fetch(API+'/api/auth/me',{credentials:'include'}),d=await r.json();
   if(!(r.ok&&d.ok&&d.user))return;
-  if(d.user.must_change_password){location.href='cambiar-clave.html';return}
+  if(d.user.must_change_password){location.href=changePasswordUrl();return}
   const role=String(d.user.role||'').toLowerCase(),next=safeNext();
   if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}
   if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(d.user.establishment_id);return}

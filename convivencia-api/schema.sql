@@ -382,6 +382,21 @@ CREATE TABLE IF NOT EXISTS store_drive_accounts(
  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE store_drive_accounts ADD COLUMN IF NOT EXISTS oauth_refresh_token_encrypted TEXT;
+ALTER TABLE store_drive_accounts ADD COLUMN IF NOT EXISTS google_subject TEXT;
+ALTER TABLE store_drive_accounts ADD COLUMN IF NOT EXISTS oauth_scope TEXT;
+ALTER TABLE store_drive_accounts ADD COLUMN IF NOT EXISTS connected_at TIMESTAMPTZ;
+ALTER TABLE store_drive_accounts ADD COLUMN IF NOT EXISTS disconnected_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS store_drive_oauth_states(
+ token_hash TEXT PRIMARY KEY,
+ drive_account_id BIGINT NOT NULL REFERENCES store_drive_accounts(id) ON DELETE CASCADE,
+ admin_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ expires_at TIMESTAMPTZ NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_drive_oauth_states_expires ON store_drive_oauth_states(expires_at);
+
 ALTER TABLE store_products ADD COLUMN IF NOT EXISTS drive_account_id BIGINT REFERENCES store_drive_accounts(id);
 ALTER TABLE store_order_items ADD COLUMN IF NOT EXISTS drive_account_id_snapshot BIGINT REFERENCES store_drive_accounts(id);
 

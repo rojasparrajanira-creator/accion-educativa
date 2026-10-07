@@ -105,6 +105,15 @@ CREATE TABLE IF NOT EXISTS mfa_recovery_codes(
 );
 CREATE INDEX IF NOT EXISTS idx_mfa_recovery_codes_user ON mfa_recovery_codes(user_id) WHERE used_at IS NULL;
 
+CREATE TABLE IF NOT EXISTS mfa_login_challenges(
+ token_hash TEXT PRIMARY KEY,
+ user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ expires_at TIMESTAMPTZ NOT NULL,
+ attempts INT NOT NULL DEFAULT 0,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_mfa_login_challenges_expires ON mfa_login_challenges(expires_at);
+
 CREATE TABLE IF NOT EXISTS response_drafts(
  application_id BIGINT NOT NULL REFERENCES survey_applications(id) ON DELETE CASCADE,
  item_code TEXT NOT NULL,

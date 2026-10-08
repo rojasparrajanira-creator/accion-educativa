@@ -1552,9 +1552,14 @@ app.get('/api/store/images/:name',async(req,res)=>{try{
   const id=Number(req.params.name);if(!Number.isInteger(id)||id<1)return res.sendStatus(404);
   const q=await pool.query("select mime_type,image_data from store_product_images where id=$1",[id]);
   if(!q.rowCount)return res.sendStatus(404);
+  const row=q.rows[0];
+  res.setHeader('Content-Type',row.mime_type);
   res.setHeader('Cache-Control','public, max-age=31536000, immutable');
-  res.type(q.rows[0].mime_type).send(q.rows[0].image_data);
-}catch(e){res.sendStatus(404)}});
+  res.setHeader('Cross-Origin-Resource-Policy','cross-origin');
+  res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Content-Length',String(row.image_data.length));
+  return res.send(row.image_data);
+}catch(e){console.error('Store image read failed:',e.message);return res.sendStatus(404)}});
 app.get('/api/store/products',async(req,res)=>{try{
   const q=await pool.query("select id,title,slug,objective,description,included_materials,audience,image_url,price_clp,compare_at_price_clp,updated_at from store_products where status='published' order by updated_at desc");
   ok(res,{products:q.rows});

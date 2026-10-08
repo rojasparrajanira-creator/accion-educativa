@@ -1785,4 +1785,19 @@ initDatabase().then(()=>app.listen(port,()=>{
       }
     },1200);
   }
+  if(String(process.env.RUN_WEBPAY_SELFTEST||'')==='1'){
+    setTimeout(async()=>{
+      try{
+        const cfg=webpayConfig();
+        if(!cfg.configured)throw new Error('webpay_not_configured');
+        const buyOrder=('SELFTEST-'+Date.now().toString(36)).slice(0,26);
+        const sessionId=('SELFTEST-'+crypto.randomBytes(8).toString('hex')).slice(0,61);
+        const result=await cfg.transaction().create(buyOrder,sessionId,100,cfg.returnUrl);
+        if(!result?.token||!result?.url)throw new Error('webpay_create_invalid');
+        console.log('WEBPAY_SELFTEST PASSED '+JSON.stringify({mode:cfg.mode,has_token:true,has_url:true}));
+      }catch(e){
+        console.error('WEBPAY_SELFTEST FAILED '+(e&&e.stack?e.stack:e));
+      }
+    },1500);
+  }
 })).catch(e=>{console.error('Convivencia startup failed:',e.message);process.exit(1)});

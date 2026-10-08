@@ -537,7 +537,7 @@ fetch(API+'/api/store/webpay/config').then(r=>r.json()).then(d=>{
     document.getElementById('orderBtn').textContent=d.mode==='integration'?'Pagar con Webpay (prueba)':'Pagar con Webpay';
   }
 }).catch(()=>{});
-fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];renderProducts();setHeroProduct()}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
+fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];const term=new URLSearchParams(location.search).get('buscar');if(term){document.getElementById('catalogSearch').value=term;location.hash='#catalogo'}renderProducts();setHeroProduct()}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
 </script>
 </body>
 </html>

@@ -6,8 +6,10 @@ const {Pool}=require('pg');
 const multer=require('multer');
 const ExcelJS=require('@ayocore/exceljs');
 const {authenticator}=require('otplib');
+const {Environment,IntegrationApiKeys,IntegrationCommerceCodes,Options,WebpayPlus}=require('transbank-sdk');
 const app=express();
 app.use(express.json({limit:'5mb'}));
+app.use(express.urlencoded({extended:false,limit:'64kb'}));
 app.disable('x-powered-by');
 app.use((req,res,next)=>{
   res.setHeader('X-Frame-Options','DENY');
@@ -126,6 +128,8 @@ async function initDatabase(){
   const platformAdminReady=await pool.query("select exists(select 1 from users where role='platform_admin' and active=true and password_hash is not null) as ready");
   console.log('Platform administrator ready:',platformAdminReady.rows[0]?.ready?'yes':'no');
   console.log('Google OAuth configured:',googleOAuthConfig().configured?'yes':'no');
+  const wp=webpayConfig();
+  console.log('Webpay configured:',wp.configured?'yes':'no','mode:',wp.mode);
   if(String(process.env.RUN_STORE_SELFTEST||'')==='1'){
     const checks=[];
     const cols=await pool.query("select table_name,column_name from information_schema.columns where table_schema='public' and table_name in ('store_products','store_drive_accounts','store_drive_oauth_states','store_product_images','store_orders','store_order_items','store_delivery_events')");
@@ -213,6 +217,28 @@ function googleOAuthConfig(){
   const clientSecret=String(process.env.MEC_GOOGLE_OAUTH_CLIENT_SECRET||'').trim();
   const redirectUri=String(process.env.MEC_GOOGLE_OAUTH_REDIRECT_URI||'https://convivencia-escolar-api.onrender.com/api/store/admin/drive-oauth/callback').trim();
   return {clientId,clientSecret,redirectUri,configured:!!(clientId&&clientSecret&&googleTokenKey())};
+}
+
+function webpayConfig(){
+  const requested=String(process.env.MEC_WEBPAY_MODE||'integration').trim().toLowerCase();
+  const mode=requested==='production'?'production':'integration';
+  const returnUrl=String(process.env.MEC_WEBPAY_RETURN_URL||'https://convivencia-escolar-api.onrender.com/api/store/webpay/return').trim();
+  if(mode==='production'){
+    const commerceCode=String(process.env.MEC_WEBPAY_COMMERCE_CODE||'').trim();
+    const apiKey=String(process.env.MEC_WEBPAY_API_KEY||'').trim();
+    return {
+      mode,returnUrl,configured:!!(commerceCode&&apiKey),
+      transaction:()=>new WebpayPlus.Transaction(new Options(commerceCode,apiKey,Environment.Production))
+    };
+  }
+  return {
+    mode,returnUrl,configured:true,
+    transaction:()=>new WebpayPlus.Transaction(new Options(
+      IntegrationCommerceCodes.WEBPAY_PLUS,
+      IntegrationApiKeys.WEBPAY,
+      Environment.Integration
+    ))
+  };
 }
 
 function newStudentAccessToken(){return crypto.randomBytes(32).toString('base64url')}
@@ -1596,21 +1622,109 @@ app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_update_failed'})}});
 
 
-app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{const client=await pool.connect();try{
-  const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
-  if(name.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
-  const qty=new Map();for(const x of raw){const id=Number(x.product_id),q=Number(x.quantity||1);if(!Number.isInteger(id)||!Number.isInteger(q)||q<1||q>20)return res.status(400).json({ok:false,error:'invalid_order_items'});qty.set(id,(qty.get(id)||0)+q)}
-  const ids=[...qty.keys()];const pq=await client.query("select id,title,price_clp,drive_delivery_url,drive_account_id from store_products where status='published' and id=any($1::bigint[])",[ids]);
-  if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
-  if(pq.rows.some(p=>!p.drive_account_id||!p.drive_delivery_url))return res.status(409).json({ok:false,error:'product_delivery_not_configured'});
-  let total=0;for(const p of pq.rows)total+=Number(p.price_clp)*qty.get(Number(p.id));
-  const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(16).toString('hex').toUpperCase();
-  await client.query('begin');
-  const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp) values($1,$2,$3,$4) returning id,order_code,status,total_clp,created_at",[code,name,email,total]);
-  for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[oq.rows[0].id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);
-  await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[oq.rows[0].id,email]);
-  await client.query('commit');ok(res,{order:oq.rows[0],payment_ready:false,message:'Pedido creado. Webpay aún no está habilitado.'});
-}catch(e){await client.query('rollback').catch(()=>{});res.status(400).json({ok:false,error:'order_create_failed'})}finally{client.release()}});
+app.get('/api/store/webpay/config',storeStatusRateLimit,(req,res)=>{
+  const cfg=webpayConfig();
+  ok(res,{configured:cfg.configured,mode:cfg.mode});
+});
+
+app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
+  const client=await pool.connect();
+  let order=null,committed=false;
+  try{
+    const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
+    if(name.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
+    const qty=new Map();
+    for(const x of raw){
+      const id=Number(x.product_id),q=Number(x.quantity||1);
+      if(!Number.isInteger(id)||!Number.isInteger(q)||q<1||q>20)return res.status(400).json({ok:false,error:'invalid_order_items'});
+      qty.set(id,(qty.get(id)||0)+q);
+    }
+    const ids=[...qty.keys()];
+    const pq=await client.query("select id,title,price_clp,drive_delivery_url,drive_account_id from store_products where status='published' and id=any($1::bigint[])",[ids]);
+    if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
+    if(pq.rows.some(p=>!p.drive_account_id||!p.drive_delivery_url))return res.status(409).json({ok:false,error:'product_delivery_not_configured'});
+    let total=0;
+    for(const p of pq.rows)total+=Number(p.price_clp)*qty.get(Number(p.id));
+    const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(16).toString('hex').toUpperCase();
+
+    await client.query('begin');
+    const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp) values($1,$2,$3,$4) returning id,order_code,status,total_clp,created_at",[code,name,email,total]);
+    order=oq.rows[0];
+    for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[order.id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);
+    await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[order.id,email]);
+    await client.query('commit');
+    committed=true;
+
+    const cfg=webpayConfig();
+    if(!cfg.configured)return ok(res,{order,payment_ready:false,payment_mode:cfg.mode,message:'Pedido creado. Webpay requiere configuración de producción.'});
+
+    const buyOrder=('MEC'+order.id+'-'+Date.now().toString(36)).slice(0,26);
+    const sessionId=('MEC-'+order.id+'-'+crypto.randomBytes(10).toString('hex')).slice(0,61);
+    const createResponse=await cfg.transaction().create(buyOrder,sessionId,Number(order.total_clp),cfg.returnUrl);
+    if(!createResponse?.token||!createResponse?.url)throw new Error('webpay_create_invalid');
+
+    await client.query("update store_orders set status='payment_initialized',payment_token_hash=$1,payment_buy_order=$2,updated_at=now() where id=$3",[sha256(createResponse.token),buyOrder,order.id]);
+    await client.query("insert into store_payment_events(order_id,provider,event_type,provider_status,amount_clp,payload) values($1,'webpay','initialized',$2,$3,$4::jsonb)",[order.id,cfg.mode,Number(order.total_clp),JSON.stringify({buy_order:buyOrder,mode:cfg.mode})]);
+    order={...order,status:'payment_initialized'};
+    return ok(res,{order,payment_ready:true,payment_mode:cfg.mode,payment:{url:createResponse.url,token:createResponse.token},message:'Pedido creado. Continúa el pago en Webpay.'});
+  }catch(e){
+    if(!committed)await client.query('rollback').catch(()=>{});
+    if(order?.id){
+      await client.query("update store_orders set status='failed',updated_at=now() where id=$1 and status<>'paid'",[order.id]).catch(()=>{});
+      await client.query("insert into store_payment_events(order_id,provider,event_type,provider_status,payload) values($1,'webpay','initialize_failed','FAILED',$2::jsonb)",[order.id,JSON.stringify({message:String(e.message||'webpay_initialize_failed').slice(0,160)})]).catch(()=>{});
+    }
+    return res.status(502).json({ok:false,error:'webpay_initialize_failed'});
+  }finally{client.release()}
+});
+
+app.all('/api/store/webpay/return',async(req,res)=>{
+  const back=(result,code)=>res.redirect(DEFAULT_WEB_ORIGIN+'/tienda.html?payment='+encodeURIComponent(result)+(code?'&order='+encodeURIComponent(code):''));
+  try{
+    const token=String(req.body?.token_ws||req.query?.token_ws||'').trim();
+    const tbkOrder=String(req.body?.TBK_ORDEN_COMPRA||req.query?.TBK_ORDEN_COMPRA||'').trim();
+    if(!token){
+      if(tbkOrder){
+        const oq=await pool.query("update store_orders set status='cancelled',updated_at=now() where payment_buy_order=$1 and status='payment_initialized' returning id,order_code",[tbkOrder]);
+        if(oq.rowCount){
+          await pool.query("insert into store_payment_events(order_id,provider,event_type,provider_status,payload) values($1,'webpay','cancelled','CANCELLED',$2::jsonb)",[oq.rows[0].id,JSON.stringify({buy_order:tbkOrder})]).catch(()=>{});
+          return back('cancelled',oq.rows[0].order_code);
+        }
+      }
+      return back('cancelled');
+    }
+
+    const oq=await pool.query("select id,order_code,status,total_clp,payment_buy_order from store_orders where payment_token_hash=$1 limit 1",[sha256(token)]);
+    if(!oq.rowCount)return back('invalid');
+    const order=oq.rows[0];
+    if(order.status==='paid')return back('success',order.order_code);
+    if(order.status!=='payment_initialized')return back('failed',order.order_code);
+
+    const cfg=webpayConfig();
+    if(!cfg.configured)return back('failed',order.order_code);
+    const response=await cfg.transaction().commit(token);
+    const authorized=String(response?.status||'')==='AUTHORIZED'
+      && Number(response?.response_code)===0
+      && Number(response?.amount)===Number(order.total_clp)
+      && String(response?.buy_order||'')===String(order.payment_buy_order);
+
+    await pool.query(
+      "insert into store_payment_events(order_id,provider,event_type,provider_status,response_code,amount_clp,authorization_code,payload) values($1,'webpay','commit',$2,$3,$4,$5,$6::jsonb)",
+      [order.id,String(response?.status||''),Number.isFinite(Number(response?.response_code))?Number(response.response_code):null,Number.isFinite(Number(response?.amount))?Number(response.amount):null,String(response?.authorization_code||'')||null,JSON.stringify({buy_order:String(response?.buy_order||''),payment_type_code:String(response?.payment_type_code||''),installments_number:Number(response?.installments_number||0),mode:cfg.mode})]
+    );
+
+    if(authorized){
+      await pool.query("update store_orders set status='paid',paid_at=now(),updated_at=now() where id=$1",[order.id]);
+      await pool.query("insert into store_delivery_events(order_id,status,buyer_email,detail) select id,'ready',buyer_email,'Pago Webpay confirmado; entrega pendiente de automatización' from store_orders where id=$1",[order.id]);
+      return back('success',order.order_code);
+    }
+    await pool.query("update store_orders set status='failed',updated_at=now() where id=$1",[order.id]);
+    return back('failed',order.order_code);
+  }catch(e){
+    console.error('Webpay return failed:',e.message);
+    return back('failed');
+  }
+});
+
 app.get('/api/store/orders/:code/status',storeStatusRateLimit,async(req,res)=>{try{
   const code=String(req.params.code||'').trim();const q=await pool.query("select order_code,status,total_clp,paid_at,created_at from store_orders where order_code=$1",[code]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'order_not_found'});

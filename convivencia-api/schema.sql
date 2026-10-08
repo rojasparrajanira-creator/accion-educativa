@@ -418,3 +418,30 @@ CREATE TABLE IF NOT EXISTS site_assets(
  image_data BYTEA NOT NULL,
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+
+-- Contenidos institucionales de Material Educativo Chile.
+CREATE TABLE IF NOT EXISTS site_blog_posts(
+ id BIGSERIAL PRIMARY KEY,
+ title TEXT NOT NULL,
+ category TEXT NOT NULL DEFAULT 'Educación',
+ excerpt TEXT NOT NULL DEFAULT '',
+ content TEXT NOT NULL DEFAULT '',
+ image_url TEXT,
+ status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','published')),
+ created_by BIGINT REFERENCES users(id),
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_site_blog_posts_status ON site_blog_posts(status,created_at DESC);
+
+CREATE TABLE IF NOT EXISTS site_contact_messages(
+ id BIGSERIAL PRIMARY KEY,
+ sender_name TEXT NOT NULL,
+ sender_email TEXT NOT NULL,
+ subject TEXT NOT NULL,
+ message TEXT NOT NULL,
+ email_notification_status TEXT NOT NULL DEFAULT 'not_configured',
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_site_contact_messages_created ON site_contact_messages(created_at DESC);

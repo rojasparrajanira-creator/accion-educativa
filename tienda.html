@@ -23,7 +23,7 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
 .portal-link{border:1px solid #cfdbe8;border-radius:999px;padding:10px 16px;text-decoration:none;color:var(--brand);font-weight:720;background:#fff;transition:.2s}.portal-link:hover{border-color:var(--turq);transform:translateY(-1px)}
 
 .hero{max-width:1240px;margin:26px auto 0;padding:0 5%}
-.hero-card{position:relative;overflow:hidden;border-radius:32px;background:linear-gradient(135deg,#0F2D52 0%,#123f70 58%,#1E7FBC 100%);color:#fff;padding:42px 42px 38px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1.08fr) minmax(290px,.92fr);gap:34px;align-items:center;min-height:350px}
+.hero-card{position:relative;overflow:hidden;border-radius:32px;background:#0F2D52;color:#fff;padding:42px 42px 38px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1.08fr) minmax(290px,.92fr);gap:34px;align-items:center;min-height:350px}
 .hero-card:before{content:"";position:absolute;width:520px;height:220px;border:2px solid rgba(25,194,209,.28);border-radius:50%;right:-100px;top:-92px;transform:rotate(-12deg)}
 .hero-card:after{content:"";position:absolute;width:600px;height:230px;border:2px dashed rgba(255,255,255,.12);border-radius:50%;right:-170px;bottom:-130px;transform:rotate(8deg)}
 .hero-copy{position:relative;z-index:3}.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:720}
@@ -41,6 +41,20 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
 
 .value-section{max-width:1240px;margin:28px auto 0;padding:0 5%}.value-box{position:relative;overflow:hidden;background:#fff;border:1px solid #e4ebf2;border-radius:25px;padding:25px;box-shadow:var(--soft)}.value-box:before{content:"";position:absolute;right:-60px;top:-70px;width:210px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(25,194,209,.12),transparent 68%)}.value-top{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:18px}.value-top h2{margin:0;color:var(--brand);font-size:25px}.value-top p{margin:5px 0 0;color:var(--muted);font-size:14px}.value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.value-card{position:relative;border-radius:18px;padding:18px;background:linear-gradient(180deg,#fff,#f9fbfd);border:1px solid #e9eef3}.value-card:after{content:"";position:absolute;left:18px;bottom:0;width:44px;height:3px;border-radius:3px;background:var(--turq)}.value-card:nth-child(2):after{background:var(--blue)}.value-card:nth-child(3):after{background:var(--yellow)}.value-card h3{color:var(--brand);font-size:15px;margin:0 0 6px}.value-card p{margin:0;color:#5c6c7f;font-size:13px;line-height:1.5}
 
+
+.marketing-value{background:#0F2D52;border-color:#0F2D52;color:#fff;box-shadow:0 24px 65px rgba(15,45,82,.20);padding:32px;isolation:isolate}
+.marketing-value:before{content:"";position:absolute;inset:-30% -8% auto auto;width:430px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(25,194,209,.25),transparent 68%);z-index:-1}
+.marketing-value:after{content:"";position:absolute;left:-90px;bottom:-120px;width:330px;height:220px;border:2px dashed rgba(255,255,255,.10);border-radius:50%;transform:rotate(-8deg);z-index:-1}
+.marketing-head{margin-bottom:24px}.marketing-head h2{color:#fff;font-size:clamp(27px,4vw,39px);line-height:1.05;max-width:760px;margin-top:8px}.marketing-head p{color:rgba(255,255,255,.78);font-size:15px;line-height:1.6;max-width:780px}
+.marketing-kicker{display:inline-block;color:var(--yellow);font-size:12px;font-weight:850;text-transform:uppercase;letter-spacing:.09em}
+.marketing-card{background:#fff;border:0;box-shadow:0 15px 35px rgba(2,21,40,.18);padding:22px;overflow:hidden;min-height:230px}
+.marketing-card:before{content:"";position:absolute;right:-24px;top:-24px;width:82px;height:82px;border-radius:50%;background:rgba(25,194,209,.10)}
+.marketing-card:nth-child(2):before{background:rgba(30,127,188,.10)}.marketing-card:nth-child(3):before{background:rgba(255,210,0,.13)}
+.marketing-icon{width:44px;height:44px;border-radius:14px;background:#eaf9fb;color:var(--brand);display:grid;place-items:center;font-size:22px;font-weight:900;margin-bottom:18px}
+.marketing-card:nth-child(2) .marketing-icon{background:#eef5fb;color:var(--blue)}.marketing-card:nth-child(3) .marketing-icon{background:#fff8cf;color:#806a00}
+.marketing-number{position:absolute;right:17px;top:13px;font-size:38px;font-weight:900;color:#eef2f6;letter-spacing:-.04em}
+.marketing-card h3{font-size:18px;margin-bottom:8px}.marketing-card p{font-size:13px;line-height:1.56;margin-bottom:17px}
+.marketing-promise{display:block;color:var(--brand);font-size:12px;line-height:1.35;border-top:1px solid #e8eef3;padding-top:12px}
 .main{max-width:1240px;margin:0 auto;padding:34px 5% 70px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:8px 0 20px}.section-head h2{margin:0;color:var(--brand);font-size:30px}.section-head p{margin:5px 0 0;color:var(--muted)}
 .store-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:22px}
 .product-card{position:relative;background:#fff;border:1px solid #e5edf4;border-radius:24px;overflow:hidden;box-shadow:var(--soft);transition:.22s transform,.22s box-shadow}.product-card:hover{transform:translateY(-4px);box-shadow:0 20px 48px rgba(15,45,82,.14)}
@@ -64,7 +78,7 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
   .topbar{padding:9px 18px}.nav{padding:14px 18px}.brand img{width:58px;height:58px}.brand-title{font-size:17px}.portal-link{font-size:12px;padding:9px 11px}
   .hero{padding:0 14px;margin-top:18px}.hero-card{padding:31px 22px 27px;border-radius:24px;gap:15px}.hero h1{font-size:38px}.hero p{font-size:15px}.hero-actions{margin-top:19px}.hero-art{min-height:230px}.mock-stage{width:290px;height:230px}.hero-product{height:215px}.hero-product img{height:128px}.mock-sheet{height:185px}.chip-a{right:2px}.chip-b{right:0}.chip-c{left:0}
   .trust-wrap,.value-section{padding:0 14px}.trust-strip{grid-template-columns:1fr 1fr;gap:8px}.trust-item{padding:12px 10px}.trust-icon{width:31px;height:31px}.trust-item strong{font-size:11px}.trust-item span{font-size:10px}
-  .value-box{padding:20px;border-radius:20px}.value-top{align-items:start;flex-direction:column}.value-grid{grid-template-columns:1fr}.main{padding:28px 14px 50px}.section-head h2{font-size:27px}.section-head{align-items:start;flex-direction:column}.grid{grid-template-columns:1fr}.product-card{border-radius:20px}.product-title{font-size:21px}.cart{border-radius:20px}
+  .value-box{padding:20px;border-radius:20px}.marketing-value{padding:23px 18px}.marketing-head h2{font-size:30px}.marketing-head p{font-size:14px}.marketing-card{min-height:0}.value-top{align-items:start;flex-direction:column}.value-grid{grid-template-columns:1fr}.main{padding:28px 14px 50px}.section-head h2{font-size:27px}.section-head{align-items:start;flex-direction:column}.grid{grid-template-columns:1fr}.product-card{border-radius:20px}.product-title{font-size:21px}.cart{border-radius:20px}
 }
 </style>
 </head>
@@ -84,11 +98,11 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
   <div class="hero-card">
     <div class="hero-copy">
       <span class="eyebrow">Tienda oficial · Recursos digitales</span>
-      <h1>Material que se ve profesional y se siente <em>listo para usar.</em></h1>
-      <p>Recursos educativos prácticos, claros y pensados para el trabajo real de docentes y equipos profesionales.</p>
+      <h1>Recursos educativos digitales que <em>potencian tu trabajo</em> y marcan la diferencia.</h1>
+      <p>Materiales prácticos, editables y listos para implementar, creados para ayudarte a ahorrar tiempo, trabajar con mayor claridad y generar intervenciones de mayor impacto.</p>
       <div class="hero-actions">
         <a class="hero-btn" href="#catalogo">Ver materiales</a>
-        <a class="hero-btn secondary" href="#valor">¿Por qué elegirlos?</a>
+        <a class="hero-btn secondary" href="#valor">Descubre por qué elegirnos</a>
       </div>
     </div>
     <div class="hero-art" aria-hidden="true">
@@ -119,12 +133,36 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
 </section>
 
 <section class="value-section" id="valor">
-  <div class="value-box">
-    <div class="value-top"><div><h2>No compras solo un archivo.</h2><p>Compras una base de trabajo que te ayuda a implementar con mayor claridad y orden.</p></div></div>
+  <div class="value-box marketing-value">
+    <div class="value-top marketing-head">
+      <div>
+        <span class="marketing-kicker">Diseñado para facilitar tu trabajo</span>
+        <h2>Más impacto. Menos tiempo preparando desde cero.</h2>
+        <p>Material Educativo Chile reúne recursos listos para usar, organizados y pensados para profesionales que necesitan avanzar con claridad, calidad y confianza.</p>
+      </div>
+    </div>
     <div class="value-grid">
-      <div class="value-card"><h3>Abres y entiendes</h3><p>La información está organizada para que sepas rápidamente qué trae el material y cómo utilizarlo.</p></div>
-      <div class="value-card"><h3>Adaptas a tu realidad</h3><p>Los recursos están pensados para acompañar el trabajo profesional y permitir ajustes según tu contexto.</p></div>
-      <div class="value-card"><h3>Implementas con confianza</h3><p>Presentaciones, actividades y apoyos reunidos en un mismo recurso para facilitar tu trabajo.</p></div>
+      <div class="value-card marketing-card">
+        <div class="marketing-icon">⏱</div>
+        <span class="marketing-number">01</span>
+        <h3>Ahorra tiempo de verdad</h3>
+        <p>Accede a materiales ya estructurados para planificar, intervenir y aplicar sin empezar desde cero.</p>
+        <strong class="marketing-promise">Menos preparación. Más acción.</strong>
+      </div>
+      <div class="value-card marketing-card">
+        <div class="marketing-icon">✎</div>
+        <span class="marketing-number">02</span>
+        <h3>Adáptalo a tu realidad</h3>
+        <p>Recursos prácticos, claros y editables para ajustar contenidos a tu curso, establecimiento o intervención.</p>
+        <strong class="marketing-promise">Tu contexto, tu forma de trabajar.</strong>
+      </div>
+      <div class="value-card marketing-card">
+        <div class="marketing-icon">✦</div>
+        <span class="marketing-number">03</span>
+        <h3>Haz que tu trabajo se note</h3>
+        <p>Presentaciones, actividades y apoyos reunidos en un mismo recurso para entregar una experiencia más completa y profesional.</p>
+        <strong class="marketing-promise">Material que aporta valor desde el primer uso.</strong>
+      </div>
     </div>
   </div>
 </section>

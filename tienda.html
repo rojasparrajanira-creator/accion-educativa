@@ -181,6 +181,26 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
   .trust-wrap,.value-section{padding:0 14px}.trust-strip{grid-template-columns:1fr 1fr;gap:8px}.trust-item{padding:12px 10px}.trust-icon{width:31px;height:31px}.trust-item strong{font-size:11px}.trust-item span{font-size:10px}
   .value-box{padding:20px;border-radius:20px}.marketing-value{padding:23px 18px}.marketing-head h2{font-size:30px}.marketing-head p{font-size:14px}.marketing-card{min-height:255px;grid-template-columns:minmax(0,1.45fr) 96px;padding:22px 17px 18px;gap:8px}.marketing-card h3{font-size:22px}.marketing-card p{font-size:13px}.marketing-number{font-size:52px}.feature-art{min-height:125px}.feature-art:before{width:104px;height:104px}.feature-art svg{width:104px;height:96px}.marketing-promise{font-size:12px}.value-top{align-items:start;flex-direction:column}.value-grid{grid-template-columns:1fr}.main{padding:28px 14px 50px}.section-head h2{font-size:27px}.section-head{align-items:start;flex-direction:column}.grid{grid-template-columns:1fr}.product-card{border-radius:20px}.product-title{font-size:21px}.cart{border-radius:20px}
 }
+
+/* Refinamiento MEC: números legibles, títulos despejados e iconografía editorial */
+.marketing-card{grid-template-columns:minmax(0,1fr);padding:25px 23px 22px;background:#fff!important}
+.marketing-card:before{width:175px;height:70px;right:-72px;bottom:-35px;opacity:.38}
+.marketing-card:after{right:-75px;top:auto;bottom:18px;opacity:.38}
+.feature-copy{z-index:5}
+.marketing-number{position:absolute;right:3px;top:0;font-size:49px;color:#1E7FBC!important;opacity:.72;z-index:2}
+.marketing-card h3{position:relative;z-index:5;font-size:23px;line-height:1.18;color:#0F2D52}
+.marketing-card h3 span{color:#087FA1}
+.marketing-card p{color:#315F8B;font-weight:400}
+.marketing-icon{background:#EFF9FC!important;color:#0F2D52!important;border:1px solid #B7EAF0}
+.marketing-icon svg{stroke:#0F2D52}
+.feature-art{position:absolute;right:10px;top:10px;min-height:0;width:90px;height:85px;opacity:.13;z-index:1;pointer-events:none}
+.feature-art:before,.feature-art:after{display:none}
+.feature-art svg{width:85px;height:80px;filter:none;stroke:#1E7FBC}
+.marketing-promise{color:#0F2D52}
+.marketing-card:nth-child(1){border-top:5px solid #19C2D1}
+.marketing-card:nth-child(2){border-top:5px solid #1E7FBC}
+.marketing-card:nth-child(3){border-top:5px solid #FFD200}
+@media(max-width:640px){.marketing-card{display:block;min-height:0;padding:22px 19px}.marketing-number{right:0;top:0;font-size:44px}.marketing-card h3{font-size:22px}.feature-art{right:7px;top:9px;width:76px;height:72px}.feature-art svg{width:72px;height:68px}}
 </style>
 </head>
 <body>

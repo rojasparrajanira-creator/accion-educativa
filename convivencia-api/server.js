@@ -54,6 +54,8 @@ const DEFAULT_WEB_ORIGIN='https://convivencia-escolar-material-educativo.onrende
 const allowedOrigins=new Set([
   DEFAULT_WEB_ORIGIN,
   'https://material-educativo-chile-portal.onrender.com',
+  'https://materialeducativochile.cl',
+  'https://www.materialeducativochile.cl',
   ...String(process.env.MEC_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean)
 ]);
 app.use((req,res,next)=>{
@@ -1588,7 +1590,13 @@ app.get('/api/store/images/:name',async(req,res)=>{try{
   return res.send(row.image_data);
 }catch(e){console.error('Store image read failed:',e.message);return res.sendStatus(404)}});
 app.get('/api/store/products',async(req,res)=>{try{
-  const q=await pool.query("select id,title,slug,objective,description,included_materials,audience,image_url,price_clp,compare_at_price_clp,updated_at from store_products where status='published' order by updated_at desc");
+  const q=await pool.query(`select p.id,p.title,p.slug,p.objective,p.description,p.included_materials,p.audience,p.image_url,p.price_clp,p.compare_at_price_clp,p.updated_at,coalesce(s.sales_count,0)::int as sales_count
+    from store_products p left join (
+      select i.product_id,sum(i.quantity)::int as sales_count
+      from store_order_items i join store_orders o on o.id=i.order_id and o.status='paid'
+      group by i.product_id
+    ) s on s.product_id=p.id
+    where p.status='published' order by p.updated_at desc`);
   ok(res,{products:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'store_products_failed'})}});
 app.get('/api/store/admin/products',requireAuth,async(req,res)=>{try{
@@ -1771,6 +1779,84 @@ app.post('/api/site-assets/:key',siteAssetUpload.single('image'),async(req,res)=
     [key,mime,req.file.buffer]);
   return ok(res,{asset_key:key,mime_type:mime,bytes:req.file.buffer.length});
 }catch(e){console.error('Site asset upload failed:',e.message);return res.status(500).json({ok:false,error:'asset_upload_failed'})}});
+
+
+/* Portal institucional: blog público, gestión autorizada y consultas. */
+app.get('/api/site/blog',async(req,res)=>{try{
+  const q=await pool.query("select id,title,category,excerpt,content,image_url,created_at,updated_at from site_blog_posts where status='published' order by created_at desc limit 60");
+  ok(res,{posts:q.rows});
+}catch(e){console.error('Blog public read failed:',e.message);res.status(500).json({ok:false,error:'blog_unavailable'})}});
+
+app.get('/api/site/admin/blog',...requireRole('platform_admin'),async(req,res)=>{try{
+  const q=await pool.query("select id,title,category,excerpt,content,image_url,status,created_at,updated_at from site_blog_posts order by updated_at desc limit 150");
+  ok(res,{posts:q.rows});
+}catch(e){res.status(500).json({ok:false,error:'blog_admin_unavailable'})}});
+
+function sitePostFields(body){
+  const b=body||{};
+  return {title:String(b.title||'').trim().slice(0,160),category:String(b.category||'Educación').trim().slice(0,70),
+    excerpt:String(b.excerpt||'').trim().slice(0,450),content:String(b.content||'').trim().slice(0,20000),
+    image_url:String(b.image_url||'').trim().slice(0,1000),
+    status:b.status==='published'?'published':'draft'};
+}
+app.post('/api/site/admin/blog',...requireRole('platform_admin'),async(req,res)=>{try{
+  const b=sitePostFields(req.body);
+  if(!b.title||!b.content)return res.status(400).json({ok:false,error:'Completa título y contenido.'});
+  if(b.image_url&&!/^https:\/\//i.test(b.image_url))return res.status(400).json({ok:false,error:'La imagen debe usar HTTPS.'});
+  const q=await pool.query("insert into site_blog_posts(title,category,excerpt,content,image_url,status,created_by) values($1,$2,$3,$4,$5,$6,$7) returning id",
+    [b.title,b.category,b.excerpt,b.content,b.image_url||null,b.status,req.auth.id]);
+  ok(res,{id:q.rows[0].id});
+}catch(e){console.error('Blog save failed:',e.message);res.status(500).json({ok:false,error:'blog_save_failed'})}});
+
+app.post('/api/site/admin/blog/:id',...requireRole('platform_admin'),async(req,res)=>{try{
+  const id=Number(req.params.id),b=sitePostFields(req.body);
+  if(!Number.isSafeInteger(id)||id<1||!b.title||!b.content)return res.status(400).json({ok:false,error:'Datos incompletos.'});
+  if(b.image_url&&!/^https:\/\//i.test(b.image_url))return res.status(400).json({ok:false,error:'La imagen debe usar HTTPS.'});
+  const q=await pool.query("update site_blog_posts set title=$1,category=$2,excerpt=$3,content=$4,image_url=$5,status=$6,updated_at=now() where id=$7 returning id",
+    [b.title,b.category,b.excerpt,b.content,b.image_url||null,b.status,id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'Artículo no encontrado.'});
+  ok(res,{id});
+}catch(e){console.error('Blog update failed:',e.message);res.status(500).json({ok:false,error:'blog_update_failed'})}});
+
+app.post('/api/site/admin/blog/:id/delete',...requireRole('platform_admin'),async(req,res)=>{try{
+  const id=Number(req.params.id);if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({ok:false,error:'invalid_id'});
+  const q=await pool.query('delete from site_blog_posts where id=$1 returning id',[id]);
+  if(!q.rowCount)return res.status(404).json({ok:false,error:'Artículo no encontrado.'});
+  ok(res,{deleted:true});
+}catch(e){res.status(500).json({ok:false,error:'blog_delete_failed'})}});
+
+const contactRateLimit=publicRateLimit({windowMs:3600000,max:6});
+app.post('/api/site/contact',contactRateLimit,async(req,res)=>{try{
+  const b=req.body||{},name=String(b.name||'').trim(),email=String(b.email||'').trim().toLowerCase(),
+    subject=String(b.subject||'Consulta sobre materiales').trim(),message=String(b.message||'').trim();
+  if(b.website)return ok(res,{received:true});
+  if(name.length<2||name.length>100||email.length>180||!/^\S+@\S+\.\S+$/.test(email)||subject.length<3||subject.length>120||message.length<12||message.length>4000||b.consent!==true)
+    return res.status(400).json({ok:false,error:'Revisa los campos y acepta el tratamiento de datos para responder tu consulta.'});
+  const q=await pool.query("insert into site_contact_messages(sender_name,sender_email,subject,message) values($1,$2,$3,$4) returning id",[name,email,subject,message]);
+  const key=String(process.env.MEC_CONTACT_RESEND_API_KEY||'').trim();
+  const from=String(process.env.MEC_CONTACT_FROM_EMAIL||'').trim();
+  let notified=false;
+  if(key&&from){
+    try{
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),7000);
+      try{
+        const response=await fetch('https://api.resend.com/emails',{method:'POST',signal:controller.signal,
+          headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},
+          body:JSON.stringify({from,to:['accioneducativaspa@gmail.com'],reply_to:email,subject:'[MEC] '+subject,
+            text:'Nombre: '+name+'\nCorreo: '+email+'\nAsunto: '+subject+'\n\n'+message})});
+        if(!response.ok)throw new Error('mail_provider_error');
+        notified=true;
+      }finally{clearTimeout(timer)}
+    }catch(e){console.error('Contact email delivery failed:',e.message)}
+  }
+  await pool.query("update site_contact_messages set email_notification_status=$1 where id=$2",[notified?'sent':(key&&from?'failed':'not_configured'),q.rows[0].id]);
+  ok(res,{received:true,email_notification_sent:notified});
+}catch(e){console.error('Contact submission failed:',e.message);res.status(500).json({ok:false,error:'No fue posible registrar la consulta.'})}});
+
+app.get('/api/site/admin/contacts',...requireRole('platform_admin'),async(req,res)=>{try{
+  const q=await pool.query("select id,sender_name,sender_email,subject,message,email_notification_status,created_at from site_contact_messages order by created_at desc limit 100");
+  ok(res,{messages:q.rows});
+}catch(e){res.status(500).json({ok:false,error:'contact_inbox_unavailable'})}});
 
 const port=process.env.PORT||3000;
 initDatabase().then(()=>app.listen(port,()=>{

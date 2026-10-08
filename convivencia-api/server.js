@@ -53,6 +53,7 @@ app.use((req,res,next)=>{
 const DEFAULT_WEB_ORIGIN='https://convivencia-escolar-material-educativo.onrender.com';
 const allowedOrigins=new Set([
   DEFAULT_WEB_ORIGIN,
+  'https://material-educativo-chile-portal.onrender.com',
   ...String(process.env.MEC_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean)
 ]);
 app.use((req,res,next)=>{

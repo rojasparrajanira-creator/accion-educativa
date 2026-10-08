@@ -1,0 +1,75 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Centro Superadministrador · Material Educativo Chile</title>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard({roles:['platform_admin'],bindEstablishment:false,forbiddenToLogin:true});</script>
+<style>
+:root{--navy:#0F2D52;--blue:#1E7FBC;--cyan:#19C2D1;--yellow:#FFD200;--border:#dbe8f0}*{box-sizing:border-box}
+html:not([data-auth="ok"]) body{visibility:hidden}
+body{margin:0;background:#f3f8fb;color:var(--navy);font:14px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+.top{background:#fff;border-bottom:1px solid var(--border);padding:13px max(18px,calc((100% - 1340px)/2));display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}.brand img{width:53px;height:53px;object-fit:contain}.brand strong{font-size:16px;display:block}.brand small{color:#54809b;font-size:11px}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.actions a,.actions button{padding:10px 12px;border:1px solid #c9dce8;border-radius:9px;background:#fff;color:var(--navy);text-decoration:none;font-size:12px;font-weight:800;cursor:pointer}
+.shell{max-width:1380px;margin:auto;padding:20px 18px 45px}
+.intro{background:linear-gradient(110deg,#0F2D52,#1E7FBC);color:#fff;border-radius:18px;padding:23px 25px;margin-bottom:18px;position:relative;overflow:hidden}
+.intro:after{content:"";position:absolute;right:-30px;top:-65px;width:210px;height:210px;border:2px solid rgba(255,255,255,.2);border-radius:50%}
+.intro span{font-size:10px;letter-spacing:.14em;font-weight:900;color:#a9eef5}.intro h1{font-size:clamp(23px,3vw,31px);margin:7px 0}.intro p{margin:0;color:#d8f1f9;line-height:1.5}
+.tabs{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 13px}.tabs button{background:#fff;border:1px solid #cbdfe9;border-radius:11px;padding:12px 16px;color:var(--navy);font-size:13px;font-weight:850;cursor:pointer}
+.tabs button.active{background:var(--navy);color:#fff;border-color:var(--navy)}.tabs button:nth-child(2).active{background:#168ba7;border-color:#168ba7}.tabs button:nth-child(3).active{background:#177c87;border-color:#177c87}.tabs button:nth-child(4).active{background:#2c7662;border-color:#2c7662}
+.panel{border:1px solid var(--border);border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 12px 30px rgba(15,45,82,.06)}
+.panel-title{padding:16px 20px;border-bottom:1px solid var(--border);background:#f7fbfd;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.panel-title h2{font-size:18px;margin:0}.panel-title p{font-size:12px;color:#52728c;margin:5px 0 0}.panel-title a{font-size:12px;color:var(--navy);font-weight:800;text-decoration:none}
+#adminFrame{display:block;width:100%;min-height:750px;border:0;background:#fff}
+#frameStatus{padding:12px 20px;font-size:12px;color:#53718b}
+@media(max-width:650px){.shell{padding:12px 10px}.top{padding:12px}.tabs{display:grid;grid-template-columns:repeat(2,1fr)}.tabs button{padding:11px 6px;font-size:12px}.intro{padding:20px}.panel-title{padding:13px}}
+</style></head>
+<body>
+<header class="top"><div class="brand"><img src="https://material-educativo-chile-portal.onrender.com/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile"><div><strong>Material Educativo Chile</strong><small>Centro de Superadministración</small></div></div><div class="actions"><a href="https://material-educativo-chile-portal.onrender.com/" target="_blank" rel="noopener">Ver sitio público ↗</a><button type="button" onclick="MECAuth.logout()">Cerrar sesión</button></div></header>
+<main class="shell"><section class="intro"><span>UNA CUENTA · CUATRO ÁREAS DE GESTIÓN</span><h1>Centro de Superadministración</h1><p>Administra productos, publicaciones, consultas y establecimientos desde un mismo lugar, con tu cuenta de Superadministrador.</p></section>
+<nav class="tabs" aria-label="Secciones de administración">
+<button type="button" data-tab="tienda" class="active" aria-selected="true">Tienda y materiales</button>
+<button type="button" data-tab="blog" aria-selected="false">Blog y publicaciones</button>
+<button type="button" data-tab="consultas" aria-selected="false">Consultas recibidas</button>
+<button type="button" data-tab="plataforma" aria-selected="false">Plataformas y establecimientos</button>
+</nav>
+<section class="panel"><div class="panel-title"><div><h2 id="panelHeading">Tienda y materiales</h2><p id="panelDescription">Productos, imágenes, precios y conexiones a Google Drive.</p></div><a id="panelDirect" href="admin-tienda.html" target="_blank" rel="noopener">Abrir sección en ventana nueva ↗</a></div>
+<p id="frameStatus" role="status">Cargando sección…</p><iframe id="adminFrame" title="Administración de tienda" src="admin-tienda.html" loading="eager"></iframe></section>
+</main>
+<script>
+'use strict';
+const sections={
+tienda:{title:'Tienda y materiales',description:'Productos, imágenes, precios y conexiones a Google Drive.',src:'admin-tienda.html',height:1250},
+blog:{title:'Blog y publicaciones',description:'Crea, edita y publica artículos en la web.',src:'admin-contenidos.html?seccion=blog',height:1100},
+consultas:{title:'Consultas recibidas',description:'Revisa los mensajes enviados desde el formulario de contacto.',src:'admin-contenidos.html?seccion=consultas',height:950},
+plataforma:{title:'Plataformas y establecimientos',description:'Administra establecimientos, usuarios iniciales y seguridad de la cuenta.',src:'admin-plataforma.html',height:1250}
+};
+const frame=document.getElementById('adminFrame'),status=document.getElementById('frameStatus');
+let active='tienda',observer=null;
+function resizeFrame(){
+  try{
+    const d=frame.contentDocument;if(!d||!d.body)return;
+    const h=Math.max(d.body.scrollHeight,d.documentElement.scrollHeight,600);
+    frame.style.height=(h+32)+'px';
+  }catch(e){frame.style.height=sections[active].height+'px'}
+}
+function showSection(tab,updateHash=true){
+  if(!sections[tab])tab='tienda';active=tab;const s=sections[tab];
+  document.getElementById('panelHeading').textContent=s.title;
+  document.getElementById('panelDescription').textContent=s.description;
+  document.getElementById('panelDirect').href=s.src;
+  document.querySelectorAll('[data-tab]').forEach(btn=>{const on=btn.dataset.tab===tab;btn.classList.toggle('active',on);btn.setAttribute('aria-selected',String(on))});
+  status.textContent='Cargando '+s.title.toLowerCase()+'…';
+  frame.title=s.title;frame.style.height=s.height+'px';frame.src=s.src;
+  if(updateHash)history.replaceState(null,'','#'+tab);
+}
+frame.addEventListener('load',()=>{
+  status.textContent='';if(observer){observer.disconnect();observer=null}
+  try{
+    const doc=frame.contentDocument;
+    if(!doc||!doc.body)return;
+    observer=new ResizeObserver(resizeFrame);observer.observe(doc.body);
+    resizeFrame();
+  }catch(e){frame.style.height=sections[active].height+'px'}
+});
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showSection(b.dataset.tab)));
+window.addEventListener('hashchange',()=>showSection(location.hash.slice(1),false));
+const initial=location.hash.slice(1);if(sections[initial])showSection(initial,false);
+</script></body></html>

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tienda · Material Educativo Chile</title>
+<meta name="description" content="Materiales educativos digitales, editables y listos para implementar.">
+<style>
+:root{
+  --brand:#0F2D52;--blue:#1E7FBC;--turq:#19C2D1;--yellow:#FFD200;
+  --white:#FFFFFF;--gray:#E6E8EB;--ink:#213247;--muted:#66758A;
+  --shadow:0 18px 50px rgba(15,45,82,.10);--soft:0 8px 26px rgba(15,45,82,.08)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#f8fbfd;font-weight:400}
+a{color:inherit}
+.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-size:13px;letter-spacing:.01em}
+.site-header{position:relative;overflow:hidden;background:#fff;border-bottom:1px solid var(--gray)}
+.site-header:after{content:"";position:absolute;left:-4%;right:-4%;bottom:-48px;height:92px;border-radius:50%;background:linear-gradient(90deg,rgba(30,127,188,.12),rgba(25,194,209,.14),rgba(255,210,0,.08));transform:rotate(-1deg)}
+.nav{max-width:1240px;margin:auto;padding:18px 5%;display:flex;align-items:center;justify-content:space-between;gap:18px;position:relative;z-index:2}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.brand img{width:72px;height:72px;border-radius:50%;object-fit:cover;box-shadow:0 8px 24px rgba(15,45,82,.16);border:3px solid #fff}
+.brand-title{font-size:20px;font-weight:800;color:var(--brand);line-height:1.05}
+.brand-title span{display:block;color:var(--turq)}
+.portal-link{border:1px solid #cfdbe8;border-radius:999px;padding:10px 16px;text-decoration:none;color:var(--brand);font-weight:700;background:#fff}
+.hero{max-width:1240px;margin:26px auto 0;padding:0 5%}
+.hero-card{position:relative;overflow:hidden;border-radius:28px;background:linear-gradient(135deg,var(--brand) 0%,#123e70 72%,var(--blue) 100%);color:#fff;padding:46px 44px;box-shadow:var(--shadow);min-height:245px}
+.hero-card:before{content:"";position:absolute;width:430px;height:190px;border:2px solid rgba(25,194,209,.34);border-radius:50%;right:-80px;top:-65px;transform:rotate(-12deg)}
+.hero-card:after{content:"";position:absolute;width:520px;height:190px;border:2px dashed rgba(255,255,255,.13);border-radius:50%;right:-120px;bottom:-115px;transform:rotate(8deg)}
+.hero-copy{max-width:690px;position:relative;z-index:2}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.17);font-size:12px;font-weight:700}
+.hero h1{font-size:clamp(31px,5vw,52px);margin:16px 0 10px;line-height:1.02;letter-spacing:-.03em}
+.hero p{font-size:17px;line-height:1.6;margin:0;max-width:650px;font-weight:400;color:rgba(255,255,255,.91)}
+.hero-icons{position:absolute;right:44px;top:40px;width:270px;height:165px;z-index:1;opacity:.78}
+.icon-bubble{position:absolute;width:54px;height:54px;border-radius:18px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;backdrop-filter:blur(2px)}
+.icon-bubble svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ib1{right:12px;top:0;transform:rotate(4deg)}.ib2{right:92px;top:58px;transform:rotate(-6deg)}.ib3{right:0;top:102px;transform:rotate(6deg)}
+.spark{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--yellow);right:90px;top:18px;box-shadow:0 0 0 7px rgba(255,210,0,.09)}
+.main{max-width:1240px;margin:0 auto;padding:34px 5% 70px}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:8px 0 20px}
+.section-head h2{margin:0;color:var(--brand);font-size:28px}
+.section-head p{margin:5px 0 0;color:var(--muted)}
+.store-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:22px}
+.product-card{position:relative;background:#fff;border:1px solid #e5edf4;border-radius:23px;overflow:hidden;box-shadow:var(--soft);transition:.2s transform,.2s box-shadow}
+.product-card:hover{transform:translateY(-3px);box-shadow:0 18px 42px rgba(15,45,82,.13)}
+.product-card:before{content:"";position:absolute;left:-20%;right:-20%;top:247px;height:45px;border-radius:50%;background:linear-gradient(90deg,rgba(30,127,188,.10),rgba(25,194,209,.10),rgba(255,210,0,.08));z-index:1}
+.product-image{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--gray);display:block}
+.product-body{position:relative;z-index:2;padding:20px}
+.level-tag{display:inline-block;padding:6px 10px;border-radius:999px;background:#edf9fb;color:var(--brand);border:1px solid rgba(25,194,209,.35);font-size:12px;font-weight:700}
+.product-title{color:var(--brand);font-size:22px;margin:13px 0 9px;line-height:1.16}
+.product-objective{margin:0;color:#425268;font-size:14px;line-height:1.65;text-align:justify;font-weight:400}
+.price-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:17px 0 13px}
+.price{font-size:25px;font-weight:850;color:var(--brand)}
+.old-price{text-decoration:line-through;color:#8d98a6;font-size:14px}
+.detail{margin:10px 0 16px;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5;padding:12px 0}
+.detail summary{cursor:pointer;color:var(--blue);font-weight:750;list-style:none;display:flex;align-items:center;gap:8px}
+.detail summary::-webkit-details-marker{display:none}
+.detail summary:before{content:"+";display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:#edf7fb;color:var(--blue);font-weight:800}
+.detail[open] summary:before{content:"–"}
+.detail-text{font-size:14px;line-height:1.68;color:#46556a;text-align:justify;font-weight:400;margin:13px 0}
+.includes-title{font-size:14px;color:var(--brand);font-weight:800;margin:16px 0 8px}
+.includes{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.includes li{position:relative;padding-left:22px;color:#425268;font-size:14px;line-height:1.5;font-weight:400}
+.includes li:before{content:"";position:absolute;left:2px;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--turq);box-shadow:0 0 0 4px rgba(25,194,209,.10)}
+.add-btn,.pay-btn{width:100%;border:0;border-radius:14px;padding:13px 16px;font:inherit;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(100deg,var(--brand),var(--blue));box-shadow:0 10px 22px rgba(30,127,188,.18);transition:.15s transform,.15s opacity}
+.add-btn:hover,.pay-btn:hover{transform:translateY(-1px)}
+.add-btn:active,.pay-btn:active{transform:translateY(1px)}
+.cart{position:sticky;top:18px;background:#fff;border:1px solid #e3eaf1;border-radius:23px;padding:21px;box-shadow:var(--shadow);overflow:hidden}
+.cart:before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,var(--brand),var(--turq),var(--yellow))}
+.cart h2{font-size:22px;margin:7px 0 14px;color:var(--brand)}
+.cart-list{padding:0;margin:0 0 14px;list-style:none;display:grid;gap:10px}
+.cart-item{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf1f5;font-size:14px}
+.cart-item button{border:0;background:transparent;color:#8290a0;cursor:pointer;font-size:17px}
+.empty{color:var(--muted);font-size:14px}
+.cart-total{display:flex;justify-content:space-between;align-items:center;margin:15px 0 16px;padding-top:8px;color:var(--brand);font-weight:800}
+.cart label{display:block;color:#526178;font-size:12px;font-weight:750;margin:11px 0 5px}
+.cart input{width:100%;border:1px solid #ccd7e2;border-radius:12px;padding:12px 13px;font:inherit;background:#fff}
+.cart input:focus{outline:3px solid rgba(25,194,209,.13);border-color:var(--turq)}
+.cart-help{font-size:12px;color:var(--muted);line-height:1.45;margin:10px 0 15px}
+.payment-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;background:#f5f8fb;color:var(--brand);font-size:11px;font-weight:700;margin-bottom:10px}
+.payment-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--yellow)}
+.cart-msg{font-size:13px;line-height:1.45;margin:12px 0 0;color:#5e6c7f}
+.notice{display:none;margin:0 0 22px;border-radius:15px;padding:14px 16px;border:1px solid #cfe6ee;background:#f1fbfd;color:var(--brand);font-weight:650}
+.notice.show{display:block}
+.brand-footer{margin-top:38px;border-top:1px solid #e2eaf1;padding-top:22px;display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px}
+.brand-footer img{width:42px;height:42px;border-radius:50%}
+@media(max-width:920px){.store-layout{grid-template-columns:1fr}.cart{position:static}.hero-icons{opacity:.32;right:10px}.hero-copy{max-width:590px}}
+@media(max-width:640px){
+  .topbar{padding:9px 18px}.nav{padding:14px 18px}.brand img{width:58px;height:58px}.brand-title{font-size:17px}.portal-link{font-size:12px;padding:9px 11px}
+  .hero{padding:0 14px;margin-top:18px}.hero-card{padding:32px 23px 35px;min-height:240px;border-radius:23px}.hero h1{font-size:34px}.hero p{font-size:15px}.hero-icons{right:-50px;top:42px;opacity:.22}
+  .main{padding:28px 14px 50px}.section-head h2{font-size:25px}.section-head{align-items:start;flex-direction:column}
+  .grid{grid-template-columns:1fr}.product-card{border-radius:20px}.product-title{font-size:21px}.cart{border-radius:20px}
+}
+</style>
+</head>
+<body>
+<div class="topbar">Material Educativo Chile · Aprender · Incluir · Transformar</div>
+<header class="site-header">
+  <nav class="nav">
+    <div class="brand">
+      <img src="assets/material-educativo/logo-oficial.jpg" alt="Logo Material Educativo Chile">
+      <div class="brand-title">Material <span>Educativo Chile</span></div>
+    </div>
+    <a class="portal-link" href="index.html">Volver al portal</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-card">
+    <div class="hero-copy">
+      <span class="eyebrow">Tienda oficial · Recursos digitales</span>
+      <h1>Materiales con propósito, listos para implementar.</h1>
+      <p>Recursos educativos editables y prácticos para fortalecer el trabajo pedagógico, la convivencia y la intervención educativa.</p>
+    </div>
+    <div class="hero-icons" aria-hidden="true">
+      <span class="spark"></span>
+      <span class="icon-bubble ib1"><svg viewBox="0 0 32 32"><path d="M8 5h13a3 3 0 0 1 3 3v19H10a4 4 0 0 1-4-4V7a2 2 0 0 1 2-2Z"/><path d="M10 5v22M13 10h7"/></svg></span>
+      <span class="icon-bubble ib2"><svg viewBox="0 0 32 32"><path d="M16 4a9 9 0 0 0-5 16.5V24h10v-3.5A9 9 0 0 0 16 4Z"/><path d="M12 27h8M14 30h4M16 10v7M12.5 13.5 16 17l3.5-3.5"/></svg></span>
+      <span class="icon-bubble ib3"><svg viewBox="0 0 32 32"><path d="m7 24 2-7L22 4l6 6-13 13-8 1Z"/><path d="m19 7 6 6M9 17l6 6"/></svg></span>
+    </div>
+  </div>
+</section>
+
+<main class="main">
+  <div id="paymentNotice" class="notice"></div>
+  <div class="section-head">
+    <div><h2>Materiales educativos digitales</h2><p>Selecciona el recurso que necesitas y revisa claramente todo lo que incluye.</p></div>
+  </div>
+  <div class="store-layout">
+    <section><div id="grid" class="grid"><p class="empty">Cargando catálogo…</p></div></section>
+    <aside class="cart" id="cartPanel">
+      <div class="payment-badge" id="paymentMode">Pago seguro</div>
+      <h2>Mi compra</h2>
+      <ul id="cartList" class="cart-list"><li class="empty">Sin productos</li></ul>
+      <div class="cart-total"><span>Total</span><span id="cartTotal">$0</span></div>
+      <label for="buyerName">Nombre y apellido</label>
+      <input id="buyerName" autocomplete="name" placeholder="Tu nombre">
+      <label for="buyerEmail">Correo de entrega</label>
+      <input id="buyerEmail" type="email" autocomplete="email" placeholder="correo@gmail.com">
+      <p class="cart-help">Usa el correo con el que accederás al material en Google Drive.</p>
+      <button class="pay-btn" id="orderBtn" disabled>Pagar con Webpay</button>
+      <p id="cartMsg" class="cart-msg"></p>
+    </aside>
+  </div>
+  <div class="brand-footer"><img src="assets/material-educativo/logo-oficial.jpg" alt=""><span>Material Educativo Chile · Educación con propósito, recursos que transforman.</span></div>
+</main>
+
+<script>
+const API='https://convivencia-escolar-api.onrender.com';
+const money=v=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0));
+const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+let products=[],cart=[];
+
+function splitIncluded(value){
+  const raw=String(value||'').replace(/\r/g,'\n');
+  let parts=raw.split(/\n+/).map(x=>x.replace(/^\s*[•·▪◦*-]\s*/,'').trim()).filter(Boolean);
+  if(parts.length<2&&raw.includes(';'))parts=raw.split(';').map(x=>x.trim()).filter(Boolean);
+  return parts.length?parts:[raw.trim()].filter(Boolean);
+}
+function paragraphs(value){
+  return String(value||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).map(x=>'<p class="detail-text">'+esc(x)+'</p>').join('');
+}
+function renderProducts(){
+  const root=document.getElementById('grid');
+  if(!products.length){root.innerHTML='<p class="empty">Próximamente encontrarás aquí los materiales publicados.</p>';return}
+  root.innerHTML=products.map(p=>{
+    const includes=splitIncluded(p.included_materials).map(x=>'<li>'+esc(x)+'</li>').join('');
+    return '<article class="product-card">'+
+      '<img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'">'+
+      '<div class="product-body">'+
+        '<span class="level-tag">'+esc(p.audience||'Material educativo')+'</span>'+
+        '<h3 class="product-title">'+esc(p.title)+'</h3>'+
+        '<p class="product-objective">'+esc(p.objective||'')+'</p>'+
+        '<div class="price-row"><span class="price">'+money(p.price_clp)+'</span>'+(p.compare_at_price_clp?'<span class="old-price">'+money(p.compare_at_price_clp)+'</span>':'')+'</div>'+
+        '<details class="detail"><summary>Ver detalle</summary>'+paragraphs(p.description||'')+'<div class="includes-title">Qué incluye</div><ul class="includes">'+includes+'</ul></details>'+
+        '<button class="add-btn" type="button" data-buy="'+Number(p.id)+'">Agregar al carrito</button>'+
+      '</div></article>';
+  }).join('');
+}
+function renderCart(){
+  const list=document.getElementById('cartList');
+  if(!cart.length)list.innerHTML='<li class="empty">Sin productos</li>';
+  else list.innerHTML=cart.map((x,i)=>'<li class="cart-item"><span>'+esc(x.title)+' × '+x.quantity+'</span><button type="button" data-remove="'+i+'" aria-label="Quitar">×</button></li>').join('');
+  const total=cart.reduce((sum,x)=>sum+Number(x.price_clp||0)*Number(x.quantity||1),0);
+  document.getElementById('cartTotal').textContent=money(total);
+  document.getElementById('orderBtn').disabled=!cart.length;
+}
+function addCart(id){
+  const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
+  const found=cart.find(x=>x.product_id===Number(id));
+  if(found)found.quantity+=1;else cart.push({product_id:Number(id),quantity:1,title:p.title,price_clp:Number(p.price_clp)});
+  renderCart();
+  document.getElementById('cartMsg').textContent='Material agregado a tu compra.';
+  if(innerWidth<921)document.getElementById('cartPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function removeCart(index){cart.splice(index,1);renderCart()}
+document.addEventListener('click',e=>{
+  const buy=e.target.closest('[data-buy]');if(buy)addCart(Number(buy.dataset.buy));
+  const rem=e.target.closest('[data-remove]');if(rem)removeCart(Number(rem.dataset.remove));
+});
+
+async function createOrder(){
+  const msg=document.getElementById('cartMsg'),btn=document.getElementById('orderBtn');
+  const buyerName=document.getElementById('buyerName').value.trim(),buyerEmail=document.getElementById('buyerEmail').value.trim();
+  if(!cart.length){msg.textContent='Agrega al menos un material.';return}
+  if(buyerName.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)){msg.textContent='Completa correctamente tu nombre y correo.';return}
+  btn.disabled=true;msg.textContent='Conectando con Webpay…';
+  try{
+    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||'No fue posible iniciar el pago');
+    if(!d.payment_ready||!d.payment?.url||!d.payment?.token)throw new Error(d.message||'Webpay no está disponible');
+    msg.textContent='Abriendo Webpay…';
+    const form=document.createElement('form');form.method='POST';form.action=d.payment.url;form.style.display='none';
+    const input=document.createElement('input');input.type='hidden';input.name='token_ws';input.value=d.payment.token;form.appendChild(input);
+    document.body.appendChild(form);
+    requestAnimationFrame(()=>form.submit());
+  }catch(e){msg.textContent='No pudimos abrir Webpay: '+e.message;btn.disabled=false}
+}
+document.getElementById('orderBtn').addEventListener('click',createOrder);
+
+function paymentResult(){
+  const q=new URLSearchParams(location.search),result=q.get('payment'),order=q.get('order'),n=document.getElementById('paymentNotice');
+  if(!result)return;
+  const map={
+    success:'Pago confirmado'+(order?' · Pedido '+order:'')+'.',
+    cancelled:'Pago cancelado. No se realizó ningún cobro.',
+    failed:'El pago no pudo ser confirmado. Puedes intentarlo nuevamente.',
+    invalid:'No fue posible validar el retorno de Webpay.'
+  };
+  n.textContent=map[result]||'Resultado de pago: '+result;n.classList.add('show');history.replaceState({},'',location.pathname)
+}
+paymentResult();
+
+fetch(API+'/api/store/webpay/config').then(r=>r.json()).then(d=>{
+  if(d.ok){
+    document.getElementById('paymentMode').textContent=d.mode==='integration'?'Webpay · ambiente de prueba':'Pago seguro con Webpay';
+    document.getElementById('orderBtn').textContent=d.mode==='integration'?'Pagar con Webpay (prueba)':'Pagar con Webpay';
+  }
+}).catch(()=>{});
+fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];renderProducts()}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
+</script>
+</body>
+</html>

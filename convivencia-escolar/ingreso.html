@@ -17,7 +17,7 @@ linear-gradient(135deg,#0F2D52,#245F54 48%,#1E7FBC);display:grid;place-items:cen
 .field{margin:13px 0}.field label{display:block;font-size:11px;font-weight:850;color:#567064;margin-bottom:6px}.field input{width:100%;border:1px solid #D7E3DC;border-radius:12px;padding:13px;font:inherit;outline:none}.field input:focus{border-color:#48BFA0;box-shadow:0 0 0 3px rgba(72,191,160,.12)}
 button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff;padding:13px;font:inherit;font-weight:850;cursor:pointer;margin-top:8px}button:disabled{opacity:.65;cursor:wait}
 .status{min-height:20px;margin:12px 0 0;font-size:12px;color:#9a3b32}.note{margin-top:22px;padding-top:17px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);line-height:1.5}
-</style>
+html.mec-admin-login body{background:radial-gradient(circle at 88% 10%,rgba(255,210,0,.24),transparent 28%),radial-gradient(circle at 8% 90%,rgba(25,194,209,.3),transparent 28%),linear-gradient(135deg,#0F2D52,#1E7FBC)}html.mec-admin-login .eyebrow{color:#1289a8}html.mec-admin-login h1{color:#0F2D52}html.mec-admin-login button{background:#0F2D52}html.mec-admin-login .field input:focus{border-color:#19C2D1;box-shadow:0 0 0 3px rgba(25,194,209,.15)}</style>
 </head>
 <body>
 <main class="card">
@@ -43,7 +43,7 @@ const API='https://convivencia-escolar-api.onrender.com';
 const form=document.getElementById('login-form'),btn=document.getElementById('login-btn'),status=document.getElementById('login-status'),mfaBox=document.getElementById('mfa-box'),mfaBtn=document.getElementById('mfa-btn'),mfaCode=document.getElementById('mfa-code');
 let mfaChallenge='';
 function safeNext(){const q=new URLSearchParams(location.search),next=q.get('next');return next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:null}
-function isStoreAdminFlow(){return safeNext()==='admin-tienda.html'}
+function isStoreAdminFlow(){return ['admin-tienda.html','admin-contenidos.html'].includes(safeNext())}
 function changePasswordUrl(){const next=safeNext();return 'cambiar-clave.html'+(next?'?next='+encodeURIComponent(next):'')}
 async function logoutQuiet(){try{await fetch(API+'/api/auth/logout',{method:'POST',credentials:'include'})}catch(e){}}
 async function redirectUser(user){
@@ -64,11 +64,12 @@ async function redirectUser(user){
 if(isStoreAdminFlow()){
   document.title='Superadministrador · Material Educativo Chile';
   document.getElementById('brand-title').textContent='Material Educativo Chile';
-  document.getElementById('brand-subtitle').textContent='Administración de Tienda';
+  document.getElementById('brand-subtitle').textContent=safeNext()==='admin-contenidos.html'?'Administración de contenidos':'Administración de Tienda';
   document.getElementById('login-eyebrow').textContent='ACCESO SUPERADMINISTRADOR';
-  document.getElementById('login-title').textContent='Administrar Tienda';
-  document.getElementById('login-subtitle').textContent='Ingresa con la cuenta de Superadministrador para gestionar productos, imágenes, precios y entregas de la tienda.';
+  document.getElementById('login-title').textContent=safeNext()==='admin-contenidos.html'?'Administrar blog y consultas':'Administrar Tienda';
+  document.getElementById('login-subtitle').textContent=safeNext()==='admin-contenidos.html'?'Ingresa con la cuenta de Superadministrador para publicar artículos del blog y revisar las consultas recibidas.':'Ingresa con la cuenta de Superadministrador para gestionar productos, imágenes, precios y entregas de la tienda.';
   document.getElementById('identifier-label').textContent='Correo de Superadministrador';
+  document.documentElement.classList.add('mec-admin-login');
   document.getElementById('identifier').placeholder='correo@materialeducativo.cl';
 }
 (async()=>{try{

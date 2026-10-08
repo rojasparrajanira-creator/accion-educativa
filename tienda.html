@@ -4,94 +4,67 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tienda · Material Educativo Chile</title>
-<meta name="description" content="Materiales educativos digitales, editables y listos para implementar.">
+<meta name="description" content="Materiales educativos digitales, profesionales y listos para implementar.">
 <style>
 :root{
   --brand:#0F2D52;--blue:#1E7FBC;--turq:#19C2D1;--yellow:#FFD200;
   --white:#FFFFFF;--gray:#E6E8EB;--ink:#213247;--muted:#66758A;
-  --shadow:0 18px 50px rgba(15,45,82,.10);--soft:0 8px 26px rgba(15,45,82,.08)
+  --shadow:0 22px 60px rgba(15,45,82,.13);--soft:0 10px 30px rgba(15,45,82,.09)
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#f8fbfd;font-weight:400}
-a{color:inherit}
-.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-size:13px;letter-spacing:.01em}
+body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);background:linear-gradient(180deg,#fff 0,#f8fbfd 24%,#f7fafc 100%);font-weight:400}
+a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-size:13px;letter-spacing:.015em}
 .site-header{position:relative;overflow:hidden;background:#fff;border-bottom:1px solid var(--gray)}
-.site-header:after{content:"";position:absolute;left:-4%;right:-4%;bottom:-48px;height:92px;border-radius:50%;background:linear-gradient(90deg,rgba(30,127,188,.12),rgba(25,194,209,.14),rgba(255,210,0,.08));transform:rotate(-1deg)}
-.nav{max-width:1240px;margin:auto;padding:18px 5%;display:flex;align-items:center;justify-content:space-between;gap:18px;position:relative;z-index:2}
-.brand{display:flex;align-items:center;gap:14px;min-width:0}
-.brand img{width:72px;height:72px;border-radius:50%;object-fit:cover;box-shadow:0 8px 24px rgba(15,45,82,.16);border:3px solid #fff}
-.brand-title{font-size:20px;font-weight:800;color:var(--brand);line-height:1.05}
-.brand-title span{display:block;color:var(--turq)}
-.portal-link{border:1px solid #cfdbe8;border-radius:999px;padding:10px 16px;text-decoration:none;color:var(--brand);font-weight:700;background:#fff}
+.site-header:after{content:"";position:absolute;left:-4%;right:-4%;bottom:-52px;height:96px;border-radius:50%;background:linear-gradient(90deg,rgba(30,127,188,.11),rgba(25,194,209,.15),rgba(255,210,0,.08));transform:rotate(-1deg)}
+.nav{max-width:1240px;margin:auto;padding:17px 5%;display:flex;align-items:center;justify-content:space-between;gap:18px;position:relative;z-index:2}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}.brand img{width:70px;height:70px;border-radius:50%;object-fit:cover;box-shadow:0 8px 24px rgba(15,45,82,.16);border:3px solid #fff}
+.brand-title{font-size:20px;font-weight:820;color:var(--brand);line-height:1.05}.brand-title span{display:block;color:var(--turq)}
+.portal-link{border:1px solid #cfdbe8;border-radius:999px;padding:10px 16px;text-decoration:none;color:var(--brand);font-weight:720;background:#fff;transition:.2s}.portal-link:hover{border-color:var(--turq);transform:translateY(-1px)}
+
 .hero{max-width:1240px;margin:26px auto 0;padding:0 5%}
-.hero-card{position:relative;overflow:hidden;border-radius:28px;background:linear-gradient(135deg,var(--brand) 0%,#123e70 72%,var(--blue) 100%);color:#fff;padding:46px 44px;box-shadow:var(--shadow);min-height:245px}
-.hero-card:before{content:"";position:absolute;width:430px;height:190px;border:2px solid rgba(25,194,209,.34);border-radius:50%;right:-80px;top:-65px;transform:rotate(-12deg)}
-.hero-card:after{content:"";position:absolute;width:520px;height:190px;border:2px dashed rgba(255,255,255,.13);border-radius:50%;right:-120px;bottom:-115px;transform:rotate(8deg)}
-.hero-copy{max-width:690px;position:relative;z-index:2}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.17);font-size:12px;font-weight:700}
-.hero h1{font-size:clamp(31px,5vw,52px);margin:16px 0 10px;line-height:1.02;letter-spacing:-.03em}
-.hero p{font-size:17px;line-height:1.6;margin:0;max-width:650px;font-weight:400;color:rgba(255,255,255,.91)}
-.hero-icons{position:absolute;right:44px;top:40px;width:270px;height:165px;z-index:1;opacity:.78}
-.icon-bubble{position:absolute;width:54px;height:54px;border-radius:18px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;backdrop-filter:blur(2px)}
-.icon-bubble svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.ib1{right:12px;top:0;transform:rotate(4deg)}.ib2{right:92px;top:58px;transform:rotate(-6deg)}.ib3{right:0;top:102px;transform:rotate(6deg)}
-.spark{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--yellow);right:90px;top:18px;box-shadow:0 0 0 7px rgba(255,210,0,.09)}
-.main{max-width:1240px;margin:0 auto;padding:34px 5% 70px}
-.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:8px 0 20px}
-.section-head h2{margin:0;color:var(--brand);font-size:28px}
-.section-head p{margin:5px 0 0;color:var(--muted)}
-.store-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:22px}
-.product-card{position:relative;background:#fff;border:1px solid #e5edf4;border-radius:23px;overflow:hidden;box-shadow:var(--soft);transition:.2s transform,.2s box-shadow}
-.product-card:hover{transform:translateY(-3px);box-shadow:0 18px 42px rgba(15,45,82,.13)}
-.product-card:before{content:"";position:absolute;left:-20%;right:-20%;top:247px;height:45px;border-radius:50%;background:linear-gradient(90deg,rgba(30,127,188,.10),rgba(25,194,209,.10),rgba(255,210,0,.08));z-index:1}
-.product-image{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--gray);display:block}
-.product-body{position:relative;z-index:2;padding:20px}
-.level-tag{display:inline-block;padding:6px 10px;border-radius:999px;background:#edf9fb;color:var(--brand);border:1px solid rgba(25,194,209,.35);font-size:12px;font-weight:700}
-.product-title{color:var(--brand);font-size:22px;margin:13px 0 9px;line-height:1.16}
-.product-objective{margin:0;color:#425268;font-size:14px;line-height:1.65;text-align:justify;font-weight:400}
-.price-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:17px 0 13px}
-.price{font-size:25px;font-weight:850;color:var(--brand)}
-.old-price{text-decoration:line-through;color:#8d98a6;font-size:14px}
-.detail{margin:10px 0 16px;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5;padding:12px 0}
-.detail summary{cursor:pointer;color:var(--blue);font-weight:750;list-style:none;display:flex;align-items:center;gap:8px}
-.detail summary::-webkit-details-marker{display:none}
-.detail summary:before{content:"+";display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:#edf7fb;color:var(--blue);font-weight:800}
-.detail[open] summary:before{content:"–"}
-.detail-text{font-size:14px;line-height:1.68;color:#46556a;text-align:justify;font-weight:400;margin:13px 0}
-.includes-title{font-size:14px;color:var(--brand);font-weight:800;margin:16px 0 8px}
-.includes{margin:0;padding:0;list-style:none;display:grid;gap:8px}
-.includes li{position:relative;padding-left:22px;color:#425268;font-size:14px;line-height:1.5;font-weight:400}
-.includes li:before{content:"";position:absolute;left:2px;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--turq);box-shadow:0 0 0 4px rgba(25,194,209,.10)}
-.add-btn,.pay-btn{width:100%;border:0;border-radius:14px;padding:13px 16px;font:inherit;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(100deg,var(--brand),var(--blue));box-shadow:0 10px 22px rgba(30,127,188,.18);transition:.15s transform,.15s opacity}
-.add-btn:hover,.pay-btn:hover{transform:translateY(-1px)}
-.add-btn:active,.pay-btn:active{transform:translateY(1px)}
-.cart{position:sticky;top:18px;background:#fff;border:1px solid #e3eaf1;border-radius:23px;padding:21px;box-shadow:var(--shadow);overflow:hidden}
-.cart:before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,var(--brand),var(--turq),var(--yellow))}
-.cart h2{font-size:22px;margin:7px 0 14px;color:var(--brand)}
-.cart-list{padding:0;margin:0 0 14px;list-style:none;display:grid;gap:10px}
-.cart-item{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf1f5;font-size:14px}
-.cart-item button{border:0;background:transparent;color:#8290a0;cursor:pointer;font-size:17px}
-.empty{color:var(--muted);font-size:14px}
-.cart-total{display:flex;justify-content:space-between;align-items:center;margin:15px 0 16px;padding-top:8px;color:var(--brand);font-weight:800}
-.cart label{display:block;color:#526178;font-size:12px;font-weight:750;margin:11px 0 5px}
-.cart input{width:100%;border:1px solid #ccd7e2;border-radius:12px;padding:12px 13px;font:inherit;background:#fff}
-.cart input:focus{outline:3px solid rgba(25,194,209,.13);border-color:var(--turq)}
-.cart-help{font-size:12px;color:var(--muted);line-height:1.45;margin:10px 0 15px}
-.payment-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;background:#f5f8fb;color:var(--brand);font-size:11px;font-weight:700;margin-bottom:10px}
-.payment-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--yellow)}
-.cart-msg{font-size:13px;line-height:1.45;margin:12px 0 0;color:#5e6c7f}
-.notice{display:none;margin:0 0 22px;border-radius:15px;padding:14px 16px;border:1px solid #cfe6ee;background:#f1fbfd;color:var(--brand);font-weight:650}
-.notice.show{display:block}
-.brand-footer{margin-top:38px;border-top:1px solid #e2eaf1;padding-top:22px;display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px}
-.brand-footer img{width:42px;height:42px;border-radius:50%}
-@media(max-width:920px){.store-layout{grid-template-columns:1fr}.cart{position:static}.hero-icons{opacity:.32;right:10px}.hero-copy{max-width:590px}}
+.hero-card{position:relative;overflow:hidden;border-radius:32px;background:linear-gradient(135deg,#0F2D52 0%,#123f70 58%,#1E7FBC 100%);color:#fff;padding:42px 42px 38px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1.08fr) minmax(290px,.92fr);gap:34px;align-items:center;min-height:350px}
+.hero-card:before{content:"";position:absolute;width:520px;height:220px;border:2px solid rgba(25,194,209,.28);border-radius:50%;right:-100px;top:-92px;transform:rotate(-12deg)}
+.hero-card:after{content:"";position:absolute;width:600px;height:230px;border:2px dashed rgba(255,255,255,.12);border-radius:50%;right:-170px;bottom:-130px;transform:rotate(8deg)}
+.hero-copy{position:relative;z-index:3}.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:720}
+.eyebrow:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--yellow);box-shadow:0 0 0 5px rgba(255,210,0,.10)}
+.hero h1{font-size:clamp(34px,5vw,58px);margin:17px 0 13px;line-height:.98;letter-spacing:-.04em;max-width:680px}.hero h1 em{font-style:normal;color:#6fe8f1}
+.hero p{font-size:17px;line-height:1.62;margin:0;max-width:640px;color:rgba(255,255,255,.91)}
+.hero-actions{display:flex;gap:11px;flex-wrap:wrap;margin-top:23px}.hero-btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 17px;border-radius:13px;text-decoration:none;font-weight:800;background:var(--yellow);color:var(--brand);box-shadow:0 10px 24px rgba(0,0,0,.12)}.hero-btn.secondary{background:rgba(255,255,255,.10);color:#fff;border:1px solid rgba(255,255,255,.20);box-shadow:none}
+.hero-art{position:relative;z-index:3;min-height:270px;display:grid;place-items:center}.mock-stage{position:relative;width:min(100%,360px);height:270px}
+.mock-sheet{position:absolute;width:70%;height:215px;border-radius:20px;background:#fff;right:20px;top:25px;box-shadow:0 20px 45px rgba(2,22,45,.25);border:1px solid rgba(255,255,255,.4)}.mock-sheet.s1{transform:rotate(7deg);opacity:.42;right:10px;top:31px}.mock-sheet.s2{transform:rotate(-6deg);opacity:.72;right:48px;top:18px}
+.hero-product{position:absolute;inset:0 auto auto 20px;width:76%;height:248px;background:#fff;border-radius:22px;padding:13px;box-shadow:0 26px 55px rgba(2,22,45,.32);transform:rotate(-1.8deg);overflow:hidden}.hero-product img{width:100%;height:154px;object-fit:cover;border-radius:14px;background:#eef3f6}.hero-product h3{color:var(--brand);font-size:15px;margin:10px 2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hero-product-price{display:flex;align-items:center;gap:8px;padding:0 2px}.hero-product-price strong{color:var(--blue);font-size:18px}.hero-product-price span{text-decoration:line-through;color:#95a0ae;font-size:11px}
+.float-chip{position:absolute;z-index:5;padding:8px 11px;border-radius:12px;font-size:11px;font-weight:820;box-shadow:0 12px 26px rgba(3,20,40,.2);backdrop-filter:blur(5px)}.chip-a{right:0;top:11px;background:var(--yellow);color:var(--brand);transform:rotate(3deg)}.chip-b{right:6px;bottom:20px;background:#fff;color:var(--brand);transform:rotate(-3deg)}.chip-c{left:0;bottom:2px;background:var(--turq);color:var(--brand);transform:rotate(2deg)}
+.doodle{position:absolute;opacity:.44}.doodle svg{width:48px;height:48px;fill:none;stroke:#fff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.d1{right:6px;top:96px;transform:rotate(10deg)}.d2{left:2px;top:24px;transform:rotate(-8deg)}
+
+.trust-wrap{max-width:1240px;margin:18px auto 0;padding:0 5%}.trust-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.trust-item{background:#fff;border:1px solid #e3ebf3;border-radius:17px;padding:15px 14px;display:flex;gap:11px;align-items:center;box-shadow:0 8px 22px rgba(15,45,82,.05)}.trust-icon{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:#eef9fb;color:var(--blue);font-size:19px}.trust-item strong{display:block;color:var(--brand);font-size:13px}.trust-item span{display:block;color:var(--muted);font-size:11px;margin-top:2px;line-height:1.25}
+
+.value-section{max-width:1240px;margin:28px auto 0;padding:0 5%}.value-box{position:relative;overflow:hidden;background:#fff;border:1px solid #e4ebf2;border-radius:25px;padding:25px;box-shadow:var(--soft)}.value-box:before{content:"";position:absolute;right:-60px;top:-70px;width:210px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(25,194,209,.12),transparent 68%)}.value-top{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:18px}.value-top h2{margin:0;color:var(--brand);font-size:25px}.value-top p{margin:5px 0 0;color:var(--muted);font-size:14px}.value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.value-card{position:relative;border-radius:18px;padding:18px;background:linear-gradient(180deg,#fff,#f9fbfd);border:1px solid #e9eef3}.value-card:after{content:"";position:absolute;left:18px;bottom:0;width:44px;height:3px;border-radius:3px;background:var(--turq)}.value-card:nth-child(2):after{background:var(--blue)}.value-card:nth-child(3):after{background:var(--yellow)}.value-card h3{color:var(--brand);font-size:15px;margin:0 0 6px}.value-card p{margin:0;color:#5c6c7f;font-size:13px;line-height:1.5}
+
+.main{max-width:1240px;margin:0 auto;padding:34px 5% 70px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:8px 0 20px}.section-head h2{margin:0;color:var(--brand);font-size:30px}.section-head p{margin:5px 0 0;color:var(--muted)}
+.store-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:22px}
+.product-card{position:relative;background:#fff;border:1px solid #e5edf4;border-radius:24px;overflow:hidden;box-shadow:var(--soft);transition:.22s transform,.22s box-shadow}.product-card:hover{transform:translateY(-4px);box-shadow:0 20px 48px rgba(15,45,82,.14)}
+.product-card:before{content:"";position:absolute;left:-22%;right:-22%;top:247px;height:48px;border-radius:50%;background:linear-gradient(90deg,rgba(30,127,188,.10),rgba(25,194,209,.10),rgba(255,210,0,.08));z-index:1}
+.product-media{position:relative}.product-image{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--gray);display:block}.offer-badge{position:absolute;left:13px;top:13px;z-index:3;background:var(--yellow);color:var(--brand);border-radius:999px;padding:7px 10px;font-size:11px;font-weight:850;box-shadow:0 8px 18px rgba(15,45,82,.16)}
+.product-body{position:relative;z-index:2;padding:20px}.level-tag{display:inline-block;padding:6px 10px;border-radius:999px;background:#edf9fb;color:var(--brand);border:1px solid rgba(25,194,209,.35);font-size:12px;font-weight:720}
+.product-title{color:var(--brand);font-size:22px;margin:13px 0 9px;line-height:1.16}.product-objective{margin:0;color:#425268;font-size:14px;line-height:1.65;text-align:justify;font-weight:400}
+.value-chips{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 4px}.value-chips span{background:#f4f8fb;border:1px solid #e1e9f0;color:#536378;border-radius:999px;padding:6px 8px;font-size:10px;font-weight:700}
+.price-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:15px 0 5px}.price{font-size:27px;font-weight:850;color:var(--brand)}.old-price{text-decoration:line-through;color:#8d98a6;font-size:14px}.saving{font-size:11px;color:#24725e;font-weight:800;margin-bottom:12px}
+.detail{margin:10px 0 16px;border-top:1px solid #edf1f5;border-bottom:1px solid #edf1f5;padding:12px 0}.detail summary{cursor:pointer;color:var(--blue);font-weight:760;list-style:none;display:flex;align-items:center;gap:8px}.detail summary::-webkit-details-marker{display:none}.detail summary:before{content:"+";display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:#edf7fb;color:var(--blue);font-weight:800}.detail[open] summary:before{content:"–"}
+.detail-text{font-size:14px;line-height:1.68;color:#46556a;text-align:justify;font-weight:400;margin:13px 0}.includes-title{font-size:14px;color:var(--brand);font-weight:800;margin:16px 0 8px}.includes{margin:0;padding:0;list-style:none;display:grid;gap:8px}.includes li{position:relative;padding-left:22px;color:#425268;font-size:14px;line-height:1.5;font-weight:400}.includes li:before{content:"";position:absolute;left:2px;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--turq);box-shadow:0 0 0 4px rgba(25,194,209,.10)}
+.add-btn,.pay-btn{width:100%;border:0;border-radius:14px;padding:13px 16px;font:inherit;font-weight:800;cursor:pointer;color:#fff;background:linear-gradient(100deg,var(--brand),var(--blue));box-shadow:0 10px 22px rgba(30,127,188,.18);transition:.15s transform,.15s opacity}.add-btn:hover,.pay-btn:hover{transform:translateY(-1px)}.add-btn:active,.pay-btn:active{transform:translateY(1px)}
+.cart{position:sticky;top:18px;background:#fff;border:1px solid #e3eaf1;border-radius:24px;padding:21px;box-shadow:var(--shadow);overflow:hidden}.cart:before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,var(--brand),var(--turq),var(--yellow))}.cart h2{font-size:22px;margin:7px 0 14px;color:var(--brand)}
+.cart-list{padding:0;margin:0 0 14px;list-style:none;display:grid;gap:10px}.cart-item{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf1f5;font-size:14px}.cart-item button{border:0;background:transparent;color:#8290a0;cursor:pointer;font-size:17px}.empty{color:var(--muted);font-size:14px}.cart-total{display:flex;justify-content:space-between;align-items:center;margin:15px 0 16px;padding-top:8px;color:var(--brand);font-weight:800}
+.cart label{display:block;color:#526178;font-size:12px;font-weight:750;margin:11px 0 5px}.cart input{width:100%;border:1px solid #ccd7e2;border-radius:12px;padding:12px 13px;font:inherit;background:#fff}.cart input:focus{outline:3px solid rgba(25,194,209,.13);border-color:var(--turq)}
+.cart-help{font-size:12px;color:var(--muted);line-height:1.45;margin:10px 0 15px}.payment-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;background:#f5f8fb;color:var(--brand);font-size:11px;font-weight:700;margin-bottom:10px}.payment-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--yellow)}.cart-msg{font-size:13px;line-height:1.45;margin:12px 0 0;color:#5e6c7f}
+.notice{display:none;margin:0 0 22px;border-radius:15px;padding:14px 16px;border:1px solid #cfe6ee;background:#f1fbfd;color:var(--brand);font-weight:650}.notice.show{display:block}
+.brand-footer{margin-top:42px;border-top:1px solid #e2eaf1;padding-top:22px;display:flex;align-items:center;gap:12px;color:var(--muted);font-size:13px}.brand-footer img{width:42px;height:42px;border-radius:50%}
+@media(max-width:980px){.hero-card{grid-template-columns:1fr;min-height:0}.hero-art{min-height:250px}.mock-stage{width:330px}.trust-strip{grid-template-columns:repeat(2,1fr)}.store-layout{grid-template-columns:1fr}.cart{position:static}}
 @media(max-width:640px){
   .topbar{padding:9px 18px}.nav{padding:14px 18px}.brand img{width:58px;height:58px}.brand-title{font-size:17px}.portal-link{font-size:12px;padding:9px 11px}
-  .hero{padding:0 14px;margin-top:18px}.hero-card{padding:32px 23px 35px;min-height:240px;border-radius:23px}.hero h1{font-size:34px}.hero p{font-size:15px}.hero-icons{right:-50px;top:42px;opacity:.22}
-  .main{padding:28px 14px 50px}.section-head h2{font-size:25px}.section-head{align-items:start;flex-direction:column}
-  .grid{grid-template-columns:1fr}.product-card{border-radius:20px}.product-title{font-size:21px}.cart{border-radius:20px}
+  .hero{padding:0 14px;margin-top:18px}.hero-card{padding:31px 22px 27px;border-radius:24px;gap:15px}.hero h1{font-size:38px}.hero p{font-size:15px}.hero-actions{margin-top:19px}.hero-art{min-height:230px}.mock-stage{width:290px;height:230px}.hero-product{height:215px}.hero-product img{height:128px}.mock-sheet{height:185px}.chip-a{right:2px}.chip-b{right:0}.chip-c{left:0}
+  .trust-wrap,.value-section{padding:0 14px}.trust-strip{grid-template-columns:1fr 1fr;gap:8px}.trust-item{padding:12px 10px}.trust-icon{width:31px;height:31px}.trust-item strong{font-size:11px}.trust-item span{font-size:10px}
+  .value-box{padding:20px;border-radius:20px}.value-top{align-items:start;flex-direction:column}.value-grid{grid-template-columns:1fr}.main{padding:28px 14px 50px}.section-head h2{font-size:27px}.section-head{align-items:start;flex-direction:column}.grid{grid-template-columns:1fr}.product-card{border-radius:20px}.product-title{font-size:21px}.cart{border-radius:20px}
 }
 </style>
 </head>
@@ -111,22 +84,55 @@ a{color:inherit}
   <div class="hero-card">
     <div class="hero-copy">
       <span class="eyebrow">Tienda oficial · Recursos digitales</span>
-      <h1>Materiales con propósito, listos para implementar.</h1>
-      <p>Recursos educativos editables y prácticos para fortalecer el trabajo pedagógico, la convivencia y la intervención educativa.</p>
+      <h1>Material que se ve profesional y se siente <em>listo para usar.</em></h1>
+      <p>Recursos educativos prácticos, claros y pensados para el trabajo real de docentes y equipos profesionales.</p>
+      <div class="hero-actions">
+        <a class="hero-btn" href="#catalogo">Ver materiales</a>
+        <a class="hero-btn secondary" href="#valor">¿Por qué elegirlos?</a>
+      </div>
     </div>
-    <div class="hero-icons" aria-hidden="true">
-      <span class="spark"></span>
-      <span class="icon-bubble ib1"><svg viewBox="0 0 32 32"><path d="M8 5h13a3 3 0 0 1 3 3v19H10a4 4 0 0 1-4-4V7a2 2 0 0 1 2-2Z"/><path d="M10 5v22M13 10h7"/></svg></span>
-      <span class="icon-bubble ib2"><svg viewBox="0 0 32 32"><path d="M16 4a9 9 0 0 0-5 16.5V24h10v-3.5A9 9 0 0 0 16 4Z"/><path d="M12 27h8M14 30h4M16 10v7M12.5 13.5 16 17l3.5-3.5"/></svg></span>
-      <span class="icon-bubble ib3"><svg viewBox="0 0 32 32"><path d="m7 24 2-7L22 4l6 6-13 13-8 1Z"/><path d="m19 7 6 6M9 17l6 6"/></svg></span>
+    <div class="hero-art" aria-hidden="true">
+      <div class="mock-stage">
+        <div class="mock-sheet s1"></div><div class="mock-sheet s2"></div>
+        <div class="hero-product">
+          <img id="heroProductImage" src="assets/material-educativo/logo-oficial.jpg" alt="">
+          <h3 id="heroProductTitle">Material Educativo Chile</h3>
+          <div class="hero-product-price"><strong id="heroProductPrice">Recurso digital</strong><span id="heroProductOld"></span></div>
+        </div>
+        <span class="float-chip chip-a">Oferta especial</span>
+        <span class="float-chip chip-b">Listo para implementar</span>
+        <span class="float-chip chip-c">Material digital</span>
+        <span class="doodle d1"><svg viewBox="0 0 40 40"><path d="M9 7h16a4 4 0 0 1 4 4v22H12a5 5 0 0 1-5-5V9a2 2 0 0 1 2-2Z"/><path d="M12 7v26M15 13h9"/></svg></span>
+        <span class="doodle d2"><svg viewBox="0 0 40 40"><path d="M20 5a11 11 0 0 0-6 20v4h12v-4A11 11 0 0 0 20 5Z"/><path d="M15 33h10M18 37h4"/></svg></span>
+      </div>
     </div>
   </div>
 </section>
 
-<main class="main">
+<section class="trust-wrap">
+  <div class="trust-strip">
+    <div class="trust-item"><div class="trust-icon">✦</div><div><strong>Listo para implementar</strong><span>Menos tiempo preparando desde cero.</span></div></div>
+    <div class="trust-item"><div class="trust-icon">▣</div><div><strong>Material organizado</strong><span>Recursos claros y fáciles de utilizar.</span></div></div>
+    <div class="trust-item"><div class="trust-icon">✓</div><div><strong>Compra segura</strong><span>Pago procesado mediante Webpay.</span></div></div>
+    <div class="trust-item"><div class="trust-icon">✎</div><div><strong>Pensado para educación</strong><span>Diseñado para contextos educativos reales.</span></div></div>
+  </div>
+</section>
+
+<section class="value-section" id="valor">
+  <div class="value-box">
+    <div class="value-top"><div><h2>No compras solo un archivo.</h2><p>Compras una base de trabajo que te ayuda a implementar con mayor claridad y orden.</p></div></div>
+    <div class="value-grid">
+      <div class="value-card"><h3>Abres y entiendes</h3><p>La información está organizada para que sepas rápidamente qué trae el material y cómo utilizarlo.</p></div>
+      <div class="value-card"><h3>Adaptas a tu realidad</h3><p>Los recursos están pensados para acompañar el trabajo profesional y permitir ajustes según tu contexto.</p></div>
+      <div class="value-card"><h3>Implementas con confianza</h3><p>Presentaciones, actividades y apoyos reunidos en un mismo recurso para facilitar tu trabajo.</p></div>
+    </div>
+  </div>
+</section>
+
+<main class="main" id="catalogo">
   <div id="paymentNotice" class="notice"></div>
   <div class="section-head">
-    <div><h2>Materiales educativos digitales</h2><p>Selecciona el recurso que necesitas y revisa claramente todo lo que incluye.</p></div>
+    <div><h2>Elige tu material</h2><p>Revisa la portada, los niveles, el contenido incluido y el valor antes de comprar.</p></div>
   </div>
   <div class="store-layout">
     <section><div id="grid" class="grid"><p class="empty">Cargando catálogo…</p></div></section>
@@ -162,22 +168,37 @@ function splitIncluded(value){
 function paragraphs(value){
   return String(value||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).map(x=>'<p class="detail-text">'+esc(x)+'</p>').join('');
 }
+function savingText(p){
+  const now=Number(p.price_clp||0),old=Number(p.compare_at_price_clp||0);
+  if(!old||old<=now)return '';
+  return 'Ahorra '+money(old-now);
+}
 function renderProducts(){
   const root=document.getElementById('grid');
   if(!products.length){root.innerHTML='<p class="empty">Próximamente encontrarás aquí los materiales publicados.</p>';return}
   root.innerHTML=products.map(p=>{
     const includes=splitIncluded(p.included_materials).map(x=>'<li>'+esc(x)+'</li>').join('');
+    const saving=savingText(p);
     return '<article class="product-card">'+
-      '<img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'">'+
+      '<div class="product-media">'+(p.compare_at_price_clp?'<span class="offer-badge">Oferta especial</span>':'')+'<img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'"></div>'+
       '<div class="product-body">'+
         '<span class="level-tag">'+esc(p.audience||'Material educativo')+'</span>'+
         '<h3 class="product-title">'+esc(p.title)+'</h3>'+
         '<p class="product-objective">'+esc(p.objective||'')+'</p>'+
+        '<div class="value-chips"><span>Material digital</span><span>Uso educativo</span><span>Listo para implementar</span></div>'+
         '<div class="price-row"><span class="price">'+money(p.price_clp)+'</span>'+(p.compare_at_price_clp?'<span class="old-price">'+money(p.compare_at_price_clp)+'</span>':'')+'</div>'+
-        '<details class="detail"><summary>Ver detalle</summary>'+paragraphs(p.description||'')+'<div class="includes-title">Qué incluye</div><ul class="includes">'+includes+'</ul></details>'+
-        '<button class="add-btn" type="button" data-buy="'+Number(p.id)+'">Agregar al carrito</button>'+
+        (saving?'<div class="saving">'+esc(saving)+'</div>':'')+
+        '<details class="detail"><summary>Ver todo lo que incluye</summary>'+paragraphs(p.description||'')+'<div class="includes-title">Qué incluye</div><ul class="includes">'+includes+'</ul></details>'+
+        '<button class="add-btn" type="button" data-buy="'+Number(p.id)+'">Agregar a mi compra</button>'+
       '</div></article>';
   }).join('');
+}
+function setHeroProduct(){
+  const p=products[0];if(!p)return;
+  document.getElementById('heroProductImage').src=p.image_url||'assets/material-educativo/logo-oficial.jpg';
+  document.getElementById('heroProductTitle').textContent=p.title||'Material Educativo Chile';
+  document.getElementById('heroProductPrice').textContent=money(p.price_clp);
+  document.getElementById('heroProductOld').textContent=p.compare_at_price_clp?money(p.compare_at_price_clp):'';
 }
 function renderCart(){
   const list=document.getElementById('cartList');
@@ -191,9 +212,8 @@ function addCart(id){
   const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
   const found=cart.find(x=>x.product_id===Number(id));
   if(found)found.quantity+=1;else cart.push({product_id:Number(id),quantity:1,title:p.title,price_clp:Number(p.price_clp)});
-  renderCart();
-  document.getElementById('cartMsg').textContent='Material agregado a tu compra.';
-  if(innerWidth<921)document.getElementById('cartPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  renderCart();document.getElementById('cartMsg').textContent='Material agregado a tu compra.';
+  if(innerWidth<981)document.getElementById('cartPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function removeCart(index){cart.splice(index,1);renderCart()}
 document.addEventListener('click',e=>{
@@ -215,8 +235,7 @@ async function createOrder(){
     msg.textContent='Abriendo Webpay…';
     const form=document.createElement('form');form.method='POST';form.action=d.payment.url;form.style.display='none';
     const input=document.createElement('input');input.type='hidden';input.name='token_ws';input.value=d.payment.token;form.appendChild(input);
-    document.body.appendChild(form);
-    requestAnimationFrame(()=>form.submit());
+    document.body.appendChild(form);requestAnimationFrame(()=>form.submit());
   }catch(e){msg.textContent='No pudimos abrir Webpay: '+e.message;btn.disabled=false}
 }
 document.getElementById('orderBtn').addEventListener('click',createOrder);
@@ -224,12 +243,7 @@ document.getElementById('orderBtn').addEventListener('click',createOrder);
 function paymentResult(){
   const q=new URLSearchParams(location.search),result=q.get('payment'),order=q.get('order'),n=document.getElementById('paymentNotice');
   if(!result)return;
-  const map={
-    success:'Pago confirmado'+(order?' · Pedido '+order:'')+'.',
-    cancelled:'Pago cancelado. No se realizó ningún cobro.',
-    failed:'El pago no pudo ser confirmado. Puedes intentarlo nuevamente.',
-    invalid:'No fue posible validar el retorno de Webpay.'
-  };
+  const map={success:'Pago confirmado'+(order?' · Pedido '+order:'')+'.',cancelled:'Pago cancelado. No se realizó ningún cobro.',failed:'El pago no pudo ser confirmado. Puedes intentarlo nuevamente.',invalid:'No fue posible validar el retorno de Webpay.'};
   n.textContent=map[result]||'Resultado de pago: '+result;n.classList.add('show');history.replaceState({},'',location.pathname)
 }
 paymentResult();
@@ -240,7 +254,7 @@ fetch(API+'/api/store/webpay/config').then(r=>r.json()).then(d=>{
     document.getElementById('orderBtn').textContent=d.mode==='integration'?'Pagar con Webpay (prueba)':'Pagar con Webpay';
   }
 }).catch(()=>{});
-fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];renderProducts()}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
+fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];renderProducts();setHeroProduct()}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
 </script>
 </body>
 </html>

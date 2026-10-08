@@ -373,6 +373,25 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
 }
 .mec-hero-actions .mec-hero-platform-cta:hover,.mec-hero-actions .mec-hero-platform-cta:focus-visible{background:#85EBEE!important;transform:translateY(-2px);box-shadow:0 15px 28px rgba(15,45,82,.17)!important}
 @media(max-width:560px){.mec-hero-actions .mec-hero-platform-cta{width:100%;font-size:23px!important;padding:17px 15px!important}}
+
+/* Fondo corporativo continuo: azul profundo predominante hacia morado. */
+body{background:linear-gradient(132deg,#082B58 0%,#0B367B 37%,#233B91 68%,#5325A2 100%) fixed!important}
+.mec-hero,.mec-platforms,.mec-featured,.mec-catalog,.catalog-hero,
+body:has(.mec-hero) main,body:has(.catalog-hero) main{
+ background:transparent!important;
+}
+body:has(.mec-hero) main,body:has(.catalog-hero) main{background:linear-gradient(130deg,#082B58 0%,#103E85 47%,#4D2397 100%)!important}
+.mec-hero-copy h1,.mec-hero-copy p,.mec-hero-copy .mec-kicker,
+.mec-platforms .mec-section-heading h1,.mec-platforms .mec-section-heading h2,.mec-platforms .mec-section-heading p,
+.mec-featured .mec-section-heading h1,.mec-featured .mec-section-heading h2,.mec-featured .mec-section-heading p,
+.mec-catalog .mec-section-heading h1,.mec-catalog .mec-section-heading h2,.mec-catalog .mec-section-heading p,
+.catalog-hero .page-title,.catalog-hero .breadcrumb{color:#fff!important}
+.mec-hero-copy h1 span{color:#79E8F7!important}
+.mec-hero:before{border-color:rgba(120,225,250,.2)}
+.mec-platforms,.mec-featured,.mec-catalog{position:relative}
+.mec-platforms:before,.mec-featured:before,.mec-catalog:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 95% 15%,rgba(90,218,239,.09),transparent 40%)}
+.mec-platforms>.container,.mec-featured>.container,.mec-catalog>.container{position:relative}
+.mec-catalog-status{color:#D7EEFF!important}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>

@@ -12,7 +12,7 @@ header strong{font-size:17px}header a{color:var(--navy);font-weight:800;text-dec
 main{max-width:1140px;margin:30px auto 70px;padding:0 18px}
 h1{font-size:31px;margin:0 0 6px}h2{font-size:22px;margin:0 0 12px}h3{font-size:16px}
 .lead{color:var(--muted);line-height:1.6;margin-bottom:24px}
-.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;margin-bottom:20px;box-shadow:0 10px 25px rgba(15,45,82,.06)}
+.card[hidden]{display:none}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;margin-bottom:20px;box-shadow:0 10px 25px rgba(15,45,82,.06)}
 .card:first-of-type{border-top:5px solid var(--cyan)}.card:nth-of-type(2){border-top:5px solid var(--yellow)}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.full{grid-column:1/-1}
 label{display:grid;gap:6px;color:var(--navy);font-size:12px;font-weight:800}
@@ -30,9 +30,9 @@ button:disabled{opacity:.5;cursor:wait}.secondary{background:#edf9fc;color:var(-
 @media(max-width:700px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.row{display:block}.row-actions{margin-top:12px}header{flex-wrap:wrap}main{margin-top:18px}.card{padding:17px}}
 </style></head>
 <body>
-<header><strong>Material Educativo Chile · Administración de contenidos</strong><a href="admin-tienda.html">← Administrar tienda</a></header>
+<header><strong>Material Educativo Chile · Administración de contenidos</strong><a href="admin-centro.html">← Centro de administración</a></header>
 <main><h1>Blog y consultas</h1><p class="lead">Publica artículos en el sitio institucional y responde las consultas recibidas. Acceso exclusivo de Superadministrador.</p>
-<section class="card"><h2>Administrar blog</h2><p class="note">Los borradores no aparecen en el sitio. Publica solo cuando hayas revisado el contenido.</p>
+<section class="card" id="blogSection"><h2>Administrar blog</h2><p class="note">Los borradores no aparecen en el sitio. Publica solo cuando hayas revisado el contenido.</p>
 <form id="blogForm"><input type="hidden" id="blogId"><div class="grid">
 <label>Título del artículo *<input id="blogTitle" required maxlength="160"></label>
 <label>Categoría<select id="blogCategory"><option>Convivencia Escolar</option><option>Orientación Vocacional</option><option>Inclusión Educativa</option><option>Recursos Pedagógicos</option><option>Noticias</option></select></label>
@@ -43,7 +43,7 @@ button:disabled{opacity:.5;cursor:wait}.secondary{background:#edf9fc;color:var(-
 </div><div class="actions"><button type="submit">Guardar artículo</button><button type="button" class="secondary" id="newBlog">Nuevo artículo</button></div>
 <p id="blogMessage" class="status" role="status"></p></form>
 <h3>Publicaciones guardadas</h3><div id="blogList" class="note">Cargando…</div></section>
-<section class="card"><h2>Bandeja de consultas</h2><p class="note">Mensajes privados enviados desde el formulario del portal. Responde directamente desde tu correo.</p><div id="contactList" class="note">Cargando…</div></section>
+<section class="card" id="contactsSection"><h2>Bandeja de consultas</h2><p class="note">Mensajes privados enviados desde el formulario del portal. Responde directamente desde tu correo.</p><div id="contactList" class="note">Cargando…</div></section>
 </main>
 <script>
 'use strict';
@@ -89,5 +89,6 @@ el('blogForm').addEventListener('submit',async e=>{
   catch(err){el('blogMessage').textContent='No se pudo guardar: '+err.message}
   finally{btn.disabled=false}
 });
-loadPosts();loadContacts();
+const adminSection=new URLSearchParams(location.search).get('seccion');
+if(adminSection==='blog'){el('contactsSection').hidden=true;loadPosts()}else if(adminSection==='consultas'){el('blogSection').hidden=true;loadContacts()}else{loadPosts();loadContacts()}
 </script></body></html>

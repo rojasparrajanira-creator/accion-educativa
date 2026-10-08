@@ -201,6 +201,111 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
 .marketing-card:nth-child(2){border-top:5px solid #1E7FBC}
 .marketing-card:nth-child(3){border-top:5px solid #FFD200}
 @media(max-width:640px){.marketing-card{display:block;min-height:0;padding:22px 19px}.marketing-number{right:0;top:0;font-size:44px}.marketing-card h3{font-size:22px}.feature-art{right:7px;top:9px;width:76px;height:72px}.feature-art svg{width:72px;height:68px}}
+
+/* Catálogo protagonista: diseño compacto, buscador y filtros */
+.hero{max-width:1500px;margin:15px auto 0;padding:0 4%}
+.hero-card{min-height:0;grid-template-columns:minmax(0,1.3fr) minmax(220px,.7fr);gap:20px;padding:23px 32px;border-radius:25px}
+.hero h1{font-size:clamp(27px,3vw,40px);line-height:1.08;margin:11px 0 9px;max-width:800px}
+.hero p{font-size:14px;line-height:1.5;max-width:700px}
+.hero-actions{margin-top:14px}.hero-btn{padding:10px 15px;font-size:13px}
+.hero-art{min-height:180px}.mock-stage{height:180px;width:min(100%,255px)}
+.hero-product{height:166px;width:75%;padding:9px;left:12px;top:5px;border-radius:15px}
+.hero-product img{height:98px;border-radius:9px;object-fit:contain}
+.hero-product h3{font-size:11px;margin:6px 1px 3px}
+.hero-product-price strong{font-size:14px}.mock-sheet{height:142px;border-radius:15px;top:12px}
+.mock-sheet.s1{top:16px}.mock-sheet.s2{top:9px}
+.float-chip{font-size:9px;padding:5px 7px;border-radius:8px}.chip-a{top:7px}.chip-b{bottom:10px}.chip-c{bottom:2px}
+.doodle{display:none}
+.trust-wrap{max-width:1500px;margin:10px auto 0;padding:0 4%}
+.trust-strip{gap:8px}.trust-item{padding:9px 12px;border-radius:12px;box-shadow:none}
+.trust-icon{width:29px;height:29px;font-size:15px}.trust-item strong{font-size:11px}.trust-item span{font-size:10px}
+.value-section{max-width:1500px;margin:11px auto 0;padding:0 4%}
+.value-bar{display:flex;align-items:center;gap:30px;background:#0F2D52;color:#fff;border-radius:17px;padding:14px 23px;box-shadow:0 8px 24px rgba(15,45,82,.11);overflow:hidden;position:relative}
+.value-bar:after{content:"";position:absolute;right:-70px;top:-65px;width:240px;height:125px;border:1px solid rgba(25,194,209,.23);border-radius:50%;pointer-events:none}
+.value-bar-intro{flex:0 0 auto;min-width:240px}
+.value-bar-kicker{font-size:9px;letter-spacing:.1em;color:#FFD200;font-weight:800}
+.value-bar h2{font-size:19px;line-height:1.2;margin:3px 0 0;color:#fff}
+.value-bar h2 span{color:#7AE6EC}
+.value-bar-points{display:flex;justify-content:space-between;gap:13px;flex:1;min-width:0}
+.value-bar-point{display:flex;align-items:center;gap:9px;min-width:0;position:relative;z-index:1}
+.value-bar-icon{flex:0 0 30px;height:30px;border:1px solid rgba(25,194,209,.35);border-radius:9px;display:grid;place-items:center;color:#FFD200;background:rgba(255,255,255,.08);font-size:17px}
+.value-bar-point strong{display:block;font-size:12px;color:#fff;white-space:nowrap}
+.value-bar-point div>span{display:block;font-size:10px;color:#c3dce8;white-space:nowrap}
+.main{max-width:1500px;padding:22px 4% 60px}
+.section-head{margin:0 0 12px;align-items:center}
+.section-head h2{font-size:27px}.section-head p{font-size:13px}
+.catalog-count{color:#315F8B;font-size:12px;font-weight:700;white-space:nowrap}
+.catalog-tools{display:flex;align-items:end;gap:11px;margin:0 0 18px;padding:13px 16px;border-radius:16px;background:#fff;border:1px solid #e0eaf2;box-shadow:0 5px 18px rgba(15,45,82,.05)}
+.catalog-search{flex:1;min-width:160px}.catalog-filter{width:225px;max-width:100%}
+.catalog-tool-label{display:block;font-size:11px;font-weight:800;color:#0F2D52;margin-bottom:5px}
+.catalog-search-field{position:relative;display:block}
+.catalog-search-field svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;fill:none;stroke:#1E7FBC;stroke-width:2;stroke-linecap:round;pointer-events:none}
+.catalog-search input,.catalog-filter select{width:100%;height:42px;padding:10px 12px;border:1px solid #c8dbe7;border-radius:10px;font:inherit;font-size:13px;color:#0F2D52;background:#fff}
+.catalog-search input{padding-left:39px}
+.catalog-search input:focus,.catalog-filter select:focus{outline:3px solid rgba(25,194,209,.16);border-color:#19C2D1}
+.catalog-reset{height:42px;border:1px solid #b9d7e5;background:#eff9fc;color:#0F2D52;border-radius:10px;padding:0 14px;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+.catalog-empty{grid-column:1/-1;padding:28px;background:#fff;border:1px dashed #c8dbe7;border-radius:16px;color:#315F8B}
+.store-layout{grid-template-columns:minmax(0,1fr) 280px;gap:18px}
+.grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px}
+.product-card{border-radius:17px;display:flex;flex-direction:column}
+.product-card:before{display:none}
+.product-image{aspect-ratio:1/1;object-fit:contain;padding:4px;background:#fff}
+.offer-badge{font-size:10px;left:8px;top:8px;padding:5px 8px}
+.product-body{display:flex;flex-direction:column;flex:1;padding:13px}
+.level-tag{font-size:10px;padding:4px 7px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.product-title{font-size:17px;line-height:1.24;margin:10px 0 7px}
+.product-objective{font-size:12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-align:left}
+.value-chips{margin:9px 0 0}.value-chips span{font-size:9px;padding:4px 7px}
+.price-row{margin:10px 0 5px;gap:6px}.price{font-size:22px}.old-price{font-size:12px}
+.saving{font-size:10px;margin-bottom:5px}
+.detail{margin:auto 0 10px;padding:9px 0;border-bottom:0}
+.detail summary{font-size:12px}.detail-text,.includes li{font-size:12px}
+.add-btn{font-size:12px;padding:11px 9px;border-radius:10px}
+.cart{padding:16px;border-radius:17px}.cart h2{font-size:19px}
+@media(max-width:1050px){
+  .hero-card{grid-template-columns:minmax(0,1fr) 240px}
+  .store-layout{grid-template-columns:minmax(0,1fr) 250px;gap:14px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(185px,1fr))}
+  .value-bar{gap:16px}.value-bar-intro{min-width:195px}
+  .value-bar-point div>span{display:none}
+}
+@media(max-width:780px){
+  .hero-card{grid-template-columns:1fr;gap:10px}
+  .hero-art{display:none}
+  .trust-strip{grid-template-columns:repeat(2,1fr)}
+  .value-bar{display:block;padding:13px 15px}
+  .value-bar-intro{min-width:0}
+  .value-bar h2{font-size:18px}
+  .value-bar-points{margin-top:10px;display:flex;gap:14px;overflow-x:auto;padding-bottom:3px}
+  .value-bar-point{flex:0 0 auto}
+  .store-layout{grid-template-columns:1fr}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cart{position:static}
+}
+@media(max-width:560px){
+  .hero{padding:0 12px;margin-top:10px}
+  .hero-card{padding:18px 18px 17px;border-radius:19px}
+  .hero h1{font-size:29px;line-height:1.1;margin:10px 0}
+  .hero p{font-size:13px}
+  .hero-actions{margin-top:13px}.hero-btn{font-size:12px;padding:9px 11px}
+  .trust-wrap,.value-section{padding:0 12px}
+  .trust-item{padding:8px}.trust-item span{display:none}
+  .value-bar h2{font-size:17px}
+  .main{padding:18px 12px 45px}
+  .section-head h2{font-size:24px}
+  .section-head{display:flex;flex-direction:row;align-items:start}
+  .catalog-count{font-size:10px}
+  .catalog-tools{flex-wrap:wrap;padding:11px;gap:9px}
+  .catalog-search{flex:1 0 100%}
+  .catalog-filter{flex:1;width:auto;min-width:0}
+  .catalog-reset{padding:0 10px}
+  .grid{grid-template-columns:1fr}
+  .product-image{aspect-ratio:4/3;object-fit:contain}
+  .product-body{padding:15px}
+  .product-title{font-size:19px}
+  .product-objective{font-size:13px}
+}
+
 </style>
 </head>
 <body>
@@ -253,77 +358,14 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
   </div>
 </section>
 
-<section class="value-section" id="valor">
-  <div class="value-box marketing-value">
-    <div class="value-top marketing-head">
-      <div>
-        <span class="marketing-kicker">Diseñado para facilitar tu trabajo</span>
-        <h2>Más impacto. Menos tiempo preparando desde cero.</h2>
-        <p>Material Educativo Chile reúne recursos listos para usar, organizados y pensados para profesionales que necesitan avanzar con claridad, calidad y confianza.</p>
-      </div>
-    </div>
-    <div class="value-grid">
-      <article class="value-card marketing-card feature-one">
-        <div class="feature-copy">
-          <div class="marketing-icon" aria-hidden="true">
-            <svg viewBox="0 0 48 48"><circle cx="24" cy="27" r="13"/><path d="M24 14V9M18 7h12M33.5 17.5l3-3M24 27l6-5M24 27v-8"/></svg>
-          </div>
-          <span class="marketing-number">01</span>
-          <h3>Ahorra tiempo <span>de verdad</span></h3>
-          <p>Accede a materiales diseñados para ayudarte a planificar, intervenir y aplicar con mayor rapidez, claridad y seguridad profesional.</p>
-          <strong class="marketing-promise">Menos tiempo preparando. Más tiempo generando impacto.</strong>
-        </div>
-        <div class="feature-art art-checklist" aria-hidden="true">
-          <svg viewBox="0 0 150 135">
-            <rect x="30" y="18" width="90" height="102" rx="14"/>
-            <path d="M56 18v-8h38v8"/>
-            <rect x="43" y="42" width="18" height="18" rx="4"/><path d="m47 51 4 4 7-8"/>
-            <rect x="43" y="68" width="18" height="18" rx="4"/><path d="m47 77 4 4 7-8"/>
-            <rect x="43" y="94" width="18" height="18" rx="4"/><path d="m47 103 4 4 7-8"/>
-            <path d="M70 49h35M70 75h30M70 101h27"/>
-            <circle cx="119" cy="103" r="22"/><path d="M119 91v13l8 5"/>
-          </svg>
-        </div>
-      </article>
-      <article class="value-card marketing-card feature-two">
-        <div class="feature-copy">
-          <div class="marketing-icon" aria-hidden="true">
-            <svg viewBox="0 0 48 48"><path d="m12 35 4-12L33 6l9 9-17 17-13 3Z"/><path d="m29 10 9 9M16 23l9 9M12 35l9-2-7-7-2 9Z"/></svg>
-          </div>
-          <span class="marketing-number">02</span>
-          <h3>Adáptalo a tu <span>realidad</span></h3>
-          <p>Recursos claros, editables y prácticos para ajustar contenidos según tu curso, establecimiento o contexto de intervención.</p>
-          <strong class="marketing-promise">Flexible, útil y listo para trabajar a tu manera.</strong>
-        </div>
-        <div class="feature-art art-edit" aria-hidden="true">
-          <svg viewBox="0 0 150 135">
-            <rect x="26" y="20" width="82" height="102" rx="12"/>
-            <path d="M44 43h43M44 56h48M44 69h34"/>
-            <rect x="44" y="82" width="46" height="25" rx="5"/><path d="m49 103 11-12 8 7 7-8 11 13"/>
-            <path d="m96 92 31-31 12 12-31 31-15 4 3-16Z"/><path d="m123 65 12 12"/>
-          </svg>
-        </div>
-      </article>
-      <article class="value-card marketing-card feature-three">
-        <div class="feature-copy">
-          <div class="marketing-icon" aria-hidden="true">
-            <svg viewBox="0 0 48 48"><path d="M24 7a12 12 0 0 0-7 21v5h14v-5A12 12 0 0 0 24 7Z"/><path d="M18 38h12M21 42h6M24 3v-2M8 9 5 6M40 9l3-3"/></svg>
-          </div>
-          <span class="marketing-number">03</span>
-          <h3>Haz que tu trabajo <span>se note</span></h3>
-          <p>Presentaciones, actividades y apoyos reunidos en un solo recurso para fortalecer tu implementación y proyectar un trabajo más profesional.</p>
-          <strong class="marketing-promise">Más orden, más confianza y mejores resultados.</strong>
-        </div>
-        <div class="feature-art art-impact" aria-hidden="true">
-          <svg viewBox="0 0 150 135">
-            <rect x="24" y="18" width="99" height="72" rx="12"/>
-            <path d="M42 72V58h14v14M64 72V46h14v26M86 72V35h14v37"/>
-            <path d="M32 99c14-8 28-8 42 0v21c-14-8-28-8-42 0V99ZM74 99c14-8 28-8 42 0v21c-14-8-28-8-42 0V99Z"/>
-            <path d="M74 99v21"/>
-            <path d="m121 19 4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1 4-8Z"/>
-          </svg>
-        </div>
-      </article>
+
+<section class="value-section" id="valor" aria-label="Ventajas de nuestros materiales">
+  <div class="value-bar">
+    <div class="value-bar-intro"><span class="value-bar-kicker">MATERIAL EDUCATIVO CHILE</span><h2>Más impacto. <span>Menos tiempo.</span></h2></div>
+    <div class="value-bar-points">
+      <div class="value-bar-point"><span class="value-bar-icon" aria-hidden="true">✦</span><div><strong>Ahorra tiempo</strong><span>Recursos preparados</span></div></div>
+      <div class="value-bar-point"><span class="value-bar-icon" aria-hidden="true">✎</span><div><strong>Adáptalo</strong><span>A tu contexto educativo</span></div></div>
+      <div class="value-bar-point"><span class="value-bar-icon" aria-hidden="true">▣</span><div><strong>Implementa</strong><span>Con claridad y orden</span></div></div>
     </div>
   </div>
 </section>
@@ -331,7 +373,13 @@ a{color:inherit}.topbar{background:var(--brand);color:#fff;padding:10px 5%;font-
 <main class="main" id="catalogo">
   <div id="paymentNotice" class="notice"></div>
   <div class="section-head">
-    <div><h2>Elige tu material</h2><p>Revisa la portada, los niveles, el contenido incluido y el valor antes de comprar.</p></div>
+    <div><h2>Explora nuestros materiales</h2><p>Encuentra el recurso que necesitas por título o nivel educativo.</p></div>
+    <span class="catalog-count" id="catalogCount" role="status" aria-live="polite"></span>
+  </div>
+  <div class="catalog-tools" role="search" aria-label="Buscar materiales">
+    <label class="catalog-search"><span class="catalog-tool-label">Buscar material</span><span class="catalog-search-field"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m16 16 5 5"/></svg><input type="search" id="catalogSearch" placeholder="Ej.: convivencia, buen trato, prevención..." autocomplete="off"></span></label>
+    <label class="catalog-filter"><span class="catalog-tool-label">Filtrar por curso</span><select id="catalogCourse"><option value="">Todos los cursos</option><optgroup label="Educación parvularia"><option value="nt1">NT1 · Prekínder</option><option value="nt2">NT2 · Kínder</option></optgroup><optgroup label="Enseñanza básica"><option value="b1">1° básico</option><option value="b2">2° básico</option><option value="b3">3° básico</option><option value="b4">4° básico</option><option value="b5">5° básico</option><option value="b6">6° básico</option><option value="b7">7° básico</option><option value="b8">8° básico</option></optgroup><optgroup label="Enseñanza media"><option value="m1">1° medio</option><option value="m2">2° medio</option><option value="m3">3° medio</option><option value="m4">4° medio</option></optgroup></select></label>
+    <button class="catalog-reset" id="catalogReset" type="button">Limpiar filtros</button>
   </div>
   <div class="store-layout">
     <section><div id="grid" class="grid"><p class="empty">Cargando catálogo…</p></div></section>
@@ -372,10 +420,46 @@ function savingText(p){
   if(!old||old<=now)return '';
   return 'Ahorra '+money(old-now);
 }
+
+function normalizeSearch(value){
+  return String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[º˚]/g,'°').replace(/\s+/g,' ').trim();
+}
+function courseMatches(audience,course){
+  let a=normalizeSearch(audience).replace(/(\d{1,2})\s*°\s*(?:y|,|-)\s*(\d{1,2})\s*°\s*(basico|medio)/g,'$1° $3 y $2° $3');
+  if(course==='nt1')return /\b(nt1|prekinder|pre-kinder|pre kinder|prebasica|parvularia)\b/.test(a);
+  if(course==='nt2')return /\b(nt2|kinder|parvularia)\b/.test(a);
+  const matches=[...a.matchAll(/(\d{1,2})\s*°?\s*(basico|medio)/g)].map(m=>({index:(m[2]==='basico'?1:9)+Number(m[1]),start:m.index,end:m.index+m[0].length}));
+  const index=course[0]==='b'?1+Number(course.slice(1)):9+Number(course.slice(1));
+  if(matches.some(m=>m.index===index))return true;
+  for(let i=0;i<matches.length-1;i++){
+    const connector=a.slice(matches[i].end,matches[i+1].start);
+    if(/\b(a|hasta)\b/.test(connector)&&index>=matches[i].index&&index<=matches[i+1].index)return true;
+  }
+  return false;
+}
+document.getElementById('catalogSearch').addEventListener('input',renderProducts);
+document.getElementById('catalogCourse').addEventListener('change',renderProducts);
+document.getElementById('catalogReset').addEventListener('click',()=>{
+  document.getElementById('catalogSearch').value='';
+  document.getElementById('catalogCourse').value='';
+  renderProducts();
+  document.getElementById('catalogSearch').focus();
+});
+
 function renderProducts(){
   const root=document.getElementById('grid');
-  if(!products.length){root.innerHTML='<p class="empty">Próximamente encontrarás aquí los materiales publicados.</p>';return}
-  root.innerHTML=products.map(p=>{
+  const search=normalizeSearch(document.getElementById('catalogSearch').value.trim());
+  const course=document.getElementById('catalogCourse').value;
+  const filtered=products.filter(p=>{
+    const text=normalizeSearch([p.title,p.audience,p.objective,p.description,p.included_materials].join(' '));
+    return (!search||text.includes(search))&&(!course||courseMatches(p.audience,course));
+  });
+  document.getElementById('catalogCount').textContent=filtered.length+' de '+products.length+' materiales';
+  if(!filtered.length){
+    root.innerHTML='<p class="catalog-empty">'+(products.length?'No encontramos materiales con esos filtros. Prueba otro título o curso.':'Próximamente encontrarás aquí los materiales publicados.')+'</p>';
+    return;
+  }
+  root.innerHTML=filtered.map(p=>{
     const includes=splitIncluded(p.included_materials).map(x=>'<li>'+esc(x)+'</li>').join('');
     const saving=savingText(p);
     return '<article class="product-card">'+
@@ -384,7 +468,7 @@ function renderProducts(){
         '<span class="level-tag">'+esc(p.audience||'Material educativo')+'</span>'+
         '<h3 class="product-title">'+esc(p.title)+'</h3>'+
         '<p class="product-objective">'+esc(p.objective||'')+'</p>'+
-        '<div class="value-chips"><span>Material digital</span><span>Uso educativo</span><span>Listo para implementar</span></div>'+
+        '<div class="value-chips"><span>Material digital · listo para implementar</span></div>'+
         '<div class="price-row"><span class="price">'+money(p.price_clp)+'</span>'+(p.compare_at_price_clp?'<span class="old-price">'+money(p.compare_at_price_clp)+'</span>':'')+'</div>'+
         (saving?'<div class="saving">'+esc(saving)+'</div>':'')+
         '<details class="detail"><summary>Ver todo lo que incluye</summary>'+paragraphs(p.description||'')+'<div class="includes-title">Qué incluye</div><ul class="includes">'+includes+'</ul></details>'+

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blog y consultas · Superadministrador MEC</title>
+<script src="js/auth-professional.js"></script>
+<script>MECAuth.guard({roles:['platform_admin'],bindEstablishment:false,forbiddenToLogin:true});</script>
+<style>
+:root{--navy:#0F2D52;--cyan:#19C2D1;--yellow:#FFD200;--muted:#4A6983;--line:#dce9f1}
+*{box-sizing:border-box}html:not([data-auth="ok"]) body{visibility:hidden}
+body{margin:0;background:linear-gradient(145deg,#f1fbfd,#fff 65%,#fff9e6);font:14px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--navy)}
+header{background:#fff;border-bottom:1px solid var(--line);padding:15px 5%;display:flex;align-items:center;justify-content:space-between;gap:15px}
+header strong{font-size:17px}header a{color:var(--navy);font-weight:800;text-decoration:none;border:1px solid #bddce8;border-radius:10px;padding:10px 13px}
+main{max-width:1140px;margin:30px auto 70px;padding:0 18px}
+h1{font-size:31px;margin:0 0 6px}h2{font-size:22px;margin:0 0 12px}h3{font-size:16px}
+.lead{color:var(--muted);line-height:1.6;margin-bottom:24px}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:24px;margin-bottom:20px;box-shadow:0 10px 25px rgba(15,45,82,.06)}
+.card:first-of-type{border-top:5px solid var(--cyan)}.card:nth-of-type(2){border-top:5px solid var(--yellow)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.full{grid-column:1/-1}
+label{display:grid;gap:6px;color:var(--navy);font-size:12px;font-weight:800}
+input,select,textarea{width:100%;font:inherit;padding:11px 12px;border:1px solid #c9dbe6;border-radius:10px;color:var(--navy);background:#fff}
+textarea{resize:vertical;min-height:85px}.body-text{min-height:220px}
+button{border:0;border-radius:10px;background:var(--navy);color:#fff;padding:11px 15px;font:inherit;font-weight:850;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}.secondary{background:#edf9fc;color:var(--navy);border:1px solid #b8dce8}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}
+.note{font-size:12px;color:var(--muted)}.status{font-size:13px;color:#087f8c;font-weight:800;min-height:19px}
+.row{border-top:1px solid var(--line);padding:16px 0;display:flex;justify-content:space-between;gap:12px;align-items:start}
+.row strong{display:block}.row p{color:var(--muted);font-size:12px}.row-actions{display:flex;gap:7px;flex-wrap:wrap}
+.tag{display:inline-block;border-radius:7px;background:#ecf8fb;color:#176b87;font-size:11px;padding:4px 7px;font-weight:800;margin-top:5px}
+.contact-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#355b7c;line-height:1.65}
+.contact-link{display:inline-block;border:1px solid #bddce8;padding:8px 10px;border-radius:8px;color:var(--navy);text-decoration:none;font-weight:800;font-size:12px}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.row{display:block}.row-actions{margin-top:12px}header{flex-wrap:wrap}main{margin-top:18px}.card{padding:17px}}
+</style></head>
+<body>
+<header><strong>Material Educativo Chile · Administración de contenidos</strong><a href="admin-tienda.html">← Administrar tienda</a></header>
+<main><h1>Blog y consultas</h1><p class="lead">Publica artículos en el sitio institucional y responde las consultas recibidas. Acceso exclusivo de Superadministrador.</p>
+<section class="card"><h2>Administrar blog</h2><p class="note">Los borradores no aparecen en el sitio. Publica solo cuando hayas revisado el contenido.</p>
+<form id="blogForm"><input type="hidden" id="blogId"><div class="grid">
+<label>Título del artículo *<input id="blogTitle" required maxlength="160"></label>
+<label>Categoría<select id="blogCategory"><option>Convivencia Escolar</option><option>Orientación Vocacional</option><option>Inclusión Educativa</option><option>Recursos Pedagógicos</option><option>Noticias</option></select></label>
+<label class="full">Resumen para la portada<textarea id="blogExcerpt" maxlength="450" placeholder="Presenta brevemente el artículo."></textarea></label>
+<label class="full">Contenido completo *<textarea id="blogContent" class="body-text" required maxlength="20000" placeholder="Escribe el contenido; se respetarán los saltos de párrafo."></textarea></label>
+<label>URL HTTPS de imagen (opcional)<input id="blogImage" type="url" placeholder="https://..."></label>
+<label>Estado<select id="blogStatus"><option value="draft">Borrador</option><option value="published">Publicado</option></select></label>
+</div><div class="actions"><button type="submit">Guardar artículo</button><button type="button" class="secondary" id="newBlog">Nuevo artículo</button></div>
+<p id="blogMessage" class="status" role="status"></p></form>
+<h3>Publicaciones guardadas</h3><div id="blogList" class="note">Cargando…</div></section>
+<section class="card"><h2>Bandeja de consultas</h2><p class="note">Mensajes privados enviados desde el formulario del portal. Responde directamente desde tu correo.</p><div id="contactList" class="note">Cargando…</div></section>
+</main>
+<script>
+'use strict';
+const API='https://convivencia-escolar-api.onrender.com',el=id=>document.getElementById(id);
+let posts=[];
+const esc=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+async function api(path,opt={}){
+  const r=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'Error del servidor');return d;
+}
+function resetForm(){el('blogForm').reset();el('blogId').value='';el('blogMessage').textContent=''}
+function editPost(id){
+  const p=posts.find(x=>Number(x.id)===Number(id));if(!p)return;
+  el('blogId').value=p.id;el('blogTitle').value=p.title||'';el('blogCategory').value=p.category||'Noticias';
+  el('blogExcerpt').value=p.excerpt||'';el('blogContent').value=p.content||'';el('blogImage').value=p.image_url||'';
+  el('blogStatus').value=p.status||'draft';el('blogForm').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function loadPosts(){
+  try{
+    posts=(await api('/api/site/admin/blog')).posts||[];
+    el('blogList').innerHTML=posts.length?posts.map(p=>`<div class="row"><div><strong>${esc(p.title)}</strong><span class="tag">${esc(p.status==='published'?'Publicado':'Borrador')}</span><p>${esc(p.category)} · ${new Date(p.updated_at).toLocaleDateString('es-CL')}</p></div><div class="row-actions"><button class="secondary" type="button" data-edit="${Number(p.id)}">Editar</button><button class="secondary" type="button" data-delete="${Number(p.id)}">Eliminar</button></div></div>`).join(''):'Todavía no hay artículos. Crea el primero arriba.';
+  }catch(e){el('blogList').textContent='No se pudo cargar: '+e.message}
+}
+async function loadContacts(){
+  try{
+    const rows=(await api('/api/site/admin/contacts')).messages||[];
+    el('contactList').innerHTML=rows.length?rows.map(x=>`<article class="row"><div><strong>${esc(x.subject)}</strong><span class="tag">${new Date(x.created_at).toLocaleString('es-CL')}</span><p>${esc(x.sender_name)} · ${esc(x.sender_email)}</p><p class="contact-text">${esc(x.message)}</p></div><div><a class="contact-link" href="mailto:${encodeURIComponent(x.sender_email)}?subject=${encodeURIComponent('Re: '+x.subject)}">Responder por correo →</a></div></article>`).join(''):'Todavía no hay consultas.';
+  }catch(e){el('contactList').textContent='No se pudo cargar: '+e.message}
+}
+el('newBlog').addEventListener('click',resetForm);
+el('blogList').addEventListener('click',async e=>{
+  const edit=e.target.closest('[data-edit]');if(edit){editPost(edit.dataset.edit);return}
+  const del=e.target.closest('[data-delete]');if(!del)return;
+  const p=posts.find(x=>Number(x.id)===Number(del.dataset.delete));if(!p||!confirm('¿Eliminar el artículo "'+p.title+'"?'))return;
+  try{await api('/api/site/admin/blog/'+p.id+'/delete',{method:'POST',body:'{}'});await loadPosts()}
+  catch(err){el('blogMessage').textContent='No se pudo eliminar: '+err.message}
+});
+el('blogForm').addEventListener('submit',async e=>{
+  e.preventDefault();const id=el('blogId').value,btn=el('blogForm').querySelector('[type="submit"]');
+  btn.disabled=true;el('blogMessage').textContent='Guardando…';
+  const body={title:el('blogTitle').value,category:el('blogCategory').value,excerpt:el('blogExcerpt').value,content:el('blogContent').value,image_url:el('blogImage').value,status:el('blogStatus').value};
+  try{await api('/api/site/admin/blog'+(id?'/'+id:''),{method:'POST',body:JSON.stringify(body)});resetForm();el('blogMessage').textContent='Artículo guardado correctamente.';await loadPosts()}
+  catch(err){el('blogMessage').textContent='No se pudo guardar: '+err.message}
+  finally{btn.disabled=false}
+});
+loadPosts();loadContacts();
+</script></body></html>

@@ -43,7 +43,7 @@ const API='https://convivencia-escolar-api.onrender.com';
 const form=document.getElementById('login-form'),btn=document.getElementById('login-btn'),status=document.getElementById('login-status'),mfaBox=document.getElementById('mfa-box'),mfaBtn=document.getElementById('mfa-btn'),mfaCode=document.getElementById('mfa-code');
 let mfaChallenge='';
 function safeNext(){const q=new URLSearchParams(location.search),next=q.get('next');return next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:null}
-function isStoreAdminFlow(){return ['admin-tienda.html','admin-contenidos.html'].includes(safeNext())}
+function isStoreAdminFlow(){return ['admin-tienda.html','admin-contenidos.html','admin-centro.html'].includes(safeNext())}
 function changePasswordUrl(){const next=safeNext();return 'cambiar-clave.html'+(next?'?next='+encodeURIComponent(next):'')}
 async function logoutQuiet(){try{await fetch(API+'/api/auth/logout',{method:'POST',credentials:'include'})}catch(e){}}
 async function redirectUser(user){
@@ -57,17 +57,17 @@ async function redirectUser(user){
     return;
   }
   if(user.must_change_password){location.href=changePasswordUrl();return}
-  if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}
+  if(role==='platform_admin'){location.href=next||'admin-centro.html';return}
   if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);return}
   const destination=next||'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;
 }
 if(isStoreAdminFlow()){
   document.title='Superadministrador · Material Educativo Chile';
   document.getElementById('brand-title').textContent='Material Educativo Chile';
-  document.getElementById('brand-subtitle').textContent=safeNext()==='admin-contenidos.html'?'Administración de contenidos':'Administración de Tienda';
+  document.getElementById('brand-subtitle').textContent=safeNext()==='admin-contenidos.html'?'Administración de contenidos':'Centro de Superadministración';
   document.getElementById('login-eyebrow').textContent='ACCESO SUPERADMINISTRADOR';
-  document.getElementById('login-title').textContent=safeNext()==='admin-contenidos.html'?'Administrar blog y consultas':'Administrar Tienda';
-  document.getElementById('login-subtitle').textContent=safeNext()==='admin-contenidos.html'?'Ingresa con la cuenta de Superadministrador para publicar artículos del blog y revisar las consultas recibidas.':'Ingresa con la cuenta de Superadministrador para gestionar productos, imágenes, precios y entregas de la tienda.';
+  document.getElementById('login-title').textContent=safeNext()==='admin-contenidos.html'?'Administrar blog y consultas':'Centro de Superadministración';
+  document.getElementById('login-subtitle').textContent=safeNext()==='admin-contenidos.html'?'Ingresa con la cuenta de Superadministrador para publicar artículos del blog y revisar las consultas recibidas.':'Ingresa con tu única cuenta de Superadministrador para gestionar la tienda, el blog, las consultas y las plataformas.';
   document.getElementById('identifier-label').textContent='Correo de Superadministrador';
   document.documentElement.classList.add('mec-admin-login');
   document.getElementById('identifier').placeholder='correo@materialeducativo.cl';

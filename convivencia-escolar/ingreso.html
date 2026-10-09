@@ -57,7 +57,7 @@ async function redirectUser(user){
     return;
   }
   if(user.must_change_password){location.href=changePasswordUrl();return}
-  if(role==='platform_admin'){location.href=next||'admin-centro.html';return}
+  if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}
   if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);return}
   const destination=next||'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;
 }

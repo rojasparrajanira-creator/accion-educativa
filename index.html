@@ -459,6 +459,21 @@ body:has(.mec-hero) .mec-hero-copy p{color:#e5edff!important;line-height:1.68}
 .footer .footer-links a:hover,.footer .footer-links a:focus-visible{color:#75e6f4}
 .footer .footer-links small{color:#cbd5f6}
 .footer .footer-links .footer-admin{color:#c2d1f0;border-left-color:rgba(203,220,255,.3)}
+
+/* Carrusel de presentación: dos mensajes alternados con fondo institucional oscuro. */
+.mec-hero-copy-rotator{display:flex;flex-direction:column;justify-content:space-between;gap:18px;min-width:0;min-height:380px}
+.mec-hero-copy-slides{position:relative;flex:1;display:grid;align-items:center}
+.mec-hero-copy-slide{display:none;animation:mecHeroCopyReveal .42s ease both}
+.mec-hero-copy-slide.is-active{display:block}
+.mec-hero-copy-slide[aria-hidden="true"]{display:none!important}
+.mec-hero-copy-nav{display:flex;justify-content:flex-start;align-items:center;gap:9px}
+.mec-hero-copy-nav button{border:1px solid rgba(226,238,255,.52);border-radius:999px;width:12px;height:12px;background:rgba(255,255,255,.32);padding:0;cursor:pointer;transition:background .2s,width .2s}
+.mec-hero-copy-nav button.is-active{width:32px;background:#6CE7F3;border-color:#6CE7F3}
+.mec-hero-copy-nav button:focus-visible{outline:2px solid #fff;outline-offset:4px}
+@keyframes mecHeroCopyReveal{from{opacity:.35;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:820px){.mec-hero-copy-rotator{min-height:350px}}
+@media(max-width:560px){.mec-hero-copy-rotator{min-height:365px;gap:14px}.mec-hero-copy-slides{align-items:center}.mec-hero-copy-slide h1{font-size:clamp(29px,8vw,36px)!important}.mec-hero-copy-nav{padding-top:4px}}
+@media(prefers-reduced-motion:reduce){.mec-hero-copy-slide{animation:none}.mec-hero-copy-nav button{transition:none}}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -512,7 +527,10 @@ function openAccessModal(){location.href=STORE_URL}
 async function requestAccess(){const email=$('#access-email')?.value.trim();if(!email)return toast('Ingresa un correo válido.','error');try{const d=await api('/api/store/access/request',{method:'POST',body:JSON.stringify({email})});closeModal();if(d.magicUrl){modal(`<h2>Enlace activado</h2><p>En producción este enlace se envía por correo. En el modo de prueba puedes abrirlo ahora.</p><a class="primary-btn" href="${esc(d.magicUrl.replace(location.origin,''))}" onclick="closeModal()">Abrir mis materiales</a>`)}else toast(d.message||'Revisa tu correo.')}catch(err){if(state.apiOnline){closeModal();toast(err.message||'No fue posible enviar el enlace.','error');return}const orders=JSON.parse(localStorage.getItem('mec_demo_orders')||'[]');const o=orders.find(x=>x.email.toLowerCase()===email.toLowerCase());closeModal();if(o)modal(`<h2>Enlace activado</h2><p>Modo local de prueba.</p><a class="primary-btn" href="#/biblioteca/${o.token}" onclick="closeModal()">Abrir mis materiales</a>`);else toast('Si el correo tiene compras, enviaremos un enlace de acceso.')}}
 function productCard(p){const level=p.levels?.length>2?`${p.levels[0]} a ${p.levels.at(-1)}`:(p.levels||[]).join(', ');return `<article class="product-card"><div class="product-cover"><img src="${esc(p.coverUrl||AS+'producto-emociones.webp')}" alt="${esc(p.title)}">${p.featured?'<span class="badge">Destacado</span>':''}</div><div class="product-body"><div class="product-category">${esc(p.category?.name||'Material educativo')}</div><div class="product-title">${esc(p.title)}</div><div class="meta-row"><span class="meta-chip">${esc(level)}</span><span class="meta-chip">${esc((p.formats||[]).join(' · '))}</span><strong class="price">${clp(p.priceClp)}</strong></div><div class="product-actions"><button class="details-btn" onclick="location.hash='#/material/${esc(p.slug)}'">Ver detalle</button><button class="add-btn" onclick="addCart('${p.id}')">🛒</button></div></div></article>`}
 function home(){return `${header('Inicio')}<main>
-<section class="mec-hero" id="inicio"><div class="container mec-hero-grid"><div class="mec-hero-copy"><span class="mec-kicker">MATERIAL EDUCATIVO CHILE</span><h1>Plataforma de <span>Intervención Institucional</span></h1><p>Recursos pedagógicos, herramientas profesionales y plataformas educativas en un solo lugar. Diseñados para acompañar tu trabajo y potenciar cada intervención.</p></div><div class="mec-hero-visual mec-hero-carousel" role="region" aria-roledescription="carrusel" aria-label="Material Educativo Chile" onmouseenter="pauseMecCarousel()" onmouseleave="resumeMecCarousel()" onfocusin="pauseMecCarousel()" onfocusout="resumeMecCarousel()"><div class="mec-carousel-track" id="mecCarouselTrack">
+<section class="mec-hero" id="inicio"><div class="container mec-hero-grid"><div class="mec-hero-copy mec-hero-copy-rotator" role="region" aria-roledescription="carrusel" aria-label="Presentación de Material Educativo Chile" onmouseenter="pauseMecCarousel()" onmouseleave="resumeMecCarousel()" onfocusin="pauseMecCarousel()" onfocusout="resumeMecCarousel()"><div class="mec-hero-copy-slides">
+<div class="mec-hero-copy-slide is-active" data-copy-slide="0" aria-hidden="false"><span class="mec-kicker">MATERIAL EDUCATIVO CHILE</span><h1>Plataforma de <span>Intervención Institucional</span></h1><p>Recursos pedagógicos, herramientas profesionales y plataformas educativas en un solo lugar. Diseñados para acompañar tu trabajo y potenciar cada intervención.</p></div>
+<div class="mec-hero-copy-slide" data-copy-slide="1" aria-hidden="true"><span class="mec-kicker">¿QUIÉNES SOMOS?</span><h1>Innovamos para <span>transformar la educación.</span></h1><p>Integramos tecnología, recursos pedagógicos y herramientas profesionales para fortalecer la gestión educativa, optimizar el trabajo de los equipos y generar un impacto real en las comunidades escolares.</p></div>
+</div><div class="mec-hero-copy-nav" aria-label="Cambiar presentación"><button type="button" class="is-active" aria-label="Mostrar Plataforma de Intervención Institucional" aria-current="true" onclick="goMecHeroCopy(0);pauseMecCarousel()" ></button><button type="button" aria-label="Mostrar Quiénes somos" onclick="goMecHeroCopy(1);pauseMecCarousel()"></button></div></div><div class="mec-hero-visual mec-hero-carousel" role="region" aria-roledescription="carrusel" aria-label="Material Educativo Chile" onmouseenter="pauseMecCarousel()" onmouseleave="resumeMecCarousel()" onfocusin="pauseMecCarousel()" onfocusout="resumeMecCarousel()"><div class="mec-carousel-track" id="mecCarouselTrack">
 <div class="mec-carousel-slide is-active" data-slide="0"><div class="mec-photo-pending"><span class="mec-pending-eyebrow">MATERIAL EDUCATIVO CHILE</span><strong>Recursos pedagógicos para transformar la enseñanza</strong><span>Material digital · Editable · Listo para implementar</span></div><span class="mec-hero-tag">Material educativo profesional</span></div>
 <div class="mec-carousel-slide" data-slide="1" aria-hidden="true"><div class="mec-photo-pending"><span class="mec-pending-eyebrow">TIENDA DE RECURSOS</span><strong>Materiales para docentes y equipos educativos</strong><span>Talleres · Programas · Cuadernillos · Presentaciones</span></div><span class="mec-hero-tag">Herramientas para tu trabajo</span></div>
 <div class="mec-carousel-slide" data-slide="2" aria-hidden="true"><div class="mec-photo-pending"><span class="mec-pending-eyebrow">SOLUCIONES INSTITUCIONALES</span><strong>Orientación Vocacional y Convivencia Escolar</strong><span>Plataformas digitales para acompañar a tu comunidad</span></div><span class="mec-hero-tag">Plataformas educativas</span></div>
@@ -740,10 +758,18 @@ async function sendPortalContact(e){
 
 
 let mecCarouselIndex=0,mecCarouselTimer=null;
+function goMecHeroCopy(index){
+ const slides=[...document.querySelectorAll('.mec-hero-copy-slide')];
+ if(!slides.length)return;
+ const active=((index%slides.length)+slides.length)%slides.length;
+ slides.forEach((slide,i)=>{const on=i===active;slide.classList.toggle('is-active',on);slide.setAttribute('aria-hidden',on?'false':'true')});
+ document.querySelectorAll('.mec-hero-copy-nav button').forEach((dot,i)=>{dot.classList.toggle('is-active',i===active);if(i===active)dot.setAttribute('aria-current','true');else dot.removeAttribute('aria-current')});
+}
 function goMecCarousel(index){
   const slides=[...document.querySelectorAll('.mec-carousel-slide')];
   if(!slides.length)return;
   mecCarouselIndex=(index+slides.length)%slides.length;
+  goMecHeroCopy(mecCarouselIndex%2);
   slides.forEach((slide,i)=>{slide.classList.toggle('is-active',i===mecCarouselIndex);slide.setAttribute('aria-hidden',i===mecCarouselIndex?'false':'true')});
   document.querySelectorAll('.mec-carousel-dots button').forEach((dot,i)=>{dot.classList.toggle('is-active',i===mecCarouselIndex);if(i===mecCarouselIndex)dot.setAttribute('aria-current','true');else dot.removeAttribute('aria-current')});
 }

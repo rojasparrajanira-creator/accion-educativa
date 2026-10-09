@@ -10,3 +10,12 @@
 body.mec-green-entry .mec-site-footer{background:rgba(0,42,28,.82);color:#fff;border-color:rgba(255,255,255,.3);border-radius:16px;margin-top:0;}
 body.mec-green-entry .mec-site-footer a,body.mec-green-entry .mec-site-footer p{color:#fff;}
 @media print{.mec-site-footer,.mec-portal-nav{display:none!important;}}
+/* Separar la lectura institucional del fondo de ondas. */
+body.mec-green-entry .mec-login-info{background:#f3f8f4;border:1px solid #d8e8dc;border-radius:24px;padding:clamp(24px,3vw,40px);box-shadow:0 16px 40px rgba(0,30,20,.18);color:#204d3a;}
+body.mec-green-entry .mec-login-info h2{color:#174b36;font-weight:650;line-height:1.25;}
+body.mec-green-entry .mec-login-info>p{color:#365645;font-size:15px;line-height:1.75;}
+body.mec-green-entry .mec-login-info h2:not(:first-child){margin-top:28px;padding-top:24px;border-top:1px solid #cfdfd3;}
+body.mec-green-entry .mec-info-grid article{background:#fff;border:1px solid #ccdfd1;border-top:4px solid #318460;box-shadow:0 5px 16px rgba(22,69,44,.06);backdrop-filter:none;}
+body.mec-green-entry .mec-info-grid h3{color:#174b36;font-weight:650;font-size:18px;}
+body.mec-green-entry .mec-info-grid p{color:#3c5849;font-size:14px;line-height:1.7;}
+@media(max-width:650px){body.mec-green-entry .mec-login-info{border-radius:18px;padding:24px 20px;}}

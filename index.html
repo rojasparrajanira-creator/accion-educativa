@@ -514,6 +514,20 @@ body:has(.mec-hero) .mec-hero-copy-nav{position:relative;z-index:1}
 @media(max-width:560px){
  .mec-hero-impact-waves{width:135%;max-width:none;left:-17%;opacity:.88}
 }
+
+/* Difuminado de las ondas: transición gradual y sin bordes marcados. */
+body:has(.mec-hero) .mec-hero-copy-rotator .mec-hero-impact-waves{
+ opacity:.72;
+ -webkit-mask-image:radial-gradient(ellipse 85% 80% at 56% 53%,#000 8%,rgba(0,0,0,.88) 37%,rgba(0,0,0,.48) 68%,transparent 100%);
+ mask-image:radial-gradient(ellipse 85% 80% at 56% 53%,#000 8%,rgba(0,0,0,.88) 37%,rgba(0,0,0,.48) 68%,transparent 100%);
+ filter:blur(17px);
+}
+body:has(.mec-hero) .mec-hero-copy-rotator{
+ background:linear-gradient(125deg,#08165C 0%,#102B87 35%,#231B7A 64%,#3C116D 100%)!important;
+}
+@media(max-width:560px){
+ body:has(.mec-hero) .mec-hero-copy-rotator .mec-hero-impact-waves{opacity:.67;filter:blur(14px)}
+}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>

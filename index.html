@@ -515,19 +515,23 @@ body:has(.mec-hero) .mec-hero-copy-nav{position:relative;z-index:1}
  .mec-hero-impact-waves{width:135%;max-width:none;left:-17%;opacity:.88}
 }
 
-/* Difuminado de las ondas: transición gradual y sin bordes marcados. */
+/* Ondas restauradas, visibles y con transiciones de color en degradado. */
 body:has(.mec-hero) .mec-hero-copy-rotator .mec-hero-impact-waves{
- opacity:.72;
- -webkit-mask-image:radial-gradient(ellipse 85% 80% at 56% 53%,#000 8%,rgba(0,0,0,.88) 37%,rgba(0,0,0,.48) 68%,transparent 100%);
- mask-image:radial-gradient(ellipse 85% 80% at 56% 53%,#000 8%,rgba(0,0,0,.88) 37%,rgba(0,0,0,.48) 68%,transparent 100%);
- filter:blur(17px);
+ opacity:1!important;
+ filter:none!important;
+ -webkit-mask-image:none!important;
+ mask-image:none!important;
 }
 body:has(.mec-hero) .mec-hero-copy-rotator{
- background:linear-gradient(125deg,#08165C 0%,#102B87 35%,#231B7A 64%,#3C116D 100%)!important;
+ background:linear-gradient(125deg,#08165C 0%,#102B87 36%,#252080 64%,#3C116D 100%)!important;
 }
 @media(max-width:560px){
- body:has(.mec-hero) .mec-hero-copy-rotator .mec-hero-impact-waves{opacity:.67;filter:blur(14px)}
+ body:has(.mec-hero) .mec-hero-copy-rotator .mec-hero-impact-waves{opacity:1!important;filter:none!important}
 }
+/* Cambio entre mensajes con fundido gradual, sin salto de posición. */
+@keyframes mecHeroCopyReveal{from{opacity:0}to{opacity:1}}
+.mec-hero-copy-slide{animation:mecHeroCopyReveal .85s ease-in-out both}
+@media(prefers-reduced-motion:reduce){.mec-hero-copy-slide{animation:none}}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -584,8 +588,8 @@ function home(){return `${header('Inicio')}<main>
 <section class="mec-hero" id="inicio"><div class="container mec-hero-grid"><div class="mec-hero-copy mec-hero-copy-rotator" role="region" aria-roledescription="carrusel" aria-label="Presentación de Material Educativo Chile" onmouseenter="pauseMecCarousel()" onmouseleave="resumeMecCarousel()" onfocusin="pauseMecCarousel()" onfocusout="resumeMecCarousel()">
 <svg class="mec-hero-impact-waves" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
 <defs>
-<linearGradient id="mecWaveTop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2BE5FF" stop-opacity=".66"/><stop offset=".48" stop-color="#3967FF" stop-opacity=".34"/><stop offset="1" stop-color="#9B43ED" stop-opacity=".12"/></linearGradient>
-<linearGradient id="mecWaveBottom" x1="0" y1="0" x2="1" y2=".8"><stop stop-color="#06CBED" stop-opacity=".43"/><stop offset=".5" stop-color="#465BFC" stop-opacity=".36"/><stop offset="1" stop-color="#A02DF0" stop-opacity=".66"/></linearGradient>
+<linearGradient id="mecWaveTop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2BE5FF" stop-opacity=".66"/><stop offset=".27" stop-color="#1FADFF" stop-opacity=".52"/><stop offset=".53" stop-color="#3967FF" stop-opacity=".36"/><stop offset=".78" stop-color="#7954F1" stop-opacity=".26"/><stop offset="1" stop-color="#9B43ED" stop-opacity=".12"/></linearGradient>
+<linearGradient id="mecWaveBottom" x1="0" y1="0" x2="1" y2=".8"><stop offset="0" stop-color="#06CBED" stop-opacity=".43"/><stop offset=".25" stop-color="#278DEB" stop-opacity=".42"/><stop offset=".5" stop-color="#465BFC" stop-opacity=".38"/><stop offset=".75" stop-color="#7840E6" stop-opacity=".51"/><stop offset="1" stop-color="#A02DF0" stop-opacity=".66"/></linearGradient>
 <linearGradient id="mecWaveRibbon" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1ED9F4" stop-opacity=".32"/><stop offset=".55" stop-color="#5B48EA" stop-opacity=".32"/><stop offset="1" stop-color="#B33BEB" stop-opacity=".54"/></linearGradient>
 </defs>
 <path d="M620 -110 C730 40 785 118 1020 70 L1080 235 C827 255 718 153 565 -32 Z" fill="url(#mecWaveTop)"/>

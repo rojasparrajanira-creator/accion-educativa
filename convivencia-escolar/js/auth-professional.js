@@ -38,7 +38,7 @@
         return new Promise(()=>{});
       }
 
-      if(user.subscription_active===false&&page!=='mi-suscripcion.html'&&page!=='cambiar-clave.html'){location.replace('mi-suscripcion.html');return new Promise(()=>{});}
+      if(user.subscription_active===false&&page!=='cuenta-vencida.html'&&page!=='cambiar-clave.html'){location.replace('cuenta-vencida.html');return new Promise(()=>{});}
 
       const allowed=options.roles||['coordinador_convivencia','dupla_psicosocial'];
       if(!options.allowAnyRole&&!allowed.includes(role)){

@@ -79,7 +79,7 @@ body:after,.mec-login-showcase:after{display:none}
     </div>
     <p class="status" id="login-status" role="alert" aria-live="polite"></p>
     <p style="text-align:center;margin:8px 0 0"><a href="solicitar-clave.html" style="font-size:12px;color:#2F8067;font-weight:750">¿Olvidaste tu clave?</a></p>
-    <div style="text-align:center;display:grid;gap:10px;margin-top:12px"><a href="solicitar-clave.html" style="font-size:13px;color:#25674f;font-weight:650">Solicitar clave por correo electrónico</a><a href="planes.html" style="padding:12px;border-radius:12px;background:linear-gradient(120deg,#22664e,#37825a);color:#fff;text-decoration:none;font-size:14px;font-weight:750">Quiero tener mi cuenta profesional →</a><a href="mi-suscripcion.html" style="font-size:12px;color:#25674f">Mi suscripción</a></div>
+    <div style="text-align:center;display:grid;gap:10px;margin-top:12px"><a href="planes.html" style="padding:12px;border-radius:12px;background:linear-gradient(120deg,#22664e,#37825a);color:#fff;text-decoration:none;font-size:14px;font-weight:750">Quiero tener mi cuenta profesional →</a></div>
   </form>
   <div class="note">La sesión se mantiene mediante una cookie segura HttpOnly. La plataforma no almacena la clave en el navegador.</div>
 </main>
@@ -103,7 +103,7 @@ async function redirectUser(user){
     return;
   }
   if(user.must_change_password){location.href=changePasswordUrl();return}
-  if(role!=='platform_admin'&&user.subscription_active===false){location.href='mi-suscripcion.html';return}
+  if(role!=='platform_admin'&&user.subscription_active===false){location.href='cuenta-vencida.html';return}
   if(role==='platform_admin'){location.href=next||'admin-plataforma.html';return}
   if(!['coordinador_convivencia','dupla_psicosocial'].includes(role)){location.href='notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);return}
   const destination=next||'inicio.html';const u=new URL(destination,location.href);u.searchParams.set('establishment_id',String(user.establishment_id));location.href=u.pathname.split('/').pop()+u.search;

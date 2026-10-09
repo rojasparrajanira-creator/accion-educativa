@@ -44,10 +44,11 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
  }
  function wakeMail(){flushMail().catch(()=>console.error('Subscription mail queue unavailable'))}
  async function accessStatus(establishmentId,c=pool){const q=await c.query('select activated_at,access_until,cancelled_at from mec_subscriptions where establishment_id=$1',[establishmentId]);return active(q.rows[0])}
- async function getByToken(token){if(typeof token!=='string'||token.length<32||token.length>100)return null;const q=await pool.query('select * from mec_subscriptions where management_token_hash=$1',[hash(token)]);return q.rows[0]||null}
+ async function getByToken(token){if(typeof token!=='string'||token.length<32||token.length>100)return null;const q=await pool.query('select * from mec_subscriptions where management_token_hash=$1 or id in (select subscription_id from mec_subscription_cancellation_tokens where token_hash=$1)',[hash(token)]);return q.rows[0]||null}
  function rbdOf(value){const raw=String(value||'').trim();return /^\d{1,6}(?:-[0-9Kk])?$/.test(raw)?String(Number(raw.split('-')[0])):''}
+ async function cancellationLink(c,id){const token=crypto.randomBytes(32).toString('base64url');await c.query('insert into mec_subscription_cancellation_tokens(id,subscription_id,token_hash) values($1,$2,$3)',[crypto.randomUUID(),id,hash(token)]);return '\n\nCancelar suscripción de Plataforma de Convivencia Escolar:\n'+publicOrigin+'/cancelar-suscripcion.html#'+token}
  function summary(s){return {id:s.id,plan_code:s.plan_code,student_limit:s.student_limit,price_clp:s.price_clp,status:s.status,activated_at:s.activated_at,access_until:s.access_until,next_charge_at:s.next_charge_at,cancelled_at:s.cancelled_at,access_active:active(s)}}
- function paymentDestination(id,status){return publicOrigin+'/mi-suscripcion.html?solicitud='+encodeURIComponent(id)+'&resultado='+status}
+ function paymentDestination(id,status){return publicOrigin+'/solicitud-cuenta.html?solicitud='+encodeURIComponent(id)+'&resultado='+status}
  async function charge(id,initial=false){return locked(id,async c=>{
   const sq=await c.query('select * from mec_subscriptions where id=$1',[id]);const s=sq.rows[0];
   if(!s||!s.tbk_user_encrypted)return {skipped:true};
@@ -87,12 +88,12 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
    }else if(approved&&initial){
     await c.query("update mec_subscriptions set status='paid_pending_activation',updated_at=now() where id=$1",[id]);
     await queueMail(c,id,notifyEmail,'[MEC] Pago aprobado · solicitud de cuenta','Se confirmó el pago de $'+s.price_clp+' para '+s.establishment_name+' (RBD '+s.rbd+'). Profesional: '+s.full_name+'. Revisa y activa la cuenta en '+publicOrigin+'/admin-centro.html#suscripciones');
-    await queueMail(c,id,s.email,'Pago aprobado · Material Educativo Chile','Estimado/a '+s.full_name+':\n\nTu pago fue aprobado. El equipo de Material Educativo Chile revisará y autorizará tu establecimiento. Los 30 días de acceso comenzarán al activar la cuenta. Recibirás tu usuario y clave provisoria por este correo.');
+    await queueMail(c,id,s.email,'Pago aprobado · Material Educativo Chile','Estimado/a '+s.full_name+':\n\nTu pago fue aprobado. El equipo de Material Educativo Chile revisará y autorizará tu establecimiento. Los 30 días de acceso comenzarán al activar la cuenta. Recibirás tu usuario y clave provisoria por este correo.'+await cancellationLink(c,id));
    }else if(approved){
     // No cobrar períodos sin acceso tras una interrupción prolongada del servicio.
     const until=nextPeriod(new Date(Math.max(new Date(s.access_until).getTime(),Date.now())));
     await c.query("update mec_subscriptions set status=$1,access_until=$2,next_charge_at=$3,updated_at=now() where id=$4",[s.cancelled_at?'cancelled':'active',until,s.cancelled_at?null:until,id]);
-    await queueMail(c,id,s.email,'Renovación aprobada · Material Educativo Chile','Se aprobó la renovación de tu plan por $'+s.price_clp+'. Tu acceso estará vigente hasta '+until.toISOString()+'. Puedes cancelar futuras renovaciones desde Mi suscripción.');
+    await queueMail(c,id,s.email,'Renovación aprobada · Material Educativo Chile','Se aprobó la renovación de tu plan por $'+s.price_clp+'. Tu acceso estará vigente hasta '+until.toISOString()+'. Puedes cancelar futuras renovaciones desde el enlace de este correo.'+await cancellationLink(c,id));
    }else{
     await c.query("update mec_subscriptions set status=case when cancelled_at is not null then 'cancelled' else 'payment_failed' end,updated_at=now() where id=$1",[id]);
     await queueMail(c,id,s.email,'Pago no aprobado · Material Educativo Chile','No se aprobó el pago de tu plan. No se amplió la vigencia. Contacta al equipo para revisar tu suscripción.');
@@ -124,9 +125,9 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
   const exists=await pool.query("select id from establishments where regexp_replace(split_part(rbd,'-',1),'^0+','')=$1",[rbd]);if(exists.rowCount)return res.status(409).json({ok:false,error:'rbd_already_registered'});
   const id=crypto.randomUUID(),token=crypto.randomBytes(32).toString('base64url');
   await pool.query('insert into mec_subscriptions(id,rbd,establishment_name,full_name,rut,email,plan_code,student_limit,price_clp,management_token_hash,username,recurring_consent_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())',[id,rbd,school,name,rut,email,plan.code,plan.student_limit,plan.price_clp,hash(token),'mec-'+id]);
-  const manageUrl=publicOrigin+'/mi-suscripcion.html#'+token;
+  const manageUrl=publicOrigin+'/cancelar-suscripcion.html#'+token;
   await queueMail(pool,id,notifyEmail,'[MEC] Nueva solicitud de cuenta','Nueva solicitud de '+school+' (RBD '+rbd+'). Plan hasta '+plan.student_limit+' estudiantes, $'+plan.price_clp+' cada 30 días. El pago aún no está aprobado. Revisa '+publicOrigin+'/admin-centro.html#suscripciones');
-  await queueMail(pool,id,email,'Solicitud recibida · Material Educativo Chile','Estimado/a '+name+':\n\nGracias por preferir a Material Educativo Chile, una plataforma con sello de calidad que acompaña a tu comunidad educativa. Registramos tu solicitud. El pago y la activación están pendientes.\n\nConsulta o cancela tu solicitud desde este enlace personal (no lo compartas):\n'+manageUrl);
+  await queueMail(pool,id,email,'Solicitud recibida · Material Educativo Chile','Estimado/a '+name+':\n\nGracias por preferir a Material Educativo Chile, una plataforma con sello de calidad que acompaña a tu comunidad educativa. Registramos tu solicitud. El pago y la activación están pendientes.\n\nPuedes cancelar tu solicitud desde este enlace personal (no lo compartas):\n'+manageUrl);
   wakeMail();res.status(201).json({ok:true,id,management_token:token,payment_ready:configuration().ready});
  }catch(e){res.status(e.code==='23505'?409:500).json({ok:false,error:e.code==='23505'?'request_already_exists':'request_failed'})}});
  app.post('/api/subscriptions/enroll',limits,async(req,res)=>{try{
@@ -141,10 +142,10 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
   });res.json({ok:true,token:result.token,url:result.url_webpay});
  }catch(e){res.status(409).json({ok:false,error:'enrollment_not_available'})}});
  app.all('/api/subscriptions/oneclick/return',async(req,res)=>{
-  const token=String(req.body?.TBK_TOKEN||req.query.TBK_TOKEN||'');if(token.length<1||token.length>128)return res.redirect(303,publicOrigin+'/mi-suscripcion.html?resultado=cancelado');
+  const token=String(req.body?.TBK_TOKEN||req.query.TBK_TOKEN||'');if(token.length<1||token.length>128)return res.redirect(303,publicOrigin+'/solicitud-cuenta.html?resultado=cancelado');
   let id=null;
   try{
-   const q=await pool.query('select id from mec_subscriptions where enrollment_token_hash=$1',[hash(token)]);id=q.rows[0]?.id;if(!id)return res.redirect(303,publicOrigin+'/mi-suscripcion.html?resultado=no-verificado');
+   const q=await pool.query('select id from mec_subscriptions where enrollment_token_hash=$1',[hash(token)]);id=q.rows[0]?.id;if(!id)return res.redirect(303,publicOrigin+'/solicitud-cuenta.html?resultado=no-verificado');
    await locked(id,async c=>{
     let s=(await c.query('select * from mec_subscriptions where id=$1',[id])).rows[0];
     if(s.cancelled_at||s.tbk_user_encrypted)return;
@@ -156,7 +157,7 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
     await c.query("update mec_subscriptions set tbk_user_encrypted=$1,status='payment_pending',updated_at=now() where id=$2",[vault.encrypt(result.tbk_user),id]);
    });
    const result=await charge(id,true);res.redirect(303,paymentDestination(id,result.approved?'aprobado':result.uncertain?'verificando':'no-aprobado'));
-  }catch(e){res.redirect(303,id?paymentDestination(id,'verificando'):publicOrigin+'/mi-suscripcion.html?resultado=no-verificado')}
+  }catch(e){res.redirect(303,id?paymentDestination(id,'verificando'):publicOrigin+'/solicitud-cuenta.html?resultado=no-verificado')}
  });
  app.post('/api/subscriptions/status',rateLimit({windowMs:60000,max:30}),async(req,res)=>{try{const s=await getByToken(req.body?.token);if(!s)return res.status(404).json({ok:false,error:'subscription_not_found'});res.json({ok:true,subscription:summary(s)})}catch(e){res.status(503).json({ok:false,error:'status_unavailable'})}});
  app.post('/api/subscriptions/cancel-by-token',limits,async(req,res)=>{try{const s=await getByToken(req.body?.token);if(!s)return res.status(404).json({ok:false,error:'subscription_not_found'});res.json({ok:true,subscription:await cancel(s.id)})}catch(e){res.status(503).json({ok:false,error:'cancellation_failed'})}});
@@ -186,26 +187,43 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
     for(const code of ['M1','M2','M3'])await c.query("insert into measurements(establishment_id,code,school_year,status) values($1,$2,$3,'draft')",[e.rows[0].id,code,year]);
     const until=nextPeriod(new Date());
     await c.query("update mec_subscriptions set status='active',establishment_id=$1,user_id=$2,approved_by=$3,activated_at=now(),access_until=$4,next_charge_at=$4,updated_at=now() where id=$5",[e.rows[0].id,u.rows[0].id,req.auth.id,until,s.id]);
-    await queueMail(c,s.id,s.email,'Tu cuenta está activa · Material Educativo Chile','Estimado/a '+s.full_name+':\n\nGracias por preferir a Material Educativo Chile, una plataforma con sello de calidad, creada para acompañar el diagnóstico, la intervención y el seguimiento de tu comunidad educativa.\n\nTu establecimiento '+s.establishment_name+' (RBD '+s.rbd+') ya está autorizado.\nUsuario: '+s.email+'\nClave provisoria: '+password+'\nIngreso: '+publicOrigin+'/ingreso.html\n\nEsta clave vence en 48 horas. Debes reemplazarla en el primer ingreso por una clave personal. No la compartas. La clave definitiva no será visible para nuestro equipo.\n\nPlan: hasta '+s.student_limit+' estudiantes. Precio: $'+s.price_clp+' cada 30 días. Vigencia inicial hasta '+until.toISOString()+'. Las renovaciones serán automáticas mientras mantengas la suscripción. Puedes cancelar los próximos cobros desde Mi suscripción.');
+    await queueMail(c,s.id,s.email,'Tu cuenta está activa · Material Educativo Chile','Estimado/a '+s.full_name+':\n\nGracias por preferir a Material Educativo Chile, una plataforma con sello de calidad, creada para acompañar el diagnóstico, la intervención y el seguimiento de tu comunidad educativa.\n\nTu establecimiento '+s.establishment_name+' (RBD '+s.rbd+') ya está autorizado.\nUsuario: '+s.email+'\nClave provisoria: '+password+'\nIngreso: '+publicOrigin+'/ingreso.html\n\nEsta clave vence en 48 horas. Debes reemplazarla en el primer ingreso por una clave personal. No la compartas. La clave definitiva no será visible para nuestro equipo.\n\nPlan: hasta '+s.student_limit+' estudiantes. Precio: $'+s.price_clp+' cada 30 días. Vigencia inicial hasta '+until.toISOString()+'. Las renovaciones serán automáticas mientras mantengas la suscripción. Puedes cancelar los próximos cobros desde el enlace de este correo.'+await cancellationLink(c,s.id));
     await c.query('commit');wakeMail();return {activated:true,email_queued:true,access_until:until};
    }catch(e){await c.query('rollback');throw e}
   });res.json({ok:true,...result});
  }catch(e){res.status(409).json({ok:false,error:e.code==='23505'?'rbd_already_registered':'activation_not_available'})}});
  app.post('/api/subscriptions/admin/:id/reconcile',...requireRole('platform_admin'),async(req,res)=>{try{const s=(await pool.query('select activated_at from mec_subscriptions where id=$1',[req.params.id])).rows[0];if(!s)return res.status(404).json({ok:false,error:'subscription_not_found'});res.json({ok:true,...await charge(req.params.id,!s.activated_at)})}catch(e){res.status(503).json({ok:false,error:'reconciliation_unavailable'})}});
  app.post('/api/subscriptions/admin/mail/retry',...requireRole('platform_admin'),async(req,res)=>{try{await pool.query("update mec_subscription_mail set next_attempt_at=now(),attempts=0 where status<>'sent'");await flushMail();res.json({ok:true})}catch(e){res.status(503).json({ok:false,error:'mail_unavailable'})}});
- // Respuesta uniforme: no revelar si existe una cuenta o un RBD.
+ async function prepareRecovery(userId){
+  if(!configuration().mailReady)return false;
+  return locked('credential-'+userId,async c=>{
+   const u=(await c.query("select u.*,e.name establishment from users u join establishments e on e.id=u.establishment_id where u.id=$1 and u.active=true and u.role<>'platform_admin'",[userId])).rows[0];if(!u)return false;
+   const requests=await c.query("select id from mec_access_requests where user_id=$1 and status='pending'",[userId]);if(!requests.rowCount)return false;
+   const password=crypto.randomBytes(18).toString('base64url')+'A7',cred=await makePassword(password);
+   await c.query('begin');try{
+    await c.query("insert into mec_password_recoveries(user_id,password_hash,password_salt,expires_at) values($1,$2,$3,now()+interval '48 hours') on conflict(user_id) do update set password_hash=excluded.password_hash,password_salt=excluded.password_salt,expires_at=excluded.expires_at,created_at=now()",[userId,cred.hash,cred.salt]);
+    await queueMail(c,null,u.email,'Tu clave provisoria · Material Educativo Chile','Estimado/a '+u.name+':\n\nRecibimos una solicitud para recuperar tu acceso a '+u.establishment+'.\nUsuario: '+u.email+'\nClave provisoria: '+password+'\nIngreso: '+publicOrigin+'/ingreso.html\n\nEsta clave vence en 48 horas y debes cambiarla al ingresar. Si no solicitaste recuperar tu acceso, ignora este correo; tu clave actual sigue funcionando. Tu clave personal no es visible para nuestro equipo.');
+    await c.query("update mec_access_requests set status='queued' where user_id=$1 and status='pending'",[userId]);await c.query('commit');return true;
+   }catch(e){await c.query('rollback');throw e}
+  });
+ }
+ async function redeemRecovery(user,password,verifyPassword){
+  if(user.role==='platform_admin')return false;
+  return locked('credential-'+user.id,async c=>{
+   const r=(await c.query('select * from mec_password_recoveries where user_id=$1 and expires_at>now()',[user.id])).rows[0];if(!r||!await verifyPassword(password,r.password_salt,r.password_hash))return false;
+   await c.query('begin');try{
+    await c.query('update users set password_hash=$1,password_salt=$2,must_change_password=true,temporary_password_expires_at=$3,failed_login_count=0,locked_until=null where id=$4',[r.password_hash,r.password_salt,r.expires_at,user.id]);
+    await c.query('delete from auth_sessions where user_id=$1',[user.id]);await c.query('delete from mec_password_recoveries where user_id=$1',[user.id]);await c.query("update mec_access_requests set status='resolved' where user_id=$1 and status in ('pending','queued')",[user.id]);await c.query('commit');Object.assign(user,{password_hash:r.password_hash,password_salt:r.password_salt,must_change_password:true,temporary_password_expires_at:r.expires_at});return true;
+   }catch(e){await c.query('rollback');throw e}
+  });
+ }
+ async function runRecoveries(){if(!configuration().mailReady)return;const q=await pool.query("select distinct user_id from mec_access_requests where status='pending' limit 20");for(const u of q.rows)await prepareRecovery(u.user_id)}
+ // Respuesta uniforme: no revelar si existe una cuenta asociada al correo.
  app.post('/api/auth/request-access',limits,async(req,res)=>{try{
-  const b=req.body||{},email=String(b.email||'').trim().toLowerCase(),rbd=rbdOf(b.rbd);
-  if(!/^\S+@\S+\.\S+$/.test(email)||email.length>180||!/^\d{1,6}$/.test(rbd)||Number(rbd)<1)return res.status(400).json({ok:false,error:'invalid_request'});
-  const q=await pool.query("select u.id,u.name,u.email,u.role,u.establishment_id from users u join establishments e on e.id=u.establishment_id where lower(u.email)=$1 and regexp_replace(split_part(e.rbd,'-',1),'^0+','')=$2 and u.active=true",[email,rbd]);
-  for(const u of q.rows){
-   const pending=await pool.query("select id from mec_access_requests where user_id=$1 and created_at>now()-interval '1 hour' and status='pending'",[u.id]);if(pending.rowCount)continue;
-   await pool.query('insert into mec_access_requests(user_id) values($1)',[u.id]);
-   const managers=await pool.query("select email from users where establishment_id=$1 and role='coordinador_convivencia' and active=true",[u.establishment_id]);
-   const recipients=new Set(managers.rows.map(x=>x.email));if(u.role==='coordinador_convivencia'||!recipients.size)recipients.add(notifyEmail);
-   for(const recipient of recipients)await queueMail(pool,null,recipient,'[MEC] Solicitud de clave','El profesional '+u.name+' ('+u.email+') solicitó restablecer su acceso para el RBD '+rbd+'. Verifica su identidad antes de generar una nueva clave. Gestión: '+publicOrigin+(recipient===notifyEmail?'/admin-centro.html#suscripciones':'/usuarios.html'));
-  }
-  wakeMail();res.json({ok:true,received:true});
+  const email=String(req.body?.email||'').trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(email)||email.length>180)return res.status(400).json({ok:false,error:'invalid_request'});
+  const q=await pool.query("select id from users where lower(email)=$1 and active=true and role<>'platform_admin'",[email]);
+  for(const u of q.rows){await locked('request-'+u.id,async c=>{const pending=await c.query("select id from mec_access_requests where user_id=$1 and created_at>now()-interval '1 hour' and status in ('pending','queued')",[u.id]);if(!pending.rowCount)await c.query('insert into mec_access_requests(user_id) values($1)',[u.id])});await prepareRecovery(u.id)}
+  wakeMail();res.json({ok:true,received:true,email_ready:configuration().mailReady});
  }catch(e){res.status(503).json({ok:false,error:'request_unavailable'})}});
  async function issueTemporaryCredential(userId,requester,platform=false){
   if(!configuration().mailReady)throw Error('email_not_ready');
@@ -216,7 +234,7 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
    await c.query('begin');
    try{
     await c.query("update users set password_hash=$1,password_salt=$2,must_change_password=true,temporary_password_expires_at=now()+interval '48 hours',failed_login_count=0,locked_until=null where id=$3",[cred.hash,cred.salt,u.id]);
-    await c.query('delete from auth_sessions where user_id=$1',[u.id]);
+    await c.query('delete from auth_sessions where user_id=$1',[u.id]);await c.query('delete from mec_password_recoveries where user_id=$1',[u.id]);
     await queueMail(c,null,u.email,'Nueva clave provisoria · Material Educativo Chile','Estimado/a '+u.name+':\n\nTu acceso fue restablecido por la administración.\nUsuario: '+u.email+'\nClave provisoria: '+password+'\nIngreso: '+publicOrigin+'/ingreso.html\n\nLa clave vence en 48 horas y debes cambiarla al ingresar. Tu clave definitiva no será visible para el equipo de Material Educativo Chile.');
     await c.query("update mec_access_requests set status='resolved' where user_id=$1 and status='pending'",[u.id]);
     await c.query("insert into professional_audit_events(establishment_id,user_id,action,entity_type,entity_id,metadata) values($1,$2,'temporary_credential_emailed','user',$3,'{}'::jsonb)",[u.establishment_id,requester.id,String(u.id)]);
@@ -232,10 +250,10 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
   for(const s of due.rows){try{const row=(await pool.query('select activated_at from mec_subscriptions where id=$1',[s.id])).rows[0];await charge(s.id,!row.activated_at)}catch(e){console.error('Subscription renewal needs review')}}
  }
  function startWorkers(){
-  const work=()=>Promise.allSettled([runRenewals(),flushMail()]);work();const timer=setInterval(work,60000);timer.unref();
+  const work=()=>Promise.allSettled([runRenewals(),runRecoveries().then(flushMail)]);work();const timer=setInterval(work,60000);timer.unref();
   console.log('Subscription production payment ready:',configuration().ready?'yes':'no');
   console.log('Subscription email ready:',configuration().mailReady?'yes':'no');
  }
- return {accessStatus,temporaryExpired,startWorkers,configuration,charge,cancel,runRenewals,flushMail};
+ return {accessStatus,temporaryExpired,startWorkers,configuration,charge,cancel,runRenewals,flushMail,redeemRecovery,runRecoveries};
 }
 module.exports={createSubscriptions};

@@ -501,7 +501,7 @@ app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
   for(const candidate of candidates.rows){
     matchedIdentity=candidate;
     if(candidate.locked_until&&new Date(candidate.locked_until)>new Date())return res.status(429).json({ok:false,error:'account_temporarily_locked'});
-    if(await verifyPassword(password,candidate.password_salt,candidate.password_hash)){user=candidate;break}
+    if(await verifyPassword(password,candidate.password_salt,candidate.password_hash)||await subscriptions.redeemRecovery(candidate,password,verifyPassword)){user=candidate;break}
   }
   if(!user){
     if(matchedIdentity){
@@ -601,6 +601,7 @@ app.post('/api/auth/change-password',requireAuth,async(req,res)=>{try{
   if(!u.rowCount||!(await verifyPassword(current,u.rows[0].password_salt,u.rows[0].password_hash)))return res.status(401).json({ok:false,error:'invalid_current_password'});
   const cred=await makePassword(next);
   await pool.query("update users set password_hash=$1,password_salt=$2,must_change_password=false,temporary_password_expires_at=null where id=$3",[cred.hash,cred.salt,req.auth.id]);
+  await pool.query('delete from mec_password_recoveries where user_id=$1',[req.auth.id]);
   await pool.query("delete from auth_sessions where user_id=$1",[req.auth.id]);
   const token=crypto.randomBytes(32).toString('base64url');
   await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '8 hours')",[sha256(token),req.auth.id]);

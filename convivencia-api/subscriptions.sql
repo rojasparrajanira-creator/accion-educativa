@@ -41,3 +41,10 @@ BEGIN
 END; $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS mec_student_plan_limit_trigger ON students;
 CREATE TRIGGER mec_student_plan_limit_trigger BEFORE INSERT OR UPDATE OF active,establishment_id ON students FOR EACH ROW EXECUTE FUNCTION mec_student_plan_limit();
+
+CREATE TABLE IF NOT EXISTS mec_subscription_cancellation_tokens (
+ id UUID PRIMARY KEY,subscription_id UUID NOT NULL REFERENCES mec_subscriptions(id),token_hash TEXT NOT NULL UNIQUE,created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS mec_password_recoveries (
+ user_id BIGINT PRIMARY KEY REFERENCES users(id),password_hash TEXT NOT NULL,password_salt TEXT NOT NULL,expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

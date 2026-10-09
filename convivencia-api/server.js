@@ -1613,6 +1613,13 @@ app.post('/api/store/admin/products',requireAuth,async(req,res)=>{try{
   const da=await pool.query("select id from store_drive_accounts where id=$1 and status<>'disabled'",[driveAccountId]);
   if(!da.rowCount)return res.status(400).json({ok:false,error:'invalid_drive_account'});
   let slug=storeSlug(b.slug||title);if(!slug)slug='material-'+Date.now();
+  // Conservar los slugs existentes; asignar uno único únicamente al crear un producto nuevo.
+  const baseSlug=slug;
+  for(let attempt=0;attempt<100;attempt++){
+    const exists=await pool.query('select 1 from store_products where slug=$1 limit 1',[slug]);
+    if(!exists.rowCount)break;
+    slug=(baseSlug.slice(0,80)+'-'+(attempt+2)).slice(0,90);
+  }
   const q=await pool.query(`insert into store_products(title,slug,objective,description,included_materials,audience,image_url,drive_delivery_url,drive_account_id,price_clp,compare_at_price_clp,status,created_by)
     values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning id,title,slug,status,price_clp,updated_at`,
     [title,slug,objective,description,included,audience||null,image||null,drive,driveAccountId,price,compare,status,req.auth.id]);

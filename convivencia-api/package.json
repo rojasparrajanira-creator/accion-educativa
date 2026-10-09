@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test-*.cjs"
   },
   "dependencies": {
     "express": "^4.21.2",
@@ -16,5 +17,8 @@
   "overrides": {
     "uuid": "^11.1.1",
     "tmp": "^0.2.6"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
   }
 }

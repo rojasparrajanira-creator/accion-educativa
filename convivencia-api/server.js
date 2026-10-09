@@ -103,6 +103,7 @@ const matrículaUpload=multer({
 async function initDatabase(){
   if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL no configurada');
   await pool.query(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));
+  await pool.query(fs.readFileSync(path.join(__dirname,'subscriptions.sql'),'utf8'));
   await pool.query("delete from auth_sessions where expires_at<=now()");
   await pool.query(`delete from response_drafts d using survey_applications a,measurement_settings ms
     where d.application_id=a.id and ms.measurement_id=a.measurement_id
@@ -265,13 +266,21 @@ function setSessionCookie(res,token,maxAge=28800){
 async function sessionUser(req){
   const token=cookieValue(req,'mec_session');
   if(!token)return null;
-  const q=await pool.query(`select u.id,u.establishment_id,u.email,u.rut,u.name,u.role,u.active,u.must_change_password,e.name establishment,e.rbd
+  const q=await pool.query(`select u.id,u.establishment_id,u.email,u.rut,u.name,u.role,u.active,u.must_change_password,u.temporary_password_expires_at,e.name establishment,e.rbd
     from auth_sessions s join users u on u.id=s.user_id join establishments e on e.id=u.establishment_id
     where s.token_hash=$1 and s.expires_at>now() and u.active=true limit 1`,[sha256(token)]);
   return q.rows[0]||null;
 }
 async function requireAuth(req,res,next){
-  try{const user=await sessionUser(req);if(!user)return res.status(401).json({ok:false,error:'authentication_required'});req.auth=user;next()}catch(e){res.status(401).json({ok:false,error:'authentication_required'})}
+  try{
+    const user=await sessionUser(req);if(!user)return res.status(401).json({ok:false,error:'authentication_required'});
+    if(subscriptions.temporaryExpired(user))return res.status(401).json({ok:false,error:'temporary_password_expired'});
+    req.auth=user;
+    const safe=['/api/auth/me','/api/auth/logout','/api/auth/change-password','/api/subscriptions/me','/api/subscriptions/cancel'];
+    if(user.must_change_password&&!safe.includes(req.path))return res.status(403).json({ok:false,error:'password_change_required'});
+    if(user.role!=='platform_admin'&&!safe.includes(req.path)&&!(await subscriptions.accessStatus(user.establishment_id)))return res.status(403).json({ok:false,error:'subscription_expired'});
+    next();
+  }catch(e){res.status(401).json({ok:false,error:'authentication_required'})}
 }
 function canonicalRole(role,rbd){
   const r=plain(role).replace(/\s+/g,'_');
@@ -463,6 +472,20 @@ function surveyLevelForCourse(name){
   if(grade<=8)return '7-8';
   return null;
 }
+const {createSubscriptions}=require('./subscriptions');
+const subscriptions=createSubscriptions({app,pool,requireAuth,requireRole,rateLimit:publicRateLimit,makePassword,validRut,normalizeRut});
+app.use('/api',async(req,res,next)=>{
+  try{
+    // Los enlaces de estudiantes de establecimientos suscritos respetan la vigencia.
+    const match=req.path.match(/^\/applications\/(\d+)(?:\/|$)/);
+    let establishmentId=null;
+    if(match){const q=await pool.query('select s.establishment_id from survey_applications a join students s on s.id=a.student_id where a.id=$1',[match[1]]);establishmentId=q.rows[0]?.establishment_id;}
+    if(req.path==='/student-access/login'&&Number.isSafeInteger(Number(req.body?.establishment_id))&&Number(req.body.establishment_id)>0)establishmentId=Number(req.body.establishment_id);
+    if(req.path==='/student-access/set-pin'&&Number.isSafeInteger(Number(req.body?.application_id))&&Number(req.body.application_id)>0){const q=await pool.query('select s.establishment_id from survey_applications a join students s on s.id=a.student_id where a.id=$1',[req.body.application_id]);establishmentId=q.rows[0]?.establishment_id;}
+    if(establishmentId&&!(await subscriptions.accessStatus(establishmentId)))return res.status(403).json({ok:false,error:'subscription_expired'});
+    next();
+  }catch(e){res.status(503).json({ok:false,error:'access_unavailable'});}
+});
 app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
   const identifier=String((req.body||{}).identifier||'').trim();
   const password=String((req.body||{}).password||'');
@@ -488,6 +511,7 @@ app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
     }
     return res.status(401).json({ok:false,error:'invalid_credentials'});
   }
+  if(subscriptions.temporaryExpired(user))return res.status(401).json({ok:false,error:'temporary_password_expired'});
   if(user.role==='platform_admin'&&user.mfa_enabled){
     const challenge=crypto.randomBytes(32).toString('base64url'),challengeHash=sha256(challenge);
     await pool.query("delete from mfa_login_challenges where expires_at<=now()");
@@ -501,7 +525,7 @@ app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
   await pool.query("update users set last_login_at=now(),failed_login_count=0,locked_until=null where id=$1",[user.id]);
   try{await pool.query("insert into security_events(user_id,event_type,ip_hash,user_agent_hash,metadata) values($1,'login_success',$2,$3,$4::jsonb)",[user.id,sha256(String(req.headers['x-forwarded-for']||req.ip||'')),sha256(String(req.headers['user-agent']||'')),JSON.stringify({role:user.role})])}catch(_){}
   setSessionCookie(res,token);
-  ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,establishment:user.establishment,rbd:user.rbd}});
+  ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,subscription_active:await subscriptions.accessStatus(user.establishment_id),establishment:user.establishment,rbd:user.rbd}});
 }catch(e){res.status(400).json({ok:false,error:'login_failed'})}});
 
 app.post('/api/auth/mfa/verify',mfaVerifyRateLimit,async(req,res)=>{try{
@@ -568,15 +592,15 @@ app.post('/api/auth/mfa/confirm',...requireRole('platform_admin'),async(req,res)
   ok(res,{mfa_enabled:true,recovery_codes:recoveryCodes});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
 
-app.get('/api/auth/me',async(req,res)=>{try{const user=await sessionUser(req);if(!user)return res.status(401).json({ok:false,error:'authentication_required'});ok(res,{user})}catch(e){res.status(401).json({ok:false,error:'authentication_required'})}});
+app.get('/api/auth/me',async(req,res)=>{try{const user=await sessionUser(req);if(!user)return res.status(401).json({ok:false,error:'authentication_required'});if(subscriptions.temporaryExpired(user))return res.status(401).json({ok:false,error:'temporary_password_expired'});user.subscription_active=user.role==='platform_admin'||await subscriptions.accessStatus(user.establishment_id);ok(res,{user})}catch(e){res.status(401).json({ok:false,error:'authentication_required'})}});
 app.post('/api/auth/logout',async(req,res)=>{try{const token=cookieValue(req,'mec_session');if(token)await pool.query("delete from auth_sessions where token_hash=$1",[sha256(token)]);setSessionCookie(res,'',0);ok(res,{logged_out:true})}catch(e){setSessionCookie(res,'',0);ok(res,{logged_out:true})}});
 app.post('/api/auth/change-password',requireAuth,async(req,res)=>{try{
   const current=String((req.body||{}).current_password||''),next=String((req.body||{}).new_password||'');
-  if(next.length<10||!/[A-ZÁÉÍÓÚÑ]/i.test(next)||!/[0-9]/.test(next))return res.status(400).json({ok:false,error:'weak_password'});
+  if(next===current||next.length<10||!/[A-ZÁÉÍÓÚÑ]/i.test(next)||!/[0-9]/.test(next))return res.status(400).json({ok:false,error:'weak_password'});
   const u=await pool.query("select password_hash,password_salt from users where id=$1",[req.auth.id]);
   if(!u.rowCount||!(await verifyPassword(current,u.rows[0].password_salt,u.rows[0].password_hash)))return res.status(401).json({ok:false,error:'invalid_current_password'});
   const cred=await makePassword(next);
-  await pool.query("update users set password_hash=$1,password_salt=$2,must_change_password=false where id=$3",[cred.hash,cred.salt,req.auth.id]);
+  await pool.query("update users set password_hash=$1,password_salt=$2,must_change_password=false,temporary_password_expires_at=null where id=$3",[cred.hash,cred.salt,req.auth.id]);
   await pool.query("delete from auth_sessions where user_id=$1",[req.auth.id]);
   const token=crypto.randomBytes(32).toString('base64url');
   await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '8 hours')",[sha256(token),req.auth.id]);
@@ -1868,6 +1892,7 @@ app.get('/api/site/admin/contacts',...requireRole('platform_admin'),async(req,re
 const port=process.env.PORT||3000;
 initDatabase().then(()=>app.listen(port,()=>{
   console.log('Convivencia API ready with PostgreSQL');
+  subscriptions.startWorkers();
   if(String(process.env.RUN_PILOT_SELFTEST||'')==='1'){
     const {runPilotSelfTest}=require('./pilot-selftest');
     setTimeout(async()=>{

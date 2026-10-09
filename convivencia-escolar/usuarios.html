@@ -151,7 +151,8 @@ async function load(){
       window.scrollTo({top:0,behavior:'smooth'});
     };
     const b=document.createElement('button');b.type='button';b.className='soft';b.textContent=user.active?'Desactivar':'Reactivar';b.onclick=()=>changeStatus(user,b);
-    action.append(reset,b);tr.appendChild(action);
+    const send=document.createElement('button');send.type='button';send.className='soft';send.textContent='Enviar clave al correo';send.disabled=!user.active;send.onclick=async()=>{if(!confirm('¿Restablecer el acceso y enviar una clave provisoria al correo registrado de '+user.name+'?'))return;send.disabled=true;try{const r=await fetch(API+'/api/auth/users/'+user.id+'/send-temporary-key',{method:'POST'});const d=await r.json();if(!r.ok||!d.ok)throw Error();formStatus.textContent='Nueva clave generada y correo en cola de envío. Vence en 48 horas.';await load()}catch(e){formStatus.textContent='No fue posible enviar la clave. Revisa la configuración de correo con la plataforma.'}finally{send.disabled=!user.active}};
+    action.append(reset,send,b);tr.appendChild(action);
     rows.appendChild(tr);
   }
  }catch(e){rows.innerHTML='<tr><td colspan="7">No fue posible cargar las cuentas profesionales.</td></tr>'}

@@ -24,12 +24,13 @@ body{margin:0;background:#f3f8fb;color:var(--navy);font:14px Inter,-apple-system
 </head>
 <body>
 <header class="top"><div class="brand"><img src="https://material-educativo-chile-portal.onrender.com/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile"><div><strong>Material Educativo Chile</strong><small>Centro de Superadministración</small></div></div><div class="actions"><a href="https://material-educativo-chile-portal.onrender.com/" target="_blank" rel="noopener">Ver sitio público ↗</a><button type="button" onclick="MECAuth.logout()">Cerrar sesión</button></div></header>
-<main class="shell"><section class="intro"><span>UNA CUENTA · CUATRO ÁREAS DE GESTIÓN</span><h1>Centro de Superadministración</h1><p>Administra productos, publicaciones, consultas y establecimientos desde un mismo lugar, con tu cuenta de Superadministrador.</p></section>
+<main class="shell"><section class="intro"><span>UNA CUENTA · CINCO ÁREAS DE GESTIÓN</span><h1>Centro de Superadministración</h1><p>Administra productos, publicaciones, consultas, suscripciones y establecimientos desde un mismo lugar, con tu cuenta de Superadministrador.</p></section>
 <nav class="tabs" aria-label="Secciones de administración">
 <button type="button" data-tab="tienda" class="active" aria-selected="true">Tienda y materiales</button>
 <button type="button" data-tab="blog" aria-selected="false">Blog y publicaciones</button>
 <button type="button" data-tab="consultas" aria-selected="false">Consultas recibidas</button>
 <button type="button" data-tab="plataforma" aria-selected="false">Plataformas y establecimientos</button>
+<button type="button" data-tab="suscripciones" aria-selected="false">Suscripciones y solicitudes</button>
 </nav>
 <section class="panel"><div class="panel-title"><div><h2 id="panelHeading">Tienda y materiales</h2><p id="panelDescription">Productos, imágenes, precios y conexiones a Google Drive.</p></div><a id="panelDirect" href="admin-tienda.html" target="_blank" rel="noopener">Abrir sección en ventana nueva ↗</a></div>
 <p id="frameStatus" role="status">Cargando sección…</p><iframe id="adminFrame" title="Administración de tienda" src="admin-tienda.html" loading="eager"></iframe></section>
@@ -40,6 +41,7 @@ const sections={
 tienda:{title:'Tienda y materiales',description:'Productos, imágenes, precios y conexiones a Google Drive.',src:'admin-tienda.html',height:1250},
 blog:{title:'Blog y publicaciones',description:'Crea, edita y publica artículos en la web.',src:'admin-contenidos.html?seccion=blog',height:1100},
 consultas:{title:'Consultas recibidas',description:'Revisa los mensajes enviados desde el formulario de contacto.',src:'admin-contenidos.html?seccion=consultas',height:950},
+suscripciones:{title:'Suscripciones y solicitudes',description:'Pagos, activación de cuentas y solicitudes de claves por correo.',src:'admin-suscripciones.html',height:1200},
 plataforma:{title:'Plataformas y establecimientos',description:'Administra establecimientos, usuarios iniciales y seguridad de la cuenta.',src:'admin-plataforma.html',height:1250}
 };
 const frame=document.getElementById('adminFrame'),status=document.getElementById('frameStatus');

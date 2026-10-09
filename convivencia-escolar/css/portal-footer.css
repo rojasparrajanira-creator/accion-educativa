@@ -1,0 +1,12 @@
+/* Pie común del ecosistema Convivencia Escolar. */
+.mec-site-footer{box-sizing:border-box;grid-column:1/-1;justify-self:center;clear:both;flex:0 0 100%;width:100%;margin:28px auto 0;padding:22px 18px;background:#f2f8f4;border-top:1px solid #b9d3c5;color:#244b3d;text-align:center;font:12px/1.7 Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;}
+.mec-site-footer nav,.mec-portal-nav{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 20px;}
+.mec-site-footer a{color:#174c39;text-decoration:underline;text-underline-offset:3px;}
+.mec-site-footer p{margin:12px 0 0;color:#244b3d;font-size:12px;line-height:1.7;}
+.mec-site-footer a:focus-visible,.mec-portal-nav a:focus-visible{outline:2px solid currentColor;outline-offset:4px;}
+.mec-portal-nav{grid-column:1/-1;align-self:start;width:100%;padding:0 0 18px;border-bottom:1px solid rgba(255,255,255,.3);font-size:13px;line-height:1.5;}
+.mec-portal-nav a{color:#fff;text-decoration:none;}
+.mec-portal-nav a:hover{text-decoration:underline;}
+body.mec-green-entry .mec-site-footer{background:rgba(0,42,28,.82);color:#fff;border-color:rgba(255,255,255,.3);border-radius:16px;margin-top:0;}
+body.mec-green-entry .mec-site-footer a,body.mec-green-entry .mec-site-footer p{color:#fff;}
+@media print{.mec-site-footer,.mec-portal-nav{display:none!important;}}

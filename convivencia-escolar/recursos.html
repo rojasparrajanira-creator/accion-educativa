@@ -15,6 +15,7 @@ main{max-width:1200px;margin:auto;padding:28px 20px 60px}.top{display:flex;justi
 @media(max-width:900px){.resources{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:1fr 1fr}}@media(max-width:620px){.resources,.grid,.grid3{grid-template-columns:1fr}.top{display:block}}
 </style>
 <script src="js/auth-professional.js"></script><script>MECAuth.guard({allowAnyRole:true});</script>
+<link rel="stylesheet" href="css/portal-footer.css">
 </head>
 <body>
 <header><div class="brand"><img src="assets/logo.jpeg" alt="Material Educativo Chile"><div><b>Convivencia Escolar</b><span data-establishment-name>Establecimiento</span></div></div><div><b data-professional-name>Profesional</b> · <span data-professional-role>Rol</span></div></header>
@@ -89,4 +90,5 @@ document.getElementById('res-save').onclick=async()=>{
  try{user=await MECAuth.me();const role=MECAuth.roleOf(user);manager=['coordinador_convivencia','dupla_psicosocial'].includes(role);document.getElementById('create-card').hidden=!manager;document.getElementById('back').href=manager?'inicio.html?establishment_id='+encodeURIComponent(user.establishment_id):'notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);await load()}catch(e){}
 })();
 </script>
+<footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
 </body></html>

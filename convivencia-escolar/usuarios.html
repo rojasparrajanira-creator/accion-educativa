@@ -15,6 +15,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 @media(max-width:900px){.grid{grid-template-columns:1fr 1fr}.table-wrap{overflow:auto}table{min-width:850px}}@media(max-width:560px){.grid{grid-template-columns:1fr}.top{display:block}.back{display:inline-block;margin-top:12px}}
 </style>
 <script src="js/auth-professional.js"></script><script>MECAuth.guard({roles:['coordinador_convivencia']});</script>
+<link rel="stylesheet" href="css/portal-footer.css">
 </head>
 <body><main>
 <div class="top"><div><small style="color:#2F8067;font-weight:900;letter-spacing:.1em">ADMINISTRACIÓN INSTITUCIONAL</small><h1>Usuarios y roles</h1><p><span data-establishment-name>Establecimiento</span> · acceso profesional</p></div><a class="back" id="back" href="inicio.html">← Volver al inicio</a></div>
@@ -170,4 +171,5 @@ document.getElementById('save').onclick=async()=>{
  }catch(e){formStatus.textContent='No fue posible guardar la cuenta. Revisa los datos y vuelve a intentarlo.'}finally{b.disabled=false}
 };
 load();loadAudit();
-</script></body></html>
+</script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
+</body></html>

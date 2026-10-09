@@ -13,6 +13,7 @@ main{max-width:1400px;margin:auto;padding:28px 20px 60px}.top{display:flex;justi
 @media print{@page{size:landscape;margin:1cm}body{background:#fff}.actions,.filters{display:none!important}main{max-width:none;padding:0}.card{box-shadow:none;border:0;padding:0}.gantt table{font-family:"Times New Roman",serif;font-size:9pt}.gantt th,.gantt td{color:#000!important;border-color:#000!important}.mark.active,.mark.completed,.mark.suspended{background:#000!important}.mark{border:1px solid #000!important}}
 </style>
 <script src="js/auth-professional.js"></script><script>MECAuth.guard();</script>
+<link rel="stylesheet" href="css/portal-footer.css">
 </head>
 <body><main>
 <div class="top"><div><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">PLANIFICACIÓN INSTITUCIONAL</small><h1>Plan de Gestión · Carta Gantt</h1><p id="school">Establecimiento autenticado</p></div><div class="actions" style="display:flex;gap:7px;flex-wrap:wrap"><a id="back" class="btn soft" href="pgce-panel.html">← Panel PGCE</a><button class="btn primary" onclick="window.print()">Imprimir / PDF</button></div></div>
@@ -58,4 +59,5 @@ async function load(){
  }catch(e){document.getElementById('msg').textContent='No fue posible cargar el Plan de Gestión.'}
 }
 document.getElementById('year').onchange=render;document.getElementById('refresh').onclick=load;load();
-</script></body></html>
+</script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
+</body></html>

@@ -28,7 +28,8 @@ button:disabled{opacity:.5;cursor:wait}.secondary{background:#edf9fc;color:var(-
 .contact-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#355b7c;line-height:1.65}
 .contact-link{display:inline-block;border:1px solid #bddce8;padding:8px 10px;border-radius:8px;color:var(--navy);text-decoration:none;font-weight:800;font-size:12px}
 @media(max-width:700px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.row{display:block}.row-actions{margin-top:12px}header{flex-wrap:wrap}main{margin-top:18px}.card{padding:17px}}
-</style></head>
+</style><link rel="stylesheet" href="css/portal-footer.css">
+</head>
 <body>
 <header><strong>Material Educativo Chile · Administración de contenidos</strong><a href="admin-centro.html">← Centro de administración</a></header>
 <main><h1>Blog y consultas</h1><p class="lead">Publica artículos en el sitio institucional y responde las consultas recibidas. Acceso exclusivo de Superadministrador.</p>
@@ -91,4 +92,5 @@ el('blogForm').addEventListener('submit',async e=>{
 });
 const adminSection=new URLSearchParams(location.search).get('seccion');
 if(adminSection==='blog'){el('contactsSection').hidden=true;loadPosts()}else if(adminSection==='consultas'){el('blogSection').hidden=true;loadContacts()}else{loadPosts();loadContacts()}
-</script></body></html>
+</script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
+</body></html>

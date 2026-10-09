@@ -4,7 +4,8 @@
 *{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;background:var(--m);color:#29443d}main{max-width:1080px;margin:32px auto;padding:20px}.card{background:white;border:1px solid var(--l);border-radius:20px;padding:24px;margin-top:14px}h1,h2{color:var(--g)}.grid{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end}.course{display:grid;grid-template-columns:1fr minmax(250px,360px);gap:18px;align-items:center}.field label,label{font-size:12px;font-weight:800;color:#4f6c63}.field input,label input{display:block;width:100%;padding:10px;margin-top:6px;border:1px solid var(--l);border-radius:10px}.btn{padding:11px 14px;border:0;border-radius:10px;background:var(--g);color:white;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex}.soft{background:#fff;color:var(--g);border:1px solid var(--l)}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.hint{font-size:12px;color:var(--u);line-height:1.5}.status{font-size:11px;font-weight:800;padding:5px 8px;border-radius:10px;background:#e7f5ef;color:#2a705e}.warn{background:#fff4d0;color:#7a6200}
 @media(max-width:760px){.grid,.course{grid-template-columns:1fr}}
 </style>
-<script src="js/auth-professional.js"></script><script>MECAuth.guard();</script></head><body><main>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard();</script><link rel="stylesheet" href="css/portal-footer.css">
+</head><body><main>
 <section class="card">
   <small>CONVIVENCIA EDUCATIVA</small>
   <h1>Cursos</h1>
@@ -93,4 +94,5 @@ document.getElementById('course-add').onclick=async()=>{
  }catch(e){status.textContent='No fue posible guardar el curso.'}
 };
 loadCourses();
-</script></main></body></html>
+</script></main><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
+</body></html>

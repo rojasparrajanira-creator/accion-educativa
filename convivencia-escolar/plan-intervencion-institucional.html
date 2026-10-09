@@ -12,6 +12,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;back
 @media print{@page{margin:2cm}body{background:#fff}.actions{display:none!important}.wrap{max-width:none;padding:0}.report{font-family:"Times New Roman",Times,serif;font-size:12pt;color:#000;border:0;box-shadow:none}.head,.meta,.section,.metric,.note{background:#fff!important;color:#000!important}.head h1,.head p,.section h2,.metric strong,.meta b{color:#000!important}.report p,.report td,.report th,.note{line-height:1.5;text-align:justify}.report table{font-size:10pt}.report th,.report td{border:1px solid #000}.meta div,.metric{border:1px solid #000}}
 </style>
 <script src="js/auth-professional.js"></script><script>MECAuth.guard();</script><script src="js/report-export.js"></script>
+<link rel="stylesheet" href="css/portal-footer.css">
 </head>
 <body><main class="wrap">
 <div class="actions"><a id="back" class="btn soft" href="pgce-panel.html">← Panel PGCE</a><a id="gantt" class="btn soft" href="plan-gestion.html">Carta Gantt</a><button class="btn primary" onclick="window.print()">Imprimir / PDF</button><button class="btn soft" onclick="MECReportExport.download({root:'.report',filename:'plan-intervencion-institucional'})">Descargar para Word (.rtf)</button></div>
@@ -42,4 +43,5 @@ const date=v=>v?new Date(String(v).slice(0,10)+'T12:00:00').toLocaleDateString('
   for(const x of rows){const tr=document.createElement('tr');[x.dimension_code,priorityLabel(x.priority),x.indicator,x.target,x.responsible,date(x.start_date),date(x.end_date),statusLabel(x.status),(x.last_progress??'—')+'%',x.updates_count].forEach(v=>{const td=document.createElement('td');td.textContent=v??'—';tr.appendChild(td)});body.appendChild(tr)}
  }catch(e){document.getElementById('rows').innerHTML='<tr><td colspan="10">No fue posible cargar el plan institucional.</td></tr>'}
 })();
-</script></body></html>
+</script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
+</body></html>

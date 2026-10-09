@@ -500,6 +500,20 @@ body:has(.mec-hero) .mec-hero-copy-slides,body:has(.mec-hero) .mec-hero-copy-nav
  body:has(.mec-hero) .mec-hero-copy-rotator::before{right:-55%;top:-25%;opacity:.78}
  body:has(.mec-hero) .mec-hero-copy-rotator::after{left:-36%;bottom:-29%;opacity:.65}
 }
+
+/* Textura de impacto: ondas grandes y fluidas, sin puntos ni tramas. */
+body:has(.mec-hero) .mec-hero-copy-rotator::before,
+body:has(.mec-hero) .mec-hero-copy-rotator::after{display:none!important}
+body:has(.mec-hero) .mec-hero-copy-rotator{
+ background:linear-gradient(123deg,#08165C 0%,#102D8D 45%,#3C116D 100%)!important;
+ isolation:isolate;position:relative;overflow:hidden;
+}
+.mec-hero-impact-waves{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block}
+body:has(.mec-hero) .mec-hero-copy-slides,
+body:has(.mec-hero) .mec-hero-copy-nav{position:relative;z-index:1}
+@media(max-width:560px){
+ .mec-hero-impact-waves{width:135%;max-width:none;left:-17%;opacity:.88}
+}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -553,7 +567,22 @@ function openAccessModal(){location.href=STORE_URL}
 async function requestAccess(){const email=$('#access-email')?.value.trim();if(!email)return toast('Ingresa un correo válido.','error');try{const d=await api('/api/store/access/request',{method:'POST',body:JSON.stringify({email})});closeModal();if(d.magicUrl){modal(`<h2>Enlace activado</h2><p>En producción este enlace se envía por correo. En el modo de prueba puedes abrirlo ahora.</p><a class="primary-btn" href="${esc(d.magicUrl.replace(location.origin,''))}" onclick="closeModal()">Abrir mis materiales</a>`)}else toast(d.message||'Revisa tu correo.')}catch(err){if(state.apiOnline){closeModal();toast(err.message||'No fue posible enviar el enlace.','error');return}const orders=JSON.parse(localStorage.getItem('mec_demo_orders')||'[]');const o=orders.find(x=>x.email.toLowerCase()===email.toLowerCase());closeModal();if(o)modal(`<h2>Enlace activado</h2><p>Modo local de prueba.</p><a class="primary-btn" href="#/biblioteca/${o.token}" onclick="closeModal()">Abrir mis materiales</a>`);else toast('Si el correo tiene compras, enviaremos un enlace de acceso.')}}
 function productCard(p){const level=p.levels?.length>2?`${p.levels[0]} a ${p.levels.at(-1)}`:(p.levels||[]).join(', ');return `<article class="product-card"><div class="product-cover"><img src="${esc(p.coverUrl||AS+'producto-emociones.webp')}" alt="${esc(p.title)}">${p.featured?'<span class="badge">Destacado</span>':''}</div><div class="product-body"><div class="product-category">${esc(p.category?.name||'Material educativo')}</div><div class="product-title">${esc(p.title)}</div><div class="meta-row"><span class="meta-chip">${esc(level)}</span><span class="meta-chip">${esc((p.formats||[]).join(' · '))}</span><strong class="price">${clp(p.priceClp)}</strong></div><div class="product-actions"><button class="details-btn" onclick="location.hash='#/material/${esc(p.slug)}'">Ver detalle</button><button class="add-btn" onclick="addCart('${p.id}')">🛒</button></div></div></article>`}
 function home(){return `${header('Inicio')}<main>
-<section class="mec-hero" id="inicio"><div class="container mec-hero-grid"><div class="mec-hero-copy mec-hero-copy-rotator" role="region" aria-roledescription="carrusel" aria-label="Presentación de Material Educativo Chile" onmouseenter="pauseMecCarousel()" onmouseleave="resumeMecCarousel()" onfocusin="pauseMecCarousel()" onfocusout="resumeMecCarousel()"><div class="mec-hero-copy-slides">
+<section class="mec-hero" id="inicio"><div class="container mec-hero-grid"><div class="mec-hero-copy mec-hero-copy-rotator" role="region" aria-roledescription="carrusel" aria-label="Presentación de Material Educativo Chile" onmouseenter="pauseMecCarousel()" onmouseleave="resumeMecCarousel()" onfocusin="pauseMecCarousel()" onfocusout="resumeMecCarousel()">
+<svg class="mec-hero-impact-waves" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="mecWaveTop" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2BE5FF" stop-opacity=".66"/><stop offset=".48" stop-color="#3967FF" stop-opacity=".34"/><stop offset="1" stop-color="#9B43ED" stop-opacity=".12"/></linearGradient>
+<linearGradient id="mecWaveBottom" x1="0" y1="0" x2="1" y2=".8"><stop stop-color="#06CBED" stop-opacity=".43"/><stop offset=".5" stop-color="#465BFC" stop-opacity=".36"/><stop offset="1" stop-color="#A02DF0" stop-opacity=".66"/></linearGradient>
+<linearGradient id="mecWaveRibbon" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1ED9F4" stop-opacity=".32"/><stop offset=".55" stop-color="#5B48EA" stop-opacity=".32"/><stop offset="1" stop-color="#B33BEB" stop-opacity=".54"/></linearGradient>
+</defs>
+<path d="M620 -110 C730 40 785 118 1020 70 L1080 235 C827 255 718 153 565 -32 Z" fill="url(#mecWaveTop)"/>
+<path d="M742 -85 C790 52 860 122 1080 118" stroke="#6CEBFF" stroke-width="5" opacity=".54" fill="none"/>
+<path d="M807 -78 C860 43 910 79 1080 88" stroke="#AC79FF" stroke-width="3" opacity=".50" fill="none"/>
+<path d="M-120 610 C180 418 338 755 645 546 S950 442 1120 504 L1120 760 L-120 760 Z" fill="url(#mecWaveBottom)"/>
+<path d="M-100 654 C210 478 362 790 665 588 S960 488 1100 551" fill="none" stroke="#53E8F6" stroke-width="7" opacity=".48"/>
+<path d="M-100 684 C210 516 368 823 680 621 S950 536 1100 585" fill="none" stroke="#9B79FF" stroke-width="4" opacity=".52"/>
+<path d="M650 185 C830 122 894 284 1090 210 L1090 305 C868 381 795 220 650 287 Z" fill="url(#mecWaveRibbon)" opacity=".76"/>
+</svg>
+<div class="mec-hero-copy-slides">
 <div class="mec-hero-copy-slide is-active" data-copy-slide="0" aria-hidden="false"><span class="mec-kicker">MATERIAL EDUCATIVO CHILE</span><h1>Plataforma de <span>Intervención Institucional</span></h1><p>Recursos pedagógicos, herramientas profesionales y plataformas educativas en un solo lugar. Diseñados para acompañar tu trabajo y potenciar cada intervención.</p></div>
 <div class="mec-hero-copy-slide" data-copy-slide="1" aria-hidden="true"><span class="mec-kicker">¿QUIÉNES SOMOS?</span><h1>Innovamos para <span>transformar la educación.</span></h1><p>Integramos tecnología, recursos pedagógicos y herramientas profesionales para fortalecer la gestión educativa, optimizar el trabajo de los equipos y generar un impacto real en las comunidades escolares.</p></div>
 </div><div class="mec-hero-copy-nav" aria-label="Cambiar presentación"><button type="button" class="is-active" aria-label="Mostrar Plataforma de Intervención Institucional" aria-current="true" onclick="goMecHeroCopy(0);pauseMecCarousel()" ></button><button type="button" aria-label="Mostrar Quiénes somos" onclick="goMecHeroCopy(1);pauseMecCarousel()"></button></div></div><div class="mec-hero-visual mec-hero-carousel" role="region" aria-roledescription="carrusel" aria-label="Material Educativo Chile" onmouseenter="pauseMecCarousel()" onmouseleave="resumeMecCarousel()" onfocusin="pauseMecCarousel()" onfocusout="resumeMecCarousel()"><div class="mec-carousel-track" id="mecCarouselTrack">

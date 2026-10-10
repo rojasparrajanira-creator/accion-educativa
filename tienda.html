@@ -322,8 +322,8 @@ body{background:linear-gradient(125deg,#061B72 0%,#1035B0 22%,#172B9A 42%,#22176
 /* Ficha flotante de producto: no cambia el catálogo ni la compra */
 .product-info-backdrop{position:fixed;inset:0;background:rgba(9,26,50,.24);z-index:1000;opacity:0;transition:opacity .2s}
 .product-info-backdrop.is-open{opacity:1}
-.product-info-panel{position:fixed;right:max(22px,4vw);top:50%;transform:translate(18px,-50%);width:min(590px,calc(100vw - 40px));max-height:min(82vh,790px);overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #dce8f2;border-radius:25px;box-shadow:0 24px 85px rgba(9,31,64,.28);padding:29px 31px;z-index:1001;opacity:0;transition:opacity .2s,transform .2s}
-.product-info-panel.is-open{opacity:1;transform:translate(0,-50%)}
+.product-info-panel{position:fixed;left:50%;right:auto;top:50%;transform:translate(-50%,-47%);width:min(590px,calc(100vw - 40px));max-height:min(82vh,790px);overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #dce8f2;border-radius:25px;box-shadow:0 24px 85px rgba(9,31,64,.28);padding:29px 31px;z-index:1001;opacity:0;transition:opacity .2s,transform .2s}
+.product-info-panel.is-open{opacity:1;transform:translate(-50%,-50%)}
 .product-info-panel[hidden],.product-info-backdrop[hidden]{display:none}
 .product-info-close{position:absolute;right:17px;top:15px;display:grid;place-items:center;border:0;width:37px;height:37px;border-radius:50%;background:#eaf3f9;color:#0F2D52;font-size:25px;cursor:pointer}
 .product-info-panel h2{margin:0 38px 9px 0;font-size:clamp(21px,2.5vw,29px);line-height:1.2;color:#0F2D52}
@@ -339,7 +339,7 @@ body{background:linear-gradient(125deg,#061B72 0%,#1035B0 22%,#172B9A 42%,#22176
 .product-info-trigger:hover,.product-info-trigger:focus-visible{background:#dceff8;outline:2px solid #7fcde6}
 .product-info-trigger:before{content:'+';font-weight:900;border-radius:50%;background:white;display:grid;place-items:center;width:22px;height:22px}
 body.product-info-open{overflow:hidden}
-@media(max-width:750px){.product-info-panel{left:12px;right:12px;top:auto;bottom:12px;width:auto;max-height:83dvh;padding:23px 20px;transform:translateY(15px)}.product-info-panel.is-open{transform:translateY(0)}}
+@media(max-width:750px){.product-info-panel{left:50%;right:auto;top:50%;bottom:auto;width:calc(100vw - 24px);max-height:85dvh;padding:23px 20px;transform:translate(-50%,-47%)}.product-info-panel.is-open{transform:translate(-50%,-50%)}}
 
 </style>
 </head>

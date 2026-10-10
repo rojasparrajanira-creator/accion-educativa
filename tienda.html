@@ -318,6 +318,29 @@ body{background:linear-gradient(125deg,#061B72 0%,#1035B0 22%,#172B9A 42%,#22176
 .section-head h1,.section-head h2,.section-head p,.section-head span{color:#fff!important}
 .hero,.trust-wrap,.value-section,.main{position:relative}
 .main{background:transparent!important}
+
+/* Ficha flotante de producto: no cambia el catálogo ni la compra */
+.product-info-backdrop{position:fixed;inset:0;background:rgba(9,26,50,.24);z-index:1000;opacity:0;transition:opacity .2s}
+.product-info-backdrop.is-open{opacity:1}
+.product-info-panel{position:fixed;right:max(22px,4vw);top:50%;transform:translate(18px,-50%);width:min(590px,calc(100vw - 40px));max-height:min(82vh,790px);overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid #dce8f2;border-radius:25px;box-shadow:0 24px 85px rgba(9,31,64,.28);padding:29px 31px;z-index:1001;opacity:0;transition:opacity .2s,transform .2s}
+.product-info-panel.is-open{opacity:1;transform:translate(0,-50%)}
+.product-info-panel[hidden],.product-info-backdrop[hidden]{display:none}
+.product-info-close{position:absolute;right:17px;top:15px;display:grid;place-items:center;border:0;width:37px;height:37px;border-radius:50%;background:#eaf3f9;color:#0F2D52;font-size:25px;cursor:pointer}
+.product-info-panel h2{margin:0 38px 9px 0;font-size:clamp(21px,2.5vw,29px);line-height:1.2;color:#0F2D52}
+.product-info-level{display:inline-flex;border-radius:999px;background:#e7f4fe;padding:6px 12px;color:#11538b;font-size:12px;font-weight:750}
+.product-info-section{margin-top:23px}
+.product-info-section h3{font-size:17px;color:#11538b;margin:0 0 9px;display:flex;gap:10px;align-items:center}
+.product-info-icon{width:35px;height:35px;flex:0 0 35px;display:grid;place-items:center;border-radius:50%;background:#e6f5fb;font-size:19px}
+.product-info-section p{margin:0 0 8px;line-height:1.65;color:#46556a;font-size:14px;white-space:pre-line}
+.product-info-list{margin:0;padding:0;list-style:none;display:grid;gap:9px}
+.product-info-list li{position:relative;padding-left:25px;line-height:1.5;font-size:14px;color:#46556a}
+.product-info-list li:before{content:'✓';position:absolute;left:0;top:1px;color:#fff;background:#33a979;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800}
+.product-info-trigger{margin:10px 0 16px;border:0;background:#edf7fb;color:#12679e;font:inherit;font-size:13px;font-weight:760;border-radius:10px;padding:10px 12px;text-align:left;cursor:pointer;display:flex;gap:9px;align-items:center}
+.product-info-trigger:hover,.product-info-trigger:focus-visible{background:#dceff8;outline:2px solid #7fcde6}
+.product-info-trigger:before{content:'+';font-weight:900;border-radius:50%;background:white;display:grid;place-items:center;width:22px;height:22px}
+body.product-info-open{overflow:hidden}
+@media(max-width:750px){.product-info-panel{left:12px;right:12px;top:auto;bottom:12px;width:auto;max-height:83dvh;padding:23px 20px;transform:translateY(15px)}.product-info-panel.is-open{transform:translateY(0)}}
+
 </style>
 </head>
 <body>
@@ -412,6 +435,12 @@ body{background:linear-gradient(125deg,#061B72 0%,#1035B0 22%,#172B9A 42%,#22176
   <div class="brand-footer"><img src="assets/material-educativo/logo-oficial.jpg" alt=""><span>Material Educativo Chile · Educación con propósito, recursos que transforman.</span></div>
 </main>
 
+<div id="productInfoBackdrop" class="product-info-backdrop" hidden></div>
+<section id="productInfoPanel" class="product-info-panel" role="dialog" aria-modal="true" aria-labelledby="productInfoTitle" tabindex="-1" hidden>
+  <button id="productInfoClose" class="product-info-close" type="button" aria-label="Cerrar información">×</button>
+  <h2 id="productInfoTitle"></h2><span id="productInfoLevel" class="product-info-level"></span>
+  <div id="productInfoContent"></div>
+</section>
 <script>
 const API='https://convivencia-escolar-api.onrender.com';
 const money=v=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0));
@@ -483,7 +512,7 @@ function renderProducts(){
         '<div class="value-chips"><span>Material digital · listo para implementar</span></div>'+
         '<div class="price-row"><span class="price">'+money(p.price_clp)+'</span>'+(p.compare_at_price_clp?'<span class="old-price">'+money(p.compare_at_price_clp)+'</span>':'')+'</div>'+
         (saving?'<div class="saving">'+esc(saving)+'</div>':'')+
-        '<details class="detail"><summary>Ver todo lo que incluye</summary>'+paragraphs(p.description||'')+'<div class="includes-title">Qué incluye</div><ul class="includes">'+includes+'</ul></details>'+
+        '<button class="product-info-trigger" type="button" data-info="'+Number(p.id)+'" aria-haspopup="dialog">Ver todo lo que incluye</button>'+
         '<button class="add-btn" type="button" data-buy="'+Number(p.id)+'">Agregar a mi compra</button>'+
       '</div></article>';
   }).join('');
@@ -510,8 +539,54 @@ function addCart(id){
   renderCart();document.getElementById('cartMsg').textContent='Material agregado a tu compra.';
   if(innerWidth<981)document.getElementById('cartPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
+
+let infoPreviousFocus=null;
+function productInfoSection(icon,heading,body){
+  if(!body)return '';
+  return '<section class="product-info-section"><h3><span class="product-info-icon" aria-hidden="true">'+icon+'</span>'+heading+'</h3>'+body+'</section>';
+}
+function openProductInfo(id){
+  const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
+  infoPreviousFocus=document.activeElement;
+  document.getElementById('productInfoTitle').textContent=p.title||'Material educativo';
+  document.getElementById('productInfoLevel').textContent=p.audience||'Material educativo';
+  const objective=String(p.objective||'').trim();
+  const desc=String(p.description||'').trim();
+  const items=splitIncluded(p.included_materials);
+  const text=v=>'<p>'+esc(v)+'</p>';
+  const list=items.length?'<ul class="product-info-list">'+items.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'';
+  document.getElementById('productInfoContent').innerHTML=
+    productInfoSection('◎','Objetivo del taller',objective?text(objective):'')+
+    productInfoSection('✦','¿Qué se trabaja?',desc?paragraphs(desc):'')+
+    productInfoSection('▤','Materiales incluidos',list);
+  const panel=document.getElementById('productInfoPanel'),backdrop=document.getElementById('productInfoBackdrop');
+  panel.hidden=false;backdrop.hidden=false;document.body.classList.add('product-info-open');
+  requestAnimationFrame(()=>{panel.classList.add('is-open');backdrop.classList.add('is-open');document.getElementById('productInfoClose').focus()});
+}
+function closeProductInfo(){
+  const panel=document.getElementById('productInfoPanel'),backdrop=document.getElementById('productInfoBackdrop');
+  panel.classList.remove('is-open');backdrop.classList.remove('is-open');
+  panel.hidden=true;backdrop.hidden=true;document.body.classList.remove('product-info-open');
+  if(infoPreviousFocus?.isConnected)infoPreviousFocus.focus();
+}
+document.getElementById('productInfoClose').addEventListener('click',closeProductInfo);
+document.getElementById('productInfoBackdrop').addEventListener('click',closeProductInfo);
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('productInfoPanel').hidden)return;
+  if(e.key==='Escape'){closeProductInfo();return}
+  if(e.key==='Tab'){
+    const panel=document.getElementById('productInfoPanel');
+    const focusable=[...panel.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled);
+    if(!focusable.length){e.preventDefault();panel.focus();return}
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+    else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+  }
+});
+
 function removeCart(index){cart.splice(index,1);renderCart()}
 document.addEventListener('click',e=>{
+  const info=e.target.closest('[data-info]');if(info)openProductInfo(Number(info.dataset.info));
   const buy=e.target.closest('[data-buy]');if(buy)addCart(Number(buy.dataset.buy));
   const rem=e.target.closest('[data-remove]');if(rem)removeCart(Number(rem.dataset.remove));
 });

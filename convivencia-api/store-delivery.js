@@ -38,11 +38,11 @@ function compose(order,items,taxDocument=null,contactEmail='accioneducativaspa@g
   text+='\nNúmero de pedido: '+code+'\n\nSi necesitas ayuda para acceder al material, escríbenos a '+contactEmail+'.\nMaterial Educativo Chile\nwww.materialeducativochile.cl\n';
   return {subject:'Tus materiales digitales - pedido '+code,text};
 }
-function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,logger=console}){
+function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,grantAccess,logger=console}){
   let processing=false;
   function configuration(){
     const c=settings(env);
-    return {mode:c.mode,enabled:c.enabled,email_ready:c.ready,test_mode:c.mode!=='production',provider_configured:!!c.apiKey,sender_configured:!!c.from,test_recipient_configured:!!c.testRecipient};
+    return {mode:c.mode,enabled:c.enabled,email_ready:c.ready,drive_access_required:true,drive_grant_configured:typeof grantAccess==='function',test_mode:c.mode!=='production',provider_configured:!!c.apiKey,sender_configured:!!c.from,test_recipient_configured:!!c.testRecipient};
   }
   async function enqueue(orderId){
     const mode=settings(env).mode;
@@ -53,7 +53,11 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
     const oq=await c.query('select id,order_code,buyer_name,buyer_email,status from store_orders where id=$1',[job.order_id]);
     const order=oq.rows[0];
     if(!order||order.status!=='paid')throw Error('payment_not_confirmed');
-    const iq=await c.query('select product_title,delivery_url_snapshot from store_order_items where order_id=$1 order by id',[job.order_id]);
+    const iq=await c.query('select product_title,delivery_url_snapshot,drive_account_id_snapshot from store_order_items where order_id=$1 order by id',[job.order_id]);
+    // Nunca enviar enlaces privados sin otorgar antes acceso al correo que pagó.
+    // En integración el correo de pruebas recibe el aviso, pero SOLO el comprador recibe acceso en Drive.
+    if(typeof grantAccess!=='function')throw Error('drive_buyer_grant_not_configured');
+    await grantAccess({buyerEmail:order.buyer_email,items:iq.rows,orderId:job.order_id});
     // La entrega digital no queda bloqueada por la emisión tributaria manual.
     // Solo se adjunta un documento si ya existe uno registrado como emitido/validado.
     const tax=await c.query('select status,document_type,document_url from store_tax_documents where order_id=$1',[job.order_id]);

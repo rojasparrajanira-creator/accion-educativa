@@ -1870,6 +1870,53 @@ app.get('/api/store/orders/:code/status',storeStatusRateLimit,async(req,res)=>{t
   if(!q.rowCount)return res.status(404).json({ok:false,error:'order_not_found'});
   ok(res,{order:q.rows[0],delivery_available:q.rows[0].status==='paid',delivery_sent:q.rows[0].delivery_status==='sent'});
 }catch(e){res.status(400).json({ok:false,error:'order_status_failed'})}});
+// Private readiness audit for ALL catalog products. No new buyers are granted access here.
+// Each check confirms a valid restricted folder, an authorized technical editor and a sharing capability.
+app.get('/api/store/admin/catalog-readiness',...requireRole('platform_admin'),async(req,res)=>{
+  try{
+    const q=await pool.query("select id,title,status,drive_delivery_url from store_products where status in ('published','draft') order by id");
+    const payment=webpayConfig(),mail=storeDelivery.configuration(),technical=storeDriveServiceAccount.configuration();
+    const products=q.rows;
+    const checked=new Array(products.length);
+    const readyForAudit=storeDriveServiceAccount.enabled;
+    if(!readyForAudit){
+      products.forEach((p,i)=>checked[i]={id:p.id,title:p.title,status:p.status,
+        folder_ready:false,issue:'technical_google_account_not_configured'});
+    }else{
+      // Bound concurrent Google requests so the 30-folder catalog does not trigger excessive API load.
+      let cursor=0;
+      await Promise.all(Array.from({length:Math.min(4,products.length)},async()=>{
+        while(cursor<products.length){
+          const index=cursor++,p=products[index];
+          try{
+            await storeDriveServiceAccount.validateProducts({items:[{delivery_url_snapshot:p.drive_delivery_url}]});
+            checked[index]={id:p.id,title:p.title,status:p.status,folder_ready:true,issue:null};
+          }catch(e){
+            const error=String(e?.message||'drive_preflight_failed').replace(/[^a-zA-Z0-9_]/g,'').slice(0,70);
+            const reason=String(e?.googleReason||'').replace(/[^a-zA-Z0-9_]/g,'').slice(0,50);
+            checked[index]={id:p.id,title:p.title,status:p.status,folder_ready:false,
+              issue:error,google_reason:reason||undefined};
+          }
+        }
+      }));
+    }
+    const folderReady=checked.filter(x=>x.folder_ready).length;
+    const total=checked.length,published=checked.filter(x=>x.status==='published');
+    const allPublishedReady=published.length>0&&published.every(x=>x.folder_ready);
+    ok(res,{total_products:total,published_products:published.length,
+      folders_ready:folderReady,folders_pending:total-folderReady,
+      technical_google_configured:readyForAudit,
+      technical_account_email:technical.service_account_email||null,
+      email_ready:mail.email_ready,payment_mode:payment.mode,payment_configured:payment.configured,
+      ready_for_live:allPublishedReady&&folderReady===total&&mail.email_ready&&
+        payment.configured&&payment.mode==='production',
+      items:checked});
+  }catch(e){
+    console.error('Store folder audit failed:',String(e?.message||'unknown').slice(0,80));
+    res.status(503).json({ok:false,error:'catalog_audit_unavailable'});
+  }
+});
+
 app.get('/api/store/admin/delivery/config',...requireRole('platform_admin'),(req,res)=>{
   ok(res,{...storeDelivery.configuration(),drive_automation:dedicatedDriveRequested
     ?storeDriveServiceAccount.configuration()

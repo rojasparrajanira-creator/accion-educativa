@@ -22,7 +22,7 @@ html:not([data-auth="ok"]) body{visibility:hidden}
 <div><label>Estado</label><select id="status"><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
 </div><div class="actions"><button type="submit">Guardar producto</button><button type="button" class="secondary" onclick="clearForm()">Nuevo / limpiar</button></div><p id="msg" class="muted"></p></form></section>
 <section class="card"><h2>Productos cargados</h2><div id="products" class="muted">Cargando…</div></section>
-<section class="card"><h2>Pedidos y entregas</h2><p class="muted">Revisa los pagos y el envío digital de los materiales. En el ambiente de integración, los correos solo podrán dirigirse a una casilla de pruebas autorizada.</p>
+<section class="card"><h2>Pedidos y entregas</h2><p class="muted">Revisa los pagos y el envío digital de los materiales. Las carpetas de Google Drive deben estar en <strong>Restringido</strong>: después de confirmar el pago, la plataforma autoriza exclusivamente el correo del comprador como <strong>Lector</strong>. Si Google no permite otorgar ese acceso, el correo queda pendiente, nunca se hace público el material. En integración, el mensaje de prueba llega a la casilla de pruebas, pero Drive autoriza al comprador registrado.</p>
 <p class="muted" id="deliveryConfigStatus">Comprobando la configuración…</p>
 <div class="actions"><button class="secondary" type="button" id="refreshStoreOrders">Actualizar pedidos</button></div>
 <div id="storeOrdersList" class="muted" style="margin-top:12px">Cargando pedidos…</div>
@@ -50,7 +50,7 @@ async function loadStoreOrders(){
   try{
     const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
     $('deliveryConfigStatus').textContent=config.email_ready
-      ?(config.test_mode?'Correo de prueba habilitado. No se enviará nada a compradores reales.':'Entrega digital habilitada después de confirmar el pago. Los documentos tributarios se registran por separado.')
+      ?(config.test_mode?'Correo de prueba habilitado. Drive autoriza solo al comprador; el mensaje se envía a la casilla de pruebas una vez concedido el acceso.':'Envío privado después del pago, únicamente cuando Drive conceda acceso al comprador. Los documentos tributarios se registran por separado.')
       :('Envío aún no habilitado. Resend: '+(config.provider_configured?'clave configurada':'falta clave')+'; remitente: '+(config.sender_configured?'configurado':'falta verificar y configurar')+'; correo de prueba: '+(config.test_recipient_configured?'configurado':'falta configurar')+'; entrega: '+(config.enabled?'habilitada':'deshabilitada')+'. No ingresar contraseñas en este panel.');
     const orders=data.orders||[];
     if(!orders.length){$('storeOrdersList').textContent='Aún no hay pedidos registrados.';return}
@@ -63,12 +63,28 @@ async function loadStoreOrders(){
       return '<div class="product" style="grid-template-columns:minmax(0,1fr) auto">'+
         '<div><strong>'+esc(o.order_code)+'</strong> · '+money(o.total_clp)+'<div class="muted">'+esc(o.buyer_email||'')+'</div>'+
         '<div class="muted">'+payment+' · '+delivery+'</div><div class="muted">'+requested+' · '+fiscal+'</div></div>'+
-        (retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div>';
+        (paid?'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Autorizar acceso Drive</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div>':'')+'</div>';
     }).join('');
   }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message}
 }
 $('refreshStoreOrders').addEventListener('click',loadStoreOrders);
 $('storeOrdersList').addEventListener('click',async e=>{
+  const grantBtn=e.target.closest('[data-drive-authorize]');
+  if(grantBtn){
+    const orderId=Number(grantBtn.dataset.driveAuthorize);
+    grantBtn.disabled=true;
+    $('storeOrdersMessage').textContent='Solicitando acceso privado de Drive para el comprador registrado…';
+    try{
+      const result=await api('/api/store/admin/orders/'+orderId+'/drive-access',{method:'POST'});
+      $('storeOrdersMessage').textContent='Drive confirmó el acceso privado del comprador a '+result.folders+' material(es). Puedes pedirle que vuelva a abrir el enlace que recibió.';
+      await loadStoreOrders();
+    }catch(err){
+      const map={drive_account_not_connected:'Conecta la cuenta propietaria de Drive.',drive_file_404:'La aplicación no tiene acceso a esa carpeta. Debes autorizar la carpeta específicamente para esta aplicación.',drive_folder_not_authorized_for_app:'La cuenta conectada no tiene permiso para compartir esa carpeta.',drive_folder_not_restricted:'La carpeta no está restringida. Revisa los permisos de acceso general y de grupos/dominios.',drive_grant_403:'Google no autorizó compartir la carpeta. Comprueba la cuenta propietaria y los permisos de la aplicación.'};
+      $('storeOrdersMessage').textContent='No se pudo dar acceso: '+(map[err.message]||err.message)+'. No cambies a “Cualquier persona con el enlace”.';
+      grantBtn.disabled=false;
+    }
+    return;
+  }
   const btn=e.target.closest('[data-delivery-retry]');if(!btn)return;
   const id=Number(btn.dataset.deliveryRetry);
   btn.disabled=true;$('storeOrdersMessage').textContent='Registrando solicitud de envío…';

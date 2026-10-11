@@ -13,7 +13,12 @@ function driveLink(value){
   const url=String(value||'').trim();
   return /^https:\/\/drive\.google\.com\/[^\s<>"']+$/i.test(url)?url:'';
 }
-function compose(order,items){
+function verifiedTaxDocument(doc){
+  if(!doc || !['issued','voucher_validated'].includes(doc.status))return false;
+  if(!['boleta_afecta','boleta_exenta','voucher'].includes(doc.document_type))return false;
+  return /^https:\/\/[^\s<>"']+$/i.test(String(doc.document_url||''));
+}
+function compose(order,items,taxDocument=null){
   if(!order||order.status!=='paid')throw Error('payment_not_confirmed');
   if(!Array.isArray(items)||!items.length)throw Error('delivery_items_missing');
   const name=String(order.buyer_name||'').replace(/[\r\n]+/g,' ').trim();
@@ -23,6 +28,11 @@ function compose(order,items){
     const url=driveLink(item.delivery_url_snapshot);
     if(!url)throw Error('invalid_delivery_link');
     text+='- '+String(item.product_title||'Material educativo').replace(/[\r\n]+/g,' ').trim()+'\n  '+url+'\n';
+  }
+  if(taxDocument){
+    if(!verifiedTaxDocument(taxDocument))throw Error('tax_document_not_verified');
+    const name=taxDocument.document_type==='voucher'?'Comprobante de pago electrónico':'Documento tributario electrónico';
+    text+='\n'+name+':\n'+taxDocument.document_url+'\n';
   }
   text+='\nNúmero de pedido: '+code+'\n\nSi necesitas ayuda para acceder al material, contáctanos.\nMaterial Educativo Chile\nwww.materialeducativochile.cl\n';
   return {subject:'Tus materiales digitales - pedido '+code,text};
@@ -43,7 +53,13 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
     const order=oq.rows[0];
     if(!order||order.status!=='paid')throw Error('payment_not_confirmed');
     const iq=await c.query('select product_title,delivery_url_snapshot from store_order_items where order_id=$1 order by id',[job.order_id]);
-    const email=compose(order,iq.rows);
+    let taxDocument=null;
+    if(cfg.mode==='production'){
+      const tax=await c.query('select status,document_type,document_url from store_tax_documents where order_id=$1',[job.order_id]);
+      taxDocument=tax.rows[0];
+      if(!verifiedTaxDocument(taxDocument))throw Error('tax_document_not_verified');
+    }
+    const email=compose(order,iq.rows,taxDocument);
     const to=cfg.mode==='production'?String(order.buyer_email||'').trim().toLowerCase():cfg.testRecipient;
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to))throw Error('invalid_recipient');
     const subject=(cfg.mode==='integration'?'[PRUEBA - SIN COMPRA REAL] ':'')+email.subject;
@@ -67,7 +83,7 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
       const lock=await conn.query("select pg_try_advisory_lock(hashtext('mec-store-delivery')) held");
       held=lock.rows[0]?.held===true;
       if(!held)return {ready:true,sent:0};
-      const jobs=await conn.query("select order_id,attempts from store_delivery_jobs where payment_mode=$1 and status in ('pending','failed') and attempts<6 and next_attempt_at<=now() order by created_at limit 10",[cfg.mode]);
+      const jobs=await conn.query("select order_id,attempts from store_delivery_jobs where payment_mode=$1 and status in ('pending','failed') and attempts<6 and next_attempt_at<=now() and ($1='integration' or exists(select 1 from store_tax_documents d where d.order_id=store_delivery_jobs.order_id and d.status in ('issued','voucher_validated') and d.document_type in ('boleta_afecta','boleta_exenta','voucher') and d.document_url like 'https://%')) order by created_at limit 10",[cfg.mode]);
       for(const job of jobs.rows){
         try{await send(conn,job,cfg);sent++}
         catch(error){
@@ -88,4 +104,4 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
   function startWorkers(){const timer=setInterval(wake,60000);if(timer.unref)timer.unref();wake();return timer}
   return {configuration,enqueue,flush,wake,startWorkers};
 }
-module.exports={settings,driveLink,compose,createStoreDelivery};
+module.exports={settings,driveLink,verifiedTaxDocument,compose,createStoreDelivery};

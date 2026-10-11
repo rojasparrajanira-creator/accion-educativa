@@ -1676,6 +1676,20 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
   try{
     const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
     if(name.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
+    // El comprador elige el DOCUMENTO, no determina si la operación está afecta o exenta de IVA.
+    const requestedDocument=String(b.requested_document||'unspecified').trim().toLowerCase();
+    if(!['unspecified','boleta','factura'].includes(requestedDocument))return res.status(400).json({ok:false,error:'invalid_requested_document'});
+    const inv=b.invoice&&typeof b.invoice==='object'&&!Array.isArray(b.invoice)?b.invoice:{};
+    let invoiceRut=null,invoiceLegalName=null,invoiceActivity=null,invoiceAddress=null,invoiceCommune=null;
+    if(requestedDocument==='factura'){
+      invoiceRut=normalizeRut(inv.rut);
+      invoiceLegalName=String(inv.legal_name||'').trim();
+      invoiceActivity=String(inv.business_activity||'').trim();
+      invoiceAddress=String(inv.address||'').trim();
+      invoiceCommune=String(inv.commune||'').trim();
+      if(!validRut(invoiceRut)||invoiceLegalName.length<3||invoiceLegalName.length>180||invoiceActivity.length<2||invoiceActivity.length>180||invoiceAddress.length<5||invoiceAddress.length>240||invoiceCommune.length<2||invoiceCommune.length>100)
+        return res.status(400).json({ok:false,error:'invalid_invoice_buyer_data'});
+    }
     const qty=new Map();
     for(const x of raw){
       const id=Number(x.product_id),q=Number(x.quantity||1);
@@ -1691,7 +1705,7 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
     const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(16).toString('hex').toUpperCase();
 
     await client.query('begin');
-    const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp) values($1,$2,$3,$4) returning id,order_code,status,total_clp,created_at",[code,name,email,total]);
+    const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp,requested_document,invoice_rut,invoice_legal_name,invoice_business_activity,invoice_address,invoice_commune) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id,order_code,status,total_clp,created_at",[code,name,email,total,requestedDocument,invoiceRut,invoiceLegalName,invoiceActivity,invoiceAddress,invoiceCommune]);
     order=oq.rows[0];
     for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[order.id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);
     await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[order.id,email]);
@@ -1802,7 +1816,7 @@ app.post('/api/store/admin/orders/:id/delivery/retry',...requireRole('platform_a
 
 app.get('/api/store/admin/orders',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
-  const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count,coalesce(j.status,'not_queued') delivery_status,j.attempts delivery_attempts,coalesce(t.status,'pending') tax_document_status,t.document_type from store_orders o left join store_order_items i on i.order_id=o.id left join store_delivery_jobs j on j.order_id=o.id left join store_tax_documents t on t.order_id=o.id group by o.id,j.status,j.attempts,t.status,t.document_type order by o.created_at desc limit 250");
+  const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.requested_document,o.invoice_rut,o.invoice_legal_name,o.invoice_business_activity,o.invoice_address,o.invoice_commune,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count,coalesce(j.status,'not_queued') delivery_status,j.attempts delivery_attempts,coalesce(t.status,'pending') tax_document_status,t.document_type from store_orders o left join store_order_items i on i.order_id=o.id left join store_delivery_jobs j on j.order_id=o.id left join store_tax_documents t on t.order_id=o.id group by o.id,j.status,j.attempts,t.status,t.document_type order by o.created_at desc limit 250");
   ok(res,{orders:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'store_orders_failed'})}});
 

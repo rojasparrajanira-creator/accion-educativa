@@ -21,7 +21,12 @@ html:not([data-auth="ok"]) body{visibility:hidden}
 <div><label>Precio normal (opcional, para mostrar oferta)</label><input id="compare" type="number" min="0" step="1"></div>
 <div><label>Estado</label><select id="status"><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
 </div><div class="actions"><button type="submit">Guardar producto</button><button type="button" class="secondary" onclick="clearForm()">Nuevo / limpiar</button></div><p id="msg" class="muted"></p></form></section>
-<section class="card"><h2>Productos cargados</h2><div id="products" class="muted">Cargando…</div></section></main>
+<section class="card"><h2>Productos cargados</h2><div id="products" class="muted">Cargando…</div></section>
+<section class="card"><h2>Pedidos y entregas</h2><p class="muted">Revisa los pagos y el envío digital de los materiales. En el ambiente de integración, los correos solo podrán dirigirse a una casilla de pruebas autorizada.</p>
+<p class="muted" id="deliveryConfigStatus">Comprobando la configuración…</p>
+<div class="actions"><button class="secondary" type="button" id="refreshStoreOrders">Actualizar pedidos</button></div>
+<div id="storeOrdersList" class="muted" style="margin-top:12px">Cargando pedidos…</div>
+<p id="storeOrdersMessage" class="muted" role="status" aria-live="polite"></p></section></main>
 <script>
 const API='https://convivencia-escolar-api.onrender.com';let rows=[],driveAccounts=[],driveOAuthConfigured=false,driveOAuthRedirect='';
 const $=id=>document.getElementById(id);
@@ -38,5 +43,38 @@ $('form').addEventListener('submit',async e=>{e.preventDefault();$('msg').textCo
 $('imageFile').addEventListener('change',()=>{const f=$('imageFile').files[0];$('imagePreview').textContent=f?`${f.name} · ${(f.size/1024/1024).toFixed(2)} MB`:'Sin fotografía cargada.'});
 $('saveDrive').addEventListener('click',async()=>{const label=$('driveLabel').value.trim(),google_email=$('driveEmail').value.trim();$('driveMsg').textContent='Guardando…';try{if(!label||!google_email)throw new Error('Completa nombre y correo');await api('/api/store/admin/drive-accounts',{method:'POST',body:JSON.stringify({label,google_email})});$('driveLabel').value='';$('driveEmail').value='';$('driveMsg').textContent='Cuenta registrada. Ahora puedes conectarla con Google.';await load()}catch(e){$('driveMsg').textContent='No se pudo registrar: '+e.message}});
 load();
+
+const deliveryLabels={not_queued:'Sin envío programado',pending:'En espera de correo',failed:'Envío pendiente de revisión',sent:'Correo enviado'};
+async function loadStoreOrders(){
+  try{
+    const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
+    $('deliveryConfigStatus').textContent=config.email_ready
+      ?(config.test_mode?'Correo de prueba habilitado. No se enviará nada a compradores reales.':'Entrega automática habilitada para compras reales.')
+      :'El correo de entrega todavía no está habilitado. Los pedidos pagados quedarán pendientes.';
+    const orders=data.orders||[];
+    if(!orders.length){$('storeOrdersList').textContent='Aún no hay pedidos registrados.';return}
+    $('storeOrdersList').innerHTML=orders.slice(0,35).map(o=>{
+      const paid=o.status==='paid',sent=o.delivery_status==='sent',retry=paid&&!sent&&config.email_ready;
+      const payment=paid?'Pago aprobado':o.status==='payment_initialized'?'En proceso de pago':o.status==='cancelled'?'Cancelado':o.status==='failed'?'Pago fallido':esc(o.status);
+      const delivery=paid?(deliveryLabels[o.delivery_status]||esc(o.delivery_status)):'Sin entrega (sin pago)';
+      return '<div class="product" style="grid-template-columns:minmax(0,1fr) auto">'+
+        '<div><strong>'+esc(o.order_code)+'</strong> · '+money(o.total_clp)+'<div class="muted">'+esc(o.buyer_email||'')+'</div>'+
+        '<div class="muted">'+payment+' · '+delivery+'</div></div>'+
+        (retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div>';
+    }).join('');
+  }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message}
+}
+$('refreshStoreOrders').addEventListener('click',loadStoreOrders);
+$('storeOrdersList').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-delivery-retry]');if(!btn)return;
+  const id=Number(btn.dataset.deliveryRetry);
+  btn.disabled=true;$('storeOrdersMessage').textContent='Registrando solicitud de envío…';
+  try{
+    await api('/api/store/admin/orders/'+id+'/delivery/retry',{method:'POST'});
+    $('storeOrdersMessage').textContent='Reintento registrado. Actualiza los pedidos para revisar el resultado.';
+    await loadStoreOrders();
+  }catch(err){$('storeOrdersMessage').textContent='No fue posible reintentar: '+err.message;btn.disabled=false}
+});
+loadStoreOrders();
 </script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
 </body></html>

@@ -50,12 +50,12 @@ async function loadStoreOrders(){
   try{
     const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
     $('deliveryConfigStatus').textContent=config.email_ready
-      ?(config.test_mode?'Correo de prueba habilitado. No se enviará nada a compradores reales.':'Envío habilitado; la entrega en producción requiere también un documento tributario validado.')
+      ?(config.test_mode?'Correo de prueba habilitado. No se enviará nada a compradores reales.':'Entrega digital habilitada después de confirmar el pago. Los documentos tributarios se registran por separado.')
       :('Envío aún no habilitado. Resend: '+(config.provider_configured?'clave configurada':'falta clave')+'; remitente: '+(config.sender_configured?'configurado':'falta verificar y configurar')+'.');
     const orders=data.orders||[];
     if(!orders.length){$('storeOrdersList').textContent='Aún no hay pedidos registrados.';return}
     $('storeOrdersList').innerHTML=orders.slice(0,35).map(o=>{
-      const paid=o.status==='paid',sent=o.delivery_status==='sent',fiscalReady=['issued','voucher_validated'].includes(o.tax_document_status),retry=paid&&!sent&&config.email_ready&&(config.test_mode||fiscalReady);
+      const paid=o.status==='paid',sent=o.delivery_status==='sent',retry=paid&&!sent&&config.email_ready;
       const payment=paid?'Pago aprobado':o.status==='payment_initialized'?'En proceso de pago':o.status==='cancelled'?'Cancelado':o.status==='failed'?'Pago fallido':esc(o.status);
       const delivery=paid?(deliveryLabels[o.delivery_status]||esc(o.delivery_status)):'Sin entrega (sin pago)';
       const fiscal=paid?(o.tax_document_status==='issued'?(String(o.document_type||'').startsWith('factura_')?'Factura electrónica emitida':'Boleta electrónica emitida'):(taxLabels[o.tax_document_status]||'Documento tributario pendiente')):'Sin documento (sin pago)';

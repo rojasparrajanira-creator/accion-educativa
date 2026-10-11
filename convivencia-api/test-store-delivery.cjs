@@ -42,7 +42,7 @@ function mockDb(){
 const TEST_ENV={MEC_WEBPAY_MODE:'integration',MEC_STORE_DELIVERY_ENABLED:'1',MEC_STORE_RESEND_API_KEY:'fake-key',MEC_STORE_FROM_EMAIL:'Pruebas <sender@example.org>',MEC_STORE_TEST_DELIVERY_EMAIL:'qa@example.org'};
 test('sandbox sends only to the authorized test mailbox and stores sent status',async()=>{
   const {queries,pool}=mockDb();const sent=[];
-  const srv=createStoreDelivery({pool,env:TEST_ENV,sendOverride:async email=>sent.push(email),logger:{error:()=>{}}});
+  const srv=createStoreDelivery({pool,grantAccess:async()=>{},env:TEST_ENV,sendOverride:async email=>sent.push(email),logger:{error:()=>{}}});
   assert.equal(await srv.enqueue(5),true);
   assert.match(queries[0].sql,/status='paid'/);
   assert.deepEqual(queries[0].values,[5,'integration']);
@@ -58,7 +58,7 @@ test('sandbox sends only to the authorized test mailbox and stores sent status',
 });
 test('sandbox filters out production delivery jobs',async()=>{
   const {queries,pool}=mockDb();
-  const srv=createStoreDelivery({pool,env:TEST_ENV,sendOverride:async()=>{},logger:{error:()=>{}}});
+  const srv=createStoreDelivery({pool,grantAccess:async()=>{},env:TEST_ENV,sendOverride:async()=>{},logger:{error:()=>{}}});
   await srv.flush();
   const query=queries.find(x=>x.sql.startsWith('select order_id,attempts'));
   assert.match(query.sql,/payment_mode=\$1/);
@@ -66,7 +66,7 @@ test('sandbox filters out production delivery jobs',async()=>{
 });
 test('failed provider send is recorded for retry without marking delivery sent',async()=>{
   const {queries,pool}=mockDb();
-  const srv=createStoreDelivery({pool,env:TEST_ENV,sendOverride:async()=>{throw Error('provider_unavailable')},logger:{error:()=>{}}});
+  const srv=createStoreDelivery({pool,grantAccess:async()=>{},env:TEST_ENV,sendOverride:async()=>{throw Error('provider_unavailable')},logger:{error:()=>{}}});
   const result=await srv.flush();
   assert.equal(result.sent,0);
   assert.ok(queries.some(x=>x.sql.includes("set status='failed'")));
@@ -91,7 +91,7 @@ test('issued tax document link is included in the paid email',()=>{
 test('production delivery queue does not wait for manual tax-document issuance',async()=>{
   const {queries,pool}=mockDb();
   const sent=[];
-  const srv=createStoreDelivery({pool,env:{...TEST_ENV,MEC_WEBPAY_MODE:'production'},sendOverride:async email=>sent.push(email),logger:{error:()=>{}}});
+  const srv=createStoreDelivery({pool,grantAccess:async()=>{},env:{...TEST_ENV,MEC_WEBPAY_MODE:'production'},sendOverride:async email=>sent.push(email),logger:{error:()=>{}}});
   const result=await srv.flush();
   const query=queries.find(x=>x.sql.startsWith('select order_id,attempts'));
   assert.match(query.sql,/payment_mode=\$1/);
@@ -105,7 +105,7 @@ test('production delivery queue does not wait for manual tax-document issuance',
 });
 test('manual tax-document status remains pending when buyer receives digital access',async()=>{
   const {queries,pool}=mockDb();
-  const srv=createStoreDelivery({pool,env:{...TEST_ENV,MEC_WEBPAY_MODE:'production'},sendOverride:async()=>{},logger:{error:()=>{}}});
+  const srv=createStoreDelivery({pool,grantAccess:async()=>{},env:{...TEST_ENV,MEC_WEBPAY_MODE:'production'},sendOverride:async()=>{},logger:{error:()=>{}}});
   await srv.flush();
   assert.ok(queries.some(x=>x.sql.startsWith('select status,document_type,document_url from store_tax_documents')));
   assert.ok(queries.some(x=>x.sql.includes("set status='sent'")));
@@ -127,7 +127,7 @@ test('issued exempt invoice is supported but never inferred from buyer choice',(
 
 test('Resend receives Reply-To pointing to Acción Educativa rather than sender-only address',async()=>{
   const {pool}=mockDb();const deliveries=[];
-  const srv=createStoreDelivery({pool,env:TEST_ENV,fetchFn:async(url,init)=>{
+  const srv=createStoreDelivery({pool,grantAccess:async()=>{},env:TEST_ENV,fetchFn:async(url,init)=>{
     deliveries.push({url,headers:init.headers,payload:JSON.parse(init.body)});
     return {ok:true};
   },logger:{error:()=>{}}});
@@ -143,4 +143,34 @@ test('a store-specific Reply-To address can be configured without changing the s
   assert.equal(c.replyTo,'ayuda@example.org');
   assert.equal(c.from,TEST_ENV.MEC_STORE_FROM_EMAIL);
   assert.equal(settings({...TEST_ENV,MEC_STORE_REPLY_TO_EMAIL:'invalid'}).ready,false);
+});
+
+test('delivery grants private Drive permission for BUYER before sending test email to Acción Educativa',async()=>{
+  const {pool}=mockDb();const stages=[];
+  const srv=createStoreDelivery({
+    pool,env:TEST_ENV,
+    grantAccess:async x=>{stages.push('permission:'+x.buyerEmail);assert.equal(x.items.length,1)},
+    sendOverride:async x=>{stages.push('email:'+x.to)},
+    logger:{error:()=>{}}
+  });
+  const result=await srv.flush();
+  assert.equal(result.sent,1);
+  assert.deepEqual(stages,['permission:real@example.org','email:qa@example.org']);
+});
+test('a missing Drive grant implementation prevents sending private links',async()=>{
+  const {pool}=mockDb();const mail=[];
+  const srv=createStoreDelivery({pool,env:TEST_ENV,sendOverride:async x=>mail.push(x),logger:{error:()=>{}}});
+  const result=await srv.flush();
+  assert.equal(result.sent,0);
+  assert.equal(mail.length,0);
+});
+test('a Drive share error leaves the delivery failed for administrative retry',async()=>{
+  const {pool}=mockDb();const mail=[];
+  const srv=createStoreDelivery({
+    pool,env:TEST_ENV,grantAccess:async()=>{throw Error('drive_folder_not_authorized_for_app')},
+    sendOverride:async x=>mail.push(x),logger:{error:()=>{}}
+  });
+  const result=await srv.flush();
+  assert.equal(result.sent,0);
+  assert.equal(mail.length,0);
 });

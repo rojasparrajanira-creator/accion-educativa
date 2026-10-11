@@ -1865,9 +1865,10 @@ app.post('/api/store/admin/orders/:id/drive-access',...requireRole('platform_adm
     ok(res,{authorized:true,folders:grant.folders});
   }catch(e){
     const error=String(e?.message||'drive_access_failed').slice(0,90);
-    console.error('Store admin private Drive access failed:',error);
+    const reason=String(e?.googleReason||'').replace(/[^a-zA-Z0-9_]/g,'').slice(0,64);
+    console.error('Store admin private Drive access failed:',error,reason?'reason: '+reason:'');
     const allowed=/^drive_[a-z0-9_]+(?:_403|_404|_409)?$/.test(error)?error:'drive_access_failed';
-    res.status(409).json({ok:false,error:allowed});
+    res.status(409).json({ok:false,error:allowed,...(reason?{reason}:{})});
   }
 });
 

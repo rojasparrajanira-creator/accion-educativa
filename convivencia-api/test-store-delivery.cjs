@@ -87,14 +87,28 @@ test('issued tax document link is included in the paid email',()=>{
   assert.match(msg.text,/https:\/\/example\.org\/boleta\/abc/);
   assert.match(msg.text,/https:\/\/drive\.google\.com\/drive\/folders\/abc/);
 });
-test('production delivery query waits for issued fiscal document',async()=>{
+test('production delivery queue does not wait for manual tax-document issuance',async()=>{
+  const {queries,pool}=mockDb();
+  const sent=[];
+  const srv=createStoreDelivery({pool,env:{...TEST_ENV,MEC_WEBPAY_MODE:'production'},sendOverride:async email=>sent.push(email),logger:{error:()=>{}}});
+  const result=await srv.flush();
+  const query=queries.find(x=>x.sql.startsWith('select order_id,attempts'));
+  assert.match(query.sql,/payment_mode=\$1/);
+  assert.equal(query.sql.includes('store_tax_documents'),false);
+  assert.deepEqual(query.values,['production']);
+  assert.equal(result.sent,1);
+  assert.equal(sent.length,1);
+  assert.equal(sent[0].to,'real@example.org');
+  assert.match(sent[0].text,/https:\/\/drive\.google\.com\/drive\/folders\/a/);
+  assert.equal(sent[0].text.includes('Documento tributario electrónico'),false);
+});
+test('manual tax-document status remains pending when buyer receives digital access',async()=>{
   const {queries,pool}=mockDb();
   const srv=createStoreDelivery({pool,env:{...TEST_ENV,MEC_WEBPAY_MODE:'production'},sendOverride:async()=>{},logger:{error:()=>{}}});
   await srv.flush();
-  const query=queries.find(x=>x.sql.startsWith('select order_id,attempts'));
-  assert.match(query.sql,/store_tax_documents/);
-  assert.match(query.sql,/document_url like/);
-  assert.deepEqual(query.values,['production']);
+  assert.ok(queries.some(x=>x.sql.startsWith('select status,document_type,document_url from store_tax_documents')));
+  assert.ok(queries.some(x=>x.sql.includes("set status='sent'")));
+  assert.equal(queries.some(x=>/update store_tax_documents/i.test(x.sql)),false);
 });
 
 test('issued affect invoice is treated as verified DTE, not mistaken for exempt boleta',()=>{

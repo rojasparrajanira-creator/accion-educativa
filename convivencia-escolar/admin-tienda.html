@@ -22,6 +22,13 @@ html:not([data-auth="ok"]) body{visibility:hidden}
 <div><label>Estado</label><select id="status"><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
 </div><div class="actions"><button type="submit">Guardar producto</button><button type="button" class="secondary" onclick="clearForm()">Nuevo / limpiar</button></div><p id="msg" class="muted"></p></form></section>
 <section class="card"><h2>Productos cargados</h2><div id="products" class="muted">Cargando…</div></section>
+<section class="card" aria-labelledby="allFolderAuditTitle">
+<h2 id="allFolderAuditTitle">Verificación de todas las carpetas de venta</h2>
+<p class="muted">Revisión privada para la administración. Comprueba cada producto registrado sin crear compras ni abrir sus carpetas al público. El cliente nunca ve este diagnóstico.</p>
+<div class="actions"><button id="checkAllFolderAccess" type="button">Verificar todas las carpetas</button></div>
+<p id="allFolderAuditStatus" class="muted" role="status" aria-live="polite">Pendiente de verificación integral.</p>
+<div id="allFolderAuditResults" class="muted" style="margin-top:8px;max-height:450px;overflow:auto"></div>
+</section>
 <section class="card"><h2>Pedidos y entregas</h2><p class="muted">Revisa los pagos y el envío digital de los materiales. Las carpetas de Google Drive deben estar en <strong>Restringido</strong>: después de confirmar el pago, la plataforma autoriza exclusivamente el correo del comprador como <strong>Lector</strong>. Si Google no permite otorgar ese acceso, el correo queda pendiente, nunca se hace público el material. En integración, el mensaje de prueba llega a la casilla de pruebas, pero Drive autoriza al comprador registrado.</p>
 <p class="muted" id="deliveryConfigStatus">Comprobando la configuración…</p>
 <p class="muted" id="privateDriveAutomationStatus" role="status" style="margin:10px 0;padding:12px 15px;background:#f3f8fe;border:1px solid #cbd9ef;border-radius:12px">Comprobando autorización automática de carpetas privadas…</p>
@@ -34,6 +41,52 @@ const $=id=>document.getElementById(id);
 function esc(v){return String(v??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]))}
 async function api(path,opt={}){const r=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});const d=await r.json().catch(()=>({}));if(!r.ok){const error=new Error(d.error||'Error');error.reason=String(d.reason||'').slice(0,64);throw error}return d}
 function money(v){return new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0))}
+
+const readinessExplanation={
+  technical_google_account_not_configured:'Falta activar la cuenta técnica para autorizar las carpetas sin intervención.',
+  drive_service_account_cannot_share_folder:'La cuenta técnica no tiene permisos para compartir esta carpeta.',
+  drive_service_account_not_folder_editor:'Comparte esta carpeta solo con la cuenta técnica, con permiso Editor.',
+  drive_file_403:'Google rechazó la lectura de esta carpeta a la cuenta técnica.',
+  drive_file_404:'La cuenta técnica no puede encontrar la carpeta privada.',
+  drive_folder_not_restricted:'Hay permisos de grupo, dominio o enlace público: se requiere carpeta restringida.',
+  drive_private_product_invalid:'El enlace guardado debe apuntar a una carpeta de Drive.',
+  drive_invalid_delivery_folder:'Este enlace no apunta a una carpeta de Google Drive.',
+  drive_service_account_not_configured:'Falta configurar la cuenta técnica.'
+};
+async function auditEveryFolder(){
+  const button=$('checkAllFolderAccess'),status=$('allFolderAuditStatus'),result=$('allFolderAuditResults');
+  button.disabled=true;status.textContent='Verificando individualmente los productos y sus permisos privados…';
+  result.replaceChildren();
+  try{
+    const report=await api('/api/store/admin/catalog-readiness');
+    const counts=report.folders_ready+' de '+report.total_products+' productos con carpetas preparadas';
+    status.textContent=counts+'. Webpay: '+(report.payment_mode==='production'?'producción':'pruebas')+
+      '. Correo: '+(report.email_ready?'configurado':'pendiente')+'. '+(report.ready_for_live?'Catálogo preparado para prueba final real.':'Todavía NO se debe habilitar venta real.');
+    if(report.technical_account_email){
+      const info=document.createElement('p');
+      info.textContent='Correo técnico que debe tener permiso Editor solo en las carpetas de productos: '+report.technical_account_email;
+      result.appendChild(info);
+    }
+    const list=document.createElement('div');
+    for(const item of report.items||[]){
+      const row=document.createElement('div');
+      row.style='padding:10px 0;border-top:1px solid #e7edf2';
+      const label=document.createElement('strong');
+      label.textContent=(item.folder_ready?'Preparada: ':'Pendiente: ')+item.title;
+      const detail=document.createElement('p');
+      detail.className='muted';detail.style.margin='3px 0 0';
+      detail.textContent=item.folder_ready?'Carpeta privada accesible por la cuenta técnica. Aún falta prueba completa con comprador externo.':
+        (readinessExplanation[item.issue]||item.issue||'Falta autorizar la carpeta')+
+        (item.google_reason?' (Google: '+item.google_reason+')':'');
+      row.append(label,detail);list.appendChild(row);
+    }
+    result.appendChild(list);
+  }catch(e){
+    status.textContent='No fue posible completar la verificación técnica: '+e.message;
+  }finally{button.disabled=false}
+}
+$('checkAllFolderAccess').addEventListener('click',auditEveryFolder);
+
 function clearForm(){['id','title','audience','objective','description','included','image','drive','price','compare'].forEach(x=>$(x).value='');$('imageFile').value='';$('driveAccount').value='';$('imagePreview').textContent='Sin fotografía cargada.';$('status').value='draft';$('authorizePrivateFolder').disabled=true;$('msg').textContent=''}
 function edit(id){const p=rows.find(x=>Number(x.id)===Number(id));if(!p)return; $('id').value=p.id;$('authorizePrivateFolder').disabled=false;$('title').value=p.title||'';$('audience').value=p.audience||'';$('objective').value=p.objective||'';$('description').value=p.description||'';$('included').value=p.included_materials||'';$('image').value=p.image_url||'';$('imagePreview').innerHTML=p.image_url?`<img src="${esc(p.image_url)}" alt="Vista previa" style="max-width:180px;max-height:130px;border-radius:10px;margin-top:8px">`:'Sin fotografía cargada.';$('driveAccount').value=p.drive_account_id||'';$('drive').value=p.drive_delivery_url||'';$('price').value=p.price_clp??'';$('compare').value=p.compare_at_price_clp??'';$('status').value=p.status||'draft';scrollTo({top:0,behavior:'smooth'})}
 async function load(){try{const [d,a,cfg]=await Promise.all([api('/api/store/admin/products'),api('/api/store/admin/drive-accounts'),api('/api/store/admin/drive-oauth/config')]);rows=d.products||[];driveAccounts=a.accounts||[];driveOAuthConfigured=!!cfg.configured;driveOAuthRedirect=cfg.redirect_uri||'';$('oauthHelp').innerHTML=driveOAuthConfigured?'<span class="badge">OAuth de Google configurado</span> · Puedes conectar cada cuenta con Google.':'<strong>Falta configurar Google OAuth.</strong> Usa como URI de redirección autorizada: <code>'+esc(driveOAuthRedirect)+'</code>';$('driveList').innerHTML=driveAccounts.length?driveAccounts.map(x=>{const connected=x.status==='connected';const state=connected?'Conectada':x.status==='disabled'?'Deshabilitada':'Pendiente de conexión';const buttons=x.status==='disabled'?'':connected?`<button type="button" class="secondary" onclick="connectDrive(${Number(x.id)})">Reconectar</button> <button type="button" class="secondary" onclick="disconnectDrive(${Number(x.id)})">Desconectar</button>`:`<button type="button" onclick="connectDrive(${Number(x.id)})" ${driveOAuthConfigured?'':'disabled'}>Conectar con Google</button>`;return `<div style="padding:12px 0;border-top:1px solid #edf0f3;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><strong>${esc(x.label)}</strong> · ${esc(x.google_email)} · <span class="badge">${esc(state)}</span>${x.connected_at?'<div class="muted">Conectada: '+esc(new Date(x.connected_at).toLocaleString('es-CL'))+'</div>':''}</div><div>${buttons}</div></div>`}).join(''):'Aún no has registrado cuentas Drive.';$('driveAccount').innerHTML='<option value="">Seleccionar cuenta</option>'+driveAccounts.map(x=>`<option value="${Number(x.id)}">${esc(x.label)} · ${esc(x.google_email)}${x.status==='connected'?' · Conectada':''}</option>`).join('');$('products').innerHTML=rows.length?rows.map(p=>`<div class="product"><img src="${p.image_url||''}" alt=""><div><strong>${esc(p.title)}</strong><div class="muted">${money(p.price_clp)} · <span class="badge">${p.status}</span></div></div><button onclick="edit(${p.id})">Editar</button></div>`).join(''):'Aún no has cargado productos.';showOAuthResult()}catch(e){if(e.message==='authentication_required'||e.message==='role_forbidden')location.replace('ingreso.html?next=admin-tienda.html');else $('products').textContent='No fue posible cargar: '+e.message}}

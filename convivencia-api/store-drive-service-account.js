@@ -74,6 +74,32 @@ function createStoreServiceAccountDriveAccess({env=process.env,fetchFn=fetch,now
     }
     throw Error('drive_permission_pages_exceeded');
   }
+  // Preflight before opening Webpay: the app must be able to share EVERY purchased private folder.
+  // No buyer permission is created here; unpaid visitors cannot access the materials.
+  async function validateProducts({items}={}){
+    if(!conf.configured)throw Error('drive_service_account_not_configured');
+    if(!Array.isArray(items)||!items.length)throw Error('drive_items_missing');
+    const ids=items.map(item=>driveItemId(item.delivery_url_snapshot));
+    if(ids.some(id=>!id))throw Error('drive_private_product_invalid');
+    const token=await accessToken();
+    for(const id of new Set(ids)){
+      const headers={Authorization:'Bearer '+token};
+      const file=await request(DRIVE_API+encodeURIComponent(id)+
+        '?fields=id,mimeType,capabilities(canShare)&supportsAllDrives=true',{
+        method:'GET',headers
+      },'file');
+      if(file.id!==id||file.mimeType!==FOLDER_TYPE)throw Error('drive_invalid_delivery_folder');
+      if(file.capabilities?.canShare!==true)throw Error('drive_service_account_cannot_share_folder');
+      const permissions=await listPermissions(id,token);
+      if(permissions.some(p=>['anyone','domain','group'].includes(p.type)))
+        throw Error('drive_folder_not_restricted');
+      const editor=permissions.some(p=>p.type==='user'&&
+        String(p.emailAddress||'').trim().toLowerCase()===conf.email&&
+        ['writer','owner'].includes(p.role));
+      if(!editor)throw Error('drive_service_account_not_folder_editor');
+    }
+    return {ready:true,folders:new Set(ids).size};
+  }
   async function authorizeBuyer({buyerEmail,items}){
     if(!conf.configured)throw Error('drive_service_account_not_configured');
     const email=String(buyerEmail||'').trim().toLowerCase();
@@ -109,7 +135,7 @@ function createStoreServiceAccountDriveAccess({env=process.env,fetchFn=fetch,now
     }
     return {authorized:true,folders:done.size};
   }
-  return {enabled:conf.configured,configuration:()=>({
+  return {enabled:conf.configured,validateProducts,configuration:()=>({
     configured:conf.configured,
     service_account_email:conf.email,
     model:'service_account_folder_editor',

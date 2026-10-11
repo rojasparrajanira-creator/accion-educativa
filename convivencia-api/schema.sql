@@ -445,3 +445,16 @@ CREATE TABLE IF NOT EXISTS site_contact_messages(
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_site_contact_messages_created ON site_contact_messages(created_at DESC);
+
+-- Envio automatizado idempotente de materiales despues del pago confirmado.
+CREATE TABLE IF NOT EXISTS store_delivery_jobs(
+  order_id BIGINT PRIMARY KEY REFERENCES store_orders(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','failed','sent')),
+  attempts INT NOT NULL DEFAULT 0,
+  next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  sent_at TIMESTAMPTZ,
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_delivery_jobs_due ON store_delivery_jobs(next_attempt_at,created_at) WHERE status IN ('pending','failed') AND attempts<6;

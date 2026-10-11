@@ -336,6 +336,17 @@ CREATE TABLE IF NOT EXISTS store_orders(
 );
 CREATE INDEX IF NOT EXISTS idx_store_orders_email_created ON store_orders(buyer_email,created_at DESC);
 
+-- Tipo de comprobante solicitado por el comprador.
+-- Nunca supone que la boleta sea exenta ni que la factura deba ser afecta.
+ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS requested_document TEXT NOT NULL DEFAULT 'unspecified'
+  CHECK(requested_document IN ('unspecified','boleta','factura'));
+ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS invoice_rut TEXT;
+ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS invoice_legal_name TEXT;
+ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS invoice_business_activity TEXT;
+ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS invoice_address TEXT;
+ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS invoice_commune TEXT;
+
+
 CREATE TABLE IF NOT EXISTS store_order_items(
  id BIGSERIAL PRIMARY KEY,
  order_id BIGINT NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,

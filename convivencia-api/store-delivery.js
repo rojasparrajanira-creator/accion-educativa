@@ -15,7 +15,7 @@ function driveLink(value){
 }
 function verifiedTaxDocument(doc){
   if(!doc || !['issued','voucher_validated'].includes(doc.status))return false;
-  if(!['boleta_afecta','boleta_exenta','voucher'].includes(doc.document_type))return false;
+  if(!['boleta_afecta','boleta_exenta','factura_afecta','factura_exenta','voucher'].includes(doc.document_type))return false;
   return /^https:\/\/[^\s<>"']+$/i.test(String(doc.document_url||''));
 }
 function compose(order,items,taxDocument=null){
@@ -31,7 +31,7 @@ function compose(order,items,taxDocument=null){
   }
   if(taxDocument){
     if(!verifiedTaxDocument(taxDocument))throw Error('tax_document_not_verified');
-    const name=taxDocument.document_type==='voucher'?'Comprobante de pago electrónico':'Documento tributario electrónico';
+    const name=taxDocument.document_type==='voucher'?'Comprobante de pago electrónico':taxDocument.document_type.startsWith('factura_')?'Factura electrónica':'Boleta electrónica';
     text+='\n'+name+':\n'+taxDocument.document_url+'\n';
   }
   text+='\nNúmero de pedido: '+code+'\n\nSi necesitas ayuda para acceder al material, contáctanos.\nMaterial Educativo Chile\nwww.materialeducativochile.cl\n';
@@ -83,7 +83,7 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
       const lock=await conn.query("select pg_try_advisory_lock(hashtext('mec-store-delivery')) held");
       held=lock.rows[0]?.held===true;
       if(!held)return {ready:true,sent:0};
-      const jobs=await conn.query("select order_id,attempts from store_delivery_jobs where payment_mode=$1 and status in ('pending','failed') and attempts<6 and next_attempt_at<=now() and ($1='integration' or exists(select 1 from store_tax_documents d where d.order_id=store_delivery_jobs.order_id and d.status in ('issued','voucher_validated') and d.document_type in ('boleta_afecta','boleta_exenta','voucher') and d.document_url like 'https://%')) order by created_at limit 10",[cfg.mode]);
+      const jobs=await conn.query("select order_id,attempts from store_delivery_jobs where payment_mode=$1 and status in ('pending','failed') and attempts<6 and next_attempt_at<=now() and ($1='integration' or exists(select 1 from store_tax_documents d where d.order_id=store_delivery_jobs.order_id and d.status in ('issued','voucher_validated') and d.document_type in ('boleta_afecta','boleta_exenta','factura_afecta','factura_exenta','voucher') and d.document_url like 'https://%')) order by created_at limit 10",[cfg.mode]);
       for(const job of jobs.rows){
         try{await send(conn,job,cfg);sent++}
         catch(error){

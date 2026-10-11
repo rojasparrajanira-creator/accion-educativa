@@ -18,7 +18,15 @@ function googleError(stage,status){
 function createStoreDriveAccess({pool,decryptRefreshToken,fetchFn=fetch,env=process.env}){
   async function jsonRequest(url,options,stage){
     const response=await fetchFn(url,{...options,signal:AbortSignal.timeout(15000)});
-    if(!response.ok)throw googleError(stage,response.status);
+    if(!response.ok){
+      // Only the Google API error code/reason is retained. Never log URLs, tokens, mailboxes or payloads.
+      const data=await response.json().catch(()=>null);
+      const raw=String(data?.error?.errors?.[0]?.reason||data?.error?.status||'unknown');
+      const reason=raw.replace(/[^a-zA-Z0-9_]/g,'').slice(0,64)||'unknown';
+      const error=googleError(stage,response.status);
+      error.googleReason=reason;
+      throw error;
+    }
     const json=await response.json().catch(()=>null);
     if(!json||typeof json!=='object')throw Error('drive_invalid_'+stage+'_response');
     return json;

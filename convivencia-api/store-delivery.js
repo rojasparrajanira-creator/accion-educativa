@@ -34,7 +34,8 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
     return {mode:c.mode,enabled:c.enabled,email_ready:c.ready,test_mode:c.mode!=='production'};
   }
   async function enqueue(orderId){
-    const r=await pool.query("insert into store_delivery_jobs(order_id) select id from store_orders where id=$1 and status='paid' on conflict(order_id) do nothing returning order_id",[orderId]);
+    const mode=settings(env).mode;
+    const r=await pool.query("insert into store_delivery_jobs(order_id,payment_mode) select id,$2 from store_orders where id=$1 and status='paid' on conflict(order_id) do nothing returning order_id",[orderId,mode]);
     return r.rowCount>0;
   }
   async function send(c,job,cfg){
@@ -66,7 +67,7 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
       const lock=await conn.query("select pg_try_advisory_lock(hashtext('mec-store-delivery')) held");
       held=lock.rows[0]?.held===true;
       if(!held)return {ready:true,sent:0};
-      const jobs=await conn.query("select order_id,attempts from store_delivery_jobs where status in ('pending','failed') and attempts<6 and next_attempt_at<=now() order by created_at limit 10");
+      const jobs=await conn.query("select order_id,attempts from store_delivery_jobs where payment_mode=$1 and status in ('pending','failed') and attempts<6 and next_attempt_at<=now() order by created_at limit 10",[cfg.mode]);
       for(const job of jobs.rows){
         try{await send(conn,job,cfg);sent++}
         catch(error){

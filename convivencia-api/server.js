@@ -1725,9 +1725,9 @@ app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
 app.get('/api/store/webpay/config',storeStatusRateLimit,(req,res)=>{
   const cfg=webpayConfig();
   const delivery=storeDelivery.configuration();
-  const checkoutReady=cfg.configured&&delivery.email_ready&&storeDriveServiceAccount.enabled;
+  const checkoutReady=cfg.mode==='production'&&cfg.configured&&delivery.email_ready&&storeDriveServiceAccount.enabled;
   ok(res,{configured:cfg.configured,mode:cfg.mode,checkout_ready:checkoutReady,
-    checkout_status:checkoutReady?(cfg.mode==='production'?'production_ready_for_folder_preflight':'integration_ready_for_folder_preflight'):
+    checkout_status:checkoutReady?'production_ready_for_folder_preflight':
       'private_delivery_or_payment_not_configured'});
 });
 
@@ -1762,8 +1762,8 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
     if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
     if(pq.rows.some(p=>!p.drive_account_id||!p.drive_delivery_url))return res.status(409).json({ok:false,error:'product_delivery_not_configured'});
     // Fail closed BEFORE creating any order or Webpay transaction. A test email is not proof of access.
-    if(!webpayConfig().configured||!storeDelivery.configuration().email_ready||
-       !storeDriveServiceAccount.enabled)
+    if(webpayConfig().mode!=='production'||!webpayConfig().configured||
+       !storeDelivery.configuration().email_ready||!storeDriveServiceAccount.enabled)
       return res.status(503).json({ok:false,error:'store_checkout_not_ready'});
     try{
       await storeDriveServiceAccount.validateProducts({

@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {settings,driveLink,compose,createStoreDelivery}=require('./store-delivery');
+const {settings,driveLink,verifiedTaxDocument,compose,createStoreDelivery}=require('./store-delivery');
 
 test('delivery is disabled until explicit opt-in',()=>{
   assert.equal(settings({MEC_WEBPAY_MODE:'production',MEC_STORE_RESEND_API_KEY:'key',MEC_STORE_FROM_EMAIL:'sender@domain.cl'}).ready,false);
@@ -70,4 +70,29 @@ test('failed provider send is recorded for retry without marking delivery sent',
   assert.equal(result.sent,0);
   assert.ok(queries.some(x=>x.sql.includes("set status='failed'")));
   assert.ok(!queries.some(x=>x.sql.includes("set status='sent'")));
+});
+
+test('tax document must be verified before it is attached to an email',()=>{
+  assert.equal(verifiedTaxDocument({status:'pending',document_type:'boleta_exenta',document_url:'https://sii.cl/abc'}),false);
+  assert.equal(verifiedTaxDocument({status:'issued',document_type:'boleta_exenta',document_url:'http://invalid.test/abc'}),false);
+  assert.equal(verifiedTaxDocument({status:'issued',document_type:'boleta_exenta',document_url:'https://example.org/boleta/abc'}),true);
+  assert.throws(()=>compose({status:'paid',buyer_name:'Cliente',order_code:'MEC-2'},
+    [{product_title:'Material',delivery_url_snapshot:'https://drive.google.com/drive/folders/abc'}],
+    {status:'pending',document_type:'boleta_exenta',document_url:'https://example.org/abc'}),/tax_document_not_verified/);
+});
+test('issued tax document link is included in the paid email',()=>{
+  const msg=compose({status:'paid',buyer_name:'Cliente',order_code:'MEC-2'},
+    [{product_title:'Material',delivery_url_snapshot:'https://drive.google.com/drive/folders/abc'}],
+    {status:'issued',document_type:'boleta_afecta',document_url:'https://example.org/boleta/abc'});
+  assert.match(msg.text,/https:\/\/example\.org\/boleta\/abc/);
+  assert.match(msg.text,/https:\/\/drive\.google\.com\/drive\/folders\/abc/);
+});
+test('production delivery query waits for issued fiscal document',async()=>{
+  const {queries,pool}=mockDb();
+  const srv=createStoreDelivery({pool,env:{...TEST_ENV,MEC_WEBPAY_MODE:'production'},sendOverride:async()=>{},logger:{error:()=>{}}});
+  await srv.flush();
+  const query=queries.find(x=>x.sql.startsWith('select order_id,attempts'));
+  assert.match(query.sql,/store_tax_documents/);
+  assert.match(query.sql,/document_url like/);
+  assert.deepEqual(query.values,['production']);
 });

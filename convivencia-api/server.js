@@ -9,6 +9,7 @@ const {authenticator}=require('otplib');
 const {Environment,IntegrationApiKeys,IntegrationCommerceCodes,Options,WebpayPlus}=require('transbank-sdk');
 const {createStoreDelivery}=require('./store-delivery');
 const {createStoreDriveAccess,driveItemId}=require('./store-drive-access');
+const {createStoreServiceAccountDriveAccess}=require('./store-drive-service-account');
 const app=express();
 app.use(express.json({limit:'5mb'}));
 app.use(express.urlencoded({extended:false,limit:'64kb'}));
@@ -76,7 +77,12 @@ app.use((req,res,next)=>{
   next();
 });
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:false});
-const storeDriveAccess=createStoreDriveAccess({pool,decryptRefreshToken:decryptGoogleToken});
+// Opt-in only: existing Drive connections remain untouched until a dedicated account is configured.
+const storeDriveServiceAccount=createStoreServiceAccountDriveAccess({pool});
+const dedicatedDriveRequested=!!String(process.env.MEC_STORE_DRIVE_SERVICE_ACCOUNT_JSON||'').trim();
+const storeDriveAccess=dedicatedDriveRequested
+  ?storeDriveServiceAccount
+  :createStoreDriveAccess({pool,decryptRefreshToken:decryptGoogleToken});
 const storeDelivery=createStoreDelivery({pool,grantAccess:storeDriveAccess.authorizeBuyer});
 const storeImageUpload=multer({
   storage:multer.memoryStorage(),
@@ -1849,7 +1855,9 @@ app.get('/api/store/orders/:code/status',storeStatusRateLimit,async(req,res)=>{t
   ok(res,{order:q.rows[0],delivery_available:q.rows[0].status==='paid',delivery_sent:q.rows[0].delivery_status==='sent'});
 }catch(e){res.status(400).json({ok:false,error:'order_status_failed'})}});
 app.get('/api/store/admin/delivery/config',...requireRole('platform_admin'),(req,res)=>{
-  ok(res,storeDelivery.configuration());
+  ok(res,{...storeDelivery.configuration(),drive_automation:dedicatedDriveRequested
+    ?storeDriveServiceAccount.configuration()
+    :{configured:false,model:'google_drive_file_oauth',requires_review:true}});
 });
 // Recupera acceso de un pedido YA PAGADO (incluye compras de integración anteriores a la activación de Drive).
 // No autoriza destinatarios arbitrarios, no cambia carpetas a públicas y nunca crea un pedido.

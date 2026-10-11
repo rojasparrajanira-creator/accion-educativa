@@ -53,12 +53,10 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
     const order=oq.rows[0];
     if(!order||order.status!=='paid')throw Error('payment_not_confirmed');
     const iq=await c.query('select product_title,delivery_url_snapshot from store_order_items where order_id=$1 order by id',[job.order_id]);
-    let taxDocument=null;
-    if(cfg.mode==='production'){
-      const tax=await c.query('select status,document_type,document_url from store_tax_documents where order_id=$1',[job.order_id]);
-      taxDocument=tax.rows[0];
-      if(!verifiedTaxDocument(taxDocument))throw Error('tax_document_not_verified');
-    }
+    // La entrega digital no queda bloqueada por la emisión tributaria manual.
+    // Solo se adjunta un documento si ya existe uno registrado como emitido/validado.
+    const tax=await c.query('select status,document_type,document_url from store_tax_documents where order_id=$1',[job.order_id]);
+    const taxDocument=verifiedTaxDocument(tax.rows[0])?tax.rows[0]:null;
     const email=compose(order,iq.rows,taxDocument);
     const to=cfg.mode==='production'?String(order.buyer_email||'').trim().toLowerCase():cfg.testRecipient;
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to))throw Error('invalid_recipient');
@@ -83,7 +81,7 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
       const lock=await conn.query("select pg_try_advisory_lock(hashtext('mec-store-delivery')) held");
       held=lock.rows[0]?.held===true;
       if(!held)return {ready:true,sent:0};
-      const jobs=await conn.query("select order_id,attempts from store_delivery_jobs where payment_mode=$1 and status in ('pending','failed') and attempts<6 and next_attempt_at<=now() and ($1='integration' or exists(select 1 from store_tax_documents d where d.order_id=store_delivery_jobs.order_id and d.status in ('issued','voucher_validated') and d.document_type in ('boleta_afecta','boleta_exenta','factura_afecta','factura_exenta','voucher') and d.document_url like 'https://%')) order by created_at limit 10",[cfg.mode]);
+      const jobs=await conn.query("select order_id,attempts from store_delivery_jobs where payment_mode=$1 and status in ('pending','failed') and attempts<6 and next_attempt_at<=now() order by created_at limit 10",[cfg.mode]);
       for(const job of jobs.rows){
         try{await send(conn,job,cfg);sent++}
         catch(error){

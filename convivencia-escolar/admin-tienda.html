@@ -22,6 +22,21 @@ html:not([data-auth="ok"]) body{visibility:hidden}
 <div><label>Estado</label><select id="status"><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
 </div><div class="actions"><button type="submit">Guardar producto</button><button type="button" class="secondary" onclick="clearForm()">Nuevo / limpiar</button></div><p id="msg" class="muted"></p></form></section>
 <section class="card"><h2>Productos cargados</h2><div id="products" class="muted">Cargando…</div></section>
+<section class="card" aria-labelledby="bulkDriveSetupTitle">
+<h2 id="bulkDriveSetupTitle">Preparar permisos de todas las carpetas de la tienda</h2>
+<p class="muted">Esta preparación es solo para la administración. Se genera un script limitado a las carpetas asociadas a los productos registrados, sin abrir materiales al público ni autorizar compradores antes de pagar.</p>
+<div class="actions"><button type="button" id="generateDriveSetup">Preparar autorización masiva</button></div>
+<p id="bulkDriveSetupStatus" class="muted" role="status" aria-live="polite">Pendiente de preparar.</p>
+<div id="bulkDriveSetupResult" hidden>
+  <p class="muted">Revisa la lista de carpetas y luego ejecuta el script una sola vez en Google Apps Script, desde la cuenta que es propietaria de los materiales. Cada carpeta privada compartirá permiso <strong>Editor</strong> únicamente con la cuenta técnica, nunca con el público.</p>
+  <div id="bulkDriveFolderList" style="max-height:220px;overflow:auto;margin:10px 0"></div>
+  <label for="bulkDriveScript">Script generado desde los productos registrados</label>
+  <textarea id="bulkDriveScript" readonly spellcheck="false" style="display:block;width:100%;height:210px;margin:8px 0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px"></textarea>
+  <div class="actions"><button type="button" class="secondary" id="copyBulkDriveScript">Copiar script</button>
+    <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener noreferrer">Abrir Google Apps Script</a></div>
+  <p class="muted">En Google Apps Script, pega el código, elige la función <strong>autorizarCarpetasMaterialEducativo</strong> y ejecuta con la cuenta <strong>materialeducativochile1@gmail.com</strong>. Revisa los permisos solicitados por Google y el registro de ejecución. Después pulsa «Verificar todas las carpetas» en esta página. No pegues aquí la clave JSON.</p>
+</div>
+</section>
 <section class="card" aria-labelledby="allFolderAuditTitle">
 <h2 id="allFolderAuditTitle">Verificación de todas las carpetas de venta</h2>
 <p class="muted">Revisión privada para la administración. Comprueba cada producto registrado sin crear compras ni abrir sus carpetas al público. El cliente nunca ve este diagnóstico.</p>
@@ -41,6 +56,84 @@ const $=id=>document.getElementById(id);
 function esc(v){return String(v??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]))}
 async function api(path,opt={}){const r=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});const d=await r.json().catch(()=>({}));if(!r.ok){const error=new Error(d.error||'Error');error.reason=String(d.reason||'').slice(0,64);throw error}return d}
 function money(v){return new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0))}
+
+
+function folderIdForDeliveryLink(url){
+  const match=String(url||'').trim().match(/^https:\/\/drive\.google\.com\/drive\/folders\/([a-zA-Z0-9_-]{10,})(?:[/?#]|$)/i);
+  return match?match[1]:null;
+}
+function buildDriveOwnerScript(email,folderList){
+  const inventory=JSON.stringify(folderList.map(f=>({id:f.id,title:f.title})),null,2);
+  return [
+    '// Material Educativo Chile: acceso técnico SOLO a las carpetas de productos.',
+    '// Revisa la lista de IDs antes de ejecutar; nunca compartas tu clave JSON.',
+    'function autorizarCarpetasMaterialEducativo() {',
+    '  const CORREO_TECNICO = '+JSON.stringify(email)+';',
+    '  const CARPETAS = '+inventory.replace(/\n/g,'\n  ')+';',
+    '  let listas = 0, pendientes = 0;',
+    '  for (const item of CARPETAS) {',
+    '    try {',
+    '      const carpeta = DriveApp.getFolderById(item.id);',
+    '      const nombre = carpeta.getName();',
+    '      if (carpeta.getSharingAccess() !== DriveApp.Access.PRIVATE) {',
+    "        throw new Error('La carpeta no tiene acceso general restringido');",
+    '      }',
+    '      const editores = carpeta.getEditors();',
+    '      const autorizado = editores.some(u => u.getEmail().toLowerCase() === CORREO_TECNICO.toLowerCase());',
+    '      if (!autorizado) carpeta.addEditor(CORREO_TECNICO);',
+    '      listas++;',
+    "      console.log('OK | '+item.title+' | '+nombre+' | '+item.id+(autorizado?' | ya autorizada':' | editor agregado'));",
+    '    } catch (err) {',
+    '      pendientes++;',
+    "      console.error('PENDIENTE | '+item.title+' | '+item.id+' | '+String(err.message||err));",
+    '    }',
+    '  }',
+    "  console.log('RESULTADO: '+listas+' carpetas procesadas, '+pendientes+' pendientes de corregir.');",
+    '}'
+  ].join('\n');
+}
+async function prepareBulkDriveSetup(){
+  const btn=$('generateDriveSetup'),status=$('bulkDriveSetupStatus'),panel=$('bulkDriveSetupResult');
+  btn.disabled=true;panel.hidden=true;status.textContent='Consultando catálogo y correo técnico configurado…';
+  try{
+    const [p,c]=await Promise.all([api('/api/store/admin/products'),api('/api/store/admin/delivery/config')]);
+    const account=c.drive_automation||{},email=String(account.service_account_email||'').trim().toLowerCase();
+    if(!account.configured||!email.endsWith('.gserviceaccount.com')){
+      throw Error('Falta activar la cuenta técnica en Render. No se generó ninguna autorización.');
+    }
+    const raw=Array.isArray(p.products)?p.products:[],map=new Map(),invalid=[];
+    for(const product of raw){
+      const id=folderIdForDeliveryLink(product.drive_delivery_url);
+      if(!id){invalid.push(product.title||('Producto '+product.id));continue;}
+      if(!map.has(id))map.set(id,{id,title:product.title||('Producto '+product.id),products:[]});
+      map.get(id).products.push(product.title||('Producto '+product.id));
+    }
+    const folders=[...map.values()];
+    if(!folders.length)throw Error('No hay carpetas válidas en los productos registrados de la tienda.');
+    const list=$('bulkDriveFolderList');
+    list.replaceChildren();
+    for(const f of folders){
+      const row=document.createElement('p');row.style='margin:5px 0;font-size:12px;overflow-wrap:anywhere';
+      row.textContent=f.title+' · '+f.id+(f.products.length>1?' ('+f.products.length+' productos)':'');
+      list.appendChild(row);
+    }
+    $('bulkDriveScript').value=buildDriveOwnerScript(email,folders);
+    panel.hidden=false;
+    status.textContent='Preparadas '+folders.length+' carpetas únicas de '+raw.length+' productos registrados para '+email+'. '+
+      (invalid.length?'ATENCIÓN: '+invalid.length+' productos tienen enlaces inválidos y NO fueron incluidos: '+invalid.join(', ')+'. ':'')+
+      'Esto no ha concedido permisos todavía. El script debe ejecutarse desde Google.';
+  }catch(err){status.textContent='No fue posible preparar las autorizaciones: '+err.message}
+  finally{btn.disabled=false}
+}
+$('generateDriveSetup').addEventListener('click',prepareBulkDriveSetup);
+$('copyBulkDriveScript').addEventListener('click',async()=>{
+  const ta=$('bulkDriveScript'),btn=$('copyBulkDriveScript');
+  try{
+    if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(ta.value);
+    else{ta.focus();ta.select();if(!document.execCommand('copy'))throw Error('copy_failed')}
+    btn.textContent='Copiado';setTimeout(()=>{btn.textContent='Copiar script'},2000);
+  }catch(_){ta.focus();ta.select();$('bulkDriveSetupStatus').textContent='Selecciona y copia el texto del script manualmente.'}
+});
 
 const readinessExplanation={
   technical_google_account_not_configured:'Falta activar la cuenta técnica para autorizar las carpetas sin intervención.',

@@ -8,7 +8,7 @@ const ExcelJS=require('@ayocore/exceljs');
 const {authenticator}=require('otplib');
 const {Environment,IntegrationApiKeys,IntegrationCommerceCodes,Options,WebpayPlus}=require('transbank-sdk');
 const {createStoreDelivery}=require('./store-delivery');
-const {createStoreDriveAccess}=require('./store-drive-access');
+const {createStoreDriveAccess,driveItemId}=require('./store-drive-access');
 const app=express();
 app.use(express.json({limit:'5mb'}));
 app.use(express.urlencoded({extended:false,limit:'64kb'}));
@@ -1530,6 +1530,32 @@ app.get('/api/store/admin/drive-oauth/config',...requireRole('platform_admin'),a
   ok(res,{configured:cfg.configured,redirect_uri:cfg.redirectUri,scope:'https://www.googleapis.com/auth/drive.file',connected_accounts:q.rows[0].connected});
 }catch(e){res.status(400).json({ok:false,error:'drive_oauth_config_failed'})}});
 
+// Autoriza, mediante el selector OAuth de Google, una carpeta privada ya asociada a un producto.
+// Usa drive.file, sin pedir acceso global a toda la unidad ni compartir carpetas públicamente.
+app.get('/api/store/admin/products/:id/drive-picker/start',...requireRole('platform_admin'),async(req,res)=>{
+  try{
+    const cfg=googleOAuthConfig(),id=Number(req.params.id);
+    if(!cfg.configured)return res.status(503).json({ok:false,error:'google_oauth_not_configured'});
+    if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({ok:false,error:'invalid_product_id'});
+    const pq=await pool.query("select p.id,p.drive_delivery_url,a.id as account_id,a.google_email,a.status from store_products p join store_drive_accounts a on a.id=p.drive_account_id where p.id=$1",[id]);
+    if(!pq.rowCount)return res.status(404).json({ok:false,error:'store_product_not_found'});
+    const product=pq.rows[0],folderId=driveItemId(product.drive_delivery_url);
+    if(!folderId)return res.status(409).json({ok:false,error:'invalid_private_folder_url'});
+    if(product.status!=='connected')return res.status(409).json({ok:false,error:'drive_account_not_connected'});
+    await pool.query("delete from store_drive_oauth_states where expires_at<=now()");
+    const state=crypto.randomBytes(32).toString('base64url')+'.folder.'+id;
+    await pool.query("insert into store_drive_oauth_states(token_hash,drive_account_id,admin_user_id,expires_at) values($1,$2,$3,now()+interval '10 minutes')",[sha256(state),product.account_id,req.auth.id]);
+    const params=new URLSearchParams({
+      client_id:cfg.clientId,redirect_uri:cfg.redirectUri,response_type:'code',
+      scope:'https://www.googleapis.com/auth/drive.file',access_type:'offline',
+      include_granted_scopes:'false',prompt:'consent',trigger_onepick:'true',
+      allow_folder_selection:'true',mimetypes:'application/vnd.google-apps.folder',
+      file_ids:folderId,state,login_hint:product.google_email
+    });
+    res.redirect('https://accounts.google.com/o/oauth2/v2/auth?'+params.toString());
+  }catch(e){console.error('Store folder-picker initiation failed:',String(e?.message||'unknown').slice(0,90));res.status(400).json({ok:false,error:'drive_picker_start_failed'})}
+});
+
 app.get('/api/store/admin/drive-accounts/:id/oauth/start',...requireRole('platform_admin'),async(req,res)=>{try{
   const cfg=googleOAuthConfig();
   if(!cfg.configured)return res.status(503).json({ok:false,error:'google_oauth_not_configured',redirect_uri:cfg.redirectUri});
@@ -1572,15 +1598,38 @@ app.get('/api/store/admin/drive-oauth/callback',async(req,res)=>{
     const tr=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:tokenBody});
     const td=await tr.json().catch(()=>({}));
     if(!tr.ok||!td.access_token)return back('token_exchange_failed',accountId);
-    const ur=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:'Bearer '+td.access_token}});
+    const folderFlow=state.match(/\.folder\.(\d+)$/);
+    // En el selector de una sola carpeta Google exige únicamente drive.file.
+    // La identidad se verifica con Drive about.get, que admite ese permiso.
+    const identityUrl=folderFlow
+      ?'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)'
+      :'https://openidconnect.googleapis.com/v1/userinfo';
+    const ur=await fetch(identityUrl,{headers:{Authorization:'Bearer '+td.access_token}});
     const ud=await ur.json().catch(()=>({}));
-    if(!ur.ok||!ud.email)return back('identity_failed',accountId);
-    if(String(ud.email).trim().toLowerCase()!==String(aq.rows[0].google_email).trim().toLowerCase())return back('email_mismatch',accountId);
+    const actualEmail=folderFlow?ud?.user?.emailAddress:ud?.email;
+    if(!ur.ok||!actualEmail)return back('identity_failed',accountId);
+    if(String(actualEmail).trim().toLowerCase()!==String(aq.rows[0].google_email).trim().toLowerCase())return back('email_mismatch',accountId);
+    if(folderFlow){
+      const productId=Number(folderFlow[1]);
+      const pq=await pool.query("select id,drive_delivery_url,drive_account_id from store_products where id=$1",[productId]);
+      if(!pq.rowCount||Number(pq.rows[0].drive_account_id)!==accountId)return back('folder_product_mismatch',accountId);
+      const expected=driveItemId(pq.rows[0].drive_delivery_url);
+      const picked=String(req.query.picked_file_ids||'').split(',').map(x=>x.trim()).filter(Boolean);
+      if(!expected||!picked.includes(expected))return back('folder_not_selected',accountId);
+      // Confirma que la aplicación ya puede administrar la carpeta antes de guardar la autorización.
+      const fileResponse=await fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(expected)+
+        '?fields=id,mimeType,capabilities(canShare)&supportsAllDrives=true',{
+        headers:{Authorization:'Bearer '+td.access_token}
+      });
+      const file=await fileResponse.json().catch(()=>({}));
+      if(!fileResponse.ok||file.id!==expected||file.capabilities?.canShare!==true)
+        return back('folder_access_unavailable',accountId);
+    }
     const encrypted=td.refresh_token?encryptGoogleToken(td.refresh_token):aq.rows[0].oauth_refresh_token_encrypted;
     if(!encrypted)return back('refresh_token_missing',accountId);
-    await pool.query("update store_drive_accounts set status='connected',oauth_refresh_token_encrypted=$1,google_subject=$2,oauth_scope=$3,connected_at=now(),disconnected_at=null,updated_at=now() where id=$4",[encrypted,String(ud.sub||''),String(td.scope||'https://www.googleapis.com/auth/drive.file'),accountId]);
-    try{await pool.query("insert into security_events(user_id,event_type,metadata) values($1,'store_drive_oauth_connected',$2::jsonb)",[sq.rows[0].admin_user_id,JSON.stringify({drive_account_id:accountId})])}catch(_){}
-    back('connected',accountId);
+    await pool.query("update store_drive_accounts set status='connected',oauth_refresh_token_encrypted=$1,google_subject=coalesce(nullif($2,''),google_subject),oauth_scope=$3,connected_at=now(),disconnected_at=null,updated_at=now() where id=$4",[encrypted,folderFlow?'':String(ud.sub||''),String(td.scope||'https://www.googleapis.com/auth/drive.file'),accountId]);
+    try{await pool.query("insert into security_events(user_id,event_type,metadata) values($1,$2,$3::jsonb)",[sq.rows[0].admin_user_id,folderFlow?'store_drive_folder_picker_authorized':'store_drive_oauth_connected',JSON.stringify({drive_account_id:accountId,product_id:folderFlow?Number(folderFlow[1]):null})])}catch(_){}
+    back(folderFlow?'folder_authorized':'connected',accountId);
   }catch(e){back('failed')}
 });
 

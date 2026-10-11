@@ -31,7 +31,7 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
   let processing=false;
   function configuration(){
     const c=settings(env);
-    return {mode:c.mode,enabled:c.enabled,email_ready:c.ready,test_mode:c.mode!=='production'};
+    return {mode:c.mode,enabled:c.enabled,email_ready:c.ready,test_mode:c.mode!=='production',provider_configured:!!c.apiKey,sender_configured:!!c.from,test_recipient_configured:!!c.testRecipient};
   }
   async function enqueue(orderId){
     const mode=settings(env).mode;

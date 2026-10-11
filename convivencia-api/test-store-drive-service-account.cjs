@@ -71,3 +71,29 @@ test('service-account token is refreshed only as needed',async()=>{
  await access.authorizeBuyer({buyerEmail:'buyer@example.org',items:[item]});
  assert.equal(calls.filter(x=>x.url==='https://oauth2.googleapis.com/token').length,1);
 });
+
+test('checkout preflight reads all private folders but never grants access before payment',async()=>{
+ const {access,calls}=mock();
+ const result=await access.validateProducts({items:[item,item]});
+ assert.deepEqual(result,{ready:true,folders:1});
+ assert.equal(calls.filter(x=>x.method==='POST'&&x.url.includes('/permissions?')).length,0);
+});
+test('checkout preflight stops when technical account is not a folder editor',async()=>{
+ const {access,calls}=mock([{id:'owner',type:'user',role:'owner',emailAddress:'owner@example.org'}]);
+ await assert.rejects(access.validateProducts({items:[item]}),/drive_service_account_not_folder_editor/);
+ assert.equal(calls.filter(x=>x.method==='POST'&&x.url.includes('/permissions?')).length,0);
+});
+test('checkout preflight stops when Google cannot share the folder',async()=>{
+ const {access}=mock([],false);
+ await assert.rejects(access.validateProducts({items:[item]}),/drive_service_account_cannot_share_folder/);
+});
+test('checkout preflight refuses public delivery folders and external links',async()=>{
+ const {access}=mock([{id:'public',type:'anyone',role:'reader'},
+ {id:'sa',type:'user',role:'writer',emailAddress:saEmail}]);
+ await assert.rejects(access.validateProducts({items:[item]}),/drive_folder_not_restricted/);
+ await assert.rejects(access.validateProducts({items:[{delivery_url_snapshot:'https://example.com/123'}]}),/drive_private_product_invalid/);
+});
+test('checkout preflight cannot be performed with an unconfigured service account',async()=>{
+ const access=createStoreServiceAccountDriveAccess({env:{},fetchFn:async()=>{throw Error('should not make network calls')}});
+ await assert.rejects(access.validateProducts({items:[item]}),/drive_service_account_not_configured/);
+});

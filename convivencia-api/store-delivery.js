@@ -5,9 +5,10 @@ function settings(env){
   const enabled=env.MEC_STORE_DELIVERY_ENABLED==='1';
   const apiKey=String(env.MEC_STORE_RESEND_API_KEY||env.MEC_CONTACT_RESEND_API_KEY||'').trim();
   const from=String(env.MEC_STORE_FROM_EMAIL||env.MEC_CONTACT_FROM_EMAIL||'').trim();
+  const replyTo=String(env.MEC_STORE_REPLY_TO_EMAIL||'accioneducativaspa@gmail.com').trim().toLowerCase();
   const testRecipient=String(env.MEC_STORE_TEST_DELIVERY_EMAIL||'').trim().toLowerCase();
   const testReady=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testRecipient);
-  return {mode,enabled,apiKey,from,testRecipient,ready:enabled&&!!apiKey&&!!from&&(mode==='production'||testReady)};
+  return {mode,enabled,apiKey,from,replyTo,testRecipient,ready:enabled&&!!apiKey&&!!from&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo)&&(mode==='production'||testReady)};
 }
 function driveLink(value){
   const url=String(value||'').trim();
@@ -18,7 +19,7 @@ function verifiedTaxDocument(doc){
   if(!['boleta_afecta','boleta_exenta','factura_afecta','factura_exenta','voucher'].includes(doc.document_type))return false;
   return /^https:\/\/[^\s<>"']+$/i.test(String(doc.document_url||''));
 }
-function compose(order,items,taxDocument=null){
+function compose(order,items,taxDocument=null,contactEmail='accioneducativaspa@gmail.com'){
   if(!order||order.status!=='paid')throw Error('payment_not_confirmed');
   if(!Array.isArray(items)||!items.length)throw Error('delivery_items_missing');
   const name=String(order.buyer_name||'').replace(/[\r\n]+/g,' ').trim();
@@ -34,7 +35,7 @@ function compose(order,items,taxDocument=null){
     const name=taxDocument.document_type==='voucher'?'Comprobante de pago electrónico':taxDocument.document_type.startsWith('factura_')?'Factura electrónica':'Boleta electrónica';
     text+='\n'+name+':\n'+taxDocument.document_url+'\n';
   }
-  text+='\nNúmero de pedido: '+code+'\n\nSi necesitas ayuda para acceder al material, contáctanos.\nMaterial Educativo Chile\nwww.materialeducativochile.cl\n';
+  text+='\nNúmero de pedido: '+code+'\n\nSi necesitas ayuda para acceder al material, escríbenos a '+contactEmail+'.\nMaterial Educativo Chile\nwww.materialeducativochile.cl\n';
   return {subject:'Tus materiales digitales - pedido '+code,text};
 }
 function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,logger=console}){
@@ -57,15 +58,15 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,lo
     // Solo se adjunta un documento si ya existe uno registrado como emitido/validado.
     const tax=await c.query('select status,document_type,document_url from store_tax_documents where order_id=$1',[job.order_id]);
     const taxDocument=verifiedTaxDocument(tax.rows[0])?tax.rows[0]:null;
-    const email=compose(order,iq.rows,taxDocument);
+    const email=compose(order,iq.rows,taxDocument,cfg.replyTo);
     const to=cfg.mode==='production'?String(order.buyer_email||'').trim().toLowerCase():cfg.testRecipient;
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to))throw Error('invalid_recipient');
     const subject=(cfg.mode==='integration'?'[PRUEBA - SIN COMPRA REAL] ':'')+email.subject;
-    if(sendOverride)await sendOverride({from:cfg.from,to,subject,text:email.text,orderId:job.order_id});
+    if(sendOverride)await sendOverride({from:cfg.from,to,replyTo:cfg.replyTo,subject,text:email.text,orderId:job.order_id});
     else {
       const result=await fetchFn('https://api.resend.com/emails',{method:'POST',signal:AbortSignal.timeout(10000),
         headers:{Authorization:'Bearer '+cfg.apiKey,'Content-Type':'application/json','Idempotency-Key':'mec-store-delivery-'+job.order_id},
-        body:JSON.stringify({from:cfg.from,to:[to],subject,text:email.text})});
+        body:JSON.stringify({from:cfg.from,to:[to],reply_to:cfg.replyTo,subject,text:email.text})});
       if(!result.ok)throw Error('mail_provider_status_'+result.status);
     }
     await c.query("update store_delivery_jobs set status='sent',sent_at=now(),attempts=attempts+1,last_error=null,updated_at=now() where order_id=$1",[job.order_id]);

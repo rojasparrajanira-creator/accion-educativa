@@ -341,6 +341,15 @@ body{background:linear-gradient(125deg,#061B72 0%,#1035B0 22%,#172B9A 42%,#22176
 body.product-info-open{overflow:hidden}
 @media(max-width:750px){.product-info-panel{left:50%;right:auto;top:50%;bottom:auto;width:calc(100vw - 24px);max-height:85dvh;padding:23px 20px;transform:translate(-50%,-47%)}.product-info-panel.is-open{transform:translate(-50%,-50%)}}
 
+
+/* Datos tributarios claros, sin interferir con el resto de la tienda. */
+.mec-doc-select{width:100%;border:1px solid #ccd7e2;border-radius:12px;padding:12px 13px;background:#fff;color:#25334a;font:inherit;margin-bottom:2px}
+.mec-doc-select:focus{outline:3px solid rgba(25,194,209,.13);border-color:var(--turq)}
+.mec-invoice-fields[hidden]{display:none!important}
+.mec-invoice-fields{border:1px solid #dce8ef;border-radius:14px;padding:13px;margin:2px 0 16px;background:#fafcfd}
+.mec-invoice-fields label{margin-top:10px;display:block}
+.mec-invoice-fields label:first-child{margin-top:0}
+.mec-invoice-fields input{margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -427,7 +436,25 @@ body.product-info-open{overflow:hidden}
       <input id="buyerName" autocomplete="name" placeholder="Tu nombre">
       <label for="buyerEmail">Correo de entrega</label>
       <input id="buyerEmail" type="email" autocomplete="email" placeholder="correo@gmail.com">
-      <p class="cart-help">Usa el correo con el que accederás al material en Google Drive.</p>
+      <p class="cart-help">Usa el correo donde recibirás los enlaces de Google Drive.</p>
+      <label for="buyerDocument">¿Qué documento necesitas?</label>
+      <select id="buyerDocument" class="mec-doc-select" aria-describedby="buyerDocumentInfo">
+        <option value="boleta">Boleta electrónica</option>
+        <option value="factura">Factura electrónica</option>
+      </select>
+      <p id="buyerDocumentInfo" class="cart-help">El tipo de documento no determina por sí solo el IVA. Su emisión se ajustará a la clasificación tributaria correspondiente.</p>
+      <div id="invoiceFields" class="mec-invoice-fields" hidden>
+        <label for="invoiceRut">RUT de la empresa *</label>
+        <input id="invoiceRut" maxlength="14" placeholder="12.345.678-9" autocomplete="off">
+        <label for="invoiceLegalName">Razón social *</label>
+        <input id="invoiceLegalName" maxlength="180" placeholder="Nombre legal de la empresa">
+        <label for="invoiceActivity">Giro comercial *</label>
+        <input id="invoiceActivity" maxlength="180" placeholder="Actividad económica">
+        <label for="invoiceAddress">Dirección tributaria *</label>
+        <input id="invoiceAddress" maxlength="240" placeholder="Calle y número">
+        <label for="invoiceCommune">Comuna *</label>
+        <input id="invoiceCommune" maxlength="100" placeholder="Comuna">
+      </div>
       <button class="pay-btn" id="orderBtn" disabled>Pagar con Webpay</button>
       <p id="cartMsg" class="cart-msg"></p>
     </aside>
@@ -596,9 +623,18 @@ async function createOrder(){
   const buyerName=document.getElementById('buyerName').value.trim(),buyerEmail=document.getElementById('buyerEmail').value.trim();
   if(!cart.length){msg.textContent='Agrega al menos un material.';return}
   if(buyerName.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)){msg.textContent='Completa correctamente tu nombre y correo.';return}
+  const requestedDocument=document.getElementById('buyerDocument').value;
+  const invoice=requestedDocument==='factura'?{
+    rut:document.getElementById('invoiceRut').value.trim(),
+    legal_name:document.getElementById('invoiceLegalName').value.trim(),
+    business_activity:document.getElementById('invoiceActivity').value.trim(),
+    address:document.getElementById('invoiceAddress').value.trim(),
+    commune:document.getElementById('invoiceCommune').value.trim()
+  }:null;
+  if(invoice&&Object.values(invoice).some(v=>!v)){msg.textContent='Completa todos los datos de la empresa para solicitar factura.';return}
   btn.disabled=true;msg.textContent='Conectando con Webpay…';
   try{
-    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
+    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,requested_document:requestedDocument,invoice,items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.error||'No fue posible iniciar el pago');
     if(!d.payment_ready||!d.payment?.url||!d.payment?.token)throw new Error(d.message||'Webpay no está disponible');
@@ -608,6 +644,13 @@ async function createOrder(){
     document.body.appendChild(form);requestAnimationFrame(()=>form.submit());
   }catch(e){msg.textContent='No pudimos abrir Webpay: '+e.message;btn.disabled=false}
 }
+function updateDocumentFields(){
+  const show=document.getElementById('buyerDocument').value==='factura';
+  document.getElementById('invoiceFields').hidden=!show;
+  ['invoiceRut','invoiceLegalName','invoiceActivity','invoiceAddress','invoiceCommune'].forEach(id=>{document.getElementById(id).required=show});
+}
+document.getElementById('buyerDocument').addEventListener('change',updateDocumentFields);
+updateDocumentFields();
 document.getElementById('orderBtn').addEventListener('click',createOrder);
 
 function paymentResult(){

@@ -7,6 +7,7 @@ const multer=require('multer');
 const ExcelJS=require('@ayocore/exceljs');
 const {authenticator}=require('otplib');
 const {Environment,IntegrationApiKeys,IntegrationCommerceCodes,Options,WebpayPlus}=require('transbank-sdk');
+const {createStoreDelivery}=require('./store-delivery');
 const app=express();
 app.use(express.json({limit:'5mb'}));
 app.use(express.urlencoded({extended:false,limit:'64kb'}));
@@ -74,6 +75,7 @@ app.use((req,res,next)=>{
   next();
 });
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:false});
+const storeDelivery=createStoreDelivery({pool});
 const storeImageUpload=multer({
   storage:multer.memoryStorage(),
   limits:{files:1,fileSize:5*1024*1024},
@@ -1737,7 +1739,10 @@ app.all('/api/store/webpay/return',async(req,res)=>{
     const oq=await pool.query("select id,order_code,status,total_clp,payment_buy_order from store_orders where payment_token_hash=$1 limit 1",[sha256(token)]);
     if(!oq.rowCount)return back('invalid');
     const order=oq.rows[0];
-    if(order.status==='paid')return back('success',order.order_code);
+    if(order.status==='paid'){
+      try{await storeDelivery.enqueue(order.id);storeDelivery.wake()}catch(e){console.error('Store delivery queue unavailable')}
+      return back('success',order.order_code);
+    }
     if(order.status!=='payment_initialized')return back('failed',order.order_code);
 
     const cfg=webpayConfig();
@@ -1755,7 +1760,8 @@ app.all('/api/store/webpay/return',async(req,res)=>{
 
     if(authorized){
       await pool.query("update store_orders set status='paid',paid_at=now(),updated_at=now() where id=$1",[order.id]);
-      await pool.query("insert into store_delivery_events(order_id,status,buyer_email,detail) select id,'ready',buyer_email,'Pago Webpay confirmado; entrega pendiente de automatización' from store_orders where id=$1",[order.id]);
+      await pool.query("insert into store_delivery_events(order_id,status,buyer_email,detail) select id,'ready',buyer_email,'Pago Webpay confirmado; entrega en cola' from store_orders where id=$1",[order.id]);
+      try{await storeDelivery.enqueue(order.id);storeDelivery.wake()}catch(e){console.error('Store delivery queue unavailable')}
       return back('success',order.order_code);
     }
     await pool.query("update store_orders set status='failed',updated_at=now() where id=$1",[order.id]);
@@ -1767,13 +1773,30 @@ app.all('/api/store/webpay/return',async(req,res)=>{
 });
 
 app.get('/api/store/orders/:code/status',storeStatusRateLimit,async(req,res)=>{try{
-  const code=String(req.params.code||'').trim();const q=await pool.query("select order_code,status,total_clp,paid_at,created_at from store_orders where order_code=$1",[code]);
+  const code=String(req.params.code||'').trim();const q=await pool.query("select o.order_code,o.status,o.total_clp,o.paid_at,o.created_at,coalesce(j.status,'not_queued') delivery_status from store_orders o left join store_delivery_jobs j on j.order_id=o.id where o.order_code=$1",[code]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'order_not_found'});
-  ok(res,{order:q.rows[0],delivery_available:q.rows[0].status==='paid'});
+  ok(res,{order:q.rows[0],delivery_available:q.rows[0].status==='paid',delivery_sent:q.rows[0].delivery_status==='sent'});
 }catch(e){res.status(400).json({ok:false,error:'order_status_failed'})}});
+app.get('/api/store/admin/delivery/config',...requireRole('platform_admin'),(req,res)=>{
+  ok(res,storeDelivery.configuration());
+});
+app.post('/api/store/admin/orders/:id/delivery/retry',...requireRole('platform_admin'),async(req,res)=>{
+  try{
+    const id=Number(req.params.id);
+    if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({ok:false,error:'invalid_order_id'});
+    const q=await pool.query("select o.status as order_status,coalesce(j.status,'not_queued') as delivery_status from store_orders o left join store_delivery_jobs j on j.order_id=o.id where o.id=$1",[id]);
+    if(!q.rowCount)return res.status(404).json({ok:false,error:'order_not_found'});
+    if(q.rows[0].order_status!=='paid'||q.rows[0].delivery_status==='sent')return res.status(409).json({ok:false,error:'delivery_retry_not_available'});
+    await storeDelivery.enqueue(id);
+    await pool.query("update store_delivery_jobs set status='pending',attempts=0,next_attempt_at=now(),last_error=null,updated_at=now() where order_id=$1 and status<>'sent'",[id]);
+    storeDelivery.wake();
+    ok(res,{queued:true,email_ready:storeDelivery.configuration().email_ready});
+  }catch(e){res.status(503).json({ok:false,error:'delivery_retry_failed'})}
+});
+
 app.get('/api/store/admin/orders',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
-  const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count from store_orders o left join store_order_items i on i.order_id=o.id group by o.id order by o.created_at desc limit 250");
+  const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count,coalesce(j.status,'not_queued') delivery_status,j.attempts delivery_attempts from store_orders o left join store_order_items i on i.order_id=o.id left join store_delivery_jobs j on j.order_id=o.id group by o.id,j.status,j.attempts order by o.created_at desc limit 250");
   ok(res,{orders:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'store_orders_failed'})}});
 
@@ -1894,6 +1917,9 @@ const port=process.env.PORT||3000;
 initDatabase().then(()=>app.listen(port,()=>{
   console.log('Convivencia API ready with PostgreSQL');
   subscriptions.startWorkers();
+  storeDelivery.startWorkers();
+  const delivery=storeDelivery.configuration();
+  console.log('Store delivery enabled:',delivery.enabled?'yes':'no','email ready:',delivery.email_ready?'yes':'no','mode:',delivery.mode);
   if(String(process.env.RUN_PILOT_SELFTEST||'')==='1'){
     const {runPilotSelfTest}=require('./pilot-selftest');
     setTimeout(async()=>{

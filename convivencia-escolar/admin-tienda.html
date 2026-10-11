@@ -51,7 +51,7 @@ async function loadStoreOrders(){
     const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
     $('deliveryConfigStatus').textContent=config.email_ready
       ?(config.test_mode?'Correo de prueba habilitado. No se enviará nada a compradores reales.':'Entrega digital habilitada después de confirmar el pago. Los documentos tributarios se registran por separado.')
-      :('Envío aún no habilitado. Resend: '+(config.provider_configured?'clave configurada':'falta clave')+'; remitente: '+(config.sender_configured?'configurado':'falta verificar y configurar')+'.');
+      :('Envío aún no habilitado. Resend: '+(config.provider_configured?'clave configurada':'falta clave')+'; remitente: '+(config.sender_configured?'configurado':'falta verificar y configurar')+'; correo de prueba: '+(config.test_recipient_configured?'configurado':'falta configurar')+'; entrega: '+(config.enabled?'habilitada':'deshabilitada')+'. No ingresar contraseñas en este panel.');
     const orders=data.orders||[];
     if(!orders.length){$('storeOrdersList').textContent='Aún no hay pedidos registrados.';return}
     $('storeOrdersList').innerHTML=orders.slice(0,35).map(o=>{

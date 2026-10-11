@@ -24,6 +24,7 @@ html:not([data-auth="ok"]) body{visibility:hidden}
 <section class="card"><h2>Productos cargados</h2><div id="products" class="muted">Cargando…</div></section>
 <section class="card"><h2>Pedidos y entregas</h2><p class="muted">Revisa los pagos y el envío digital de los materiales. Las carpetas de Google Drive deben estar en <strong>Restringido</strong>: después de confirmar el pago, la plataforma autoriza exclusivamente el correo del comprador como <strong>Lector</strong>. Si Google no permite otorgar ese acceso, el correo queda pendiente, nunca se hace público el material. En integración, el mensaje de prueba llega a la casilla de pruebas, pero Drive autoriza al comprador registrado.</p>
 <p class="muted" id="deliveryConfigStatus">Comprobando la configuración…</p>
+<p class="muted" id="privateDriveAutomationStatus" role="status" style="margin:10px 0;padding:12px 15px;background:#f3f8fe;border:1px solid #cbd9ef;border-radius:12px">Comprobando autorización automática de carpetas privadas…</p>
 <div class="actions"><button class="secondary" type="button" id="refreshStoreOrders">Actualizar pedidos</button></div>
 <div id="storeOrdersList" class="muted" style="margin-top:12px">Cargando pedidos…</div>
 <p id="storeOrdersMessage" class="muted" role="status" aria-live="polite"></p></section></main>
@@ -59,6 +60,10 @@ async function loadStoreOrders(){
     $('deliveryConfigStatus').textContent=config.email_ready
       ?(config.test_mode?'Correo de prueba habilitado. Drive autoriza solo al comprador; el mensaje se envía a la casilla de pruebas una vez concedido el acceso.':'Envío privado después del pago, únicamente cuando Drive conceda acceso al comprador. Los documentos tributarios se registran por separado.')
       :('Envío aún no habilitado. Resend: '+(config.provider_configured?'clave configurada':'falta clave')+'; remitente: '+(config.sender_configured?'configurado':'falta verificar y configurar')+'; correo de prueba: '+(config.test_recipient_configured?'configurado':'falta configurar')+'; entrega: '+(config.enabled?'habilitada':'deshabilitada')+'. No ingresar contraseñas en este panel.');
+    const privateDrive=config.drive_automation||{};
+    $('privateDriveAutomationStatus').textContent=privateDrive.configured
+      ?'Cuenta técnica de Google Drive configurada. Cada carpeta que quieras vender debe estar compartida PRIVADAMENTE con '+privateDrive.service_account_email+' como Editor. Los compradores solo recibirán permiso Lector después del pago confirmado.'
+      :'Permisos privados automáticos: CONFIGURACIÓN PENDIENTE. Google puede dejar seleccionar una carpeta, pero su permiso limitado no autoriza compartir archivos que ya contiene (appNotAuthorizedToChild). No autorices más carpetas ni actives cobros reales hasta conectar una cuenta técnica dedicada. El acceso general debe seguir en Restringido.';
     const orders=data.orders||[];
     if(!orders.length){$('storeOrdersList').textContent='Aún no hay pedidos registrados.';return}
     $('storeOrdersList').innerHTML=orders.slice(0,35).map(o=>{
@@ -106,6 +111,7 @@ $('storeOrdersList').addEventListener('click',async e=>{
         insufficientFilePermissions:'Google indica que la aplicación no tiene permiso suficiente para compartir esta carpeta.',
         insufficientPermissions:'Google indica que la autorización OAuth no concede los permisos necesarios.',
         appNotAuthorizedToFile:'Google indica que la aplicación todavía no tiene autorización sobre este archivo.',
+        appNotAuthorizedToChild:'La aplicación puede ver la carpeta, pero NO tiene autorización suficiente para modificar permisos de todos los archivos y subcarpetas que contiene. Repetir la selección en Google no soluciona esta limitación. Debemos conectar una cuenta técnica con permisos privados sobre el material.',
         domainPolicy:'Google bloqueó la operación por una política de uso compartido.',
         sharingRateLimitExceeded:'Google aplicó un límite temporal de uso compartido.'
       };

@@ -450,6 +450,7 @@ CREATE INDEX IF NOT EXISTS idx_site_contact_messages_created ON site_contact_mes
 CREATE TABLE IF NOT EXISTS store_delivery_jobs(
   order_id BIGINT PRIMARY KEY REFERENCES store_orders(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','failed','sent')),
+  payment_mode TEXT NOT NULL DEFAULT 'integration' CHECK(payment_mode IN ('integration','production')),
   attempts INT NOT NULL DEFAULT 0,
   next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   sent_at TIMESTAMPTZ,
@@ -458,3 +459,5 @@ CREATE TABLE IF NOT EXISTS store_delivery_jobs(
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_store_delivery_jobs_due ON store_delivery_jobs(next_attempt_at,created_at) WHERE status IN ('pending','failed') AND attempts<6;
+
+ALTER TABLE store_delivery_jobs ADD COLUMN IF NOT EXISTS payment_mode TEXT NOT NULL DEFAULT 'integration' CHECK(payment_mode IN ('integration','production'));

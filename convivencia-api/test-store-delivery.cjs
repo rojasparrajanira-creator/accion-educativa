@@ -96,3 +96,16 @@ test('production delivery query waits for issued fiscal document',async()=>{
   assert.match(query.sql,/document_url like/);
   assert.deepEqual(query.values,['production']);
 });
+
+test('issued affect invoice is treated as verified DTE, not mistaken for exempt boleta',()=>{
+  const d={status:'issued',document_type:'factura_afecta',document_url:'https://example.org/factura/33'};
+  assert.equal(verifiedTaxDocument(d),true);
+  const message=compose({status:'paid',buyer_name:'Empresa',order_code:'MEC-F1'},[{product_title:'Digital',delivery_url_snapshot:'https://drive.google.com/drive/folders/abc'}],d);
+  assert.match(message.text,/Factura electrónica/);
+  assert.match(message.text,/example\.org\/factura\/33/);
+});
+test('issued exempt invoice is supported but never inferred from buyer choice',()=>{
+  const d={status:'issued',document_type:'factura_exenta',document_url:'https://example.org/factura/34'};
+  assert.equal(verifiedTaxDocument(d),true);
+  assert.equal(verifiedTaxDocument({status:'pending',document_type:'factura_afecta',document_url:'https://example.org/x'}),false);
+});

@@ -2083,6 +2083,7 @@ initDatabase().then(()=>app.listen(port,()=>{
   storeDelivery.startWorkers();
   const delivery=storeDelivery.configuration();
   console.log('Store delivery enabled:',delivery.enabled?'yes':'no','email ready:',delivery.email_ready?'yes':'no','mode:',delivery.mode);
+  console.log('Private Google Drive technical account:',storeDriveServiceAccount.enabled?'configured':'not configured');
   if(String(process.env.RUN_PILOT_SELFTEST||'')==='1'){
     const {runPilotSelfTest}=require('./pilot-selftest');
     setTimeout(async()=>{

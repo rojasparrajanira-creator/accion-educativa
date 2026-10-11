@@ -378,7 +378,7 @@ CREATE INDEX IF NOT EXISTS idx_store_payment_events_order ON store_payment_event
 CREATE TABLE IF NOT EXISTS store_tax_documents(
   order_id BIGINT PRIMARY KEY REFERENCES store_orders(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','issued','voucher_validated','failed')),
-  document_type TEXT CHECK(document_type IN ('boleta_afecta','boleta_exenta','voucher')),
+  document_type TEXT CHECK(document_type IN ('boleta_afecta','boleta_exenta','factura_afecta','factura_exenta','voucher')),
   document_number TEXT,
   document_url TEXT,
   issued_at TIMESTAMPTZ,
@@ -391,6 +391,15 @@ CREATE TABLE IF NOT EXISTS store_tax_documents(
   )
 );
 CREATE INDEX IF NOT EXISTS idx_store_tax_documents_status ON store_tax_documents(status,created_at);
+
+-- Ampliación compatible con bases existentes (DTE 33 y 34).
+ALTER TABLE store_tax_documents DROP CONSTRAINT IF EXISTS store_tax_documents_document_type_check;
+ALTER TABLE store_tax_documents ADD CONSTRAINT store_tax_documents_document_type_check
+CHECK(document_type IN ('boleta_afecta','boleta_exenta','factura_afecta','factura_exenta','voucher'));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_store_tax_doc_unique_number
+ON store_tax_documents(document_type,document_number)
+WHERE document_number IS NOT NULL;
+
 INSERT INTO store_tax_documents(order_id)
 SELECT id FROM store_orders WHERE status='paid'
 ON CONFLICT(order_id) DO NOTHING;

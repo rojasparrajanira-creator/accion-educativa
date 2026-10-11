@@ -1802,6 +1802,26 @@ app.get('/api/store/orders/:code/status',storeStatusRateLimit,async(req,res)=>{t
 app.get('/api/store/admin/delivery/config',...requireRole('platform_admin'),(req,res)=>{
   ok(res,storeDelivery.configuration());
 });
+// Recupera acceso de un pedido YA PAGADO (incluye compras de integración anteriores a la activación de Drive).
+// No autoriza destinatarios arbitrarios, no cambia carpetas a públicas y nunca crea un pedido.
+app.post('/api/store/admin/orders/:id/drive-access',...requireRole('platform_admin'),async(req,res)=>{
+  try{
+    const id=Number(req.params.id);
+    if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({ok:false,error:'invalid_order_id'});
+    const q=await pool.query("select id,status,buyer_email from store_orders where id=$1",[id]);
+    if(!q.rowCount)return res.status(404).json({ok:false,error:'order_not_found'});
+    if(q.rows[0].status!=='paid')return res.status(409).json({ok:false,error:'payment_not_confirmed'});
+    const iq=await pool.query("select delivery_url_snapshot,drive_account_id_snapshot from store_order_items where order_id=$1",[id]);
+    const grant=await storeDriveAccess.authorizeBuyer({buyerEmail:q.rows[0].buyer_email,items:iq.rows});
+    ok(res,{authorized:true,folders:grant.folders});
+  }catch(e){
+    const error=String(e?.message||'drive_access_failed').slice(0,90);
+    console.error('Store admin private Drive access failed:',error);
+    const allowed=/^drive_[a-z0-9_]+(?:_403|_404|_409)?$/.test(error)?error:'drive_access_failed';
+    res.status(409).json({ok:false,error:allowed});
+  }
+});
+
 app.post('/api/store/admin/orders/:id/delivery/retry',...requireRole('platform_admin'),async(req,res)=>{
   try{
     const id=Number(req.params.id);

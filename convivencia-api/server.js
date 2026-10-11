@@ -1740,7 +1740,10 @@ app.all('/api/store/webpay/return',async(req,res)=>{
     if(!oq.rowCount)return back('invalid');
     const order=oq.rows[0];
     if(order.status==='paid'){
-      try{await storeDelivery.enqueue(order.id);storeDelivery.wake()}catch(e){console.error('Store delivery queue unavailable')}
+      try{
+        await pool.query("insert into store_tax_documents(order_id) values($1) on conflict(order_id) do nothing",[order.id]);
+        await storeDelivery.enqueue(order.id);storeDelivery.wake();
+      }catch(e){console.error('Store delivery queue unavailable')}
       return back('success',order.order_code);
     }
     if(order.status!=='payment_initialized')return back('failed',order.order_code);
@@ -1761,7 +1764,10 @@ app.all('/api/store/webpay/return',async(req,res)=>{
     if(authorized){
       await pool.query("update store_orders set status='paid',paid_at=now(),updated_at=now() where id=$1",[order.id]);
       await pool.query("insert into store_delivery_events(order_id,status,buyer_email,detail) select id,'ready',buyer_email,'Pago Webpay confirmado; entrega en cola' from store_orders where id=$1",[order.id]);
-      try{await storeDelivery.enqueue(order.id);storeDelivery.wake()}catch(e){console.error('Store delivery queue unavailable')}
+      try{
+        await pool.query("insert into store_tax_documents(order_id) values($1) on conflict(order_id) do nothing",[order.id]);
+        await storeDelivery.enqueue(order.id);storeDelivery.wake();
+      }catch(e){console.error('Store delivery queue unavailable')}
       return back('success',order.order_code);
     }
     await pool.query("update store_orders set status='failed',updated_at=now() where id=$1",[order.id]);
@@ -1796,7 +1802,7 @@ app.post('/api/store/admin/orders/:id/delivery/retry',...requireRole('platform_a
 
 app.get('/api/store/admin/orders',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
-  const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count,coalesce(j.status,'not_queued') delivery_status,j.attempts delivery_attempts from store_orders o left join store_order_items i on i.order_id=o.id left join store_delivery_jobs j on j.order_id=o.id group by o.id,j.status,j.attempts order by o.created_at desc limit 250");
+  const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count,coalesce(j.status,'not_queued') delivery_status,j.attempts delivery_attempts,coalesce(t.status,'pending') tax_document_status,t.document_type from store_orders o left join store_order_items i on i.order_id=o.id left join store_delivery_jobs j on j.order_id=o.id left join store_tax_documents t on t.order_id=o.id group by o.id,j.status,j.attempts,t.status,t.document_type order by o.created_at desc limit 250");
   ok(res,{orders:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'store_orders_failed'})}});
 

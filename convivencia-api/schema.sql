@@ -361,6 +361,30 @@ CREATE TABLE IF NOT EXISTS store_payment_events(
 );
 CREATE INDEX IF NOT EXISTS idx_store_payment_events_order ON store_payment_events(order_id,created_at DESC);
 
+-- Documento tributario asociado a una compra Webpay.
+-- Pendiente NO equivale a boleta emitida. Un integrador autorizado o
+-- el modelo voucher declarado ante el SII debera acreditar el documento.
+CREATE TABLE IF NOT EXISTS store_tax_documents(
+  order_id BIGINT PRIMARY KEY REFERENCES store_orders(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','issued','voucher_validated','failed')),
+  document_type TEXT CHECK(document_type IN ('boleta_afecta','boleta_exenta','voucher')),
+  document_number TEXT,
+  document_url TEXT,
+  issued_at TIMESTAMPTZ,
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (
+    status NOT IN ('issued','voucher_validated')
+    OR (document_type IS NOT NULL AND document_url ~ '^https://')
+  )
+);
+CREATE INDEX IF NOT EXISTS idx_store_tax_documents_status ON store_tax_documents(status,created_at);
+INSERT INTO store_tax_documents(order_id)
+SELECT id FROM store_orders WHERE status='paid'
+ON CONFLICT(order_id) DO NOTHING;
+
+
 CREATE TABLE IF NOT EXISTS store_delivery_events(
  id BIGSERIAL PRIMARY KEY,
  order_id BIGINT NOT NULL REFERENCES store_orders(id) ON DELETE CASCADE,

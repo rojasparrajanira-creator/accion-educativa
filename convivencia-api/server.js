@@ -8,6 +8,7 @@ const ExcelJS=require('@ayocore/exceljs');
 const {authenticator}=require('otplib');
 const {Environment,IntegrationApiKeys,IntegrationCommerceCodes,Options,WebpayPlus}=require('transbank-sdk');
 const {createStoreDelivery}=require('./store-delivery');
+const {createStoreDriveAccess}=require('./store-drive-access');
 const app=express();
 app.use(express.json({limit:'5mb'}));
 app.use(express.urlencoded({extended:false,limit:'64kb'}));
@@ -75,7 +76,8 @@ app.use((req,res,next)=>{
   next();
 });
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:false});
-const storeDelivery=createStoreDelivery({pool});
+const storeDriveAccess=createStoreDriveAccess({pool,decryptRefreshToken:decryptGoogleToken});
+const storeDelivery=createStoreDelivery({pool,grantAccess:storeDriveAccess.authorizeBuyer});
 const storeImageUpload=multer({
   storage:multer.memoryStorage(),
   limits:{files:1,fileSize:5*1024*1024},

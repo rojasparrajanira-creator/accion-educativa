@@ -45,21 +45,23 @@ $('saveDrive').addEventListener('click',async()=>{const label=$('driveLabel').va
 load();
 
 const deliveryLabels={not_queued:'Sin envío programado',pending:'En espera de correo',failed:'Envío pendiente de revisión',sent:'Correo enviado'};
+const taxLabels={pending:'Documento tributario pendiente',issued:'Boleta electrónica emitida',voucher_validated:'Voucher tributario validado',failed:'Documento tributario en revisión'};
 async function loadStoreOrders(){
   try{
     const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
     $('deliveryConfigStatus').textContent=config.email_ready
-      ?(config.test_mode?'Correo de prueba habilitado. No se enviará nada a compradores reales.':'Entrega automática habilitada para compras reales.')
-      :'El correo de entrega todavía no está habilitado. Los pedidos pagados quedarán pendientes.';
+      ?(config.test_mode?'Correo de prueba habilitado. No se enviará nada a compradores reales.':'Envío habilitado; la entrega en producción requiere también un documento tributario validado.')
+      :('Envío aún no habilitado. Resend: '+(config.provider_configured?'clave configurada':'falta clave')+'; remitente: '+(config.sender_configured?'configurado':'falta verificar y configurar')+'.');
     const orders=data.orders||[];
     if(!orders.length){$('storeOrdersList').textContent='Aún no hay pedidos registrados.';return}
     $('storeOrdersList').innerHTML=orders.slice(0,35).map(o=>{
-      const paid=o.status==='paid',sent=o.delivery_status==='sent',retry=paid&&!sent&&config.email_ready;
+      const paid=o.status==='paid',sent=o.delivery_status==='sent',fiscalReady=['issued','voucher_validated'].includes(o.tax_document_status),retry=paid&&!sent&&config.email_ready&&(config.test_mode||fiscalReady);
       const payment=paid?'Pago aprobado':o.status==='payment_initialized'?'En proceso de pago':o.status==='cancelled'?'Cancelado':o.status==='failed'?'Pago fallido':esc(o.status);
       const delivery=paid?(deliveryLabels[o.delivery_status]||esc(o.delivery_status)):'Sin entrega (sin pago)';
+      const fiscal=paid?(taxLabels[o.tax_document_status]||'Documento tributario pendiente'):'Sin documento (sin pago)';
       return '<div class="product" style="grid-template-columns:minmax(0,1fr) auto">'+
         '<div><strong>'+esc(o.order_code)+'</strong> · '+money(o.total_clp)+'<div class="muted">'+esc(o.buyer_email||'')+'</div>'+
-        '<div class="muted">'+payment+' · '+delivery+'</div></div>'+
+        '<div class="muted">'+payment+' · '+delivery+'</div><div class="muted">'+fiscal+'</div></div>'+
         (retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div>';
     }).join('');
   }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message}

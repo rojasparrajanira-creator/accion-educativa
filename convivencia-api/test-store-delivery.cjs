@@ -22,7 +22,7 @@ test('unpaid orders and broken links cannot compose a delivery',()=>{
 });
 test('paid orders include ordered materials and order code',()=>{
   const msg=compose({status:'paid',buyer_name:'Cliente',order_code:'MEC-1'},[{product_title:'Taller',delivery_url_snapshot:'https://drive.google.com/drive/folders/a'}]);
-  assert.match(msg.subject,/MEC-1/);assert.match(msg.text,/Taller/);assert.match(msg.text,/drive\.google\.com/);
+  assert.match(msg.subject,/MEC-1/);assert.match(msg.text,/Taller/);assert.match(msg.text,/drive\.google\.com/);assert.match(msg.text,/accioneducativaspa@gmail\.com/);
 });
 function mockDb(){
   const queries=[];
@@ -50,6 +50,7 @@ test('sandbox sends only to the authorized test mailbox and stores sent status',
   assert.equal(result.sent,1);
   assert.equal(sent.length,1);
   assert.equal(sent[0].to,'qa@example.org');
+  assert.equal(sent[0].replyTo,'accioneducativaspa@gmail.com');
   assert.notEqual(sent[0].to,'real@example.org');
   assert.match(sent[0].subject,/PRUEBA/);
   assert.ok(queries.some(x=>x.sql.includes("set status='sent'")));
@@ -122,4 +123,24 @@ test('issued exempt invoice is supported but never inferred from buyer choice',(
   const d={status:'issued',document_type:'factura_exenta',document_url:'https://example.org/factura/34'};
   assert.equal(verifiedTaxDocument(d),true);
   assert.equal(verifiedTaxDocument({status:'pending',document_type:'factura_afecta',document_url:'https://example.org/x'}),false);
+});
+
+test('Resend receives Reply-To pointing to Acción Educativa rather than sender-only address',async()=>{
+  const {pool}=mockDb();const deliveries=[];
+  const srv=createStoreDelivery({pool,env:TEST_ENV,fetchFn:async(url,init)=>{
+    deliveries.push({url,headers:init.headers,payload:JSON.parse(init.body)});
+    return {ok:true};
+  },logger:{error:()=>{}}});
+  const result=await srv.flush();
+  assert.equal(result.sent,1);
+  assert.equal(deliveries.length,1);
+  assert.equal(deliveries[0].payload.reply_to,'accioneducativaspa@gmail.com');
+  assert.deepEqual(deliveries[0].payload.to,['qa@example.org']);
+  assert.match(deliveries[0].payload.text,/accioneducativaspa@gmail\.com/);
+});
+test('a store-specific Reply-To address can be configured without changing the sender',()=>{
+  const c=settings({...TEST_ENV,MEC_STORE_REPLY_TO_EMAIL:'ayuda@example.org'});
+  assert.equal(c.replyTo,'ayuda@example.org');
+  assert.equal(c.from,TEST_ENV.MEC_STORE_FROM_EMAIL);
+  assert.equal(settings({...TEST_ENV,MEC_STORE_REPLY_TO_EMAIL:'invalid'}).ready,false);
 });

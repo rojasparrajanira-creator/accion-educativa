@@ -473,7 +473,7 @@ body.product-info-open{overflow:hidden}
 const API='https://convivencia-escolar-api.onrender.com';
 const money=v=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0));
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let products=[],cart=[];
+let products=[],cart=[],checkoutReady=false;
 
 function splitIncluded(value){
   const raw=String(value||'').replace(/\r/g,'\n');
@@ -558,7 +558,7 @@ function renderCart(){
   else list.innerHTML=cart.map((x,i)=>'<li class="cart-item"><span>'+esc(x.title)+' × '+x.quantity+'</span><button type="button" data-remove="'+i+'" aria-label="Quitar">×</button></li>').join('');
   const total=cart.reduce((sum,x)=>sum+Number(x.price_clp||0)*Number(x.quantity||1),0);
   document.getElementById('cartTotal').textContent=money(total);
-  document.getElementById('orderBtn').disabled=!cart.length;
+  document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady;
 }
 function addCart(id){
   const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
@@ -621,6 +621,7 @@ document.addEventListener('click',e=>{
 
 async function createOrder(){
   const msg=document.getElementById('cartMsg'),btn=document.getElementById('orderBtn');
+  if(!checkoutReady){msg.textContent='Compras temporalmente suspendidas: estamos verificando la entrega privada. No se iniciará ningún cobro.';return}
   const buyerName=document.getElementById('buyerName').value.trim(),buyerEmail=document.getElementById('buyerEmail').value.trim();
   if(!cart.length){msg.textContent='Agrega al menos un material.';return}
   if(buyerName.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)){msg.textContent='Completa correctamente tu nombre y correo.';return}
@@ -644,7 +645,7 @@ async function createOrder(){
     const form=document.createElement('form');form.method='POST';form.action=d.payment.url;form.style.display='none';
     const input=document.createElement('input');input.type='hidden';input.name='token_ws';input.value=d.payment.token;form.appendChild(input);
     document.body.appendChild(form);requestAnimationFrame(()=>form.submit());
-  }catch(e){msg.textContent='No pudimos abrir Webpay: '+e.message;btn.disabled=false}
+  }catch(e){msg.textContent=e.message==='store_private_delivery_unavailable'||e.message==='store_checkout_not_ready'?'La entrega privada todavía no está autorizada. No se inició ningún cobro.':'No pudimos abrir Webpay: '+e.message;btn.disabled=!checkoutReady||!cart.length}
 }
 function updateDocumentFields(){
   const show=document.getElementById('buyerDocument').value==='factura';
@@ -664,11 +665,22 @@ function paymentResult(){
 paymentResult();
 
 fetch(API+'/api/store/webpay/config').then(r=>r.json()).then(d=>{
-  if(d.ok){
+  checkoutReady=!!(d.ok&&d.checkout_ready);
+  const button=document.getElementById('orderBtn'),msg=document.getElementById('cartMsg');
+  if(checkoutReady){
     document.getElementById('paymentMode').textContent=d.mode==='integration'?'Webpay · ambiente de prueba':'Pago seguro con Webpay';
-    document.getElementById('orderBtn').textContent=d.mode==='integration'?'Pagar con Webpay (prueba)':'Pagar con Webpay';
+    button.textContent=d.mode==='integration'?'Pagar con Webpay (prueba)':'Pagar con Webpay';
+  }else{
+    document.getElementById('paymentMode').textContent='Compras temporalmente suspendidas';
+    button.textContent='Pago no disponible';
+    msg.textContent='Estamos verificando la entrega automática y privada de tus materiales. Por seguridad no habilitaremos pagos hasta completar la conexión.';
   }
-}).catch(()=>{});
+  renderCart();
+}).catch(()=>{
+  checkoutReady=false;document.getElementById('orderBtn').disabled=true;
+  document.getElementById('paymentMode').textContent='Compras temporalmente suspendidas';
+  document.getElementById('cartMsg').textContent='No fue posible comprobar el estado de la entrega. No se iniciará ningún cobro.';
+});
 fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];const term=new URLSearchParams(location.search).get('buscar');if(term){document.getElementById('catalogSearch').value=term;location.hash='#catalogo'}renderProducts();setHeroProduct()}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
 </script>
 </body>

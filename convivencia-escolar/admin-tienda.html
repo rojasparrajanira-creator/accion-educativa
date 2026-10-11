@@ -31,7 +31,7 @@ html:not([data-auth="ok"]) body{visibility:hidden}
 const API='https://convivencia-escolar-api.onrender.com';let rows=[],driveAccounts=[],driveOAuthConfigured=false,driveOAuthRedirect='';
 const $=id=>document.getElementById(id);
 function esc(v){return String(v??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]))}
-async function api(path,opt={}){const r=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Error');return d}
+async function api(path,opt={}){const r=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});const d=await r.json().catch(()=>({}));if(!r.ok){const error=new Error(d.error||'Error');error.reason=String(d.reason||'').slice(0,64);throw error}return d}
 function money(v){return new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0))}
 function clearForm(){['id','title','audience','objective','description','included','image','drive','price','compare'].forEach(x=>$(x).value='');$('imageFile').value='';$('driveAccount').value='';$('imagePreview').textContent='Sin fotografía cargada.';$('status').value='draft';$('authorizePrivateFolder').disabled=true;$('msg').textContent=''}
 function edit(id){const p=rows.find(x=>Number(x.id)===Number(id));if(!p)return; $('id').value=p.id;$('authorizePrivateFolder').disabled=false;$('title').value=p.title||'';$('audience').value=p.audience||'';$('objective').value=p.objective||'';$('description').value=p.description||'';$('included').value=p.included_materials||'';$('image').value=p.image_url||'';$('imagePreview').innerHTML=p.image_url?`<img src="${esc(p.image_url)}" alt="Vista previa" style="max-width:180px;max-height:130px;border-radius:10px;margin-top:8px">`:'Sin fotografía cargada.';$('driveAccount').value=p.drive_account_id||'';$('drive').value=p.drive_delivery_url||'';$('price').value=p.price_clp??'';$('compare').value=p.compare_at_price_clp??'';$('status').value=p.status||'draft';scrollTo({top:0,behavior:'smooth'})}
@@ -70,7 +70,7 @@ async function loadStoreOrders(){
       return '<div class="product" style="grid-template-columns:minmax(0,1fr) auto">'+
         '<div><strong>'+esc(o.order_code)+'</strong> · '+money(o.total_clp)+'<div class="muted">'+esc(o.buyer_email||'')+'</div>'+
         '<div class="muted">'+payment+' · '+delivery+'</div><div class="muted">'+requested+' · '+fiscal+'</div></div>'+
-        (paid?'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Autorizar acceso Drive</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div>':'')+'</div>';
+        (paid?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Autorizar acceso Drive</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div><p data-drive-feedback role="status" aria-live="polite" style="display:none;max-width:390px;margin:0;padding:10px 12px;border:1px solid #cbd9ef;border-radius:10px;background:#f5f9ff;color:#203353;font-size:13px;line-height:1.45;overflow-wrap:anywhere"></p></div>':'')+'</div>';
     }).join('');
   }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message}
 }
@@ -79,15 +79,39 @@ $('storeOrdersList').addEventListener('click',async e=>{
   const grantBtn=e.target.closest('[data-drive-authorize]');
   if(grantBtn){
     const orderId=Number(grantBtn.dataset.driveAuthorize);
+    const feedback=grantBtn.closest('.product')?.querySelector('[data-drive-feedback]');
+    const showMessage=(message,failed=false)=>{
+      $('storeOrdersMessage').textContent=message;
+      if(feedback){
+        feedback.textContent=message;
+        feedback.style.display='block';
+        feedback.style.borderColor=failed?'#e5b7b7':'#b5d9c3';
+        feedback.style.background=failed?'#fff8f8':'#f1fbf6';
+      }
+    };
     grantBtn.disabled=true;
-    $('storeOrdersMessage').textContent='Solicitando acceso privado de Drive para el comprador registrado…';
+    showMessage('Consultando Google Drive para autorizar únicamente al comprador…');
     try{
       const result=await api('/api/store/admin/orders/'+orderId+'/drive-access',{method:'POST'});
-      $('storeOrdersMessage').textContent='Drive confirmó el acceso privado del comprador a '+result.folders+' material(es). Puedes pedirle que vuelva a abrir el enlace que recibió.';
-      await loadStoreOrders();
+      showMessage('Acceso privado autorizado para el correo del comprador en '+result.folders+' carpeta(s). Ahora vuelve a abrir el mismo enlace.');
     }catch(err){
-      const map={drive_account_not_connected:'Conecta la cuenta propietaria de Drive.',drive_file_404:'La aplicación no tiene acceso a esa carpeta. Debes autorizar la carpeta específicamente para esta aplicación.',drive_folder_not_authorized_for_app:'La cuenta conectada no tiene permiso para compartir esa carpeta.',drive_folder_not_restricted:'La carpeta no está restringida. Revisa los permisos de acceso general y de grupos/dominios.',drive_grant_403:'Google no autorizó compartir la carpeta. Comprueba la cuenta propietaria y los permisos de la aplicación.'};
-      $('storeOrdersMessage').textContent='No se pudo dar acceso: '+(map[err.message]||err.message)+'. No cambies a “Cualquier persona con el enlace”.';
+      const map={
+        drive_account_not_connected:'La cuenta propietaria no está conectada a Google Drive.',
+        drive_file_404:'Google no reconoce el acceso de la aplicación a esta carpeta. Revisa su autorización.',
+        drive_folder_not_authorized_for_app:'La aplicación todavía no puede compartir esta carpeta.',
+        drive_folder_not_restricted:'La carpeta debe permanecer privada; revisa sus permisos existentes.',
+        drive_grant_403:'Google rechazó el permiso individual, aunque la carpeta es visible para la aplicación.'
+      };
+      const reasons={
+        insufficientFilePermissions:'Google indica que la aplicación no tiene permiso suficiente para compartir esta carpeta.',
+        insufficientPermissions:'Google indica que la autorización OAuth no concede los permisos necesarios.',
+        appNotAuthorizedToFile:'Google indica que la aplicación todavía no tiene autorización sobre este archivo.',
+        domainPolicy:'Google bloqueó la operación por una política de uso compartido.',
+        sharingRateLimitExceeded:'Google aplicó un límite temporal de uso compartido.'
+      };
+      const detail=err.reason?' Motivo técnico: '+(reasons[err.reason]||err.reason)+'.':'';
+      showMessage('No se concedió el acceso: '+(map[err.message]||err.message)+detail+' La carpeta sigue restringida. No hagas otra compra.',true);
+    }finally{
       grantBtn.disabled=false;
     }
     return;

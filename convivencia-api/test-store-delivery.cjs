@@ -157,6 +157,27 @@ test('delivery grants private Drive permission for BUYER before sending test ema
   assert.equal(result.sent,1);
   assert.deepEqual(stages,['permission:real@example.org','email:qa@example.org']);
 });
+test('no buyer access is granted and no link is emailed unless the payment is confirmed',async()=>{
+  const {pool}=mockDb();let grantCalls=0,emailCalls=0;
+  const baseConnect=pool.connect;
+  pool.connect=async()=>{
+    const conn=await baseConnect();
+    const originalQuery=conn.query;
+    conn.query=async(sql,params)=>{
+      if(sql.startsWith('select id,order_code,buyer_name,buyer_email,status from store_orders')){
+        return {rows:[{id:5,order_code:'MEC-5',buyer_name:'Cliente',buyer_email:'real@example.org',status:'payment_initialized'}]};
+      }
+      return originalQuery(sql,params);
+    };
+    return conn;
+  };
+  const srv=createStoreDelivery({pool,env:{...TEST_ENV,MEC_WEBPAY_MODE:'production'},
+    grantAccess:async()=>{grantCalls++},sendOverride:async()=>{emailCalls++},logger:{error:()=>{}}});
+  const result=await srv.flush();
+  assert.equal(result.sent,0);
+  assert.equal(grantCalls,0);
+  assert.equal(emailCalls,0);
+});
 test('a missing Drive grant implementation prevents sending private links',async()=>{
   const {pool}=mockDb();const mail=[];
   const srv=createStoreDelivery({pool,env:TEST_ENV,sendOverride:async x=>mail.push(x),logger:{error:()=>{}}});

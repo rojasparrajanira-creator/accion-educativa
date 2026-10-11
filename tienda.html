@@ -438,7 +438,8 @@ body.product-info-open{overflow:hidden}
       <input id="buyerEmail" type="email" autocomplete="email" placeholder="correo@gmail.com">
       <p class="cart-help">Usa el correo donde recibirás los enlaces de Google Drive.</p>
       <label for="buyerDocument">¿Qué documento necesitas?</label>
-      <select id="buyerDocument" class="mec-doc-select" aria-describedby="buyerDocumentInfo">
+      <select id="buyerDocument" class="mec-doc-select" aria-describedby="buyerDocumentInfo" required>
+        <option value="" selected>Selecciona boleta o factura</option>
         <option value="boleta">Boleta electrónica</option>
         <option value="factura">Factura electrónica</option>
       </select>
@@ -624,6 +625,7 @@ async function createOrder(){
   if(!cart.length){msg.textContent='Agrega al menos un material.';return}
   if(buyerName.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)){msg.textContent='Completa correctamente tu nombre y correo.';return}
   const requestedDocument=document.getElementById('buyerDocument').value;
+  if(!['boleta','factura'].includes(requestedDocument)){msg.textContent='Selecciona si necesitas boleta o factura antes de continuar.';document.getElementById('buyerDocument').focus();return}
   const invoice=requestedDocument==='factura'?{
     rut:document.getElementById('invoiceRut').value.trim(),
     legal_name:document.getElementById('invoiceLegalName').value.trim(),

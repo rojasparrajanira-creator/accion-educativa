@@ -1724,7 +1724,11 @@ app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
 
 app.get('/api/store/webpay/config',storeStatusRateLimit,(req,res)=>{
   const cfg=webpayConfig();
-  ok(res,{configured:cfg.configured,mode:cfg.mode});
+  const delivery=storeDelivery.configuration();
+  const checkoutReady=cfg.configured&&delivery.email_ready&&storeDriveServiceAccount.enabled;
+  ok(res,{configured:cfg.configured,mode:cfg.mode,checkout_ready:checkoutReady,
+    checkout_status:checkoutReady?(cfg.mode==='production'?'production_ready_for_folder_preflight':'integration_ready_for_folder_preflight'):
+      'private_delivery_or_payment_not_configured'});
 });
 
 app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
@@ -1757,6 +1761,18 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
     const pq=await client.query("select id,title,price_clp,drive_delivery_url,drive_account_id from store_products where status='published' and id=any($1::bigint[])",[ids]);
     if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
     if(pq.rows.some(p=>!p.drive_account_id||!p.drive_delivery_url))return res.status(409).json({ok:false,error:'product_delivery_not_configured'});
+    // Fail closed BEFORE creating any order or Webpay transaction. A test email is not proof of access.
+    if(!webpayConfig().configured||!storeDelivery.configuration().email_ready||
+       !storeDriveServiceAccount.enabled)
+      return res.status(503).json({ok:false,error:'store_checkout_not_ready'});
+    try{
+      await storeDriveServiceAccount.validateProducts({
+        items:pq.rows.map(p=>({delivery_url_snapshot:p.drive_delivery_url}))
+      });
+    }catch(err){
+      console.warn('Store checkout safely blocked:',String(err?.message||'drive_preflight_failed').slice(0,75));
+      return res.status(503).json({ok:false,error:'store_private_delivery_unavailable'});
+    }
     let total=0;
     for(const p of pq.rows)total+=Number(p.price_clp)*qty.get(Number(p.id));
     const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(16).toString('hex').toUpperCase();

@@ -1,3 +1,107 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Intervenciones</title><script src="js/auth-professional.js"></script><script>MECAuth.guard();</script><link rel="stylesheet" href="css/portal-footer.css">
-</head><body><main><h1>Intervenciones</h1><p>Seguimiento de acciones de convivencia educativa.</p></main><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
-</body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Intervenciones y seguimiento · Convivencia Escolar</title>
+<meta name="description" content="Acceso al seguimiento de intervenciones y al Plan de Gestión de Convivencia Escolar.">
+<style>
+:root{--green:#176b5b;--green-dark:#173e35;--line:#d8e9e2;--mint:#eef7f2;--ink:#243c34;--muted:#526b62}
+*{box-sizing:border-box}
+body{margin:0;background:#f5f8f6;color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+main{max-width:1050px;margin:0 auto;padding:30px 20px 64px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+h1{font-size:clamp(1.6rem,3vw,2.1rem);margin:8px 0;color:var(--green-dark)}h2{font-size:1.2rem;margin:0 0 8px;color:var(--green-dark)}
+small,.muted{color:var(--muted)}p{line-height:1.55}
+.panel,.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 6px 22px #174b3511}
+.panel{margin:18px 0 22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:15px;margin:18px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-top:15px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:13px;background:var(--mint)}
+.stat strong{display:block;font-size:1.65rem;color:var(--green-dark);font-variant-numeric:tabular-nums}
+.stat span{font-size:.84rem;color:var(--muted)}
+a.action{display:inline-block;border-radius:11px;padding:11px 15px;text-decoration:none;font-size:.95rem;font-weight:750;background:var(--green);color:#fff;margin-top:6px}
+a.action.secondary{background:var(--mint);color:var(--green-dark);border:1px solid var(--line)}
+a.action:hover,a.action:focus-visible{outline:2px solid #79bca7;outline-offset:2px}
+.card p{min-height:48px;margin:6px 0 10px}
+#state{font-size:.95rem;min-height:1.4em}
+@media(max-width:600px){main{padding-top:18px}.panel,.card{padding:17px}.card p{min-height:0}}
+</style>
+<script src="js/auth-professional.js"></script>
+<link rel="stylesheet" href="css/portal-footer.css">
+</head>
+<body>
+<main>
+  <div class="top">
+    <div><small>GESTIÓN DE CONVIVENCIA ESCOLAR</small><h1>Intervenciones y seguimiento</h1></div>
+    <a class="action secondary" id="back" href="inicio.html">← Volver al inicio</a>
+  </div>
+  <section class="panel" aria-labelledby="school">
+    <h2 id="school">Establecimiento</h2>
+    <p>Revisa los avances de las intervenciones registradas. Los datos se muestran solo para el establecimiento de tu sesión.</p>
+    <p id="state" role="status" aria-live="polite">Verificando acceso…</p>
+    <div id="stats" class="stats" hidden>
+      <div class="stat"><strong id="total">—</strong><span>Intervenciones</span></div>
+      <div class="stat"><strong id="progress">—</strong><span>En ejecución</span></div>
+      <div class="stat"><strong id="completed">—</strong><span>Completadas</span></div>
+      <div class="stat"><strong id="overdue">—</strong><span>Plazo vencido</span></div>
+      <div class="stat"><strong id="without">—</strong><span>Sin seguimiento</span></div>
+    </div>
+  </section>
+  <div class="grid">
+    <section class="card">
+      <h2>Panel institucional PGCE</h2>
+      <p>Consulta prioridades, intervenciones y el estado general de la planificación institucional.</p>
+      <a class="action" id="panel" href="pgce-panel.html">Abrir panel PGCE</a>
+    </section>
+    <section class="card">
+      <h2>Seguimiento M1 · M2 · M3</h2>
+      <p>Registra avances, evidencia, ajustes y el historial de cada intervención.</p>
+      <a class="action" id="tracking" href="pgce-seguimiento.html">Abrir seguimiento</a>
+    </section>
+    <section class="card">
+      <h2>Carta Gantt</h2>
+      <p>Visualiza responsables, períodos de ejecución, plazos vencidos y tareas por completar.</p>
+      <a class="action" id="gantt" href="plan-gestion.html">Ver Carta Gantt</a>
+    </section>
+    <section class="card">
+      <h2>Plan institucional</h2>
+      <p>Consulta el consolidado de objetivos, intervenciones y acuerdos del establecimiento.</p>
+      <a class="action" id="plan" href="plan-intervencion-institucional.html">Abrir plan</a>
+    </section>
+    <section class="card">
+      <h2>Casos y protocolos</h2>
+      <p>Accede al registro reservado de casos, actuaciones y seguimiento de protocolos.</p>
+      <a class="action secondary" href="ver-caso.html">Ver casos</a>
+    </section>
+  </div>
+</main>
+<footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p></footer>
+<script>
+(async()=>{
+  const $=id=>document.getElementById(id);
+  let user;
+  try{user=await MECAuth.guard()}catch(e){return}
+  if(!user)return;
+  const eid=Number(user.establishment_id);
+  if(!Number.isSafeInteger(eid)||eid<=0){$('state').textContent='La sesión no tiene un establecimiento asociado.';return}
+  const query='?establishment_id='+encodeURIComponent(String(eid));
+  for(const [id,base] of Object.entries({back:'inicio.html',panel:'pgce-panel.html',tracking:'pgce-seguimiento.html',gantt:'plan-gestion.html',plan:'plan-intervencion-institucional.html'}))$(id).href=base+query;
+  $('school').textContent=user.establishment||'Mi establecimiento';
+  $('state').textContent='Cargando información institucional…';
+  try{
+    const r=await fetch(MECAuth.API+'/api/pgce/dashboard'+query);
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok||!data.ok)throw Error('not_ready');
+    const s=data.summary||{}, bs=s.by_status||{};
+    for(const [id,v] of Object.entries({total:s.total,progress:bs.in_progress,completed:bs.completed,overdue:s.overdue,without:s.without_updates}))$(id).textContent=Number.isFinite(Number(v))?String(Number(v)):'—';
+    if(data.establishment&&data.establishment.name)$('school').textContent=data.establishment.name;
+    $('stats').hidden=false;
+    $('state').textContent=Number(s.total||0)===0?'Todavía no se registran intervenciones. Puedes comenzar desde el panel PGCE.':'Información actualizada.';
+  }catch(e){
+    $('state').textContent='No fue posible cargar el resumen ahora. Puedes ingresar directamente a los módulos de gestión.';
+  }
+})();
+</script>
+</body>
+</html>

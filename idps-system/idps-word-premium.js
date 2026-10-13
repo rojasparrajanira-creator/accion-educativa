@@ -318,13 +318,14 @@ function deep(out,opts,st){
  const {type,rows}=opts,g=grade(rows[0]),aa=A(rows[0].answers),scores=indic(rows),ds=dim(st);
  out.push(head('04 | Análisis profesional socioeducativo por indicador'));
  const ranges=[[0,8],[8,16],[16,23],[23,30]];
+ if(type==='institution')out.push(para('Los resultados institucionales integran versiones del instrumento adaptadas a distintos grados. Las conclusiones por indicador son orientaciones exploratorias y deben revisarse con las preguntas, escalas y respuestas específicas de cada curso.'));
  for(let ix=0;ix<4;ix++){
   const [a,b]=ranges[ix],sub=ds.filter(x=>x.i===ix).sort((x,y)=>(x.v??101)-(y.v??101));
   out.push(head(LABELS[ix],true));
   const index=scores[ix].v;
   out.push(para('El índice transformado del indicador alcanza '+F(index)+'/100. La lectura de sus componentes identifica como menor proporción relativa de opciones favorables '+sub.slice(0,2).map(x=>x.name+' ('+F(x.v)+'% de respuestas 3–4 sobre ítems válidos)').join(' y ')+'. Esta distribución orienta preguntas de indagación y no establece por sí misma un nivel de riesgo.'));
   if(type==='individual'){
-   const lows=relativeScope(st,a,b,true).slice(0,3);
+   const lows=relativeScope(st,a,b,true).slice(0,2);
    for(const x of lows){const d=dimForIndex(x.i),lens=PROFESSIONAL_LENS[d];
     out.push(para(evidenceFor(x,g,true,aa)+' Desde '+d+', '+(lens?.meaning||'corresponde revisar esta percepción con el estudiante')+' '+(lens?.inquiry||'')));
    }
@@ -339,8 +340,7 @@ function deep(out,opts,st){
    const strength=st.slice(a,b).filter(x=>x.n).sort((x,y)=>x.lowPct-y.lowPct||x.i-y.i)[0];
    if(strength)out.push(para('Fortaleza relativa: en «'+statement(g,strength.i)+'», '+strength.high+' de '+strength.n+' respuestas se sitúan en opciones 3–4 ('+F(P(strength.high,strength.n))+'%). Se propone sostener las prácticas relacionadas y verificar que alcancen a estudiantes con experiencias diversas.'));
   }else{
-   out.push(para('Este resultado integra participantes de distintos grados. Debido a que la formulación específica varía entre versiones del instrumento, la lectura institucional se concentra en la dimensión y exige contrastar los enunciados concretos por curso antes de definir medidas.'));
-   for(const x of sub.slice(0,2)){const lens=PROFESSIONAL_LENS[x.name];
+   for(const x of sub.slice(0,1)){const lens=PROFESSIONAL_LENS[x.name];
     if(lens)out.push(para('Área de profundización: '+x.name+'. '+lens.meaning+' Hipótesis que deben examinarse: '+lens.inquiry));
    }
   }

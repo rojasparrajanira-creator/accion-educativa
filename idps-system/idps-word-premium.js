@@ -381,4 +381,90 @@ async function reportDoc(opts){
  const doc=new Document({creator:'Material Educativo Chile',title,styles:{default:{document:{run:{font:'Times New Roman',size:24,color:C.text},paragraph:{spacing:{line:360}}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1030,bottom:1030,left:1000,right:1000}}},headers:{default:new Header({children:[new Paragraph({children:[new TextRun({text:'IDPS  •  '+(est.name||''),size:16,color:C.muted})],border:{bottom:{color:C.line,style:BorderStyle.SINGLE,size:3}}})]})},footers:{default:new Footer({children:[new Paragraph({children:[new TextRun({text:'MATERIAL EDUCATIVO CHILE  •  Uso reservado  •  Página ',size:16,color:C.muted}),new TextRun({children:[PageNumber.CURRENT],size:16,color:C.muted})],alignment:AlignmentType.RIGHT})]})},children:out}]});
  return Packer.toBuffer(doc);
 }
-module.exports={reportDoc};
+
+const htmlEsc=x=>String(x===null||x===undefined?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const htmlN=x=>x===null||x===undefined?'—':F(x);
+const htmlPct=(n,d)=>d?F(100*n/d)+'%':'—';
+const gradeLetter=x=>className({grade_desc:x.grade||x.grade_desc,course_letter:x.letter||x.course_letter});
+function reportHtml(opts){
+ const {est,rows,type,denom,year,groups,cohort}=opts;
+ if(!rows?.length)throw Error('No hay respuestas registradas para este ámbito');
+ const st=stat(rows),dd=dim(st),ii=indic(rows),validDen=Number.isInteger(Number(denom))&&Number(denom)>0;
+ const comparable=validDen&&rows.length<=Number(denom),isStudent=type==='individual',isCourse=type==='course';
+ const heading=isStudent?'Informe individual de resultados IDPS':isCourse?'Informe técnico de resultados por curso':'Informe institucional de resultados IDPS';
+ const id=isStudent?fullName(rows[0]):isCourse?className(rows[0]):'Resultados institucionales';
+ const n=rows.length,scope=grade(rows[0]),countText=comparable?
+   n+' respuestas completas de '+Number(denom)+' estudiantes activos en nómina ('+F(100*n/denom)+'% de cobertura)':
+   n+' respuestas completas; '+(validDen?'el total de respuestas no coincide con el universo activo de '+denom+' estudiantes. Cobertura pendiente de conciliación.':'sin nómina activa comparable para validar la cobertura.');
+ const style='<style>.idps-premium{max-width:1050px;margin:auto;color:#203746;font-family:Inter,Arial,sans-serif}.idps-premium *{box-sizing:border-box}.idps-premium .rp-head{padding:25px 26px;border-radius:15px;background:#15384a;color:white}.idps-premium .rp-head h1{color:white;margin:8px 0;font-size:27px}.idps-premium .rp-head p{margin:3px 0;color:#d6eff0}.idps-premium .rp-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0 22px}.idps-premium .rp-meta>div,.idps-premium .rp-metric{border:1px solid #dce7e9;border-radius:12px;padding:14px;background:white;min-width:0}.idps-premium .rp-meta small{display:block;color:#687b85;margin-bottom:3px}.idps-premium .rp-meta strong{word-break:break-word}.idps-premium section{margin:21px 0;background:white;padding:20px;border:1px solid #dce7e9;border-radius:15px}.idps-premium h2{font-size:21px;color:#15384a;border-bottom:2px solid #b99238;padding-bottom:10px;margin:0 0 14px}.idps-premium h3{font-size:17px;color:#15384a;margin:18px 0 10px}.idps-premium p{line-height:1.63}.idps-premium .rp-summary{background:#f1f7f7;border-left:4px solid #168d90;padding:13px 15px;border-radius:8px}.idps-premium .rp-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.idps-premium .rp-metric b{font-size:27px;color:#15384a}.idps-premium .rp-metric>div:first-child{font-weight:700;margin-bottom:5px}.idps-premium .rp-track{display:flex;height:13px;width:100%;border-radius:30px;background:#e8eff1;overflow:hidden;margin:9px 0}.idps-premium .rp-track i{display:block;flex:0 0 auto;height:100%}.idps-premium .rp-note{font-size:12px;color:#617886}.idps-premium .rp-table-wrap{width:100%;overflow-x:auto}.idps-premium table{border-collapse:collapse;width:100%;font-size:13px;min-width:620px}.idps-premium th{background:#15384a;color:white;text-align:left}.idps-premium td,.idps-premium th{border:1px solid #dce7e9;padding:9px;vertical-align:top;word-break:normal}.idps-premium tbody tr:nth-child(even){background:#f5f9f9}.idps-premium .rp-insight{border-left:4px solid #b99238;padding:9px 13px;margin:10px 0;background:#fbf9f2}.idps-premium .rp-actions{margin:20px 0;display:flex;flex-wrap:wrap;gap:10px}.idps-premium .rp-button{display:inline-block;text-decoration:none;border-radius:8px;padding:11px 16px;background:#15384a;color:#fff;font-weight:700}.idps-premium .rp-button.secondary{color:#15384a;background:#e8f5f4}.idps-premium .rp-subcard{border-bottom:1px solid #e4edef;padding:10px 0}.idps-premium .rp-small{font-size:12px;color:#5e7580}.idps-premium .rp-grid-dims{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media(max-width:700px){.idps-premium .rp-meta{grid-template-columns:1fr}.idps-premium .rp-kpis,.idps-premium .rp-grid-dims{grid-template-columns:1fr}.idps-premium section{padding:16px}.idps-premium .rp-head{padding:18px}.idps-premium .rp-head h1{font-size:23px}}@media print{.idps-premium .rp-actions{display:none}.idps-premium section{break-inside:auto}.idps-premium .rp-metric{break-inside:avoid}}</style>';
+ const meta=[
+ ['Establecimiento',est.name||'—'],['RBD',est.rbd||'—'],['Comuna',est.commune||'—'],
+ ['Año de aplicación',year||rows[0].school_year||'—'],[isStudent?'Estudiante':isCourse?'Curso':'Alcance',id],
+ [isStudent?'Fecha de respuesta':'Respuestas completas',isStudent?date(rows[0].submitted_at):String(n)],
+ [isStudent?'Confidencialidad':'Universo activo comparable',isStudent?'Uso reservado':validDen?String(denom):'No disponible']
+ ];
+ const metadata=meta.map(([k,v])=>'<div><small>'+htmlEsc(k)+'</small><strong>'+htmlEsc(v)+'</strong></div>').join('');
+ const colors=['#b96e67','#c99b39','#76b6b0','#407da9'];
+ const indicatorRanges=[[0,8],[8,16],[16,23],[23,30]];
+ const distribution=indicatorRanges.map(([a,b],i)=>{
+  const row=fourOptionCounts(st.slice(a,b));
+  const vals=row.counts.map((v,k)=>row.total?100*v/row.total:0);
+  const segments=row.counts.map((v,k)=>'<i style="width:'+htmlEsc(F(vals[k]).replace(',','.'))+'%;background:'+colors[k]+'"></i>').join('');
+  const labels=answerLabels(scope).map((lab,k)=>htmlEsc(lab)+': '+htmlPct(row.counts[k],row.total)).join(' · ');
+  const score=ii[i].v;
+  return '<div class="rp-metric"><div>'+htmlEsc(LABELS[i])+'</div><b>'+htmlN(score)+' / 100</b><div class="rp-note">'+htmlPct(row.favorable,row.total)+' respuestas 3–4; '+htmlPct(row.less,row.total)+' respuestas 1–2</div><div class="rp-track">'+segments+'</div><div class="rp-small">'+labels+'</div></div>';
+ }).join('');
+ const ds=dd.map(d=>'<div class="rp-subcard"><b>'+htmlEsc(d.name)+'</b><div class="rp-track"><i style="background:'+['#407da9','#168d90','#b99238','#518875'][d.i]+';width:'+Math.max(0,Math.min(100,d.v||0))+'%"></i></div><div class="rp-small">'+htmlN(d.v)+'% de respuestas 3–4 a los ítems de esta subdimensión</div></div>').join('');
+ const ranked=ii.filter(x=>x.v!==null).sort((a,b)=>a.v-b.v);
+ const bottom=ranked[0],top=ranked[ranked.length-1],dRank=dd.filter(x=>x.v!==null).sort((a,b)=>a.v-b.v);
+ const summary=bottom&&top?'La menor puntuación relativa corresponde a '+bottom.name+' ('+F(bottom.v)+'/100) y la mayor a '+top.name+' ('+F(top.v)+'/100). Esto describe respuestas declaradas, no porcentajes de estudiantes con bienestar ni categorías oficiales de desempeño.':'No se dispone de indicadores válidos para comparar.';
+ const itemFinding=(x,g)=>{
+  const extra=x.n?' ('+x.low+' de '+x.n+' respuestas 1–2; '+htmlN(x.lowPct)+'%).':'';
+  return '«'+statement(g,x.i)+'»'+extra;
+ };
+ const professional=LABELS.map((label,index)=>{
+  const [a,b]=indicatorRanges[index],sub=dd.filter(x=>x.i===index&&x.v!==null).sort((x,y)=>x.v-y.v),focus=sub[0],
+  items=st.slice(a,b).filter(x=>x.n).sort((x,y)=>y.lowPct-x.lowPct);
+  let evidence='';
+  if(isStudent){
+   const marked=items.filter(x=>x.low>0).sort((x,y)=>x.i-y.i).slice(0,2);
+   evidence=marked.length?marked.map(x=>'En «'+statement(scope,x.i)+'» la respuesta es '+answerLabels(scope)[Number(A(rows[0].answers)[x.i])-1]+'.').join(' '):'No se registran respuestas 1–2 en los ítems de este indicador.';
+  }else if(isCourse){
+   evidence=items.slice(0,2).map(x=>'En «'+statement(scope,x.i)+'», '+x.low+' de '+x.n+' respuestas ('+htmlN(x.lowPct)+'%) se ubican en 1–2.').join(' ');
+  }else{
+   const examples=(groups||[]).filter(x=>x.rows?.length>=10).map(gr=>{
+    const found=stat(gr.rows).slice(a,b).filter(x=>x.n>=10).sort((x,y)=>y.lowPct-x.lowPct)[0];
+    return found?gradeLetter(gr)+': «'+statement(gr.grade,found.i)+'» ('+found.low+'/'+found.n+' opciones 1–2)':'';
+   }).filter(Boolean).slice(0,3);
+   evidence=examples.length?'Ejemplos por curso: '+examples.join('; ')+'.':'No hay cursos con al menos diez respuestas completas para ejemplificar preguntas en esta dimensión.';
+  }
+  const lens=focus?PROFESSIONAL_LENS[focus.name]:null,action=focus?ACTIONS[focus.name]:null;
+  return '<article class="rp-subcard"><h3>'+htmlEsc(label)+'</h3><p><b>Resultado:</b> '+htmlN(ii[index].v)+'/100. '+htmlEsc(focus?'Subdimensión para profundizar: '+focus.name+' ('+F(focus.v)+'% de opciones favorables).':'Subdimensiones sin registros válidos.')+'</p><p><b>Evidencia:</b> '+htmlEsc(evidence)+'</p><p><b>Lectura profesional:</b> '+htmlEsc((lens?.meaning||'Los resultados describen percepciones, no diagnósticos.')+' '+(lens?.inquiry||'Se debe revisar el contexto.'))+'</p><p><b>Orientación y verificación:</b> '+htmlEsc((action? ('Acción: '+action[0]+'. Responsable: '+action[1]+'. Indicador: '+action[2]+'. '):'')+(lens?.outcome||''))+'</p></article>';
+ }).join('');
+ let critical='';
+ if(isStudent){
+  const all=fourOptionCounts(st);
+  critical='<p>De las '+all.total+' respuestas individuales, '+all.favorable+' corresponden a opciones 3–4 y '+all.less+' a opciones 1–2. Una mayoría favorable no autoriza a etiquetar a la persona; se debe analizar cada experiencia declarada y sus fortalezas.</p>';
+  if(cohort?.length>=5){critical+='<div class="rp-table-wrap"><table><thead><tr><th>Indicador</th><th>Estudiante (puntos)</th><th>Curso (puntos)</th><th>Diferencia</th></tr></thead><tbody>'+ii.map((item,i)=>{const compareValue=indic(cohort)[i].v;return '<tr><td>'+htmlEsc(item.name)+'</td><td>'+htmlN(item.v)+'</td><td>'+htmlN(compareValue)+'</td><td>'+htmlN(item.v-compareValue)+'</td></tr>';}).join('')+'</tbody></table></div><p class="rp-small">Comparación descriptiva; no se identifican ni ordenan los compañeros.</p>';}
+ }else if(isCourse){
+  const contradiction=criticalItems(rows).slice(0,3);
+  critical=contradiction.length?contradiction.map(x=>'<div class="rp-insight"><b>Contraste:</b> '+htmlEsc(x.dim.name)+' presenta '+htmlN(x.dim.v)+'% de opciones favorables en conjunto, pero en «'+htmlEsc(statement(scope,x.item.i))+'» solo '+htmlPct(x.item.high,x.item.n)+' eligieron 3–4 ('+x.item.high+'/'+x.item.n+'). El promedio no debe ocultar esta pregunta.</div>').join(''):'<p>No se observan, con este criterio descriptivo, subdimensiones que superen 50% favorable y contengan una pregunta con 50% o menos en las opciones 3–4. Esto no demuestra ausencia de dificultades.</p>';
+ }else{
+  critical='<p>Las preguntas están adaptadas al nivel educativo. Los ejemplos deben examinarse por curso antes de interpretarse como patrones institucionales. No se comparan los textos diferentes como si fueran equivalentes.</p>';
+  if(groups?.length){critical+='<div class="rp-table-wrap"><table><thead><tr><th>Curso</th><th>Respuestas</th><th>Académica</th><th>Convivencia</th><th>Participación</th><th>Vida saludable</th></tr></thead><tbody>'+groups.map(gr=>'<tr><td>'+htmlEsc(gradeLetter(gr))+'</td><td>'+gr.n+'</td>'+gr.scores.map(x=>'<td>'+htmlN(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div><p class="rp-small">Índices sobre 100; distintas versiones del cuestionario limitan la comparabilidad estricta.</p>';}
+ }
+ const detailed= type==='institution'?'':('<section><h2>Resultados íntegros de las 30 preguntas</h2><div class="rp-table-wrap"><table><thead><tr><th>N.º</th><th>Enunciado del instrumento</th>'+(isStudent?'<th>Respuesta</th>':'<th>1</th><th>2</th><th>3</th><th>4</th><th>1–2</th>')+'</tr></thead><tbody>'+st.map(x=>'<tr><td>'+(x.i+1)+'</td><td>'+htmlEsc(statement(scope,x.i))+'</td>'+(isStudent?'<td>'+htmlEsc(answerLabels(scope)[Number(A(rows[0].answers)[x.i])-1]||'Sin respuesta')+'</td>':x.c.map(v=>'<td>'+v+'</td>').join('')+'<td>'+htmlPct(x.low,x.n)+'</td>')+'</tr>').join('')+'</tbody></table></div></section>');
+ const plan=dRank.slice(0,4).map(d=>{const a=ACTIONS[d.name]||['Revisar resultados y acordar medidas','Equipo educativo','Registro de acuerdos'];return '<tr><td>'+htmlEsc(d.name)+'</td><td>'+htmlEsc(a[0])+'</td><td>'+htmlEsc(a[1])+'</td><td>'+htmlEsc(isStudent?'2–4 semanas':'6–8 semanas')+'</td><td>'+htmlEsc(a[2])+'</td></tr>';}).join('');
+ const query=isStudent?'/panel/informe/word/estudiante?studentId='+encodeURIComponent(rows[0].student_id):isCourse?'/panel/informe/word/curso?year='+encodeURIComponent(year)+'&grade='+encodeURIComponent(rows[0].grade_desc)+'&letter='+encodeURIComponent(rows[0].course_letter||''):'/panel/informe/word/institucional?year='+encodeURIComponent(year);
+ const footer='<div class="rp-actions"><a class="rp-button" href="'+htmlEsc(query)+'">Descargar informe Word editable</a><a class="rp-button secondary" href="/panel/resultados">Volver a resultados</a></div>';
+ const body='<div class="idps-premium"><div class="rp-head"><div>MATERIAL EDUCATIVO CHILE · PLATAFORMA IDPS</div><h1>'+htmlEsc(heading)+'</h1><p>Interpretación socioeducativa y seguimiento</p></div><div class="rp-meta">'+metadata+'</div>'+
+ '<section><h2>01 | Alcance y síntesis ejecutiva</h2><p class="rp-summary">'+htmlEsc(countText)+'</p><p>'+htmlEsc(summary)+'</p>'+(comparable&&!isStudent?'<p>La cobertura alcanza el total de la nómina activa considerada. No existen cuestionarios pendientes dentro de ese universo. Esto no elimina posibles limitaciones propias del autorreporte.</p>':'')+'<p class="rp-note">Índice 0–100 ≠ porcentaje de estudiantes. Las respuestas se describen a partir de cuatro opciones y no constituyen resultados oficiales SIMCE/IDPS.</p></section>'+
+ '<section><h2>02 | Indicadores y distribución de respuestas</h2><div class="rp-kpis">'+distribution+'</div><p class="rp-small">Las barras representan la distribución 1–4 de respuestas a preguntas. No representan cuatro grupos diferentes de estudiantes.</p></section>'+
+ '<section><h2>03 | Perfil de subdimensiones</h2><div class="rp-grid-dims">'+ds+'</div></section>'+
+ '<section><h2>04 | Análisis profesional basado en evidencias</h2>'+professional+'</section>'+
+ '<section><h2>05 | Lectura crítica y contrastes</h2><p>Una mayoría de respuestas favorables no significa que todas las experiencias lo sean. La opción 2 indica una frecuencia o adhesión menor que la 3 y no debe confundirse con la opción 1.</p>'+critical+'</section>'+detailed+
+ '<section><h2>06 | Plan de mejora y seguimiento</h2><div class="rp-table-wrap"><table><thead><tr><th>Foco</th><th>Intervención</th><th>Responsable sugerido</th><th>Plazo</th><th>Indicador verificable</th></tr></thead><tbody>'+plan+'</tbody></table></div><p class="rp-note">Las acciones son orientativas; deben validarse con el equipo educativo y triangularse con antecedentes pertinentes.</p></section>'+
+ '<section><h2>07 | Consideraciones metodológicas y confidencialidad</h2><p>El instrumento corresponde a una herramienta diagnóstica interna de Material Educativo Chile, no a una evaluación oficial de la Agencia de Calidad de la Educación. Los resultados describen respuestas ordinales de estudiantes; no establecen diagnósticos, prevalencias clínicas, causalidad ni niveles oficiales de calidad.</p><p>Los resultados del curso deben interpretarse con su cobertura real, sus preguntas específicas y sus antecedentes contextuales. Los informes individuales tienen carácter reservado y las comparaciones grupales no exhiben identidades.</p></section>'+footer+'</div>';
+ return style+body;
+}
+module.exports={reportDoc,reportHtml};

@@ -2,6 +2,7 @@
 /* QA sin conexión a base de datos ni uso de información real de estudiantes. */
 const assert=require('node:assert/strict');
 const zlib=require('node:zlib');
+const fs=require('node:fs');
 const {reportDoc,reportHtml}=require('./idps-word-premium');
 
 function synthetic(n,grade,letter,year=2026){
@@ -39,6 +40,7 @@ async function check(options,label){
  const data=await reportDoc(options),html=reportHtml(options);
  assert.ok(Buffer.isBuffer(data),'El informe '+label+' no retornó un Buffer');
  assert.equal(data.toString('binary',0,2),'PK','El informe '+label+' no es ZIP/DOCX');
+ if(process.env.IDPS_QA_ARTIFACTS==='1'){fs.mkdirSync('qa-docx',{recursive:true});fs.writeFileSync('qa-docx/'+label+'.docx',data);}
  const documentXML=xmlEntry(data,'word/document.xml').toString('utf8');
  const content=allText(documentXML);
  assert.ok(documentXML.includes('w:drawing'),'El Word '+label+' no contiene gráficos embebidos');

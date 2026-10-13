@@ -93,7 +93,7 @@ function profiles(out,opts,st){
   out.push(new Paragraph({children:[new ImageRun({data:graphic(c.map((v,k)=>[v,['B96E67','C99B39','76B6B0','407DA9'][k]])),transformation:{width:460,height:20}})],spacing:{after:25}}));
   out.push(para(total?c.map((v,k)=>(k+1)+': '+F(100*v/total)+'% ('+v+')').join('   ·   '):'Sin respuestas válidas',true));
  }
- out.push(para('Leyenda: '+answerLabels(grade(opts.rows[0])).map((name,i)=>(i+1)+' '+name+' ('+['terracota','ocre','turquesa','azul'][i]+')').join('; ')+'. Cada barra se calcula sobre respuestas a preguntas, no sobre cantidad de estudiantes.',true));
+ out.push(para('Leyenda: '+(opts.type==='institution'?['Categoría 1','Categoría 2','Categoría 3','Categoría 4']:answerLabels(grade(opts.rows[0]))).map((name,i)=>(i+1)+' '+name+' ('+['terracota','ocre','turquesa','azul'][i]+')').join('; ')+'. Cada barra se calcula sobre respuestas a preguntas, no sobre cantidad de estudiantes.'+(opts.type==='institution'?' Las etiquetas de las opciones pueden diferir entre instrumentos de distintos niveles; se informan únicamente categorías ordinales agregadas.':''),true));
  out.push(head('03 | Análisis de subdimensiones'));
  for(const d of dim(st))bar(out,d.name,d.v,PALETTE[d.i]);
  out.push(para('El porcentaje de subdimensión expresa respuestas favorables (opciones 3–4) sobre respuestas válidas a sus preguntas. No mide prevalencia de bienestar o riesgo entre personas.',true));
@@ -411,7 +411,7 @@ function reportHtml(opts){
   const row=fourOptionCounts(st.slice(a,b));
   const vals=row.counts.map((v,k)=>row.total?100*v/row.total:0);
   const segments=row.counts.map((v,k)=>'<i style="width:'+htmlEsc(F(vals[k]).replace(',','.'))+'%;background:'+colors[k]+'"></i>').join('');
-  const labels=answerLabels(scope).map((lab,k)=>htmlEsc(lab)+': '+htmlPct(row.counts[k],row.total)).join(' · ');
+  const labels=(type==='institution'?['Categoría 1','Categoría 2','Categoría 3','Categoría 4']:answerLabels(scope)).map((lab,k)=>htmlEsc(lab)+': '+htmlPct(row.counts[k],row.total)).join(' · ');
   const score=ii[i].v;
   return '<div class="rp-metric"><div>'+htmlEsc(LABELS[i])+'</div><b>'+htmlN(score)+' / 100</b><div class="rp-note">'+htmlPct(row.favorable,row.total)+' respuestas 3–4; '+htmlPct(row.less,row.total)+' respuestas 1–2</div><div class="rp-track">'+segments+'</div><div class="rp-small">'+labels+'</div></div>';
  }).join('');
@@ -460,7 +460,7 @@ function reportHtml(opts){
  const footer='<div class="rp-actions"><a class="rp-button" href="'+htmlEsc(query)+'">Descargar informe Word editable</a><a class="rp-button secondary" href="/panel/resultados">Volver a resultados</a></div>';
  const body='<div class="idps-premium"><div class="rp-head"><div>MATERIAL EDUCATIVO CHILE · PLATAFORMA IDPS</div><h1>'+htmlEsc(heading)+'</h1><p>Interpretación socioeducativa y seguimiento</p></div><div class="rp-meta">'+metadata+'</div>'+
  '<section><h2>01 | Alcance y síntesis ejecutiva</h2><p class="rp-summary">'+htmlEsc(countText)+'</p><p>'+htmlEsc(summary)+'</p>'+(comparable&&!isStudent&&matched===Number(denom)?'<p>Todos los estudiantes de la nómina activa del ámbito evaluado registran respuesta completa. No hay encuestas pendientes dentro de ese universo, sin perjuicio de las limitaciones del autorreporte.</p>':'')+'<p class="rp-note">Índice 0–100 ≠ porcentaje de estudiantes. Las respuestas se describen a partir de cuatro opciones y no constituyen resultados oficiales SIMCE/IDPS.</p></section>'+
- '<section><h2>02 | Indicadores y distribución de respuestas</h2><div class="rp-kpis">'+distribution+'</div><p class="rp-small">Las barras representan la distribución 1–4 de respuestas a preguntas. No representan cuatro grupos diferentes de estudiantes.</p></section>'+
+ '<section><h2>02 | Indicadores y distribución de respuestas</h2><div class="rp-kpis">'+distribution+'</div><p class="rp-small">Las barras representan la distribución 1–4 de respuestas a preguntas. No representan cuatro grupos diferentes de estudiantes.'+(type==='institution'?' Las etiquetas originales y formulaciones varían por grado: la comparación agregada es estrictamente orientativa.':'')+'</p></section>'+
  '<section><h2>03 | Perfil de subdimensiones</h2><div class="rp-grid-dims">'+ds+'</div></section>'+
  '<section><h2>04 | Análisis profesional basado en evidencias</h2>'+professional+'</section>'+
  '<section><h2>05 | Lectura crítica y contrastes</h2><p>Una mayoría de respuestas favorables no significa que todas las experiencias lo sean. La opción 2 indica una frecuencia o adhesión menor que la 3 y no debe confundirse con la opción 1.</p>'+critical+'</section>'+detailed+

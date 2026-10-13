@@ -1,0 +1,32 @@
+name: IDPS Word reports QA
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'idps-system/idps-word-premium.js'
+      - 'idps-system/application-module.js'
+      - 'idps-system/test-idps-reports.js'
+      - 'idps-system/package.json'
+      - 'idps-public/questions-core.js'
+      - '.github/workflows/idps-word-qa.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - name: Read code
+        uses: actions/checkout@v4
+      - name: Configure Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        working-directory: idps-system
+        run: npm install --ignore-scripts
+      - name: Validate real DOCX ZIP output and HTML
+        working-directory: idps-system
+        run: npm run qa:reports

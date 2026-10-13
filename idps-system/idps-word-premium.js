@@ -81,6 +81,17 @@ function profiles(out,opts,st){
  out.push(head('02 | Indicadores IDPS: perfil de resultados'));
  for(const q of indic(opts.rows))bar(out,q.name,q.v,PALETTE[q.i]);
  out.push(para('Cada barra representa un índice transformado 0–100, no un porcentaje de estudiantes ni un resultado oficial de la Agencia de Calidad.',true));
+ out.push(head('Distribución real de opciones de respuesta por indicador',true));
+ const ranges=[[0,8],[8,16],[16,23],[23,30]];
+ for(let i=0;i<ranges.length;i++){
+  const items=st.slice(...ranges[i]);const c=[0,0,0,0];
+  for(const item of items)item.c.forEach((v,k)=>c[k]+=v);
+  const total=c.reduce((a,b)=>a+b,0);
+  out.push(new Paragraph({children:[new TextRun({text:LABELS[i],bold:true,color:C.navy,size:19})],keepNext:true,spacing:{before:75,after:20}}));
+  out.push(new Paragraph({children:[new ImageRun({data:graphic(c.map((v,k)=>[v,['B96E67','C99B39','76B6B0','407DA9'][k]])),transformation:{width:460,height:20}})],spacing:{after:25}}));
+  out.push(para(total?c.map((v,k)=>(k+1)+': '+F(100*v/total)+'% ('+v+')').join('   ·   '):'Sin respuestas válidas',true));
+ }
+ out.push(para('Leyenda: 1 Nunca o casi nunca (terracota); 2 A veces (ocre); 3 Casi siempre (turquesa); 4 Siempre o casi siempre (azul). Cada barra se calcula sobre respuestas a preguntas, no sobre cantidad de estudiantes.',true));
  out.push(head('03 | Análisis de subdimensiones'));
  for(const d of dim(st))bar(out,d.name,d.v,PALETTE[d.i]);
  out.push(para('El porcentaje de subdimensión expresa respuestas favorables (opciones 3–4) sobre respuestas válidas a sus preguntas. No mide prevalencia de bienestar o riesgo entre personas.',true));

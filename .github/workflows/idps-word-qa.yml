@@ -29,4 +29,10 @@ jobs:
         run: npm install --ignore-scripts
       - name: Validate real DOCX ZIP output and HTML
         working-directory: idps-system
-        run: npm run qa:reports
+        run: IDPS_QA_ARTIFACTS=1 npm run qa:reports
+      - name: Archive synthetic Word samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: idps-word-qa-samples
+          path: idps-system/qa-docx/*.docx
+          retention-days: 3

@@ -92,7 +92,7 @@ function profiles(out,opts,st){
   out.push(new Paragraph({children:[new ImageRun({data:graphic(c.map((v,k)=>[v,['B96E67','C99B39','76B6B0','407DA9'][k]])),transformation:{width:460,height:20}})],spacing:{after:25}}));
   out.push(para(total?c.map((v,k)=>(k+1)+': '+F(100*v/total)+'% ('+v+')').join('   ·   '):'Sin respuestas válidas',true));
  }
- out.push(para('Leyenda: 1 Nunca o casi nunca (terracota); 2 A veces (ocre); 3 Casi siempre (turquesa); 4 Siempre o casi siempre (azul). Cada barra se calcula sobre respuestas a preguntas, no sobre cantidad de estudiantes.',true));
+ out.push(para('Leyenda: '+answerLabels(grade(opts.rows[0])).map((name,i)=>(i+1)+' '+name+' ('+['terracota','ocre','turquesa','azul'][i]+')').join('; ')+'. Cada barra se calcula sobre respuestas a preguntas, no sobre cantidad de estudiantes.',true));
  out.push(head('03 | Análisis de subdimensiones'));
  for(const d of dim(st))bar(out,d.name,d.v,PALETTE[d.i]);
  out.push(para('El porcentaje de subdimensión expresa respuestas favorables (opciones 3–4) sobre respuestas válidas a sus preguntas. No mide prevalencia de bienestar o riesgo entre personas.',true));
@@ -205,6 +205,74 @@ function integratedProfessionalReading(out,opts,st){
  }
 }
 
+
+function fourOptionCounts(items){
+ const out=[0,0,0,0];
+ for(const x of items)for(let k=0;k<4;k++)out[k]+=Number(x.c?.[k]||0);
+ const total=out.reduce((a,b)=>a+b,0);
+ return {counts:out,total,favorable:out[2]+out[3],less:out[0]+out[1],favorablePct:P(out[2]+out[3],total),lessPct:P(out[0]+out[1],total)};
+}
+function criticalItems(groupRows){
+ const g=grade(groupRows[0]),itemStats=stat(groupRows),dd=dim(itemStats);
+ const items=[];
+ for(const dimension of dd){
+  if(!dimension.n||dimension.v===null||dimension.v<=50)continue;
+  const within=itemStats.slice(dimension.a,dimension.b).filter(x=>x.n>=Math.min(10,groupRows.length));
+  // Find an item with at most 50% favorable responses within a majority-favorable subdimension.
+  const weak=within.filter(x=>P(x.high,x.n)<=50).sort((a,b)=>P(a.high,a.n)-P(b.high,b.n))[0];
+  if(weak)items.push({dim:dimension,item:weak,gradeName:g,course:className(groupRows[0])});
+ }
+ return items.sort((a,b)=>P(a.item.high,a.item.n)-P(b.item.high,b.item.n));
+}
+function criticalReading(out,opts,st){
+ const {type,rows,groups}=opts,g=grade(rows[0]);
+ out.push(head('Lectura crítica: mayorías favorables, matices y brechas',true));
+ out.push(para('Para los enunciados redactados en sentido favorable, las opciones 3 y 4 se informan como respuestas más favorables; la opción 2 expresa una frecuencia baja o adhesión menor («A veces» o «En desacuerdo», según el nivel), y la opción 1 la menor. Agrupar 1–2 no autoriza a llamarlas indistintamente «negativas» ni a clasificar a personas. Una mayoría superior al 50% en 3–4 es un dato descriptivo, no un umbral oficial de calidad, logro o seguridad.'));
+ const ranges=[[0,8],[8,16],[16,23],[23,30]],tableData=[];
+ for(let i=0;i<4;i++){
+  const v=fourOptionCounts(st.slice(...ranges[i]));
+  tableData.push([LABELS[i],...v.counts.map((n,k)=>v.total?F(100*n/v.total)+'%':'—'),F(v.favorablePct)+'%',F(v.lessPct)+'%']);
+ }
+ out.push(table(['Indicador','Opción 1','Opción 2','Opción 3','Opción 4','3–4 favorables','1–2 menor frecuencia'],tableData));
+ out.push(para('Las celdas anteriores usan como denominador respuestas válidas a todos los ítems de cada indicador, no personas únicas. Deben leerse junto con las preguntas y con la dispersión de resultados. En el informe individual representan la proporción de enunciados marcados con cada opción, nunca el porcentaje de compañeros.',true));
+ if(type==='individual'){
+  const mix=fourOptionCounts(st);
+  out.push(para('Este registro contiene '+mix.favorable+' de '+mix.total+' respuestas en opciones 3–4 ('+F(mix.favorablePct)+'%) y '+mix.less+' en 1–2 ('+F(mix.lessPct)+'%). Aun cuando la primera cifra supera el 50%, no corresponde hablar de un estudiante «positivo» o «negativo»; deben reconocerse tanto sus recursos como sus preguntas que requieren escucha y apoyo.'));
+  const sometimes=st.filter(x=>x.c[1]>0).length,never=st.filter(x=>x.c[0]>0).length;
+  out.push(para('La distribución distingue '+sometimes+' respuestas de frecuencia intermedia (opción 2) y '+never+' de menor frecuencia o adhesión (opción 1). Estos matices hacen necesario conversar sobre experiencias específicas en lugar de agrupar todas las respuestas 1–2 bajo una misma etiqueta.'));
+ }else if(type==='course'){
+  const mix=fourOptionCounts(st);
+  if(mix.favorablePct>50){
+   out.push(para('En conjunto, la mayoría de las respuestas del curso se concentra en opciones 3–4 ('+F(mix.favorablePct)+'% de las respuestas válidas). Esta lectura muestra fortalezas declaradas, pero no garantiza que todos los estudiantes tengan experiencias consistentes en cada ámbito ni permite descartar problemáticas particulares.'));
+  }else{
+   out.push(para('Las respuestas 3–4 representan '+F(mix.favorablePct)+'% del total de ítems válidos del curso; no alcanzan una mayoría del conjunto. Corresponde examinar también las fortalezas presentes en preguntas específicas, sin describir al grupo mediante una sola etiqueta.'));
+  }
+  const gaps=criticalItems(rows).slice(0,3);
+  for(const {dim:dimension,item} of gaps){
+   const percent=P(item.high,item.n),parts= item.c;
+   out.push(para('Contraste relevante: '+dimension.name+' presenta '+F(dimension.v)+'% de respuestas favorables considerando sus preguntas; sin embargo, en «'+statement(g,item.i)+'» solo '+item.high+' de '+item.n+' estudiantes ('+F(percent)+'%) eligieron 3–4. Las opciones 1–2 corresponden a '+parts[0]+' respuestas 1 y '+parts[1]+' respuestas 2. El resultado medio de la subdimensión está ocultando una experiencia menos favorable en este enunciado específico.'));
+  }
+  if(!gaps.length){
+   const worst=st.filter(x=>x.n>=Math.min(10,rows.length)).sort((a,b)=>b.lowPct-a.lowPct)[0];
+   if(worst)out.push(para('La pregunta con menor adhesión relativa es «'+statement(g,worst.i)+'» ('+F(P(worst.high,worst.n))+'% en opciones 3–4; '+worst.c[0]+' respuestas 1 y '+worst.c[1]+' respuestas 2). Incluso si el balance global resulta favorable, esta pregunta debe contrastarse con observaciones y diálogo con estudiantes.'));
+  }
+  out.push(para('La respuesta educativa no consiste en disminuir artificialmente un promedio ni en formular diagnósticos: se deben preservar los aspectos favorables y examinar con prioridad las preguntas donde existe menor adhesión, distinguiendo respuestas de frecuencia intermedia de experiencias sistemáticamente desfavorables.'));
+ }else{
+  const eligible=(groups||[]).filter(x=>x.rows?.length>=10),contrasts=[];
+  for(const course of eligible){
+   for(const item of criticalItems(course.rows).slice(0,1))contrasts.push(item);
+  }
+  contrasts.sort((a,b)=>P(a.item.high,a.item.n)-P(b.item.high,b.item.n));
+  if(contrasts.length){
+   const examples=contrasts.slice(0,3).map(x=>x.course+': '+x.dim.name+' ('+F(x.dim.v)+'% 3–4), pero «'+statement(x.gradeName,x.item.i)+'» registra '+F(P(x.item.high,x.item.n))+'% 3–4 ('+x.item.high+'/'+x.item.n+' respuestas).');
+   out.push(para('Tensiones internas observadas por curso: '+examples.join(' ')));
+  }else{
+   out.push(para('No se detectaron, con este criterio exploratorio, contrastes entre una subdimensión mayoritariamente favorable y un ítem con 50% o menos de respuestas 3–4 en los cursos con al menos diez registros. Esto no demuestra que todas las experiencias sean favorables.'));
+  }
+  out.push(para('La lectura institucional debe presentar fortalezas y necesidades de manera simultánea. Una mayoría de respuestas 3–4 en el total no prueba satisfacción homogénea, debido a que cada estudiante aporta múltiples respuestas y a que los instrumentos tienen redacciones adaptadas al grado. Las decisiones requieren revisión por curso y, cuando corresponda, por ciclo.'));
+ }
+}
+
 function deep(out,opts,st){
  const {type,rows}=opts,g=grade(rows[0]),aa=A(rows[0].answers),scores=indic(rows),ds=dim(st);
  out.push(head('04 | Análisis profesional socioeducativo por indicador'));
@@ -306,7 +374,7 @@ async function reportDoc(opts){
  if(type==='individual')meta.push(['Estudiante',fullName(first)],['Curso',className(first)],['Fecha de encuesta',date(first.submitted_at)],['Uso','Reservado']);
  else meta.push(['Unidad',type==='course'?className(first):'Institución'],['Respuestas completas',rows.length],['Habilitados comparables',Number.isInteger(Number(denom))?denom:'No disponible'],['Cobertura',Number(denom)>=rows.length&&Number(denom)>0?F(P(rows.length,denom))+'%':'No calculable']);
  out.push(table(['Identificación','Antecedente'],meta));
- sum(out,opts,st);profiles(out,opts,st);deep(out,opts,st);rawData(out,opts,st);compare(out,opts);plan(out,opts,st);
+ sum(out,opts,st);profiles(out,opts,st);criticalReading(out,opts,st);deep(out,opts,st);rawData(out,opts,st);compare(out,opts);plan(out,opts,st);
  out.push(head(type==='institution'?'07 | Resguardos metodológicos y de confidencialidad':'08 | Resguardos metodológicos y de confidencialidad'));
  out.push(para('El instrumento utilizado es un diagnóstico interno de Material Educativo Chile. Sus índices son transformaciones descriptivas de respuestas ordinales, no resultados oficiales IDPS/SIMCE, baremos certificados ni diagnósticos clínicos. Las frecuencias deben interpretarse según los enunciados aplicados, su contexto y el grupo participante.'));
  out.push(para('No corresponde formular diagnósticos, sanciones ni conclusiones causales a partir de respuestas aisladas. La devolución debe resguardar identidades y complementarse con entrevistas voluntarias, observaciones pedagógicas, asistencia y antecedentes institucionales pertinentes.'));

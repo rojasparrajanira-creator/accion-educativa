@@ -57,25 +57,38 @@ function modalityLabel(v){
       dateLabel(cfg.start_date)+" al "+dateLabel(cfg.end_date)+" · "+
       modalityLabel(cfg.modality)+" · "+(cfg.estimated_minutes||25)+" min · Estado: "+(m.status||"draft");
 
-    const today=new Date();today.setHours(0,0,0,0);
-    const startDate=cfg.start_date?new Date(String(cfg.start_date).slice(0,10)+"T12:00:00"):null;
-    const endDate=cfg.end_date?new Date(String(cfg.end_date).slice(0,10)+"T12:00:00"):null;
-    if(!cfg.start_date||!cfg.end_date){
+    // Compare calendar dates in Chile, as the server does. A measurement
+    // starting today must be activatable today, regardless of device timezone.
+    const parts=new Intl.DateTimeFormat("en-US",{
+      timeZone:"America/Santiago",year:"numeric",month:"2-digit",day:"2-digit"
+    }).formatToParts(new Date());
+    const calendar=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+    const todayChile=calendar.year+"-"+calendar.month+"-"+calendar.day;
+    const startDate=cfg.start_date?String(cfg.start_date).slice(0,10):null;
+    const endDate=cfg.end_date?String(cfg.end_date).slice(0,10):null;
+    activateBtn.dataset.active="0";
+    if(m.status==="active"){
+      // An active measurement must always permit navigation to its tracking,
+      // even when its configured period has ended.
+      activationStatus.textContent="La medición ya está habilitada.";
+      activateBtn.textContent="Ir a seguimiento →";
+      activateBtn.dataset.active="1";
+      activateBtn.disabled=false;
+    }else if(!startDate||!endDate){
       activateBtn.disabled=true;
       activationStatus.textContent="Debes guardar la configuración antes de habilitar la medición.";
     }else if(!appCount){
       activateBtn.disabled=true;
       activationStatus.textContent="Debes tener al menos una aplicación asignada antes de habilitar la medición.";
-    }else if(startDate&&today<startDate){
+    }else if(todayChile<startDate){
       activateBtn.disabled=true;
       activationStatus.textContent="El período configurado aún no comienza. Ajusta la fecha de inicio o espera al período definido.";
-    }else if(endDate&&today>endDate){
+    }else if(todayChile>endDate){
       activateBtn.disabled=true;
       activationStatus.textContent="El período configurado ya finalizó. Actualiza las fechas antes de habilitar la medición.";
-    }else if(m.status==="active"){
-      activationStatus.textContent="La medición ya está habilitada.";
-      activateBtn.textContent="Ir a seguimiento →";
-      activateBtn.dataset.active="1";
+    }else{
+      activationStatus.textContent="La configuración y el período están vigentes. Puedes confirmar la habilitación.";
+      activateBtn.disabled=false;
     }
 
     const back=document.querySelector("a[href='generar-accesos.html']");

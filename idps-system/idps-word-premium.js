@@ -6,6 +6,7 @@ const LABELS=['Autoestima académica y motivación escolar','Clima de convivenci
 const DIMS=[['Autopercepción académica',0,4,0],['Motivación escolar',4,8,0],['Ambiente de respeto',8,11,1],['Ambiente organizado',11,14,1],['Ambiente seguro',14,16,1],['Pertenencia',16,18,2],['Participación',18,20,2],['Vida democrática',20,23,2],['Alimentación',23,26,3],['Vida activa',26,28,3],['Autocuidado',28,30,3]];
 const C={navy:'15384A',blue:'407DA9',teal:'168D90',gold:'B99238',green:'518875',white:'FFFFFF',text:'25394A',muted:'677A86',line:'DCE7E9',pale:'EFF5F6',rose:'B96E67'};
 const PALETTE=[C.blue,C.teal,C.gold,C.green];
+const PROFESSIONAL=require('./idps-professional-analysis');
 const ACTIONS={
 'Autopercepción académica':['Retroalimentar el esfuerzo y las estrategias; acordar metas de aprendizaje alcanzables','Profesor/a jefe y docentes','Revisión quincenal de metas'],
 'Motivación escolar':['Desarrollar experiencias de logro, elección y participación activa en el aprendizaje','UTP y docentes','Registro de actividades y devolución estudiantil'],
@@ -97,21 +98,24 @@ function profiles(out,opts,st){
  out.push(para('El porcentaje de subdimensión expresa respuestas favorables (opciones 3–4) sobre respuestas válidas a sus preguntas. No mide prevalencia de bienestar o riesgo entre personas.',true));
 }
 function deep(out,opts,st){
- const {type,rows}=opts,g=grade(rows[0]),aa=A(rows[0].answers),scores=indic(rows),ds=dim(st);
- out.push(head('04 | Interpretación cualitativa y hallazgos por indicador'));
- for(let ix=0;ix<4;ix++){
-  const r=ix===0?[0,8]:ix===1?[8,16]:ix===2?[16,23]:[23,30],sub=ds.filter(x=>x.i===ix).sort((a,b)=>(a.v??101)-(b.v??101));
-  out.push(head(LABELS[ix],true));
-  out.push(para('Índice transformado: '+F(scores[ix].v)+'/100. La lectura por subdimensiones destaca '+sub.slice(0,2).map(x=>x.name+' ('+F(x.v)+'% respuestas favorables)').join(' y ')+'.'));
-  if(type==='individual'){
-   const lows=st.slice(r[0],r[1]).filter(x=>x.low).slice(0,3);
-   for(const x of lows)out.push(para('Respuesta que amerita escucha: «'+statement(g,x.i)+'». Opción marcada: '+(['Nunca o casi nunca','A veces','Casi siempre','Siempre o casi siempre'][Number(aa[x.i])-1]||'Sin respuesta')+'.'));
-   if(!lows.length)out.push(para('En los ítems de esta área no se registran opciones 1–2; esto no excluye posibles necesidades de apoyo.'));
-  }else if(type==='course'){
-   for(const x of st.slice(r[0],r[1]).filter(x=>x.n).sort((a,b)=>b.lowPct-a.lowPct).slice(0,2))out.push(para('«'+statement(g,x.i)+'»: '+x.low+' de '+x.n+' respuestas 1–2 ('+F(x.lowPct)+'%); '+x.high+' respuestas 3–4. El hallazgo debe contrastarse con observaciones y diálogo del curso.'));
-  }else out.push(para('La interpretación de preguntas concretas se desagrega por curso en la sección de resultados institucionales; no se supone redacción idéntica entre niveles.'));
-  const foc=sub[0],act=foc&&ACTIONS[foc.name];if(act)out.push(para('Intervención contextual propuesta: '+act[0]+'. Responsable sugerido: '+act[1]+'. Evidencia: '+act[2]+'.'));
+ const sections=PROFESSIONAL.indicatorAnalysis({
+  type:opts.type,rows:opts.rows,st,dim:dim(st),scores:indic(opts.rows),
+  groups:opts.groups||[],cohort:opts.cohort||[],statement
+ });
+ out.push(head('04 | Análisis profesional y apreciación socioeducativa'));
+ out.push(para('En esta sección se distingue evidencia estadística, interpretación profesional orientativa y propuesta de intervención. Las lecturas se basan en las respuestas efectivamente registradas y en la redacción del instrumento correspondiente al nivel; no se presentan como conclusiones causales ni diagnósticas.',true));
+ for(const [i,section] of sections.entries()){
+  out.push(head('4.'+(i+1)+'  '+section.name,true));
+  out.push(para('Pregunta de análisis: '+section.question,true));
+  out.push(new Paragraph({children:[new TextRun({text:'Evidencia y hallazgos específicos',bold:true,color:C.blue,size:21})],spacing:{before:120,after:60},keepNext:true}));
+  for(const x of section.figures)out.push(para(x));
+  out.push(new Paragraph({children:[new TextRun({text:'Interpretación socioeducativa',bold:true,color:C.teal,size:21})],spacing:{before:125,after:60},keepNext:true}));
+  for(const x of section.interpretation)out.push(para(x));
+  out.push(new Paragraph({children:[new TextRun({text:'Orientaciones de intervención y seguimiento',bold:true,color:C.gold,size:21})],spacing:{before:125,after:60},keepNext:true}));
+  for(const x of section.recommendation)out.push(para(x));
  }
+ out.push(head('Valoración profesional integrada: prioridades de gestión',true));
+ for(const x of PROFESSIONAL.integrated({type:opts.type,rows:opts.rows,st,dim:dim(st),scores:indic(opts.rows),groups:opts.groups||[],cohort:opts.cohort||[],statement}))out.push(para(x));
 }
 function rawData(out,opts,st){
  if(opts.type==='institution')return;
@@ -140,10 +144,16 @@ function compare(out,opts){
  }
 }
 function plan(out,opts,st){
- out.push(head(opts.type==='institution'?'06 | Plan institucional de mejora y seguimiento':'07 | Plan de acción y seguimiento'));
- const d=dim(st).filter(x=>x.n>0).sort((a,b)=>a.v-b.v).slice(0,4);
- out.push(table(['Evidencia','Acción propuesta','Responsable sugerido','Plazo orientativo','Verificación'],d.map(x=>{const a=ACTIONS[x.name];return[x.name+': '+F(100-x.v)+'% respuestas 1–2',a[0],a[1],'6 a 8 semanas',a[2]];})));
- out.push(para('Las medidas deben ajustarse a las necesidades reales del curso, los antecedentes profesionales disponibles y el proyecto educativo, y quedar registradas para su evaluación.',true));
+ out.push(head(opts.type==='institution'?'06 | Plan institucional de mejora y seguimiento':'07 | Plan de mejora, seguimiento y responsables'));
+ const priorities=PROFESSIONAL.actionRows({type:opts.type,rows:opts.rows,st,dim:dim(st),statement});
+ out.push(table(['Foco priorizado y fundamento','Acción educativa concreta','Responsable y plazo','Indicador verificable'],priorities.map(p=>[
+  p.priority+'. '+p.evidence,
+  p.action,
+  p.responsible+' · '+p.due,
+  p.verification+'; '+p.followUp
+ ])));
+ out.push(para('Criterio de priorización: subdimensiones con mayor proporción descriptiva de opciones 1–2. Este orden es exploratorio y no constituye un umbral psicométrico validado de gravedad. Las medidas deben ser contextualizadas y aprobadas por los equipos profesionales.',true));
+ out.push(para('Seguimiento propuesto: dejar constancia de la situación inicial, realizar las acciones acordadas, consultar nuevamente a los participantes y revisar la implementación a las seis u ocho semanas. Una variación posterior no demuestra por sí sola causalidad.',true));
 }
 async function reportDoc(opts){
  const {est,type,rows,denom,year}=opts;if(!rows?.length)throw Error('No hay respuestas para generar el informe.');

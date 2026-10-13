@@ -36,8 +36,48 @@ function indic(rows){return LABELS.map((name,i)=>{const points=rows.map(r=>Numbe
 function dim(st){return DIMS.map(([name,a,b,i])=>{const s=st.slice(a,b),n=s.reduce((a,x)=>a+x.n,0),yes=s.reduce((a,x)=>a+x.high,0);return{name,a,b,i,n,yes,v:P(yes,n)};});}
 function para(x,sm=false){return new Paragraph({children:[new TextRun({text:String(x),color:sm?C.muted:C.text,size:sm?19:23,italics:sm})],alignment:sm?AlignmentType.LEFT:AlignmentType.JUSTIFIED,spacing:{line:sm?290:360,after:sm?145:170}});}
 function head(x,sub=false){return new Paragraph({children:[new TextRun({text:String(x),bold:true,color:C.navy,size:sub?24:29})],keepNext:true,spacing:{before:sub?180:300,after:125},border:sub?undefined:{bottom:{style:BorderStyle.SINGLE,color:C.gold,size:10,space:8}}});}
-function cel(x,hd=false){return new TableCell({shading:{fill:hd?C.navy:C.white},margins:{top:87,bottom:87,left:93,right:93},children:[new Paragraph({children:[new TextRun({text:String(x),bold:hd,color:hd?C.white:C.text,size:hd?18:18})],spacing:{line:260}})]});}
-function table(headers,values){return new Table({width:{size:100,type:WidthType.PERCENTAGE},borders:{top:{style:BorderStyle.SINGLE,size:4,color:C.line},bottom:{style:BorderStyle.SINGLE,size:4,color:C.line},insideH:{style:BorderStyle.SINGLE,size:3,color:C.line},insideV:{style:BorderStyle.SINGLE,size:2,color:C.line}},rows:[new TableRow({tableHeader:true,cantSplit:true,children:headers.map(v=>cel(v,true))}),...values.map(row=>new TableRow({cantSplit:true,children:row.map(v=>cel(v))}))]});}
+function cel(x,hd=false,widthPct=null,center=false){
+ return new TableCell({
+  width:widthPct?{size:widthPct,type:WidthType.PERCENTAGE}:undefined,
+  shading:{fill:hd?C.navy:C.white},
+  margins:{top:87,bottom:87,left:93,right:93},
+  children:[new Paragraph({
+   children:[new TextRun({text:String(x),bold:hd,color:hd?C.white:C.text,size:hd?18:18})],
+   alignment:center?AlignmentType.CENTER:AlignmentType.LEFT,
+   spacing:{line:260}
+  })]
+ });
+}
+function table(headers,values){
+ const labels=headers.map(x=>String(x||'').toLowerCase());
+ const isItems=labels.some(x=>x.includes('enunciado'))&&headers.length===7;
+ const isIndividualItems=labels.some(x=>x.includes('enunciado'))&&headers.length===3;
+ const widths=isItems?[7,48,7,7,7,7,17]:
+  isIndividualItems?[8,62,30]:
+  headers.length===2?[34,66]:
+  headers.length===5?[23,34,18,11,14]:
+  headers.length===6?[24,11,16,16,16,17]:
+  Array.from({length:headers.length},()=>100/headers.length);
+ const center=idx=>(isItems&&(idx===0||idx>=2))||(headers.length===6&&idx>=1);
+ const grid=widths.map(x=>Math.round(9906*x/100));
+ const rows=[new TableRow({
+  tableHeader:true,cantSplit:true,
+  children:headers.map((v,i)=>cel(v,true,widths[i],center(i)))
+ })];
+ for(const row of values)rows.push(new TableRow({
+  cantSplit:true,children:row.map((v,i)=>cel(v,false,widths[i],center(i)))
+ }));
+ return new Table({
+  width:{size:100,type:WidthType.PERCENTAGE},columnWidths:grid,
+  borders:{
+   top:{style:BorderStyle.SINGLE,size:4,color:C.line},
+   bottom:{style:BorderStyle.SINGLE,size:4,color:C.line},
+   insideH:{style:BorderStyle.SINGLE,size:3,color:C.line},
+   insideV:{style:BorderStyle.SINGLE,size:2,color:C.line}
+  },
+  rows
+ });
+}
 function crc(buf){let c=0xffffffff;for(const b of buf){c^=b;for(let k=0;k<8;k++)c=(c&1)?(c>>>1)^0xedb88320:c>>>1;}return(c^0xffffffff)>>>0;}
 function chunk(tag,data){const t=Buffer.from(tag),b=Buffer.alloc(data.length+12);b.writeUInt32BE(data.length,0);t.copy(b,4);data.copy(b,8);b.writeUInt32BE(crc(Buffer.concat([t,data])),data.length+8);return b;}
 function rgb(hex){return[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));}

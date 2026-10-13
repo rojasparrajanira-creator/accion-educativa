@@ -27,7 +27,7 @@ const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 const grade=r=>String(r.grade_desc||'').trim();
 const className=r=>[r.grade_desc,r.course_letter].filter(Boolean).join(' ');
 const fullName=r=>[r.first_names,r.last_name_paternal,r.last_name_maternal].filter(Boolean).join(' ');
-const date=x=>{try{return new Date(x).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'});}catch{return '—';}};
+const date=x=>{try{return new Date(x).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'America/Santiago'});}catch{return '—';}};
 let BANK=null;
 function qs(g){if(!BANK){try{const ctx={window:{}};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../idps-public/questions-core.js'),'utf8'),ctx,{timeout:1000});BANK=ctx.window.IDPS_QUESTIONS||{};}catch(e){console.warn('[IDPS_QUESTIONS_REPORT]',e.message);BANK={};}}return BANK[String(g||'').trim()]||[];}
 function statement(g,i){return qs(g)[i]||('Ítem '+(i+1)+' (revisar la versión del instrumento)');}
@@ -54,16 +54,17 @@ function graphic(segments){
  return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',ih),chunk('IDAT',zlib.deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);
 }
 function bar(out,label,value,color){out.push(new Paragraph({children:[new TextRun({text:label,color:C.text,bold:true,size:20}),new TextRun({text:'   '+(value==null?'Sin datos':F(value)+'%'),bold:true,color:C.navy,size:20})],keepNext:true,spacing:{before:80,after:20}}));out.push(new Paragraph({children:[new ImageRun({data:graphic([[value==null?0:value,color],[value==null?100:100-value,'E9F0F1']]),transformation:{width:460,height:20}})],spacing:{after:60}}));}
-function description(rows,denom,type){
+function description(rows,denom,type,coverageAnswered){
  if(type==='individual')return'Una respuesta individual completa; interpretación reservada para acompañamiento educativo.';
- const n=rows.length,d=Number(denom);
- if(!Number.isInteger(d)||d<1)return n+' respuestas completas. No hay denominador verificable: no se informa cobertura.';
- if(n>d)return n+' respuestas registradas y '+d+' estudiantes activos comparables. Los datos de matrícula no concuerdan: cobertura no calculable hasta verificar el denominador.';
- return n+' respuestas completas de '+d+' estudiantes habilitados ('+F(P(n,d))+'% de cobertura).';
+ const n=rows.length,d=Number(denom),completed=Number(coverageAnswered);
+ if(!Number.isInteger(d)||d<1)return n+' respuestas completas. No hay nómina activa verificable: no se informa cobertura.';
+ if(!Number.isInteger(completed)||completed<0||completed>d)return n+' respuestas registradas y '+d+' estudiantes activos: cobertura no calculable hasta conciliar las identidades de la nómina.';
+ const extra=n-completed;
+ return n+' respuestas completas registradas; '+completed+' de '+d+' estudiantes de la nómina activa respondieron ('+F(P(completed,d))+'% de cobertura).'+(extra>0?' Existen '+extra+' respuesta(s) que no corresponden al universo activo de la nómina; revisar antes de distribuir el informe.':'');
 }
 function sum(out,opts,st){
- const {rows,type,denom,cohort}=opts,v=indic(rows).filter(x=>x.v!=null).sort((a,b)=>a.v-b.v);
- out.push(head('01 | Síntesis ejecutiva'));out.push(para(description(rows,denom,type)));
+ const {rows,type,denom,coverageAnswered,cohort}=opts,v=indic(rows).filter(x=>x.v!=null).sort((a,b)=>a.v-b.v);
+ out.push(head('01 | Síntesis ejecutiva'));out.push(para(description(rows,denom,type,coverageAnswered)));
  if(!v.length)return;
  const a=v[0],b=v[v.length-1];
  out.push(para('El indicador con menor índice relativo es '+a.name+' ('+F(a.v)+'/100), mientras que el mayor corresponde a '+b.name+' ('+F(b.v)+'/100). Esta diferencia es descriptiva; no implica diagnósticos ni niveles oficiales de desempeño.'));
@@ -365,14 +366,14 @@ function plan(out,opts,st){
  out.push(para('Las metas, responsables y medidas propuestas son orientativas; deberán ser validadas por el equipo profesional y ajustadas al contexto institucional antes de su implementación.',true));
 }
 async function reportDoc(opts){
- const {est,type,rows,denom,year}=opts;if(!rows?.length)throw Error('No hay respuestas para generar el informe.');
+ const {est,type,rows,denom,coverageAnswered,year}=opts;if(!rows?.length)throw Error('No hay respuestas para generar el informe.');
  const st=stat(rows),first=rows[0],title=type==='individual'?'Informe individual de resultados IDPS':type==='course'?'Informe de resultados IDPS por curso':'Informe institucional de resultados IDPS',out=[];
  out.push(new Paragraph({shading:{fill:C.navy},indent:{left:130},children:[new TextRun({text:'MATERIAL EDUCATIVO CHILE  /  EVALUACIÓN IDPS',color:C.white,bold:true,size:19})],spacing:{before:155,after:170}}));
  out.push(new Paragraph({children:[new TextRun({text:title,bold:true,color:C.navy,size:36})],spacing:{before:150,after:110}}));
  out.push(new Paragraph({children:[new TextRun({text:'Análisis técnico socioeducativo | '+date(new Date()),color:C.muted,size:19})],spacing:{after:200}}));
  const meta=[['Establecimiento',est.name||'—'],['RBD',est.rbd||'—'],['Comuna',est.commune||'—'],['Año',year||first.school_year||'—']];
  if(type==='individual')meta.push(['Estudiante',fullName(first)],['Curso',className(first)],['Fecha de encuesta',date(first.submitted_at)],['Uso','Reservado']);
- else meta.push(['Unidad',type==='course'?className(first):'Institución'],['Respuestas completas',rows.length],['Habilitados comparables',Number.isInteger(Number(denom))?denom:'No disponible'],['Cobertura',Number(denom)>=rows.length&&Number(denom)>0?F(P(rows.length,denom))+'%':'No calculable']);
+ else meta.push(['Unidad',type==='course'?className(first):'Institución'],['Respuestas completas',rows.length],['Habilitados comparables',Number.isInteger(Number(denom))?denom:'No disponible'],['Cobertura',Number(denom)>0&&Number.isInteger(Number(coverageAnswered))&&Number(coverageAnswered)<=Number(denom)?F(P(coverageAnswered,denom))+'%':'No calculable']);
  out.push(table(['Identificación','Antecedente'],meta));
  sum(out,opts,st);profiles(out,opts,st);criticalReading(out,opts,st);deep(out,opts,st);rawData(out,opts,st);compare(out,opts);plan(out,opts,st);
  out.push(head(type==='institution'?'07 | Resguardos metodológicos y de confidencialidad':'08 | Resguardos metodológicos y de confidencialidad'));
@@ -387,15 +388,15 @@ const htmlN=x=>x===null||x===undefined?'—':F(x);
 const htmlPct=(n,d)=>d?F(100*n/d)+'%':'—';
 const gradeLetter=x=>className({grade_desc:x.grade||x.grade_desc,course_letter:x.letter||x.course_letter});
 function reportHtml(opts){
- const {est,rows,type,denom,year,groups,cohort}=opts;
+ const {est,rows,type,denom,coverageAnswered,year,groups,cohort}=opts;
  if(!rows?.length)throw Error('No hay respuestas registradas para este ámbito');
  const st=stat(rows),dd=dim(st),ii=indic(rows),validDen=Number.isInteger(Number(denom))&&Number(denom)>0;
- const comparable=validDen&&rows.length<=Number(denom),isStudent=type==='individual',isCourse=type==='course';
+ const matched=Number(coverageAnswered),comparable=validDen&&Number.isInteger(matched)&&matched>=0&&matched<=Number(denom),isStudent=type==='individual',isCourse=type==='course';
  const heading=isStudent?'Informe individual de resultados IDPS':isCourse?'Informe técnico de resultados por curso':'Informe institucional de resultados IDPS';
  const id=isStudent?fullName(rows[0]):isCourse?className(rows[0]):'Resultados institucionales';
  const n=rows.length,scope=grade(rows[0]),countText=comparable?
-   n+' respuestas completas de '+Number(denom)+' estudiantes activos en nómina ('+F(100*n/denom)+'% de cobertura)':
-   n+' respuestas completas; '+(validDen?'el total de respuestas no coincide con el universo activo de '+denom+' estudiantes. Cobertura pendiente de conciliación.':'sin nómina activa comparable para validar la cobertura.');
+   n+' respuestas completas registradas; '+matched+' de '+Number(denom)+' estudiantes activos en la nómina respondieron ('+F(100*matched/denom)+'% de cobertura).'+(n>matched?' Hay '+(n-matched)+' respuesta(s) fuera del universo activo; se debe conciliar la matrícula.':''):
+   n+' respuestas completas; '+(validDen?'la coincidencia de identidades de la nómina no permite validar la cobertura.':'sin nómina activa comparable para validar la cobertura.');
  const style='<style>.idps-premium{max-width:1050px;margin:auto;color:#203746;font-family:Inter,Arial,sans-serif}.idps-premium *{box-sizing:border-box}.idps-premium .rp-head{padding:25px 26px;border-radius:15px;background:#15384a;color:white}.idps-premium .rp-head h1{color:white;margin:8px 0;font-size:27px}.idps-premium .rp-head p{margin:3px 0;color:#d6eff0}.idps-premium .rp-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0 22px}.idps-premium .rp-meta>div,.idps-premium .rp-metric{border:1px solid #dce7e9;border-radius:12px;padding:14px;background:white;min-width:0}.idps-premium .rp-meta small{display:block;color:#687b85;margin-bottom:3px}.idps-premium .rp-meta strong{word-break:break-word}.idps-premium section{margin:21px 0;background:white;padding:20px;border:1px solid #dce7e9;border-radius:15px}.idps-premium h2{font-size:21px;color:#15384a;border-bottom:2px solid #b99238;padding-bottom:10px;margin:0 0 14px}.idps-premium h3{font-size:17px;color:#15384a;margin:18px 0 10px}.idps-premium p{line-height:1.63}.idps-premium .rp-summary{background:#f1f7f7;border-left:4px solid #168d90;padding:13px 15px;border-radius:8px}.idps-premium .rp-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.idps-premium .rp-metric b{font-size:27px;color:#15384a}.idps-premium .rp-metric>div:first-child{font-weight:700;margin-bottom:5px}.idps-premium .rp-track{display:flex;height:13px;width:100%;border-radius:30px;background:#e8eff1;overflow:hidden;margin:9px 0}.idps-premium .rp-track i{display:block;flex:0 0 auto;height:100%}.idps-premium .rp-note{font-size:12px;color:#617886}.idps-premium .rp-table-wrap{width:100%;overflow-x:auto}.idps-premium table{border-collapse:collapse;width:100%;font-size:13px;min-width:620px}.idps-premium th{background:#15384a;color:white;text-align:left}.idps-premium td,.idps-premium th{border:1px solid #dce7e9;padding:9px;vertical-align:top;word-break:normal}.idps-premium tbody tr:nth-child(even){background:#f5f9f9}.idps-premium .rp-insight{border-left:4px solid #b99238;padding:9px 13px;margin:10px 0;background:#fbf9f2}.idps-premium .rp-actions{margin:20px 0;display:flex;flex-wrap:wrap;gap:10px}.idps-premium .rp-button{display:inline-block;text-decoration:none;border-radius:8px;padding:11px 16px;background:#15384a;color:#fff;font-weight:700}.idps-premium .rp-button.secondary{color:#15384a;background:#e8f5f4}.idps-premium .rp-subcard{border-bottom:1px solid #e4edef;padding:10px 0}.idps-premium .rp-small{font-size:12px;color:#5e7580}.idps-premium .rp-grid-dims{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media(max-width:700px){.idps-premium .rp-meta{grid-template-columns:1fr}.idps-premium .rp-kpis,.idps-premium .rp-grid-dims{grid-template-columns:1fr}.idps-premium section{padding:16px}.idps-premium .rp-head{padding:18px}.idps-premium .rp-head h1{font-size:23px}}@media print{.idps-premium .rp-actions{display:none}.idps-premium section{break-inside:auto}.idps-premium .rp-metric{break-inside:avoid}}</style>';
  const meta=[
  ['Establecimiento',est.name||'—'],['RBD',est.rbd||'—'],['Comuna',est.commune||'—'],
@@ -458,7 +459,7 @@ function reportHtml(opts){
  const query=isStudent?'/panel/informe/word/estudiante?studentId='+encodeURIComponent(rows[0].student_id):isCourse?'/panel/informe/word/curso?year='+encodeURIComponent(year)+'&grade='+encodeURIComponent(rows[0].grade_desc)+'&letter='+encodeURIComponent(rows[0].course_letter||''):'/panel/informe/word/institucional?year='+encodeURIComponent(year);
  const footer='<div class="rp-actions"><a class="rp-button" href="'+htmlEsc(query)+'">Descargar informe Word editable</a><a class="rp-button secondary" href="/panel/resultados">Volver a resultados</a></div>';
  const body='<div class="idps-premium"><div class="rp-head"><div>MATERIAL EDUCATIVO CHILE · PLATAFORMA IDPS</div><h1>'+htmlEsc(heading)+'</h1><p>Interpretación socioeducativa y seguimiento</p></div><div class="rp-meta">'+metadata+'</div>'+
- '<section><h2>01 | Alcance y síntesis ejecutiva</h2><p class="rp-summary">'+htmlEsc(countText)+'</p><p>'+htmlEsc(summary)+'</p>'+(comparable&&!isStudent?'<p>La cobertura alcanza el total de la nómina activa considerada. No existen cuestionarios pendientes dentro de ese universo. Esto no elimina posibles limitaciones propias del autorreporte.</p>':'')+'<p class="rp-note">Índice 0–100 ≠ porcentaje de estudiantes. Las respuestas se describen a partir de cuatro opciones y no constituyen resultados oficiales SIMCE/IDPS.</p></section>'+
+ '<section><h2>01 | Alcance y síntesis ejecutiva</h2><p class="rp-summary">'+htmlEsc(countText)+'</p><p>'+htmlEsc(summary)+'</p>'+(comparable&&!isStudent&&matched===Number(denom)?'<p>Todos los estudiantes de la nómina activa del ámbito evaluado registran respuesta completa. No hay encuestas pendientes dentro de ese universo, sin perjuicio de las limitaciones del autorreporte.</p>':'')+'<p class="rp-note">Índice 0–100 ≠ porcentaje de estudiantes. Las respuestas se describen a partir de cuatro opciones y no constituyen resultados oficiales SIMCE/IDPS.</p></section>'+
  '<section><h2>02 | Indicadores y distribución de respuestas</h2><div class="rp-kpis">'+distribution+'</div><p class="rp-small">Las barras representan la distribución 1–4 de respuestas a preguntas. No representan cuatro grupos diferentes de estudiantes.</p></section>'+
  '<section><h2>03 | Perfil de subdimensiones</h2><div class="rp-grid-dims">'+ds+'</div></section>'+
  '<section><h2>04 | Análisis profesional basado en evidencias</h2>'+professional+'</section>'+

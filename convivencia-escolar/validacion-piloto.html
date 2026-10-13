@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Validación del piloto real · Convivencia Escolar</title>
+<meta name="description" content="Comprobación en solo lectura del recorrido de matrícula, diagnóstico, revisión e intervención del establecimiento.">
+<style>
+:root{--g:#176b5b;--dark:#173e35;--mint:#eef7f2;--line:#d8e6de;--muted:#52665f;--ink:#20362e}
+*{box-sizing:border-box}
+body{margin:0;background:#f5f8f6;color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+main{max-width:1100px;margin:auto;padding:28px 20px 64px}
+h1{font-size:clamp(1.55rem,3vw,2.2rem);color:var(--dark);margin:.35rem 0}
+h2{font-size:1.16rem;color:var(--dark);margin:0 0 10px}
+p{line-height:1.55}.muted,small{color:var(--muted)}
+.head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.panel,.step,.action-card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px}
+.panel{margin:18px 0}
+.inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:13px;margin-top:14px}
+label{display:block;font-weight:750;font-size:.9rem;color:var(--dark)}
+select{display:block;width:100%;margin-top:7px;border:1px solid #bbd3c8;padding:11px;border-radius:10px;background:#fff;color:var(--ink);font:inherit}
+button,.link{display:inline-block;background:var(--g);color:#fff;border:0;border-radius:11px;padding:11px 15px;font-weight:750;font-size:.92rem;text-decoration:none;cursor:pointer}
+.link.secondary{background:var(--mint);color:var(--dark);border:1px solid var(--line)}
+button:disabled{opacity:.6;cursor:wait}
+button:focus-visible,.link:focus-visible,select:focus-visible{outline:3px solid #90c7ac;outline-offset:2px}
+#status{margin:12px 0;min-height:26px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+.metric{padding:14px;background:var(--mint);border:1px solid var(--line);border-radius:13px}
+.metric strong{display:block;font-size:1.55rem;color:var(--dark);font-variant-numeric:tabular-nums}
+.metric span{font-size:.86rem;color:var(--muted)}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:16px 0}
+.step{display:flex;gap:12px;align-items:flex-start}
+.mark{width:29px;height:29px;display:grid;place-items:center;border-radius:50%;background:#edf2ef;color:var(--muted);flex:none;font-weight:850}
+.mark.good{background:#dff3e5;color:#12673c}
+.step h3{margin:0 0 5px;font-size:1rem;color:var(--dark)}
+.step p{margin:0;font-size:.9rem;color:var(--muted)}
+.actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+.action-card p{min-height:42px;font-size:.9rem;color:var(--muted);margin:6px 0}
+.action-card .link{margin-top:6px}
+.note{padding:14px 16px;background:var(--mint);border-left:4px solid var(--g);border-radius:11px}
+@media(max-width:590px){main{padding-top:18px}.panel,.step,.action-card{padding:16px}.action-card p{min-height:0}}
+</style>
+<script src="js/auth-professional.js"></script>
+<link rel="stylesheet" href="css/portal-footer.css">
+</head>
+<body>
+<main>
+  <div class="head">
+    <div><small>CONTROL DE CALIDAD · CONVIVENCIA ESCOLAR</small><h1>Validación del piloto real</h1></div>
+    <a class="link secondary" id="back" href="inicio.html">← Inicio</a>
+  </div>
+  <p class="note"><strong>Solo lectura:</strong> esta revisión no crea estudiantes, no modifica respuestas ni activa mediciones. Muestra cantidades y estados; no exhibe nombres ni RUN de estudiantes. Usa únicamente un establecimiento que haya autorizado el piloto.</p>
+  <section class="panel">
+    <h2 id="school">Comprobación institucional</h2>
+    <p>Selecciona una medición y un curso para comprobar todo el recorrido, desde la matrícula hasta el seguimiento del Plan de Gestión.</p>
+    <div class="inputs">
+      <label for="measurement">Medición<select id="measurement" disabled><option>Cargando…</option></select></label>
+      <label for="course">Curso<select id="course" disabled><option>Cargando…</option></select></label>
+    </div>
+    <p id="status" role="status" aria-live="polite">Comprobando sesión y registros…</p>
+    <button id="reload" type="button" disabled>Actualizar verificación</button>
+  </section>
+  <section class="panel" aria-label="Resumen de la medición">
+    <h2>Estado actual</h2>
+    <div class="metrics">
+      <div class="metric"><strong id="students">—</strong><span>Estudiantes activos en el curso</span></div>
+      <div class="metric"><strong id="assigned">—</strong><span>Encuestas asignadas</span></div>
+      <div class="metric"><strong id="finished">—</strong><span>Encuestas completadas</span></div>
+      <div class="metric"><strong id="reviewed">—</strong><span>Revisiones profesionales</span></div>
+      <div class="metric"><strong id="interventions">—</strong><span>Intervenciones vinculadas</span></div>
+      <div class="metric"><strong id="followups">—</strong><span>Intervenciones con seguimiento</span></div>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Comprobaciones del recorrido</h2>
+    <p class="muted">Cada etapa se calcula con registros del establecimiento. Un estado pendiente no significa necesariamente un error; también puede ser trabajo aún no realizado.</p>
+    <div id="steps" class="steps"><p>Cargando comprobaciones…</p></div>
+  </section>
+  <section class="panel">
+    <h2>Ir al módulo correspondiente</h2>
+    <div class="actions">
+      <div class="action-card"><h2>Matrícula</h2><p>Verifica el curso y sus estudiantes activos.</p><a id="go-students" class="link secondary" href="estudiantes.html">Gestionar matrícula</a></div>
+      <div class="action-card"><h2>Diagnóstico</h2><p>Revisa la medición y sus resultados.</p><a id="go-diagnosis" class="link secondary" href="diagnostico.html">Abrir diagnóstico</a></div>
+      <div class="action-card"><h2>Asignación</h2><p>Asigna encuestas al curso.</p><a id="go-assign" class="link secondary" href="asignar-encuestas.html">Asignar encuesta</a></div>
+      <div class="action-card"><h2>Configuración</h2><p>Período, modalidad y mensaje inicial.</p><a id="go-config" class="link secondary" href="configurar-aplicacion.html">Configurar medición</a></div>
+      <div class="action-card"><h2>Acceso seguro</h2><p>Prepara los accesos de los estudiantes.</p><a id="go-access" class="link secondary" href="generar-accesos.html">Gestionar accesos</a></div>
+      <div class="action-card"><h2>Confirmar</h2><p>Habilita la medición cuando esté preparada.</p><a id="go-confirm" class="link secondary" href="confirmar-aplicacion.html">Ir a confirmar</a></div>
+      <div class="action-card"><h2>Aplicaciones</h2><p>Consulta las encuestas y las revisiones.</p><a id="go-tracking" class="link secondary" href="seguimiento-aplicacion.html">Ver seguimiento</a></div>
+      <div class="action-card"><h2>PGCE</h2><p>Gestiona intervenciones y su evolución.</p><a id="go-pgce" class="link secondary" href="pgce-panel.html">Panel PGCE</a></div>
+    </div>
+  </section>
+</main>
+<footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p></footer>
+<script>
+(async()=>{
+  const $=id=>document.getElementById(id);
+  let user;
+  try{user=await MECAuth.guard()}catch(e){return}
+  if(!user)return;
+  const eid=Number(user.establishment_id);
+  if(!Number.isSafeInteger(eid)||eid<=0){$('status').textContent='No existe un establecimiento asociado a esta sesión.';return}
+  $('school').textContent=user.establishment||'Establecimiento autenticado';
+  const prefix='?establishment_id='+encodeURIComponent(String(eid));
+  $('back').href='inicio.html'+prefix;
+  const api=async path=>{
+    const r=await fetch(MECAuth.API+path);
+    const d=await r.json().catch(()=>({ok:false}));
+    if(!r.ok||!d.ok)throw Error('fetch_failed');
+    return d;
+  };
+  let measurements=[],courses=[],students=[],applications=[],dashboard=null;
+  let requestId=0;
+  function setLink(id,page,params={}){
+    const q=new URLSearchParams({establishment_id:String(eid)});
+    for(const [key,value] of Object.entries(params))if(value)q.set(key,String(value));
+    $(id).href=page+'?'+q.toString();
+  }
+  function updateLinks(mid,cid){
+    setLink('go-students','estudiantes.html');
+    setLink('go-diagnosis','diagnostico.html',{measurement_id:mid});
+    setLink('go-assign','asignar-encuestas.html',{measurement_id:mid,course_id:cid});
+    setLink('go-config','configurar-aplicacion.html',{measurement_id:mid});
+    setLink('go-access','generar-accesos.html',{measurement_id:mid,course_id:cid});
+    setLink('go-confirm','confirmar-aplicacion.html',{measurement_id:mid});
+    setLink('go-tracking','seguimiento-aplicacion.html',{measurement_id:mid});
+    setLink('go-pgce','pgce-panel.html');
+  }
+  function setNumber(id,value){$(id).textContent=String(value)}
+  function step(isReady,title,detail){
+    const el=document.createElement('article');el.className='step';
+    const mark=document.createElement('span');mark.className='mark'+(isReady?' good':'');mark.textContent=isReady?'✓':'!';
+    const body=document.createElement('div'),h=document.createElement('h3'),p=document.createElement('p');
+    h.textContent=title;p.textContent=detail;
+    body.append(h,p);el.append(mark,body);return el;
+  }
+  function updateCourses(){
+    const mid=Number($('measurement').value),m=measurements.find(x=>Number(x.id)===mid);
+    const all=m?courses.filter(c=>Number(c.school_year)===Number(m.school_year)):courses;
+    const prev=$('course').value;
+    const select=$('course');select.replaceChildren();
+    if(!all.length){select.add(new Option('No hay cursos para esta medición',''));select.disabled=true;return}
+    for(const c of all)select.add(new Option(c.name+' · '+c.school_year,String(c.id)));
+    if(all.some(c=>String(c.id)===prev))select.value=prev;
+    else{
+      const withApplications=all.find(c=>applications.some(a=>Number(a.course_id)===Number(c.id)&&Number(a.measurement_id)===mid));
+      if(withApplications)select.value=String(withApplications.id);
+    }
+    select.disabled=false;
+  }
+  async function render(){
+    const serial=++requestId,mid=Number($('measurement').value),cid=Number($('course').value);
+    updateLinks(mid,cid);
+    const chosen=measurements.find(m=>Number(m.id)===mid);
+    if(!chosen||!cid){
+      $('status').textContent='Para iniciar, crea o selecciona una medición y un curso.';
+      $('steps').replaceChildren(step(false,'Pendiente de preparación','Necesitas una medición y un curso del establecimiento.'));
+      for(const id of ['students','assigned','finished','reviewed','interventions','followups'])$(id).textContent='—';
+      return;
+    }
+    $('status').textContent='Comprobando medición y curso…';
+    let config;
+    try{
+      config=(await api('/api/measurements/'+encodeURIComponent(String(mid))+'/config'+prefix)).config||{};
+    }catch(e){
+      if(serial!==requestId)return;
+      $('status').textContent='No se pudo verificar la configuración. Reintenta antes de interpretar los resultados.';
+      $('steps').replaceChildren(step(false,'Configuración no verificada','El servidor no respondió a la consulta de esta medición.'));
+      return;
+    }
+    if(serial!==requestId)return;
+    const roster=students.filter(x=>Number(x.course_id)===cid);
+    const inCourse=new Set(roster.map(x=>Number(x.id)));
+    const apps=applications.filter(a=>Number(a.measurement_id)===mid&&inCourse.has(Number(a.student_id)));
+    const ids=new Set(apps.map(a=>Number(a.id)));
+    const completed=apps.filter(a=>a.status==='completed');
+    const reviews=completed.filter(a=>a.review_status==='reviewed');
+    const linked=(dashboard?.interventions||[]).filter(x=>ids.has(Number(x.source_application_id)));
+    const tracked=linked.filter(x=>Number(x.updates_count)>0);
+    const withAccess=apps.filter(a=>a.has_access).length;
+    const measured=!!(config.start_date&&config.end_date);
+    const progress=apps.some(a=>a.status==='in_progress'||a.status==='completed');
+    for(const [name,count] of Object.entries({students:roster.length,assigned:apps.length,finished:completed.length,reviewed:reviews.length,interventions:linked.length,followups:tracked.length}))setNumber(name,count);
+    const items=[
+      [roster.length>0,'1 · Matrícula disponible',roster.length+' estudiante(s) activos en el curso seleccionado.'],
+      [measured,'2 · Medición configurada',measured?'Período: '+String(config.start_date).slice(0,10)+' al '+String(config.end_date).slice(0,10)+'.':'Falta guardar fechas y condiciones.'],
+      [apps.length>0,'3 · Encuestas asignadas',apps.length+' aplicación(es) asignadas a estudiantes activos.'],
+      [withAccess>0,'4 · Accesos emitidos',withAccess+' de '+apps.length+' aplicación(es) tienen acceso individual emitido.'],
+      [chosen.status==='active','5 · Medición habilitada',chosen.status==='active'?'Medición activa en el servidor.':'La medición figura como '+(chosen.status||'borrador')+'.'],
+      [progress,'6 · Aplicación iniciada',apps.filter(a=>a.status==='in_progress').length+' en curso, '+completed.length+' completada(s).'],
+      [completed.length>0,'7 · Respuestas completadas',completed.length+' aplicación(es) completadas.'],
+      [reviews.length>0,'8 · Revisión profesional',reviews.length+' revisión(es) finalizadas de '+completed.length+' aplicación(es) completadas.'],
+      [linked.length>0,'9 · Intervención PGCE',linked.length+' intervención(es) vinculadas a aplicaciones del curso.'],
+      [tracked.length>0,'10 · Seguimiento PGCE',tracked.length+' intervención(es) con seguimiento registrado.']
+    ];
+    $('steps').replaceChildren(...items.map(x=>step(...x)));
+    const ready=items.filter(x=>x[0]).length;
+    $('status').textContent=ready+' de '+items.length+' comprobaciones cumplidas para la medición y curso seleccionados. Esta pantalla no modifica registros.';
+  }
+  async function load(){
+    $('reload').disabled=true;
+    $('status').textContent='Consultando los datos del establecimiento…';
+    try{
+      const [m,c,s,a,p]=await Promise.all([
+        api('/api/measurements'+prefix),api('/api/courses'+prefix),
+        api('/api/students'+prefix+'&active=true'),api('/api/applications'+prefix),
+        api('/api/pgce/dashboard'+prefix)
+      ]);
+      measurements=m.measurements||[];courses=c.courses||[];
+      students=s.students||[];applications=a.applications||[];dashboard=p;
+      const selection=$('measurement').value;
+      $('measurement').replaceChildren();
+      if(!measurements.length){$('measurement').add(new Option('No hay mediciones',''));$('measurement').disabled=true}
+      else{
+        for(const item of measurements)$('measurement').add(new Option(item.code+' · '+item.school_year+' · '+item.status,String(item.id)));
+        if(measurements.some(x=>String(x.id)===selection))$('measurement').value=selection;
+        else{
+          const preferred=measurements.find(x=>x.status==='active')||measurements.find(x=>x.status==='configured')||measurements[0];
+          $('measurement').value=String(preferred.id);
+        }
+        $('measurement').disabled=false;
+      }
+      updateCourses();
+      await render();
+    }catch(e){
+      $('status').textContent='No fue posible completar las consultas. Verifica la sesión e inténtalo nuevamente.';
+      $('steps').replaceChildren(step(false,'Verificación interrumpida','No se debe interpretar como un diagnóstico de la plataforma.'));
+    }finally{$('reload').disabled=false}
+  }
+  $('measurement').addEventListener('change',()=>{updateCourses();render()});
+  $('course').addEventListener('change',render);
+  $('reload').addEventListener('click',load);
+  await load();
+})();
+</script>
+</body>
+</html>

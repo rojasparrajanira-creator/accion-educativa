@@ -124,6 +124,12 @@ button:focus-visible,.link:focus-visible,select:focus-visible{outline:3px solid 
     setLink('go-tracking','seguimiento-aplicacion.html',{measurement_id:mid});
     setLink('go-pgce','pgce-panel.html');
   }
+  // Even if the server is temporarily unavailable, internal links must retain
+  // the establishment associated with the authenticated professional.
+  updateLinks(0,0);
+  function resetMetrics(){
+    for(const id of ['students','assigned','finished','reviewed','interventions','followups'])$(id).textContent='—';
+  }
   function setNumber(id,value){$(id).textContent=String(value)}
   function step(isReady,title,detail){
     const el=document.createElement('article');el.className='step';
@@ -162,6 +168,7 @@ button:focus-visible,.link:focus-visible,select:focus-visible{outline:3px solid 
       config=(await api('/api/measurements/'+encodeURIComponent(String(mid))+'/config'+prefix)).config||{};
     }catch(e){
       if(serial!==requestId)return;
+      resetMetrics();
       $('status').textContent='No se pudo verificar la configuración. Reintenta antes de interpretar los resultados.';
       $('steps').replaceChildren(step(false,'Configuración no verificada','El servidor no respondió a la consulta de esta medición.'));
       return;
@@ -221,6 +228,7 @@ button:focus-visible,.link:focus-visible,select:focus-visible{outline:3px solid 
       updateCourses();
       await render();
     }catch(e){
+      resetMetrics();
       $('status').textContent='No fue posible completar las consultas. Verifica la sesión e inténtalo nuevamente.';
       $('steps').replaceChildren(step(false,'Verificación interrumpida','No se debe interpretar como un diagnóstico de la plataforma.'));
     }finally{$('reload').disabled=false}

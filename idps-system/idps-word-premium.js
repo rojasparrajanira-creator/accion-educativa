@@ -20,7 +20,7 @@ const ACTIONS={
 'Autocuidado':['Trabajar descanso, higiene y conductas protectoras mediante acciones graduadas','Profesor/a jefe y equipo de apoyo','Revisión voluntaria de hábitos y acuerdos']
 };
 const A=x=>Array.isArray(x)?x:(()=>{try{const v=JSON.parse(x||'[]');return Array.isArray(v)?v:[]}catch{return[]}})();
-const F=n=>Number.isFinite(Number(n))?Number(n).toFixed(1).replace('.',','):'—';
+const F=n=>n!==null&&n!==undefined&&n!==''&&Number.isFinite(Number(n))?Number(n).toFixed(1).replace('.',','):'—';
 const P=(a,b)=>b?100*a/b:null;
 const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 const grade=r=>String(r.grade_desc||'').trim();
@@ -113,7 +113,7 @@ function rawData(out,opts,st){
  out.push(para('Escala de aplicación: 1 = Nunca o casi nunca; 2 = A veces; 3 = Casi siempre; 4 = Siempre o casi siempre. Las proporciones por ítem se calculan entre respuestas válidas.',true));
 }
 function compare(out,opts){
- const {type,rows,cohort,groups}=opts;out.push(head('06 | Variabilidad y contrastes descriptivos'));
+ const {type,rows,cohort,groups}=opts;out.push(head(type==='institution'?'05 | Comparaciones institucionales y heterogeneidad':'06 | Variabilidad y contrastes descriptivos'));
  if(type==='individual'){
   if(!cohort||cohort.length<5){out.push(para('No se presentan comparaciones de curso por tratarse de menos de cinco respuestas completas.'));return;}
   const x=indic(rows),y=indic(cohort);out.push(table(['Indicador','Estudiante','Curso','Diferencia en puntos'],x.map((v,i)=>[v.name,F(v.v),F(y[i].v),F(v.v-y[i].v)])));
@@ -129,7 +129,7 @@ function compare(out,opts){
  }
 }
 function plan(out,opts,st){
- out.push(head('07 | Plan de acción y seguimiento'));
+ out.push(head(opts.type==='institution'?'06 | Plan institucional de mejora y seguimiento':'07 | Plan de acción y seguimiento'));
  const d=dim(st).filter(x=>x.n>0).sort((a,b)=>a.v-b.v).slice(0,4);
  out.push(table(['Evidencia','Acción propuesta','Responsable sugerido','Plazo orientativo','Verificación'],d.map(x=>{const a=ACTIONS[x.name];return[x.name+': '+F(100-x.v)+'% respuestas 1–2',a[0],a[1],'6 a 8 semanas',a[2]];})));
  out.push(para('Las medidas deben ajustarse a las necesidades reales del curso, los antecedentes profesionales disponibles y el proyecto educativo, y quedar registradas para su evaluación.',true));
@@ -145,7 +145,7 @@ async function reportDoc(opts){
  else meta.push(['Unidad',type==='course'?className(first):'Institución'],['Respuestas completas',rows.length],['Habilitados comparables',Number.isInteger(Number(denom))?denom:'No disponible'],['Cobertura',Number(denom)>=rows.length&&Number(denom)>0?F(P(rows.length,denom))+'%':'No calculable']);
  out.push(table(['Identificación','Antecedente'],meta));
  sum(out,opts,st);profiles(out,opts,st);deep(out,opts,st);rawData(out,opts,st);compare(out,opts);plan(out,opts,st);
- out.push(head('08 | Resguardos metodológicos y de confidencialidad'));
+ out.push(head(type==='institution'?'07 | Resguardos metodológicos y de confidencialidad':'08 | Resguardos metodológicos y de confidencialidad'));
  out.push(para('El instrumento utilizado es un diagnóstico interno de Material Educativo Chile. Sus índices son transformaciones descriptivas de respuestas ordinales, no resultados oficiales IDPS/SIMCE, baremos certificados ni diagnósticos clínicos. Las frecuencias deben interpretarse según los enunciados aplicados, su contexto y el grupo participante.'));
  out.push(para('No corresponde formular diagnósticos, sanciones ni conclusiones causales a partir de respuestas aisladas. La devolución debe resguardar identidades y complementarse con entrevistas voluntarias, observaciones pedagógicas, asistencia y antecedentes institucionales pertinentes.'));
  const doc=new Document({creator:'Material Educativo Chile',title,styles:{default:{document:{run:{font:'Times New Roman',size:24,color:C.text},paragraph:{spacing:{line:360}}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1030,bottom:1030,left:1000,right:1000}}},headers:{default:new Header({children:[new Paragraph({children:[new TextRun({text:'IDPS  •  '+(est.name||''),size:16,color:C.muted})],border:{bottom:{color:C.line,style:BorderStyle.SINGLE,size:3}}})]})},footers:{default:new Footer({children:[new Paragraph({children:[new TextRun({text:'MATERIAL EDUCATIVO CHILE  •  Uso reservado  •  Página ',size:16,color:C.muted}),new TextRun({children:[PageNumber.CURRENT],size:16,color:C.muted})],alignment:AlignmentType.RIGHT})]})},children:out}]});

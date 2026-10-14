@@ -5,6 +5,8 @@ on:
       - main
     paths:
       - 'idps-system/idps-word-premium.js'
+      - 'idps-system/idps-report-header.js'
+      - 'idps-system/logo-base64.txt'
       - 'idps-system/application-module.js'
       - 'idps-system/test-idps-reports.js'
       - 'idps-system/package.json'

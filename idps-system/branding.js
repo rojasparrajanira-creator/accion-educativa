@@ -229,7 +229,17 @@ body:has(form[action="/login"]) .login-side p{
 }
 @media(prefers-reduced-motion:reduce){header .topnav a{transition:none!important}}
 
+/* IDPS: botón de mostrar u ocultar la clave, sin exponerla por servidor. */
+.idps-credential-control{display:block;position:relative;width:100%;min-width:0}
+.idps-credential-control>input{display:block;width:100%!important;padding-right:56px!important}
+.idps-password-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:44px;height:42px;padding:0!important;margin:0!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#16618A!important;cursor:pointer;z-index:2;box-shadow:none!important}
+.idps-password-toggle:hover{background:#E8F9FC!important;color:#005DCC!important}
+.idps-password-toggle:focus-visible{outline:3px solid #00B8FF!important;outline-offset:1px}
+.idps-password-toggle svg{width:22px;height:22px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+
 `;
+
+const idpsPasswordToggleScript = "<script data-idps-password-toggle=\"1\">\n(function(){\n'use strict';\nvar eye='<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>';\nvar eyeOff='<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a15 15 0 0 1-3.2 4.1M6.6 6.6C3.7 8.3 2 12 2 12s3.6 7 10 7c1.5 0 2.8-.4 4-1\"/></svg>';\nfunction install(input){\n if(input.dataset.idpsPasswordToggle==='1')return;\n input.dataset.idpsPasswordToggle='1';\n var wrap=document.createElement('span');wrap.className='idps-credential-control';\n input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);\n var button=document.createElement('button');button.type='button';button.className='idps-password-toggle';\n var term=(input.name==='pin'||input.id==='pin')?'PIN':'contraseña';\n function update(){var visible=input.type==='text';button.innerHTML=visible?eyeOff:eye;button.setAttribute('aria-label',(visible?'Ocultar ':'Mostrar ')+term);button.setAttribute('title',(visible?'Ocultar ':'Mostrar ')+term);button.setAttribute('aria-pressed',visible?'true':'false');}\n button.addEventListener('click',function(){input.type=input.type==='password'?'text':'password';update();});\n var form=input.closest('form');if(form)form.addEventListener('submit',function(){if(input.type==='text'){input.type='password';update();}});\n wrap.appendChild(button);update();\n}\ndocument.querySelectorAll('input[type=\"password\"]').forEach(install);\n})();\n</script>";
 
 function injectBranding(html) {
   if (typeof html !== 'string' || !/<html[\s>]/i.test(html)) return html;
@@ -259,6 +269,10 @@ function injectBranding(html) {
     'href="/auth/google">Conectar Gmail</a>',
     'href="https://idps-gestion-material-educativo.onrender.com/auth/google">Conectar Gmail</a>'
   );
+
+  if (!html.includes('data-idps-password-toggle="1"')) {
+    html = html.replace('</body>', idpsPasswordToggleScript + '</body>');
+  }
 
   if (!html.includes('class="mec-footer"')) {
     const footerLogo = logoData ? `<img src="${logoData}" alt="Material Educativo Chile">` : '';

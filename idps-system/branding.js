@@ -229,6 +229,32 @@ body:has(form[action="/login"]) .login-side p{
 }
 @media(prefers-reduced-motion:reduce){header .topnav a{transition:none!important}}
 
+
+/* Portada IDPS: tarjetas de demo y acceso estudiantil. */
+.home-action-cards{width:min(1040px,calc(100% - 36px));margin:22px auto 35px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.home-action-card{display:flex;align-items:center;gap:17px;min-width:0;min-height:148px;padding:22px 24px;border-radius:18px;border:1px solid #DCE7F0;background:#fff;text-decoration:none!important;color:#0F2D52!important;box-shadow:0 9px 28px rgba(15,45,82,.065);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.home-action-card:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(15,45,82,.11);border-color:#00B8FF}
+.home-action-card:focus-visible{outline:3px solid #00B8FF;outline-offset:3px}
+.home-action-icon{flex:0 0 54px;width:54px;height:54px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(135deg,#00E5E0,#00B8FF 55%,#004DFF);color:#fff}
+.home-action-icon svg{width:27px;height:27px}
+.home-action-copy{display:flex;flex-direction:column;gap:5px;min-width:0}
+.home-action-eyebrow{font-size:10px;font-weight:850;letter-spacing:.1em;color:#0078A9}
+.home-action-copy strong{font-size:20px;line-height:1.18;color:#0F2D52}
+.home-action-copy>span:last-child{font-size:12px;line-height:1.55;color:#5B7183}
+.home-action-arrow{margin-left:auto;align-self:center;color:#0079C9;font-size:22px;font-weight:800}
+.home-action-students .home-action-icon{background:linear-gradient(135deg,#00CDBB,#008DC8 60%,#005DDB)}
+.idps-demo-page{max-width:920px;margin:26px auto 50px;background:#fff;border:1px solid #DFE8EF;border-radius:22px;padding:clamp(22px,4vw,44px);box-shadow:0 14px 38px rgba(15,45,82,.06)}
+.idps-demo-page h1{font-size:clamp(28px,4vw,44px);line-height:1.12;margin:9px 0 10px;color:#0F2D52}
+.idps-demo-page>p{color:#5D7284;line-height:1.65;margin:0 0 24px}
+.idps-demo-back{display:inline-block;color:#0078C7;font-size:13px;font-weight:750;text-decoration:none;margin-bottom:26px}
+.demo-awaiting{min-height:270px;border-radius:15px;background:linear-gradient(140deg,#00D8DA,#00AFFF 48%,#004DFF);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:#fff;padding:25px;gap:10px}
+.demo-awaiting>span{display:grid;place-items:center;width:62px;height:62px;border:2px solid rgba(255,255,255,.65);border-radius:50%;font-size:24px;padding-left:4px}
+.demo-awaiting strong{font-size:21px;line-height:1.2}
+.demo-awaiting p{max-width:430px;font-size:13px;line-height:1.6;color:#fff;margin:0}
+@media(max-width:740px){.home-action-cards{grid-template-columns:1fr;gap:12px;margin-top:16px}.home-action-card{min-height:126px;padding:18px}.home-action-copy strong{font-size:18px}}
+@media(max-width:420px){.home-action-card{gap:12px;padding:15px}.home-action-icon{width:46px;height:46px;flex-basis:46px}.home-action-arrow{font-size:18px}}
+@media(prefers-reduced-motion:reduce){.home-action-card{transition:none}}
+
 /* IDPS: botón de mostrar u ocultar la clave, sin exponerla por servidor. */
 .idps-credential-control{display:block;position:relative;width:100%;min-width:0}
 .idps-credential-control>input{display:block;width:100%!important;padding-right:56px!important}

@@ -76,7 +76,7 @@ header{
   position:relative!important;
   background:#fff!important;
   color:#153b59!important;
-  border-bottom:2px solid #14C2D5!important;
+  border-bottom:0!important;
   box-shadow:0 5px 18px rgba(22,86,151,.06)!important;
   isolation:isolate;
 }
@@ -91,6 +91,15 @@ header::before{
   background-size:670px auto;
   background-position:right center;
   opacity:.44;
+}
+header::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;bottom:0;
+  height:4px;
+  background:linear-gradient(90deg,#17D4D0 0%,#0AA7FF 55%,#005DFF 100%);
+  z-index:2;
+  pointer-events:none;
 }
 header>.wrap{position:relative;z-index:1}
 header .brand-copy b{color:#153b59!important}
@@ -183,7 +192,7 @@ body:has(form[action="/login"]) .login-side::after{
   content:"";
   position:absolute;
   inset:auto 0 0;
-  width:auto;height:4px;
+  width:auto;height:5px;
   border:0;border-radius:0;
   background:linear-gradient(90deg,#17D4D0 0%,#0AA7FF 55%,#005DFF 100%);
   pointer-events:none;

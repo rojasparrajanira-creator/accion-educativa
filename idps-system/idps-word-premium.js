@@ -5,7 +5,8 @@ const {Document,Paragraph,TextRun,Table,TableRow,TableCell,ImageRun,Header,Foote
 const LABELS=['Autoestima académica y motivación escolar','Clima de convivencia escolar','Participación y formación ciudadana','Hábitos de vida saludable'];
 const DIMS=[['Autopercepción académica',0,4,0],['Motivación escolar',4,8,0],['Ambiente de respeto',8,11,1],['Ambiente organizado',11,14,1],['Ambiente seguro',14,16,1],['Pertenencia',16,18,2],['Participación',18,20,2],['Vida democrática',20,23,2],['Alimentación',23,26,3],['Vida activa',26,28,3],['Autocuidado',28,30,3]];
 const C={navy:'15384A',blue:'407DA9',teal:'168D90',gold:'B99238',green:'518875',white:'FFFFFF',text:'25394A',muted:'677A86',line:'DCE7E9',pale:'EFF5F6',rose:'B96E67'};
-const PALETTE=[C.blue,C.teal,C.gold,C.green];
+const PALETTE=['246CFF','246CFF','246CFF','246CFF'];
+const NEON_BLUE='246CFF',NEON_PURPLE='A630FF',RESPONSE_COLORS=['183A99','3978FC','7A58EE','B331FF'];
 const PROFESSIONAL=require('./idps-professional-analysis');
 const ACTIONS={
 'Autopercepción académica':['Retroalimentar el esfuerzo y las estrategias; acordar metas de aprendizaje alcanzables','Profesor/a jefe y docentes','Revisión quincenal de metas'],
@@ -81,19 +82,19 @@ function table(headers,values){
 function crc(buf){let c=0xffffffff;for(const b of buf){c^=b;for(let k=0;k<8;k++)c=(c&1)?(c>>>1)^0xedb88320:c>>>1;}return(c^0xffffffff)>>>0;}
 function chunk(tag,data){const t=Buffer.from(tag),b=Buffer.alloc(data.length+12);b.writeUInt32BE(data.length,0);t.copy(b,4);data.copy(b,8);b.writeUInt32BE(crc(Buffer.concat([t,data])),data.length+8);return b;}
 function rgb(hex){return[0,2,4].map(i=>parseInt(hex.slice(i,i+2),16));}
-function graphic(segments){
+function graphic(segments,gradient=false){
  const w=1050,h=46,raw=Buffer.alloc(h*(w*3+1)),total=segments.reduce((n,v)=>n+Math.max(0,Number(v[0])||0),0)||100;
  let acc=0;const stops=segments.map(([v,color])=>{acc+=100*Math.max(0,Number(v)||0)/total;return[acc,rgb(color)];});
  for(let y=0;y<h;y++){const start=y*(w*3+1);for(let x=0;x<w;x++){
   const l=x-10,t=y-5,W=w-20,H=35,r=16,cx=Math.max(r,Math.min(W-r,l)),cy=Math.max(r,Math.min(H-r,t));
   const on=l>=0&&l<W&&t>=0&&t<H&&(l-cx)**2+(t-cy)**2<=r*r;
-  let color=[255,255,255];if(on){const v=l/W*100;color=(stops.find(s=>v<=s[0])||stops[stops.length-1])[1];if(l<1||l>W-2||t<1||t>H-2)color=rgb(C.line);}
+  let color=[255,255,255];if(on){const v=l/W*100;const segment=stops.findIndex(s=>v<=s[0]);color=(stops[segment<0?stops.length-1:segment])[1];if(gradient&&segment===0&&stops[0][0]>0){const p=Math.max(0,Math.min(1,v/stops[0][0]));const left=rgb(NEON_BLUE),right=rgb(NEON_PURPLE);color=left.map((n,i)=>Math.round(n+(right[i]-n)*p));}if(l<1||l>W-2||t<1||t>H-2)color=rgb(C.line);}
   const idx=start+1+x*3;raw[idx]=color[0];raw[idx+1]=color[1];raw[idx+2]=color[2];
  }}
  const ih=Buffer.alloc(13);ih.writeUInt32BE(w,0);ih.writeUInt32BE(h,4);ih[8]=8;ih[9]=2;
  return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',ih),chunk('IDAT',zlib.deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);
 }
-function bar(out,label,value,color){out.push(new Paragraph({children:[new TextRun({text:label,color:C.text,bold:true,size:20}),new TextRun({text:'   '+(value==null?'Sin datos':F(value)+'%'),bold:true,color:C.navy,size:20})],keepNext:true,spacing:{before:80,after:20}}));out.push(new Paragraph({children:[new ImageRun({data:graphic([[value==null?0:value,color],[value==null?100:100-value,'E9F0F1']]),transformation:{width:460,height:20}})],spacing:{after:60}}));}
+function bar(out,label,value,color,unit='%'){out.push(new Paragraph({children:[new TextRun({text:label,color:C.text,bold:true,size:20}),new TextRun({text:'   '+(value==null?'Sin datos':F(value)+unit),bold:true,color:C.navy,size:20})],keepNext:true,spacing:{before:80,after:20}}));out.push(new Paragraph({children:[new ImageRun({data:graphic([[value==null?0:value,color],[value==null?100:100-value,'E9F0F1']],true),transformation:{width:460,height:20}})],spacing:{after:60}}));}
 function description(rows,denom,type,coverageAnswered){
  if(type==='individual')return'Una respuesta individual completa; interpretación reservada para acompañamiento educativo.';
  const n=rows.length,d=Number(denom),completed=Number(coverageAnswered);
@@ -121,7 +122,7 @@ function sum(out,opts,st){
 }
 function profiles(out,opts,st){
  out.push(head('02 | Indicadores IDPS: perfil de resultados'));
- for(const q of indic(opts.rows))bar(out,q.name,q.v,PALETTE[q.i]);
+ for(const q of indic(opts.rows))bar(out,q.name,q.v,PALETTE[q.i],' / 100');
  out.push(para('Cada barra representa un índice transformado 0–100, no un porcentaje de estudiantes ni un resultado oficial de la Agencia de Calidad.',true));
  out.push(head('Distribución real de opciones de respuesta por indicador',true));
  const ranges=[[0,8],[8,16],[16,23],[23,30]];
@@ -130,10 +131,10 @@ function profiles(out,opts,st){
   for(const item of items)item.c.forEach((v,k)=>c[k]+=v);
   const total=c.reduce((a,b)=>a+b,0);
   out.push(new Paragraph({children:[new TextRun({text:LABELS[i],bold:true,color:C.navy,size:19})],keepNext:true,spacing:{before:75,after:20}}));
-  out.push(new Paragraph({children:[new ImageRun({data:graphic(c.map((v,k)=>[v,['B96E67','C99B39','76B6B0','407DA9'][k]])),transformation:{width:460,height:20}})],spacing:{after:25}}));
+  out.push(new Paragraph({children:[new ImageRun({data:graphic(c.map((v,k)=>[v,RESPONSE_COLORS[k]])),transformation:{width:460,height:20}})],spacing:{after:25}}));
   out.push(para(total?c.map((v,k)=>(k+1)+': '+F(100*v/total)+'% ('+v+')').join('   ·   '):'Sin respuestas válidas',true));
  }
- out.push(para('Leyenda: '+(opts.type==='institution'?['Categoría 1','Categoría 2','Categoría 3','Categoría 4']:answerLabels(grade(opts.rows[0]))).map((name,i)=>(i+1)+' '+name+' ('+['terracota','ocre','turquesa','azul'][i]+')').join('; ')+'. Cada barra se calcula sobre respuestas a preguntas, no sobre cantidad de estudiantes.'+(opts.type==='institution'?' Las etiquetas de las opciones pueden diferir entre instrumentos de distintos niveles; se informan únicamente categorías ordinales agregadas.':''),true));
+ out.push(para('Leyenda: '+(opts.type==='institution'?['Categoría 1','Categoría 2','Categoría 3','Categoría 4']:answerLabels(grade(opts.rows[0]))).map((name,i)=>(i+1)+' '+name+' ('+['azul profundo','azul eléctrico','violeta','morado neón'][i]+')').join('; ')+'. Cada barra se calcula sobre respuestas a preguntas, no sobre cantidad de estudiantes.'+(opts.type==='institution'?' Las etiquetas de las opciones pueden diferir entre instrumentos de distintos niveles; se informan únicamente categorías ordinales agregadas.':''),true));
  out.push(head('03 | Análisis de subdimensiones'));
  for(const d of dim(st))bar(out,d.name,d.v,PALETTE[d.i]);
  out.push(para('El porcentaje de subdimensión expresa respuestas favorables (opciones 3–4) sobre respuestas válidas a sus preguntas. No mide prevalencia de bienestar o riesgo entre personas.',true));
@@ -439,7 +440,7 @@ function reportHtml(opts){
  const n=rows.length,scope=grade(rows[0]),countText=isStudent?'Registro individual de una encuesta completa. Este documento es reservado y no requiere calcular cobertura personal.':comparable?
    n+' respuestas completas registradas; '+matched+' de '+Number(denom)+' estudiantes activos en la nómina respondieron ('+F(100*matched/denom)+'% de cobertura).'+(n>matched?' Hay '+(n-matched)+' respuesta(s) fuera del universo activo; se debe conciliar la matrícula.':''):
    n+' respuestas completas; '+(validDen?'la coincidencia de identidades de la nómina no permite validar la cobertura.':'sin nómina activa comparable para validar la cobertura.');
- const style='<style>.idps-premium{max-width:1050px;margin:auto;color:#203746;font-family:Inter,Arial,sans-serif}.idps-premium *{box-sizing:border-box}.idps-premium .rp-head{padding:25px 26px;border-radius:15px;background:#15384a;color:white}.idps-premium .rp-head h1{color:white;margin:8px 0;font-size:27px}.idps-premium .rp-head p{margin:3px 0;color:#d6eff0}.idps-premium .rp-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0 22px}.idps-premium .rp-meta>div,.idps-premium .rp-metric{border:1px solid #dce7e9;border-radius:12px;padding:14px;background:white;min-width:0}.idps-premium .rp-meta small{display:block;color:#687b85;margin-bottom:3px}.idps-premium .rp-meta strong{word-break:break-word}.idps-premium section{margin:21px 0;background:white;padding:20px;border:1px solid #dce7e9;border-radius:15px}.idps-premium h2{font-size:21px;color:#15384a;border-bottom:2px solid #b99238;padding-bottom:10px;margin:0 0 14px}.idps-premium h3{font-size:17px;color:#15384a;margin:18px 0 10px}.idps-premium p{line-height:1.63}.idps-premium .rp-summary{background:#f1f7f7;border-left:4px solid #168d90;padding:13px 15px;border-radius:8px}.idps-premium .rp-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.idps-premium .rp-metric b{font-size:27px;color:#15384a}.idps-premium .rp-metric>div:first-child{font-weight:700;margin-bottom:5px}.idps-premium .rp-track{display:flex;height:13px;width:100%;border-radius:30px;background:#e8eff1;overflow:hidden;margin:9px 0}.idps-premium .rp-track i{display:block;flex:0 0 auto;height:100%}.idps-premium .rp-note{font-size:12px;color:#617886}.idps-premium .rp-table-wrap{width:100%;overflow-x:auto}.idps-premium table{border-collapse:collapse;width:100%;font-size:13px;min-width:620px}.idps-premium th{background:#15384a;color:white;text-align:left}.idps-premium td,.idps-premium th{border:1px solid #dce7e9;padding:9px;vertical-align:top;word-break:normal}.idps-premium tbody tr:nth-child(even){background:#f5f9f9}.idps-premium .rp-insight{border-left:4px solid #b99238;padding:9px 13px;margin:10px 0;background:#fbf9f2}.idps-premium .rp-actions{margin:20px 0;display:flex;flex-wrap:wrap;gap:10px}.idps-premium .rp-button{display:inline-block;text-decoration:none;border-radius:8px;padding:11px 16px;background:#15384a;color:#fff;font-weight:700}.idps-premium .rp-button.secondary{color:#15384a;background:#e8f5f4}.idps-premium .rp-subcard{border-bottom:1px solid #e4edef;padding:10px 0}.idps-premium .rp-small{font-size:12px;color:#5e7580}.idps-premium .rp-grid-dims{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media(max-width:700px){.idps-premium .rp-meta{grid-template-columns:1fr}.idps-premium .rp-kpis,.idps-premium .rp-grid-dims{grid-template-columns:1fr}.idps-premium section{padding:16px}.idps-premium .rp-head{padding:18px}.idps-premium .rp-head h1{font-size:23px}}@media print{.idps-premium .rp-actions{display:none}.idps-premium section{break-inside:auto}.idps-premium .rp-metric{break-inside:avoid}}</style>';
+ const style='<style>.idps-premium{max-width:1050px;margin:auto;color:#203746;font-family:Inter,Arial,sans-serif}.idps-premium *{box-sizing:border-box}.idps-premium .rp-head{padding:25px 26px;border-radius:15px;background:#15384a;color:white}.idps-premium .rp-head h1{color:white;margin:8px 0;font-size:27px}.idps-premium .rp-head p{margin:3px 0;color:#d6eff0}.idps-premium .rp-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0 22px}.idps-premium .rp-meta>div,.idps-premium .rp-metric{border:1px solid #dce7e9;border-radius:12px;padding:14px;background:white;min-width:0}.idps-premium .rp-meta small{display:block;color:#687b85;margin-bottom:3px}.idps-premium .rp-meta strong{word-break:break-word}.idps-premium section{margin:21px 0;background:white;padding:20px;border:1px solid #dce7e9;border-radius:15px}.idps-premium h2{font-size:21px;color:#15384a;border-bottom:2px solid #b99238;padding-bottom:10px;margin:0 0 14px}.idps-premium h3{font-size:17px;color:#15384a;margin:18px 0 10px}.idps-premium p{line-height:1.63}.idps-premium .rp-summary{background:#f5f4ff;border-left:4px solid #7854f8;padding:13px 15px;border-radius:8px}.idps-premium .rp-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.idps-premium .rp-metric b{font-size:27px;color:#33367d}.idps-premium .rp-metric>div:first-child{font-weight:700;margin-bottom:5px}.idps-premium .rp-track{display:flex;height:13px;width:100%;border-radius:30px;background:#e8eff1;overflow:hidden;margin:9px 0}.idps-premium .rp-track i{display:block;flex:0 0 auto;height:100%}.idps-premium .rp-note{font-size:12px;color:#617886}.idps-premium .rp-table-wrap{width:100%;overflow-x:auto}.idps-premium table{border-collapse:collapse;width:100%;font-size:13px;min-width:620px}.idps-premium th{background:#15384a;color:white;text-align:left}.idps-premium td,.idps-premium th{border:1px solid #dce7e9;padding:9px;vertical-align:top;word-break:normal}.idps-premium tbody tr:nth-child(even){background:#f5f9f9}.idps-premium .rp-insight{border-left:4px solid #a630ff;padding:9px 13px;margin:10px 0;background:#fbf9f2}.idps-premium .rp-actions{margin:20px 0;display:flex;flex-wrap:wrap;gap:10px}.idps-premium .rp-button{display:inline-block;text-decoration:none;border-radius:8px;padding:11px 16px;background:#15384a;color:#fff;font-weight:700}.idps-premium .rp-button.secondary{color:#15384a;background:#e8f5f4}.idps-premium .rp-subcard{border-bottom:1px solid #e4edef;padding:10px 0}.idps-premium .rp-small{font-size:12px;color:#5e7580}.idps-premium .rp-grid-dims{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media(max-width:700px){.idps-premium .rp-meta{grid-template-columns:1fr}.idps-premium .rp-kpis,.idps-premium .rp-grid-dims{grid-template-columns:1fr}.idps-premium section{padding:16px}.idps-premium .rp-head{padding:18px}.idps-premium .rp-head h1{font-size:23px}}@media print{.idps-premium .rp-actions{display:none}.idps-premium section{break-inside:auto}.idps-premium .rp-metric{break-inside:avoid}}</style>';
  const meta=[
  ['Establecimiento',est.name||'—'],['RBD',est.rbd||'—'],['Comuna',est.commune||'—'],
  ['Año de aplicación',year||rows[0].school_year||'—'],[isStudent?'Estudiante':isCourse?'Curso':'Alcance',id],
@@ -447,7 +448,7 @@ function reportHtml(opts){
  [isStudent?'Confidencialidad':'Universo activo comparable',isStudent?'Uso reservado':validDen?String(denom):'No disponible']
  ];
  const metadata=meta.map(([k,v])=>'<div><small>'+htmlEsc(k)+'</small><strong>'+htmlEsc(v)+'</strong></div>').join('');
- const colors=['#b96e67','#c99b39','#76b6b0','#407da9'];
+ const colors=['#183a99','#3978fc','#7a58ee','#b331ff'];
  const indicatorRanges=[[0,8],[8,16],[16,23],[23,30]];
  const distribution=indicatorRanges.map(([a,b],i)=>{
   const row=fourOptionCounts(st.slice(a,b));
@@ -457,7 +458,7 @@ function reportHtml(opts){
   const score=ii[i].v;
   return '<div class="rp-metric"><div>'+htmlEsc(LABELS[i])+'</div><b>'+htmlN(score)+' / 100</b><div class="rp-note">'+htmlPct(row.favorable,row.total)+' respuestas 3–4; '+htmlPct(row.less,row.total)+' respuestas 1–2</div><div class="rp-track">'+segments+'</div><div class="rp-small">'+labels+'</div></div>';
  }).join('');
- const ds=dd.map(d=>'<div class="rp-subcard"><b>'+htmlEsc(d.name)+'</b><div class="rp-track"><i style="background:'+['#407da9','#168d90','#b99238','#518875'][d.i]+';width:'+Math.max(0,Math.min(100,d.v||0))+'%"></i></div><div class="rp-small">'+htmlN(d.v)+'% de respuestas 3–4 a los ítems de esta subdimensión</div></div>').join('');
+ const ds=dd.map(d=>'<div class="rp-subcard"><b>'+htmlEsc(d.name)+'</b><div class="rp-track"><i style="background:linear-gradient(90deg,#246cff 0%,#6256ff 52%,#a630ff 100%);width:'+Math.max(0,Math.min(100,d.v||0))+'%"></i></div><div class="rp-small">'+htmlN(d.v)+'% de respuestas 3–4 a los ítems de esta subdimensión</div></div>').join('');
  const ranked=ii.filter(x=>x.v!==null).sort((a,b)=>a.v-b.v);
  const bottom=ranked[0],top=ranked[ranked.length-1],dRank=dd.filter(x=>x.v!==null).sort((a,b)=>a.v-b.v);
  const summary=bottom&&top?'La menor puntuación relativa corresponde a '+bottom.name+' ('+F(bottom.v)+'/100) y la mayor a '+top.name+' ('+F(top.v)+'/100). Esto describe respuestas declaradas, no porcentajes de estudiantes con bienestar ni categorías oficiales de desempeño.':'No se dispone de indicadores válidos para comparar.';

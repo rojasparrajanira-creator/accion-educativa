@@ -68,15 +68,17 @@ body:has(form[action="/login"]) .mode{max-width:1040px;margin:18px auto 0;paddin
 @media(max-width:980px){body:has(form[action="/login"]) .login-shell{grid-template-columns:1fr!important;margin:22px 18px 0!important}.login-side{min-height:190px}.home-intro{padding:28px 24px 26px}}
 @media(max-width:620px){.home-intro{padding:25px 20px 24px}.home-intro h1{font-size:43px!important;line-height:1!important}.home-intro>p{font-size:13px}.home-points{gap:7px}.home-points span{font-size:10px;padding:7px 9px}body:has(form[action="/login"]) .login-shell{margin:18px 14px 0!important}body:has(form[action="/login"]) .login-form-panel{padding:26px 22px!important}.login-side{padding:28px 22px;min-height:170px}.login-side h3{font-size:24px!important}body:has(form[action="/login"]) .mode{padding:0 16px}}
 
-/* MEC 2026: blancos editoriales con ondas turquesa → azul eléctrico.
-   Afecta únicamente el encabezado general y las dos zonas de la portada de acceso. */
+
+/* PORTADA IDPS · corrección editorial: blanco sin invasión gráfica.
+   Texturas ÚNICAMENTE en el encabezado y en la tarjeta derecha de ingreso.
+   No cambiar rutas, formularios, resultados ni instrumentos. */
 header{
-  background:#FFFFFF!important;
-  color:#173750!important;
-  border-bottom:2px solid #18BFD4!important;
-  box-shadow:0 5px 24px rgba(20,92,151,.08)!important;
+  position:relative!important;
+  background:#fff!important;
+  color:#153b59!important;
+  border-bottom:2px solid #14C2D5!important;
+  box-shadow:0 5px 18px rgba(22,86,151,.06)!important;
   isolation:isolate;
-  overflow:visible;
 }
 header::before{
   content:"";
@@ -84,78 +86,135 @@ header::before{
   inset:0;
   pointer-events:none;
   z-index:0;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221080%22%20height%3D%22260%22%20viewBox%3D%220%200%201080%20260%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M-80%20180C105%2064%20220%2068%20385%20150S715%20248%201155%2052%22%20stroke%3D%22%2313CFCB%22%20stroke-width%3D%223%22%20stroke-opacity%3D%22.20%22%2F%3E%3Cpath%20d%3D%22M-75%20203C107%2088%20255%2094%20415%20165S750%20250%201155%2083%22%20stroke%3D%22%230C9AF3%22%20stroke-width%3D%222.5%22%20stroke-opacity%3D%22.18%22%2F%3E%3Cpath%20d%3D%22M-90%20226C128%20115%20265%20124%20430%20183S760%20258%201170%20112%22%20stroke%3D%22%230868F7%22%20stroke-width%3D%222%22%20stroke-opacity%3D%22.15%22%2F%3E%3Cpath%20d%3D%22M-35%20146C155%2034%20288%2043%20438%20117S735%20205%201130%2020%22%20stroke%3D%22%2317D4D0%22%20stroke-width%3D%222.5%22%20stroke-opacity%3D%22.11%22%2F%3E%3C%2Fsvg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221080%22%20height%3D%22260%22%20viewBox%3D%220%200%201080%20260%22%20fill%3D%22none%22%3E%0A%3Cpath%20d%3D%22M-80%20185C105%2055%20250%2072%20420%20158S755%20260%201160%2060%22%20stroke%3D%22%2313CFCB%22%20stroke-width%3D%224%22%20stroke-opacity%3D%22.54%22%2F%3E%0A%3Cpath%20d%3D%22M-80%20210C110%2085%20270%20101%20440%20180S755%20270%201160%2090%22%20stroke%3D%22%230C9AF3%22%20stroke-width%3D%223.4%22%20stroke-opacity%3D%22.46%22%2F%3E%0A%3Cpath%20d%3D%22M-80%20232C140%20124%20280%20130%20450%20197S785%20275%201160%20123%22%20stroke%3D%22%230868F7%22%20stroke-width%3D%222.8%22%20stroke-opacity%3D%22.40%22%2F%3E%0A%3Cpath%20d%3D%22M-45%20158C142%2035%20290%2048%20452%20131S755%20213%201130%2030%22%20stroke%3D%22%2317D4D0%22%20stroke-width%3D%222.8%22%20stroke-opacity%3D%22.34%22%2F%3E%0A%3C%2Fsvg%3E");
   background-repeat:no-repeat;
-  background-size:auto 210px;
+  background-size:670px auto;
   background-position:right center;
-  opacity:.88;
+  opacity:.44;
 }
 header>.wrap{position:relative;z-index:1}
-header .brand-copy b{color:#103C66!important}
-header .brand-copy small{color:#47677E!important}
-header .brand-kicker{
-  color:#0877D5!important;
-  letter-spacing:.12em!important;
-}
-header .brand-logo{box-shadow:0 0 0 3px rgba(20,194,210,.24)!important}
-header .topnav a{color:#173F68!important}
+header .brand-copy b{color:#153b59!important}
+header .brand-copy small{color:#536e83!important}
+header .brand-kicker{color:#086fcf!important;letter-spacing:.12em!important}
+header .brand-logo{box-shadow:0 0 0 3px rgba(17,187,209,.18)!important}
+header .topnav a{color:#153b59!important}
 header .topnav a:hover{background:rgba(23,192,220,.11)!important}
-body:has(form[action="/login"]) .home-intro{
-  background-color:#FFFFFF!important;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221080%22%20height%3D%22260%22%20viewBox%3D%220%200%201080%20260%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M-80%20180C105%2064%20220%2068%20385%20150S715%20248%201155%2052%22%20stroke%3D%22%2313CFCB%22%20stroke-width%3D%223%22%20stroke-opacity%3D%22.20%22%2F%3E%3Cpath%20d%3D%22M-75%20203C107%2088%20255%2094%20415%20165S750%20250%201155%2083%22%20stroke%3D%22%230C9AF3%22%20stroke-width%3D%222.5%22%20stroke-opacity%3D%22.18%22%2F%3E%3Cpath%20d%3D%22M-90%20226C128%20115%20265%20124%20430%20183S760%20258%201170%20112%22%20stroke%3D%22%230868F7%22%20stroke-width%3D%222%22%20stroke-opacity%3D%22.15%22%2F%3E%3Cpath%20d%3D%22M-35%20146C155%2034%20288%2043%20438%20117S735%20205%201130%2020%22%20stroke%3D%22%2317D4D0%22%20stroke-width%3D%222.5%22%20stroke-opacity%3D%22.11%22%2F%3E%3C%2Fsvg%3E")!important;
-  background-repeat:no-repeat!important;
-  background-size:680px auto!important;
-  background-position:right bottom!important;
+body:has(form[action="/login"]) header{
+  position:relative!important;
+  top:auto!important;
+  transform:none!important;
 }
-body:has(form[action="/login"]) .home-intro h1:after{
-  background:linear-gradient(90deg,#17D4D0 0%,#0AABFA 52%,#005DFF 100%)!important;
+/* Título 100 % visible, en su propio bloque blanco; sin ondas */
+body:has(form[action="/login"]) main{
+  display:block!important;
+  padding-top:0!important;
+}
+body:has(form[action="/login"]) .home-intro{
+  display:block!important;
+  position:relative!important;
+  isolation:auto!important;
+  background:#fff!important;
+  background-image:none!important;
+  overflow:visible!important;
+  padding-top:42px!important;
+  padding-bottom:33px!important;
+  height:auto!important;
+  max-height:none!important;
+}
+body:has(form[action="/login"]) .home-intro::before,
+body:has(form[action="/login"]) .home-intro::after{
+  content:none!important;
+  display:none!important;
+}
+body:has(form[action="/login"]) .home-intro h1{
+  display:block!important;
+  position:relative!important;
+  visibility:visible!important;
+  opacity:1!important;
+  overflow:visible!important;
+  height:auto!important;
+  max-height:none!important;
+  max-width:970px!important;
+  font-size:clamp(35px,4.45vw,62px)!important;
+  line-height:1.10!important;
+  letter-spacing:-.045em!important;
+  color:#123e67!important;
+  margin:0!important;
+  padding:0!important;
+  white-space:normal!important;
+  text-wrap:balance;
+}
+body:has(form[action="/login"]) .home-intro h1::after{
+  background:linear-gradient(90deg,#17D4D0 0%,#0AA7FF 60%,#005DFF 100%)!important;
+  margin-top:17px!important;
+}
+body:has(form[action="/login"]) .home-intro > p{
+  position:relative!important;
+  clear:both!important;
+  margin-top:18px!important;
+}
+body:has(form[action="/login"]) .home-points{position:relative!important}
+body:has(form[action="/login"]) .login-shell{
+  position:relative!important;
+  margin-top:26px!important;
+  overflow:hidden!important;
 }
 body:has(form[action="/login"]) .login-side{
-  background:#FFFFFF!important;
-  color:#183A58!important;
-  border-left:1px solid #D8EAF1!important;
+  position:relative!important;
+  overflow:hidden!important;
   isolation:isolate;
+  background:#fff!important;
+  color:#153b59!important;
+  border-left:1px solid #D5E8F1!important;
 }
 body:has(form[action="/login"]) .login-side::before{
   content:"";
   position:absolute;
   inset:0;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221080%22%20height%3D%22260%22%20viewBox%3D%220%200%201080%20260%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M-80%20180C105%2064%20220%2068%20385%20150S715%20248%201155%2052%22%20stroke%3D%22%2313CFCB%22%20stroke-width%3D%223%22%20stroke-opacity%3D%22.20%22%2F%3E%3Cpath%20d%3D%22M-75%20203C107%2088%20255%2094%20415%20165S750%20250%201155%2083%22%20stroke%3D%22%230C9AF3%22%20stroke-width%3D%222.5%22%20stroke-opacity%3D%22.18%22%2F%3E%3Cpath%20d%3D%22M-90%20226C128%20115%20265%20124%20430%20183S760%20258%201170%20112%22%20stroke%3D%22%230868F7%22%20stroke-width%3D%222%22%20stroke-opacity%3D%22.15%22%2F%3E%3Cpath%20d%3D%22M-35%20146C155%2034%20288%2043%20438%20117S735%20205%201130%2020%22%20stroke%3D%22%2317D4D0%22%20stroke-width%3D%222.5%22%20stroke-opacity%3D%22.11%22%2F%3E%3C%2Fsvg%3E");
-  background-repeat:no-repeat;
-  background-size:auto 100%;
-  background-position:center bottom;
-  pointer-events:none;
   z-index:0;
-  opacity:1;
+  pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221080%22%20height%3D%22260%22%20viewBox%3D%220%200%201080%20260%22%20fill%3D%22none%22%3E%0A%3Cpath%20d%3D%22M-80%20185C105%2055%20250%2072%20420%20158S755%20260%201160%2060%22%20stroke%3D%22%2313CFCB%22%20stroke-width%3D%224%22%20stroke-opacity%3D%22.54%22%2F%3E%0A%3Cpath%20d%3D%22M-80%20210C110%2085%20270%20101%20440%20180S755%20270%201160%2090%22%20stroke%3D%22%230C9AF3%22%20stroke-width%3D%223.4%22%20stroke-opacity%3D%22.46%22%2F%3E%0A%3Cpath%20d%3D%22M-80%20232C140%20124%20280%20130%20450%20197S785%20275%201160%20123%22%20stroke%3D%22%230868F7%22%20stroke-width%3D%222.8%22%20stroke-opacity%3D%22.40%22%2F%3E%0A%3Cpath%20d%3D%22M-45%20158C142%2035%20290%2048%20452%20131S755%20213%201130%2030%22%20stroke%3D%22%2317D4D0%22%20stroke-width%3D%222.8%22%20stroke-opacity%3D%22.34%22%2F%3E%0A%3C%2Fsvg%3E");
+  background-repeat:no-repeat;
+  background-size:100% auto;
+  background-position:center bottom;
+  opacity:.69;
 }
 body:has(form[action="/login"]) .login-side::after{
   content:"";
   position:absolute;
-  left:0;right:0;bottom:0;
-  width:auto;height:5px;
+  inset:auto 0 0;
+  width:auto;height:4px;
   border:0;border-radius:0;
-  background:linear-gradient(90deg,#17D4D0 0%,#0AA7FF 60%,#005DFF 100%);
+  background:linear-gradient(90deg,#17D4D0 0%,#0AA7FF 55%,#005DFF 100%);
   pointer-events:none;
   z-index:0;
 }
+body:has(form[action="/login"]) .login-side > *{
+  position:relative!important;
+  z-index:1!important;
+}
 body:has(form[action="/login"]) .side-kicker{
-  color:#078BAF!important;
+  color:#087EAA!important;
   font-size:10px!important;
 }
 body:has(form[action="/login"]) .login-side h3{
-  color:#103C66!important;
+  color:#103d66!important;
+  line-height:1.14!important;
   font-weight:850!important;
 }
 body:has(form[action="/login"]) .login-side p{
-  color:#47677E!important;
-  line-height:1.65!important;
+  color:#47677e!important;
+  line-height:1.62!important;
 }
 @media(max-width:980px){
-  body:has(form[action="/login"]) .login-side{border-left:0!important;border-top:1px solid #D8EAF1!important}
+  body:has(form[action="/login"]) .login-side{border-left:0!important;border-top:1px solid #D5E8F1!important}
+  body:has(form[action="/login"]) .home-intro{padding-top:28px!important}
 }
-@media(prefers-reduced-motion:reduce){
-  header .topnav a{transition:none!important}
+@media(max-width:620px){
+  body:has(form[action="/login"]) .home-intro h1{font-size:clamp(32px,9vw,44px)!important;line-height:1.12!important}
+  body:has(form[action="/login"]) .login-side::before{background-size:auto 100%;background-position:right bottom}
 }
+@media(prefers-reduced-motion:reduce){header .topnav a{transition:none!important}}
 
 `;
 

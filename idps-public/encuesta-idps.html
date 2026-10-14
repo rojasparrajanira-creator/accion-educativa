@@ -31,6 +31,15 @@ footer{text-align:center;padding:22px;color:#7a8c99;font-size:12px}
 .idps-password-toggle:focus-visible{outline:3px solid #00B8FF!important;outline-offset:1px}
 .idps-password-toggle svg{width:22px;height:22px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 
+
+/* Foto de bienvenida: transparencia solo en la imagen, sin desenfoque. */
+#loginView .login.card{position:relative;isolation:isolate;overflow:hidden;background:#fff}
+#loginView .login.card::before{content:"";position:absolute;inset:0;z-index:-1;background:url("idps-estudiantes-bienvenida.svg") center center/cover no-repeat;opacity:.5;pointer-events:none}
+#loginView .login.card h1,#loginView .login.card .lead,#loginView .login.card .field>label{position:relative;background:rgba(255,255,255,.92);border-radius:8px;padding:6px 8px}
+#loginView .login.card .field input{background:#fff}
+#loginView .login.card .notice{background:rgba(238,248,251,.97)}
+#loginView .login.card .error:not(:empty){background:#fff;border-radius:6px;padding:6px 8px}
+
 </style>
 </head>
 <body>

@@ -74,10 +74,10 @@ body:has(form[action="/login"]) .mode{max-width:1040px;margin:18px auto 0;paddin
    No cambiar rutas, formularios, resultados ni instrumentos. */
 header{
   position:relative!important;
-  background:#fff!important;
-  color:#153b59!important;
+  background:linear-gradient(100deg,#17D4D0 0%,#0AA7FF 54%,#005DFF 100%)!important;
+  color:#092E4F!important;
   border-bottom:0!important;
-  box-shadow:0 5px 18px rgba(22,86,151,.06)!important;
+  box-shadow:0 7px 22px rgba(12,86,178,.16)!important;
   isolation:isolate;
 }
 header::before{
@@ -86,11 +86,11 @@ header::before{
   inset:0;
   pointer-events:none;
   z-index:0;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221080%22%20height%3D%22260%22%20viewBox%3D%220%200%201080%20260%22%20fill%3D%22none%22%3E%0A%3Cpath%20d%3D%22M-80%20185C105%2055%20250%2072%20420%20158S755%20260%201160%2060%22%20stroke%3D%22%2313CFCB%22%20stroke-width%3D%224%22%20stroke-opacity%3D%22.54%22%2F%3E%0A%3Cpath%20d%3D%22M-80%20210C110%2085%20270%20101%20440%20180S755%20270%201160%2090%22%20stroke%3D%22%230C9AF3%22%20stroke-width%3D%223.4%22%20stroke-opacity%3D%22.46%22%2F%3E%0A%3Cpath%20d%3D%22M-80%20232C140%20124%20280%20130%20450%20197S785%20275%201160%20123%22%20stroke%3D%22%230868F7%22%20stroke-width%3D%222.8%22%20stroke-opacity%3D%22.40%22%2F%3E%0A%3Cpath%20d%3D%22M-45%20158C142%2035%20290%2048%20452%20131S755%20213%201130%2030%22%20stroke%3D%22%2317D4D0%22%20stroke-width%3D%222.8%22%20stroke-opacity%3D%22.34%22%2F%3E%0A%3C%2Fsvg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221100%22%20height%3D%22420%22%20viewBox%3D%220%200%201100%20420%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M-80%20240C180%2075%20270%20140%20470%20215S770%20345%201180%20115%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%20stroke-opacity%3D%22.52%22%2F%3E%3Cpath%20d%3D%22M-80%20282C145%20115%20295%20160%20465%20239S792%20365%201180%20158%22%20stroke%3D%22white%22%20stroke-width%3D%223%22%20stroke-opacity%3D%22.39%22%2F%3E%3Cpath%20d%3D%22M-80%20324C155%20154%20312%20200%20476%20270S830%20388%201180%20207%22%20stroke%3D%22white%22%20stroke-width%3D%223%22%20stroke-opacity%3D%22.32%22%2F%3E%3Cpath%20d%3D%22M-80%20188C120%2050%20276%2084%20460%20182S775%20302%201180%2076%22%20stroke%3D%22%23C8FFFF%22%20stroke-width%3D%224%22%20stroke-opacity%3D%22.62%22%2F%3E%3C%2Fsvg%3E");
   background-repeat:no-repeat;
-  background-size:670px auto;
+  background-size:750px auto;
   background-position:right center;
-  opacity:.44;
+  opacity:.35;
 }
 header::after{
   content:"";
@@ -102,12 +102,12 @@ header::after{
   pointer-events:none;
 }
 header>.wrap{position:relative;z-index:1}
-header .brand-copy b{color:#153b59!important}
-header .brand-copy small{color:#536e83!important}
-header .brand-kicker{color:#086fcf!important;letter-spacing:.12em!important}
-header .brand-logo{box-shadow:0 0 0 3px rgba(17,187,209,.18)!important}
-header .topnav a{color:#153b59!important}
-header .topnav a:hover{background:rgba(23,192,220,.11)!important}
+header .brand-copy b{color:#082C48!important;text-shadow:0 1px 0 rgba(255,255,255,.12)}
+header .brand-copy small{color:#123E5D!important}
+header .brand-kicker{color:#083B66!important;letter-spacing:.12em!important}
+header .brand-logo{box-shadow:0 0 0 3px rgba(255,255,255,.55)!important}
+header .topnav a{color:#FFF!important;background:rgba(8,43,93,.38)!important;text-shadow:0 1px 2px rgba(0,27,76,.35)}
+header .topnav a:hover{background:rgba(8,43,93,.55)!important}
 body:has(form[action="/login"]) header{
   position:relative!important;
   top:auto!important;
@@ -172,9 +172,9 @@ body:has(form[action="/login"]) .login-side{
   position:relative!important;
   overflow:hidden!important;
   isolation:isolate;
-  background:#fff!important;
-  color:#153b59!important;
-  border-left:1px solid #D5E8F1!important;
+  background:linear-gradient(155deg,rgba(4,36,84,.24) 0%,rgba(3,36,103,.37) 100%),linear-gradient(145deg,#17D4D0 0%,#0AA7FF 55%,#005DFF 100%)!important;
+  color:#FFFFFF!important;
+  border-left:0!important;
 }
 body:has(form[action="/login"]) .login-side::before{
   content:"";
@@ -182,19 +182,19 @@ body:has(form[action="/login"]) .login-side::before{
   inset:0;
   z-index:0;
   pointer-events:none;
-  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221080%22%20height%3D%22260%22%20viewBox%3D%220%200%201080%20260%22%20fill%3D%22none%22%3E%0A%3Cpath%20d%3D%22M-80%20185C105%2055%20250%2072%20420%20158S755%20260%201160%2060%22%20stroke%3D%22%2313CFCB%22%20stroke-width%3D%224%22%20stroke-opacity%3D%22.54%22%2F%3E%0A%3Cpath%20d%3D%22M-80%20210C110%2085%20270%20101%20440%20180S755%20270%201160%2090%22%20stroke%3D%22%230C9AF3%22%20stroke-width%3D%223.4%22%20stroke-opacity%3D%22.46%22%2F%3E%0A%3Cpath%20d%3D%22M-80%20232C140%20124%20280%20130%20450%20197S785%20275%201160%20123%22%20stroke%3D%22%230868F7%22%20stroke-width%3D%222.8%22%20stroke-opacity%3D%22.40%22%2F%3E%0A%3Cpath%20d%3D%22M-45%20158C142%2035%20290%2048%20452%20131S755%20213%201130%2030%22%20stroke%3D%22%2317D4D0%22%20stroke-width%3D%222.8%22%20stroke-opacity%3D%22.34%22%2F%3E%0A%3C%2Fsvg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221100%22%20height%3D%22420%22%20viewBox%3D%220%200%201100%20420%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M-80%20240C180%2075%20270%20140%20470%20215S770%20345%201180%20115%22%20stroke%3D%22white%22%20stroke-width%3D%224%22%20stroke-opacity%3D%22.52%22%2F%3E%3Cpath%20d%3D%22M-80%20282C145%20115%20295%20160%20465%20239S792%20365%201180%20158%22%20stroke%3D%22white%22%20stroke-width%3D%223%22%20stroke-opacity%3D%22.39%22%2F%3E%3Cpath%20d%3D%22M-80%20324C155%20154%20312%20200%20476%20270S830%20388%201180%20207%22%20stroke%3D%22white%22%20stroke-width%3D%223%22%20stroke-opacity%3D%22.32%22%2F%3E%3Cpath%20d%3D%22M-80%20188C120%2050%20276%2084%20460%20182S775%20302%201180%2076%22%20stroke%3D%22%23C8FFFF%22%20stroke-width%3D%224%22%20stroke-opacity%3D%22.62%22%2F%3E%3C%2Fsvg%3E");
   background-repeat:no-repeat;
   background-size:100% auto;
   background-position:center bottom;
-  opacity:.69;
+  opacity:.50;
 }
 body:has(form[action="/login"]) .login-side::after{
   content:"";
   position:absolute;
   inset:auto 0 0;
-  width:auto;height:5px;
+  width:auto;height:2px;
   border:0;border-radius:0;
-  background:linear-gradient(90deg,#17D4D0 0%,#0AA7FF 55%,#005DFF 100%);
+  background:rgba(255,255,255,.34);
   pointer-events:none;
   z-index:0;
 }
@@ -203,20 +203,24 @@ body:has(form[action="/login"]) .login-side > *{
   z-index:1!important;
 }
 body:has(form[action="/login"]) .side-kicker{
-  color:#087EAA!important;
+  color:#DAFFFF!important;
   font-size:10px!important;
+  text-shadow:0 1px 3px rgba(2,33,86,.45);
 }
 body:has(form[action="/login"]) .login-side h3{
-  color:#103d66!important;
+  color:#FFFFFF!important;
   line-height:1.14!important;
   font-weight:850!important;
+  text-shadow:0 2px 7px rgba(2,33,86,.38);
 }
 body:has(form[action="/login"]) .login-side p{
-  color:#47677e!important;
+  color:#FFFFFF!important;
   line-height:1.62!important;
+  font-weight:500!important;
+  text-shadow:0 1px 4px rgba(2,33,86,.42);
 }
 @media(max-width:980px){
-  body:has(form[action="/login"]) .login-side{border-left:0!important;border-top:1px solid #D5E8F1!important}
+  body:has(form[action="/login"]) .login-side{border-left:0!important;border-top:1px solid rgba(255,255,255,.25)!important}
   body:has(form[action="/login"]) .home-intro{padding-top:28px!important}
 }
 @media(max-width:620px){

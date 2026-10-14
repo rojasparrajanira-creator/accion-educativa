@@ -23,6 +23,14 @@ h1,h2,h3{color:var(--navy);margin-top:0}.lead{color:var(--muted);line-height:1.5
 footer{text-align:center;padding:22px;color:#7a8c99;font-size:12px}
 @media(max-width:700px){.head,.student{flex-direction:column;align-items:flex-start}.progbox{width:100%}.scale{grid-template-columns:1fr 1fr}.scoregrid{grid-template-columns:1fr}}
 @media(max-width:420px){.scale{grid-template-columns:1fr}}
+/* IDPS: botón de mostrar u ocultar la clave, sin exponerla por servidor. */
+.idps-credential-control{display:block;position:relative;width:100%;min-width:0}
+.idps-credential-control>input{display:block;width:100%!important;padding-right:56px!important}
+.idps-password-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:44px;height:42px;padding:0!important;margin:0!important;border:0!important;border-radius:9px!important;background:transparent!important;color:#16618A!important;cursor:pointer;z-index:2;box-shadow:none!important}
+.idps-password-toggle:hover{background:#E8F9FC!important;color:#005DCC!important}
+.idps-password-toggle:focus-visible{outline:3px solid #00B8FF!important;outline-offset:1px}
+.idps-password-toggle svg{width:22px;height:22px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+
 </style>
 </head>
 <body>
@@ -111,9 +119,29 @@ $('#form').addEventListener('submit',async e=>{e.preventDefault();const missing=
   $('#formError').textContent=e.name==='AbortError'?'La conexión está demorando. Tus respuestas siguen guardadas. Presiona “Finalizar encuesta” nuevamente; no es necesario responder otra vez.':(e.message||'No fue posible registrar la encuesta. Tus respuestas permanecen guardadas.');
   btn.disabled=false;
 }});
-function logout(){sessionStorage.removeItem('idps_student_session');localStorage.removeItem('idps_student_session_backup');token='';student=null;answers=Array(30).fill(null);$('#rut').value='';$('#pin').value='';show('loginView');}$('#logoutBtn').onclick=logout;$('#resultLogout').onclick=logout;
+function logout(){sessionStorage.removeItem('idps_student_session');localStorage.removeItem('idps_student_session_backup');token='';student=null;answers=Array(30).fill(null);$('#rut').value='';$('#pin').value='';if($('#pin').type==='text'){var b=document.querySelector('.idps-password-toggle');if(b)b.click();}show('loginView');}$('#logoutBtn').onclick=logout;$('#resultLogout').onclick=logout;
 window.addEventListener('pagehide',()=>{if(student){saveLocalDraft();persistDraft();}});window.addEventListener('beforeunload',()=>{if(student){saveLocalDraft();persistDraft();}});
 (async function restore(){if(!token)return;try{const r=await fetch(API+'/api/student/context',{headers:headers(false)}),j=await r.json();if(!r.ok||!j.ok)throw new Error();student=j.student;window.idpsServerDraft=Array.isArray(j.draft)?j.draft:[];if(j.result)renderResult(j.result);else renderSurvey();}catch{sessionStorage.removeItem('idps_student_session');localStorage.removeItem('idps_student_session_backup');token='';}})();
+</script>
+<script data-idps-password-toggle="1">
+(function(){
+'use strict';
+var eye='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+var eyeOff='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a15 15 0 0 1-3.2 4.1M6.6 6.6C3.7 8.3 2 12 2 12s3.6 7 10 7c1.5 0 2.8-.4 4-1"/></svg>';
+function install(input){
+ if(input.dataset.idpsPasswordToggle==='1')return;
+ input.dataset.idpsPasswordToggle='1';
+ var wrap=document.createElement('span');wrap.className='idps-credential-control';
+ input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
+ var button=document.createElement('button');button.type='button';button.className='idps-password-toggle';
+ var term=(input.name==='pin'||input.id==='pin')?'PIN':'contraseña';
+ function update(){var visible=input.type==='text';button.innerHTML=visible?eyeOff:eye;button.setAttribute('aria-label',(visible?'Ocultar ':'Mostrar ')+term);button.setAttribute('title',(visible?'Ocultar ':'Mostrar ')+term);button.setAttribute('aria-pressed',visible?'true':'false');}
+ button.addEventListener('click',function(){input.type=input.type==='password'?'text':'password';update();});
+ var form=input.closest('form');if(form)form.addEventListener('submit',function(){if(input.type==='text'){input.type='password';update();}});
+ wrap.appendChild(button);update();
+}
+document.querySelectorAll('input[type="password"]').forEach(install);
+})();
 </script>
 </body>
 </html>

@@ -188,9 +188,13 @@ app.get('/', (req,res)=>{
 app.get('/demo',(req,res)=>{
  const raw=String(process.env.IDPS_DEMO_VIDEO_URL||'').trim();
  const safe=/^https:\/\//i.test(raw)?raw:'';
+ const driveId=(safe.match(new RegExp('drive[.]google[.]com/file/d/([a-zA-Z0-9_-]+)'))||safe.match(new RegExp('drive[.]google[.]com/open[?]id=([a-zA-Z0-9_-]+)'))||[])[1]||'';
  const escaped=safe.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+ const player=driveId
+   ? '<iframe title="Video demostrativo de la plataforma IDPS" src="https://drive.google.com/file/d/'+driveId+'/preview" allow="autoplay; fullscreen" allowfullscreen loading="lazy" style="display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:15px;background:#071D3B"></iframe>'
+   : '<video controls playsinline preload="metadata" style="display:block;width:100%;aspect-ratio:16/9;background:#071D3B;border-radius:15px" src="'+escaped+'">Tu navegador no puede reproducir este video.</video>';
  const media=safe
-   ? '<video controls playsinline preload="metadata" style="width:100%;aspect-ratio:16/9;background:#071D3B;border-radius:15px" src="'+escaped+'">Tu navegador no puede reproducir este video.</video><p class="muted" style="margin-top:14px"><a href="'+escaped+'" target="_blank" rel="noopener noreferrer">Abrir video en otra pestaña</a></p>'
+   ? player+'<p class="muted" style="margin-top:14px"><a href="'+escaped+'" target="_blank" rel="noopener noreferrer">Abrir video en otra pestaña</a></p>'
    : '<div class="demo-awaiting" role="status"><span aria-hidden="true">▶</span><strong>Video demostrativo pendiente de publicación</strong><p>Estamos preparando el acceso al video oficial de la plataforma IDPS.</p></div>';
  res.send(layout('Demo de la Plataforma IDPS','<div class="idps-demo-page"><a class="idps-demo-back" href="/">← Volver al inicio</a><span class="home-kicker">MATERIAL EDUCATIVO CHILE</span><h1>Conoce nuestra plataforma IDPS</h1><p>Descubre cómo funciona el proceso de matrícula, aplicación, seguimiento, resultados, informes y planificación institucional.</p>'+media+'</div>','<a href="/">Inicio</a>'));
 });

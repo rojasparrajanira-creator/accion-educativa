@@ -74,7 +74,7 @@ body:has(form[action="/login"]) .mode{max-width:1040px;margin:18px auto 0;paddin
    No cambiar rutas, formularios, resultados ni instrumentos. */
 header{
   position:relative!important;
-  background:linear-gradient(100deg,#17D4D0 0%,#0AA7FF 54%,#005DFF 100%)!important;
+  background:linear-gradient(100deg,#00E5E0 0%,#00B8FF 50%,#004DFF 100%)!important;
   color:#092E4F!important;
   border-bottom:0!important;
   box-shadow:0 7px 22px rgba(12,86,178,.16)!important;
@@ -90,14 +90,14 @@ header::before{
   background-repeat:no-repeat;
   background-size:750px auto;
   background-position:right center;
-  opacity:.35;
+  opacity:.50;
 }
 header::after{
   content:"";
   position:absolute;
   left:0;right:0;bottom:0;
   height:4px;
-  background:linear-gradient(90deg,#17D4D0 0%,#0AA7FF 55%,#005DFF 100%);
+  background:linear-gradient(90deg,#00E5E0 0%,#00B8FF 50%,#004DFF 100%);
   z-index:2;
   pointer-events:none;
 }
@@ -172,7 +172,7 @@ body:has(form[action="/login"]) .login-side{
   position:relative!important;
   overflow:hidden!important;
   isolation:isolate;
-  background:linear-gradient(155deg,rgba(4,36,84,.24) 0%,rgba(3,36,103,.37) 100%),linear-gradient(145deg,#17D4D0 0%,#0AA7FF 55%,#005DFF 100%)!important;
+  background:linear-gradient(155deg,rgba(4,36,84,.14) 0%,rgba(3,36,103,.31) 100%),linear-gradient(145deg,#00E5E0 0%,#00B8FF 48%,#004DFF 100%)!important;
   color:#FFFFFF!important;
   border-left:0!important;
 }
@@ -186,7 +186,7 @@ body:has(form[action="/login"]) .login-side::before{
   background-repeat:no-repeat;
   background-size:100% auto;
   background-position:center bottom;
-  opacity:.50;
+  opacity:.63;
 }
 body:has(form[action="/login"]) .login-side::after{
   content:"";

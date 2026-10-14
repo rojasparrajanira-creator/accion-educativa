@@ -58,7 +58,7 @@ body:has(form[action="/login"]) main>.wrap{max-width:none!important;width:100%!i
 .home-intro h1{font-family:Inter,Arial,sans-serif!important;font-size:clamp(42px,5vw,66px)!important;line-height:.98!important;letter-spacing:-.055em!important;margin:0!important;max-width:850px;color:#0F2D52!important;font-weight:900!important}
 .home-intro h1:after{width:58px!important;height:4px!important;margin-top:16px!important}
 .home-intro>p{font-size:15px;line-height:1.55;color:#5D7284;max-width:760px;margin:18px 0 0}
-.home-points{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}.home-points span{padding:8px 11px;border:1px solid #D9E5EC;border-radius:999px;background:#F7FAFC;color:#50687A;font-size:11px}.home-points b{color:#0F2D52}
+.home-points{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}.home-points span{padding:8px 13px;border:1px solid #00B7BF;border-radius:999px;background:#00CFCC;color:#073A56;font-size:11px;font-weight:650;box-shadow:0 3px 10px rgba(0,164,178,.13)}.home-points b{color:#073A56;font-weight:900}
 body:has(form[action="/login"]) .login-shell{grid-template-columns:minmax(0,1.35fr) minmax(270px,.65fr)!important;max-width:1040px!important;margin:28px auto 0!important;border-radius:18px!important;box-shadow:0 14px 38px rgba(15,45,82,.08)!important}
 body:has(form[action="/login"]) .login-form-panel{padding:36px 42px!important}.login-form-panel h2{font-size:24px!important;margin-bottom:7px!important}
 .login-side{position:relative;overflow:hidden;background:#0F2D52;padding:38px 32px;color:#fff;display:flex;flex-direction:column;justify-content:center}

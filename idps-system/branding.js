@@ -304,7 +304,24 @@ body:has(form[action="/login"]) .login-side p{
 
 const idpsPasswordToggleScript = "<script data-idps-password-toggle=\"1\">\n(function(){\n'use strict';\nvar eye='<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>';\nvar eyeOff='<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a15 15 0 0 1-3.2 4.1M6.6 6.6C3.7 8.3 2 12 2 12s3.6 7 10 7c1.5 0 2.8-.4 4-1\"/></svg>';\nfunction install(input){\n if(input.dataset.idpsPasswordToggle==='1')return;\n input.dataset.idpsPasswordToggle='1';\n var wrap=document.createElement('span');wrap.className='idps-credential-control';\n input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);\n var button=document.createElement('button');button.type='button';button.className='idps-password-toggle';\n var term=(input.name==='pin'||input.id==='pin')?'PIN':'contraseña';\n function update(){var visible=input.type==='text';button.innerHTML=visible?eyeOff:eye;button.setAttribute('aria-label',(visible?'Ocultar ':'Mostrar ')+term);button.setAttribute('title',(visible?'Ocultar ':'Mostrar ')+term);button.setAttribute('aria-pressed',visible?'true':'false');}\n button.addEventListener('click',function(){input.type=input.type==='password'?'text':'password';update();});\n var form=input.closest('form');if(form)form.addEventListener('submit',function(){if(input.type==='text'){input.type='password';update();}});\n wrap.appendChild(button);update();\n}\ndocument.querySelectorAll('input[type=\"password\"]').forEach(install);\n})();\n</script>";
 
-function injectBranding(html) {
+
+/* La actualización automática se limita a vistas institucionales protegidas. */
+const idpsLivePages = new Set(['/panel','/panel/aplicacion','/panel/resultados','/panel/informe/institucional']);
+let idpsLiveClient = '';
+try {
+  idpsLiveClient = fs.readFileSync(path.join(__dirname,'idps-live-client.js'),'utf8');
+} catch(e) {
+  console.warn('Branding: cliente de actualización IDPS no disponible');
+}
+const idpsLiveCss = `
+.idps-live-status{position:fixed;bottom:16px;right:17px;z-index:50;max-width:min(370px,calc(100vw - 32px));border:1px solid #9CDDD3;border-radius:999px;background:rgba(246,255,253,.97);box-shadow:0 5px 18px rgba(15,45,82,.11);padding:8px 14px;color:#075F69;font-size:11px;font-family:Inter,Arial,sans-serif;font-weight:800;line-height:1.4;pointer-events:none}
+.idps-live-status[data-state="pending"]{background:#FFF8DD;border-color:#E9D894;color:#75601C}
+.idps-live-status[data-state="error"]{background:#FFF1EF;border-color:#EFBBBB;color:#9C2A26}
+@media(max-width:600px){.idps-live-status{font-size:10px;bottom:9px;right:9px;left:9px;max-width:unset;text-align:center;padding:7px 10px}}
+@media print{.idps-live-status{display:none!important}}
+`;
+
+function injectBranding(html, pathname='') {
   if (typeof html !== 'string' || !/<html[\s>]/i.test(html)) return html;
   if (!html.includes('data-mec-branding="3"')) {
     const favicon = logoData ? `<link rel="icon" type="image/jpeg" href="${logoData}">` : '';
@@ -341,12 +358,17 @@ function injectBranding(html) {
     const footerLogo = logoData ? `<img src="${logoData}" alt="Material Educativo Chile">` : '';
     html = html.replace('</body>', `<footer class="mec-footer"><div class="mec-footer-inner">${footerLogo}<div><strong>Material Educativo Chile</strong><span>APRENDER · INCLUIR · TRANSFORMAR</span></div></div></footer></body>`);
   }
+
+  if (idpsLiveClient && idpsLivePages.has(pathname) && !html.includes('data-idps-live-client="1"')) {
+    html = html.replace('</head>', '<style data-idps-live-style="1">' + idpsLiveCss + '</style></head>');
+    html = html.replace('</body>', '<script data-idps-live-client="1">' + idpsLiveClient + '</script></body>');
+  }
   return html;
 }
 
 const originalSend = express.response.send;
 express.response.send = function patchedSend(body) {
-  if (typeof body === 'string') body = injectBranding(body);
+  if (typeof body === 'string') body = injectBranding(body, this.req?.path || '');
   return originalSend.call(this, body);
 };
 

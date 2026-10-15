@@ -177,6 +177,7 @@ function layout(title, body, nav=''){
  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0F2D52"><title>${title}</title><style>${css}</style></head><body><header><div class="wrap brand"><div><b>Material Educativo Chile</b><br><small>Diagnóstico IDPS · Gestión de establecimientos</small></div><div class="topnav">${nav}</div></div></header><main><div class="wrap">${body}<div class="mode">Sistema: ${pool?'base de datos central':'modo de configuración temporal'}.</div></div></main></body></html>`;
 }
 
+const initSubscriptionBilling = require('./subscription-billing')(app, { pool, layout });
 require('./monthly-payment')(app, { layout });
 
 app.get('/', (req,res)=>{
@@ -263,4 +264,7 @@ app.post('/superadmin/remove/:id',requireSuper,async(req,res)=>{try{await remove
 app.get('/logout',(req,res)=>{res.clearCookie('idps_session');res.redirect('/');});
 app.get('/health',(req,res)=>res.json({ok:true,database:pool?'postgres':'temporary',mail:!!process.env.RESEND_API_KEY}));
 
-initDb().then(()=>app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`))).catch(err=>{console.error(err);process.exit(1)});
+initDb().then(async()=>{
+  if(initSubscriptionBilling) await initSubscriptionBilling();
+  return app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`));
+}).catch(err=>{console.error(err);process.exit(1)});

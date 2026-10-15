@@ -1,27 +1,46 @@
-# Botón de pago mensual IDPS
+# IDPS · Suscripción con tarjeta y aviso de renovación
 
-## Alcance
-- El ingreso institucional incorpora «Pagar mensualidad · IDPS» y la ruta pública `/pago-mensual`.
-- La página muestra un plan de `$15.000 CLP` por **30 días de acceso** (configurable).
-- El cobro se delega a un **plan de suscripción recurrente** de Mercado Pago creado en la cuenta comercial; nunca se capturan tarjetas en IDPS.
-- Si falta el enlace, la página indica que el cobro no está habilitado y permite solicitar acceso. No redirige a enlaces inventados.
-- Se conserva el proceso existente de solicitud, revisión manual y entrega de credenciales. Este cambio no toca matrícula, encuestas, informes, cuentas ni base de datos.
+> **Desarrollo en borrador. No activar cobros ni fusionar hasta completar pruebas reales de Mercado Pago y revisión de seguridad.**
 
-## Configuración de Render (solo después de verificar el plan)
-1. En la cuenta comercial de Mercado Pago, crear un **Plan de suscripción** IDPS con cargo **mensual recurrente** por el mismo monto publicado; NO usar un Link de pago único.
-2. Guardar en las variables de entorno del servicio Render que despliega `idps-system`:
-   - `IDPS_MONTHLY_SUBSCRIPTION_URL`: enlace HTTPS generado del Plan de suscripción de Mercado Pago.
-   - `IDPS_MONTHLY_AMOUNT_CLP`: `15000` (o el precio realmente aprobado).
-3. La plataforma concede **30 días de acceso desde la aprobación** por cada pago verificado. No confundir esta vigencia fija de 30 días con la frecuencia mensual calendario del cobro de Mercado Pago: pueden no coincidir exactamente. Comprobar en entorno de prueba que el enlace lleva al comercio correcto, muestra el precio exacto y habilita la periodicidad correcta; comprobar con transacción de prueba y política de cancelación antes de habilitar cobro productivo.
-4. Confirmar el pago en la cuenta comercial antes de aprobar el acceso institucional. Asociar correo y RBD del establecimiento y registrar fecha de inicio y fin de los 30 días de acceso.
-5. La cancelación de una suscripción se tramita mediante la cuenta/portal de Mercado Pago del pagador; documentar esto en el correo de alta.
+## Contrato comercial
+- Precio: **$15.000 CLP cada 30 días**.
+- La persona responsable ingresa su RBD y correo, acepta expresamente la suscripción y **vincula su tarjeta solo en Mercado Pago**.
+- Mercado Pago realiza el cobro automático según el intervalo de 30 días definido en la solicitud (`frequency:30, frequency_type:'days'`). **Confirmar esta periodicidad específica para Chile con una suscripción de prueba antes de habilitar producción.**
+- Aviso de renovación previsto hasta 3 días antes del próximo cargo y correo después del cargo aprobado.
+- El cliente dispone de un enlace de cancelación mediante correo registrado. La cancelación evita nuevos cobros y conserva el acceso ya pagado por su vigencia; los datos académicos no se eliminan.
+- Nunca exponer datos de tarjetas ni credenciales de pago al navegador o al repositorio.
 
-## Limitaciones que deben resolverse antes de activación/suspensión automatizada
-Esta integración mediante enlace **no recibe webhooks, no concilia automáticamente pagos con RBD y no suspende ni renueva el acceso a IDPS**. No se debe asumir que un visitante de la página pagó por visitar el enlace, ni activar/suspender usuarios en base a parámetros de retorno. Para automatizar esos procesos se requiere una integración de servidor con webhooks validados, conciliación de pagos, estados de suscripción y controles de vigencia. Mientras tanto, la aprobación y renovación se mantienen manuales y nunca se eliminan datos por falta de pago.
+## Dónde obtener las credenciales
+1. Acceder con la **cuenta comercial** a https://www.mercadopago.cl/developers/panel/applications
+2. Crear/seleccionar la aplicación para **IDPS · Material Educativo Chile**.
+3. Abrir **Credenciales de prueba** para testear y **Credenciales de producción** solo después de verificar el flujo.
+4. Copiar el **Access Token** solo al servidor, nunca a este chat, correo, logs, ni archivo público.
+5. Revisar los mecanismos disponibles para las **notificaciones de Suscripciones**: la documentación oficial distingue esos eventos de los Webhooks generales. Validar el mecanismo real de notificación, la firma si corresponde, y el enlace/URL de callback compatible con la API del comercio.
 
-## QA
+## Variables de entorno del servicio Render correcto
+- `MERCADOPAGO_ACCESS_TOKEN`: token privado del entorno seleccionado.
+- `MERCADOPAGO_WEBHOOK_SECRET`: firma secreta si el método de Webhooks verificados está disponible para la integración seleccionada.
+- `IDPS_BILLING_CRON_SECRET`: secreto aleatorio largo para autorizar revisión diaria.
+- `RESEND_API_KEY` y `RESEND_FROM`: remitente verificado para avisos de renovación/cancelación.
+- `PUBLIC_URL`: URL HTTPS pública de **IDPS gestión**.
+- `DATABASE_URL`: Postgres del servicio IDPS, con respaldo antes del despliegue.
+- `IDPS_MONTHLY_AMOUNT_CLP=15000`: precio mostrado en el frontend (la lógica de cobro requiere coincidir).
+
+La preparación anterior debe realizarse en **Environment** del servicio correcto en Render y jamás en GitHub.
+
+## Revisión de lanzamiento pendiente
+- Probar creación de suscripción, autorización de tarjeta, cobro inicial aprobado, cobro rechazado, renovaciones, cancelaciones, avisos por correo y enlaces de un solo usuario.
+- Comprobar cómo Mercado Pago entrega notificaciones de suscripciones en Chile y registrar una URL operativa. La recepción de notificaciones aún no está validada.
+- Verificar pago asociado a RBD/correo antes de renovar o suspender cuentas, con pruebas de concurrencia, duplicados y reintentos.
+- Configurar una tarea programada (Cron) que llame al endpoint `POST /internal/subscriptions/renewal-notices` con `x-billing-cron-key`; el módulo no envía avisos de forma autónoma sin este proceso.
+- Revisar compatibilidad con los datos de suscripciones existentes y el mecanismo de expiración real.
+- No fusionar ni configurar tokens productivos hasta aprobar pruebas funcionales de extremo a extremo.
+
+## Calidad automatizada
 ```bash
 cd idps-system
+npm install --ignore-scripts
 npm run qa:monthly-payment
 node --check server.js
+node --check subscription-billing.js
 ```

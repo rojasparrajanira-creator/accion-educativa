@@ -19,9 +19,9 @@ function trustedSubscriptionUrl(raw) {
 
 function registerMonthlyPayment(app, { layout }) {
   app.get('/pago-mensual', (req, res) => {
-    const amount = Number(process.env.IDPS_MONTHLY_AMOUNT_CLP || '16990');
+    const amount = Number(process.env.IDPS_MONTHLY_AMOUNT_CLP || '15000');
     const displayAmount = Number.isSafeInteger(amount) && amount > 0
-      ? amount.toLocaleString('es-CL') : '16.990';
+      ? amount.toLocaleString('es-CL') : '15.000';
     const url = trustedSubscriptionUrl(process.env.IDPS_MONTHLY_SUBSCRIPTION_URL);
     const action = url
       ? `<a class="btn primary" href="${url}" target="_blank" rel="noopener noreferrer">Suscribirme y pagar en Mercado Pago ↗</a>`
@@ -29,11 +29,11 @@ function registerMonthlyPayment(app, { layout }) {
     res.send(layout('Pago mensual IDPS', `
       <section class="card" style="max-width:760px;margin:24px auto">
         <span style="font-weight:900;color:#168da9;letter-spacing:.1em;font-size:12px">MATERIAL EDUCATIVO CHILE · IDPS</span>
-        <h1 style="margin:15px 0">Suscripción mensual</h1>
+        <h1 style="margin:15px 0">Plan IDPS · 30 días</h1>
         <p class="muted">Plataforma institucional de Indicadores de Desarrollo Personal y Social.</p>
-        <p style="font-size:36px;font-weight:900;color:#0f2d52;margin:20px 0 5px">$ ${displayAmount} <span style="font-size:16px">CLP / mes</span></p>
-        <p class="muted">Cobro mensual recurrente a través de Mercado Pago, sujeto a la confirmación del plan por el proveedor.</p>
-        <p>El pago no activa el acceso inmediatamente: el equipo de Material Educativo Chile revisará la solicitud del establecimiento, verificará el pago y enviará las credenciales de acceso.</p>
+        <p style="font-size:36px;font-weight:900;color:#0f2d52;margin:20px 0 5px">$ ${displayAmount} <span style="font-size:16px">CLP / 30 días</span></p>
+        <p class="muted">Cada pago confirmado otorga 30 días de acceso. El cobro recurrente mensual se gestiona a través de Mercado Pago según el plan contratado.</p>
+        <p>El pago no activa el acceso inmediatamente: el equipo de Material Educativo Chile revisará la solicitud del establecimiento, verificará el pago y enviará las credenciales de acceso con vigencia de 30 días.</p>
         <div class="actions" style="margin-top:24px;align-items:center;flex-wrap:wrap">
           ${action}
           <a class="btn secondary" href="/solicitud">Solicitar acceso institucional</a>

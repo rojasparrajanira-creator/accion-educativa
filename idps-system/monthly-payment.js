@@ -39,7 +39,7 @@ function registerMonthlyPayment(app, { layout }) {
         <h1 style="margin:15px 0">Plan IDPS · 30 días</h1>
         <p class="muted">Plataforma institucional de Indicadores de Desarrollo Personal y Social.</p>
         <p style="font-size:36px;font-weight:900;color:#0f2d52;margin:20px 0 5px">$ ${displayAmount} <span style="font-size:16px">CLP / 30 días</span></p>
-        <p class="muted">Cada pago confirmado otorga 30 días de acceso. El cobro recurrente mensual se gestiona a través de Mercado Pago según el plan contratado.</p>
+        <p class="muted">Cada pago confirmado otorga 30 días de acceso. Los cobros automáticos se tramitan en Mercado Pago, donde vincularás tu tarjeta. No almacenamos números ni códigos de tu tarjeta.</p>
         <p>El pago no activa el acceso inmediatamente: el equipo de Material Educativo Chile revisará la solicitud del establecimiento, verificará el pago y enviará las credenciales de acceso con vigencia de 30 días.</p>
         <div class="actions" style="margin-top:24px;align-items:center;flex-wrap:wrap">
           ${action}

@@ -143,6 +143,36 @@ express.application.get=function patchedGet(path,...handlers){if(path==='/panel'
 
 const originalListen=express.application.listen;
 express.application.listen=function patchedListen(...args){if(requireEst&&!this.__idpsApplicationRoutes){this.__idpsApplicationRoutes=true;const app=this;
+// Resumen no identificable del estado de encuestas para actualización automática.
+// Acceso restringido con la misma autenticación del panel institucional.
+// Una sola consulta liviana, filtrada siempre por el establecimiento de la sesión.
+app.get('/api/idps/live-revision', requireEst, async (req,res)=>{
+  res.setHeader('Cache-Control','private, no-store, max-age=0');
+  res.setHeader('Vary','Cookie');
+  try {
+    if (!pool) return res.status(503).json({ok:false,error:'Base de datos no disponible.'});
+    const estId=req.auth.establishmentId;
+    const q=await pool.query(`
+      SELECT
+        (SELECT json_build_object('cantidad',count(*),'ultima',max(submitted_at))
+         FROM idps_responses WHERE establishment_id=$1) AS respuestas,
+        (SELECT json_build_object('total',count(*),
+          'iniciadas',count(*) FILTER (WHERE status='opened'),
+          'completadas',count(*) FILTER (WHERE status='completed'),
+          'ultima_apertura',max(opened_at),'ultima_finalizacion',max(completed_at))
+         FROM idps_applications WHERE establishment_id=$1) AS aplicaciones,
+        (SELECT json_build_object('con_clave',count(*),'ultima_clave',max(ac.updated_at))
+         FROM idps_student_access ac
+         JOIN idps_students s ON s.id=ac.student_id
+         WHERE s.establishment_id=$1 AND s.active=true) AS accesos
+    `,[estId]);
+    const revision=crypto.createHash('sha256').update(JSON.stringify(q.rows[0])).digest('hex').slice(0,24);
+    return res.json({ok:true,revision});
+  } catch(e) {
+    console.error('[IDPS_LIVE_REVISION]',e.message);
+    return res.status(503).json({ok:false,error:'No se pudo revisar la actualización.'});
+  }
+});
 app.use('/api/student',(req,res,next)=>{const origin=String(req.headers.origin||'');if(origin===SURVEY_URL){res.setHeader('Access-Control-Allow-Origin',SURVEY_URL);res.setHeader('Vary','Origin');}res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Cache-Control','no-store');if(req.method==='OPTIONS')return res.sendStatus(204);next();});
 app.post('/api/student/login',async(req,res)=>{try{await ensureTables();const rut=normalizeRut(req.body?.rut||''),pin=String(req.body?.pin||'').replace(/\D/g,''),key=rut.full||'invalid';if(checkLoginBlock(key))return res.status(429).json({ok:false,error:'Demasiados intentos. Intenta nuevamente en 15 minutos.'});if(!validRut(rut.full)||!/^\d{4}$/.test(pin)){failLogin(key);return res.status(400).json({ok:false,error:'RUT o clave incorrectos.'});}const q=await pool.query(`SELECT s.id student_id,s.first_names,s.last_name_paternal,s.last_name_maternal,s.run,s.dv,s.gender,a.id application_id,a.establishment_id,a.school_year,a.level,a.grade_desc,a.course_letter,a.status,a.completed_at,ac.pin_hash,e.name establishment_name,e.rbd,e.commune,e.status establishment_status,e.expires_at FROM idps_students s JOIN idps_applications a ON a.student_id=s.id JOIN idps_student_access ac ON ac.student_id=s.id JOIN idps_establishments e ON e.id=s.establishment_id WHERE s.run=$1 AND upper(s.dv)=upper($2) AND s.active=true AND e.status='active' ORDER BY s.school_year DESC LIMIT 2`,[rut.run,rut.dv]);if(q.rows.length!==1){failLogin(key);return res.status(401).json({ok:false,error:'RUT o clave incorrectos.'});}const row=q.rows[0];if(row.expires_at&&new Date(row.expires_at).getTime()<Date.now())return res.status(403).json({ok:false,error:'El acceso del establecimiento se encuentra vencido.'});if(!(await bcrypt.compare(pin,row.pin_hash))){failLogin(key);return res.status(401).json({ok:false,error:'RUT o clave incorrectos.'});}clearLogin(key);await pool.query('DELETE FROM idps_student_sessions WHERE student_id=$1 OR expires_at<=now()',[row.student_id]);const raw=sessionToken(),hash=tokenHash(raw);await pool.query(`INSERT INTO idps_student_sessions(id,token_hash,student_id,application_id,expires_at) VALUES($1,$2,$3,$4,now()+($5||' hours')::interval)`,[crypto.randomUUID(),hash,row.student_id,row.application_id,String(STUDENT_SESSION_HOURS)]);if(row.status==='pending')await pool.query(`UPDATE idps_applications SET status='opened',opened_at=COALESCE(opened_at,now()) WHERE id=$1`,[row.application_id]);let result=null;if(row.status==='completed'){const rr=(await pool.query(`SELECT scores,general,submitted_at FROM idps_responses WHERE application_id=$1`,[row.application_id])).rows[0];if(rr)result={scores:parseJsonArray(rr.scores),general:Number(rr.general),submitted_at:rr.submitted_at};}let draft=[];if(row.status!=='completed'){const dd=(await pool.query(`SELECT answers FROM idps_response_drafts WHERE application_id=$1`,[row.application_id])).rows[0];draft=parseJsonArray(dd?.answers);}return res.json({ok:true,token:raw,student:{first_name:String(row.first_names||'').split(/\s+/)[0]||'Estudiante',full_name:[row.first_names,row.last_name_paternal,row.last_name_maternal].filter(Boolean).join(' '),rut:formatRut(row.run,row.dv),level:questionLevel(row.level),course:courseLabel(row.grade_desc,row.course_letter),establishment:row.establishment_name,status:row.status},result,draft});}catch(e){console.error('[STUDENT_LOGIN]',e);res.status(500).json({ok:false,error:'No fue posible iniciar la aplicación.'});}});
 app.get('/api/student/context',async(req,res)=>{try{const s=await authStudent(req);if(!s)return res.status(401).json({ok:false,error:'Sesión inválida o vencida.'});let result=null;if(s.status==='completed'){const rr=(await pool.query(`SELECT scores,general,submitted_at FROM idps_responses WHERE application_id=$1`,[s.application_id])).rows[0];if(rr)result={scores:parseJsonArray(rr.scores),general:Number(rr.general),submitted_at:rr.submitted_at};}let draft=[];if(s.status!=='completed'){const dd=(await pool.query(`SELECT answers FROM idps_response_drafts WHERE application_id=$1`,[s.application_id])).rows[0];draft=parseJsonArray(dd?.answers);}res.json({ok:true,student:{first_name:String(s.first_names||'').split(/\s+/)[0]||'Estudiante',full_name:[s.first_names,s.last_name_paternal,s.last_name_maternal].filter(Boolean).join(' '),rut:formatRut(s.run,s.dv),level:questionLevel(s.level),course:courseLabel(s.grade_desc,s.course_letter),establishment:s.establishment_name,status:s.status},result,draft});}catch(e){console.error('[STUDENT_CONTEXT]',e);res.status(500).json({ok:false,error:'No fue posible recuperar la aplicación.'});}});

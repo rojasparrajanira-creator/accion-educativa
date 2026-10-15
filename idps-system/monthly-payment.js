@@ -22,10 +22,17 @@ function registerMonthlyPayment(app, { layout }) {
     const amount = Number(process.env.IDPS_MONTHLY_AMOUNT_CLP || '15000');
     const displayAmount = Number.isSafeInteger(amount) && amount > 0
       ? amount.toLocaleString('es-CL') : '15.000';
-    const url = trustedSubscriptionUrl(process.env.IDPS_MONTHLY_SUBSCRIPTION_URL);
-    const action = url
-      ? `<a class="btn primary" href="${url}" target="_blank" rel="noopener noreferrer">Suscribirme y pagar en Mercado Pago ↗</a>`
-      : '<div class="notice" role="status">El pago en línea todavía no está habilitado. Por ahora puedes solicitar acceso y recibir instrucciones del equipo.</div>';
+    const configured = require('./subscription-billing').ready();
+    const action = configured
+      ? '<form method="post" action="/suscripcion/iniciar" style="width:100%;max-width:560px">'+
+        '<div class="field"><label for="sub-rbd">RBD del establecimiento</label><input id="sub-rbd" name="rbd" maxlength="15" required></div>'+
+        '<div class="field"><label for="sub-email">Correo institucional para avisos y cancelación</label><input id="sub-email" type="email" name="email" maxlength="254" autocomplete="email" required></div>'+
+        '<label style="display:block;margin:16px 0;line-height:1.6"><input type="checkbox" name="accept" value="yes" required> '+
+        'Autorizo vincular una tarjeta en el sitio seguro de Mercado Pago para que se cobren <b>$15.000 CLP cada 30 días</b>. '+
+        'Deseo recibir notificaciones de renovación por correo y sé que puedo cancelar la suscripción para detener futuros cargos.</label>'+
+        '<button class="btn primary" type="submit">Vincular tarjeta y activar cobro recurrente ↗</button>'+
+        '</form>'
+      : '<div class="notice" role="status">La vinculación de tarjetas y el pago recurrente aún no están habilitados. Puedes solicitar acceso mientras se completa la configuración y las pruebas.</div>';
     res.send(layout('Pago mensual IDPS', `
       <section class="card" style="max-width:760px;margin:24px auto">
         <span style="font-weight:900;color:#168da9;letter-spacing:.1em;font-size:12px">MATERIAL EDUCATIVO CHILE · IDPS</span>
@@ -39,7 +46,7 @@ function registerMonthlyPayment(app, { layout }) {
           <a class="btn secondary" href="/solicitud">Solicitar acceso institucional</a>
           <a class="btn secondary" href="/">Volver al ingreso</a>
         </div>
-        <p class="muted" style="font-size:13px;margin-top:20px">Si ya tienes acceso, identifica el RBD y correo institucional ante el equipo para que el pago se asocie correctamente. La cancelación de los cargos recurrentes se gestiona desde Mercado Pago. Los datos del establecimiento y de sus estudiantes no se eliminan por suspensión del servicio.</p>
+        <p class="muted" style="font-size:13px;margin-top:20px">Si ya tienes acceso, identifica el RBD y correo institucional ante el equipo para que el pago se asocie correctamente. Antes del próximo cobro recibirás un aviso por correo con un enlace para cancelar los futuros cargos. También podrás solicitar un nuevo enlace de cancelación. Los datos del establecimiento y de sus estudiantes no se eliminan por suspensión del servicio.</p>
       </section>
     `, '<a href="/">Inicio</a><a href="/solicitud">Solicitar acceso</a>'));
   });

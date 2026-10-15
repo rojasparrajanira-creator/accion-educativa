@@ -27,9 +27,8 @@
   }
 
   function boot() {
-    const h = document.querySelector('main h1') || document.querySelector('h1');
-    if (h) h.insertAdjacentElement('afterend', status);
-    else document.body.appendChild(status);
+    // Ubicación estable: al reemplazar informes nunca desaparece el indicador.
+    document.body.appendChild(status);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden && !stopped) { clearTimeout(timer); check(); }
     });
@@ -94,7 +93,7 @@
     const updated = document.importNode(newBlock, true);
     currentBlock.replaceWith(updated);
     if (current === '/panel/aplicacion') courseFilters(updated, preserved);
-    window.scrollTo({top: top, behavior: 'instant'});
+    window.scrollTo(0, top);
     return true;
   }
 

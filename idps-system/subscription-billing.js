@@ -248,6 +248,28 @@ module.exports=function registerBilling(app,{pool,layout}){
       '<p>Revisa tu correo para la confirmación.</p></div>'));
   });
 
+  // Recovery path: cancellation remains possible even if a previous email was deleted.
+  app.post('/suscripcion/solicitar-cancelacion',limiter,async(req,res)=>{
+    const generic=layout('Enlace de cancelación',
+      '<div class="card"><h2>Revisa tu correo</h2><p>Si existe una suscripción asociada a estos datos, recibirás un enlace seguro de cancelación.</p></div>');
+    if(!ready())return res.status(503).send('El servicio de suscripciones aún no está habilitado.');
+    const rbd=rbdNorm(req.body.rbd),email=clean(req.body.email).toLowerCase();
+    if(!/^[0-9K]{2,12}$/.test(rbd)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return res.send(generic);
+    try{
+      const found=await pool.query("SELECT * FROM idps_billing_subscriptions WHERE rbd_norm=$1 AND lower(email)=$2 AND status IN ('authorized','pending') ORDER BY created_at DESC LIMIT 1",
+        [rbd,email]);
+      const s=found.rows[0];
+      if(s){
+        const token=crypto.randomBytes(32).toString('hex');
+        await pool.query('UPDATE idps_billing_subscriptions SET cancel_token_hash=$2 WHERE id=$1',[s.id,secretHash(token)]);
+        await sendMail(s.email,'Enlace para gestionar tu suscripción IDPS',
+          '<h2>Gestionar suscripción</h2><p>Se solicitó un enlace seguro para la suscripción del RBD <b>'+
+          html(rbd)+'</b>.</p>'+cancelHtml(s,token));
+      }
+    }catch(e){console.error('Subscription cancellation link delivery failed',e.message);}
+    return res.send(generic);
+  });
+
   // Invoke once daily from Render Cron using a secret header. Never assume the app is awake.
   app.post('/internal/subscriptions/renewal-notices',async(req,res)=>{
     const key=clean(req.get('x-billing-cron-key'));

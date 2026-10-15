@@ -42,7 +42,8 @@ test('configured merchant plan enables checkout without capturing card data', ()
     handler({}, {send(body){html=body;}});
     assert.match(html,/href="https:\/\/www\.mercadopago\.cl\/subscriptions\/checkout\?id=sample"/);
     assert.match(html,/Suscribirme y pagar en Mercado Pago/);
-    assert.match(html,/16\.990/);
+    assert.match(html,/15\.000/);
+    assert.match(html,/CLP \/ 30 días/);
   } finally {
     if (saved === undefined) delete process.env.IDPS_MONTHLY_SUBSCRIPTION_URL;
     else process.env.IDPS_MONTHLY_SUBSCRIPTION_URL=saved;

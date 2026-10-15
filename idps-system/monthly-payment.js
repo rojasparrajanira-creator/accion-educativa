@@ -46,6 +46,7 @@ function registerMonthlyPayment(app, { layout }) {
           <a class="btn secondary" href="/solicitud">Solicitar acceso institucional</a>
           <a class="btn secondary" href="/">Volver al ingreso</a>
         </div>
+        ${configured ? '<section style="margin-top:24px;padding-top:18px;border-top:1px solid #eee"><h3>¿Quieres cancelar una suscripción?</h3><p class="muted">Solicita un enlace seguro a tu correo registrado.</p><form method="post" action="/suscripcion/solicitar-cancelacion"><div class="field"><label>RBD del establecimiento</label><input name="rbd" required></div><div class="field"><label>Correo registrado</label><input type="email" name="email" required></div><button class="btn secondary">Enviar enlace de cancelación</button></form></section>' : ''}
         <p class="muted" style="font-size:13px;margin-top:20px">Si ya tienes acceso, identifica el RBD y correo institucional ante el equipo para que el pago se asocie correctamente. Antes del próximo cobro recibirás un aviso por correo con un enlace para cancelar los futuros cargos. También podrás solicitar un nuevo enlace de cancelación. Los datos del establecimiento y de sus estudiantes no se eliminan por suspensión del servicio.</p>
       </section>
     `, '<a href="/">Inicio</a><a href="/solicitud">Solicitar acceso</a>'));

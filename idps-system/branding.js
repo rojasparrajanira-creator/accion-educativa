@@ -12,6 +12,43 @@ try {
   console.warn('Branding: logo-oficial.jpg no disponible');
 }
 
+
+// Imagen educativa proporcionada para el fondo EXCLUSIVO de la portada IDPS.
+// Versión AVIF optimizada y almacenada como texto para no exponer ningún archivo privado.
+let idpsHomeBackground = '';
+try {
+  const encoded = fs.readFileSync(path.join(__dirname, 'fondo-portada-idps.avif.base64'),'utf8').trim();
+  if (/^[a-zA-Z0-9+/=]+$/.test(encoded) && encoded.length > 1000) {
+    idpsHomeBackground = 'data:image/avif;base64,' + encoded;
+  }
+} catch (e) {
+  console.warn('Branding: fondo-portada-idps no disponible; se conserva fondo previo');
+}
+const idpsHomeBackgroundCss = idpsHomeBackground ? `
+body:has(form[action="/login"]) {
+ background-image:linear-gradient(180deg,rgba(255,255,255,.05),rgba(245,253,255,.12)),url("${idpsHomeBackground}")!important;
+ background-size:cover!important;
+ background-position:center center!important;
+ background-repeat:no-repeat!important;
+ background-attachment:fixed!important;
+}
+body:has(form[action="/login"]) .home-intro {
+ background:linear-gradient(90deg,rgba(255,255,255,.83) 0%,rgba(255,255,255,.71) 55%,rgba(255,255,255,.32) 100%)!important;
+ border-bottom:1px solid rgba(255,255,255,.5)!important;
+}
+body:has(form[action="/login"]) .login-shell {
+ box-shadow:0 18px 45px rgba(15,45,82,.14)!important;
+}
+body:has(form[action="/login"]) .home-action-card {
+ background:rgba(255,255,255,.96)!important;
+ backdrop-filter:blur(5px);
+}
+@media(max-width:760px){
+ body:has(form[action="/login"]) {background-attachment:scroll!important;background-position:33% center!important;}
+ body:has(form[action="/login"]) .home-intro {background:rgba(255,255,255,.86)!important;}
+}
+` : '';
+
 const brandCss = `
 body{background:linear-gradient(180deg,#F7FAFC 0%,#EEF4F8 100%)!important;color:#17324d!important}
 header{background:linear-gradient(135deg,#0F2D52 0%,#163C68 100%)!important;border-bottom:3px solid #19C2D1!important;box-shadow:0 8px 28px rgba(15,45,82,.14)!important;position:sticky;top:0;z-index:30}
@@ -271,7 +308,7 @@ function injectBranding(html) {
   if (typeof html !== 'string' || !/<html[\s>]/i.test(html)) return html;
   if (!html.includes('data-mec-branding="3"')) {
     const favicon = logoData ? `<link rel="icon" type="image/jpeg" href="${logoData}">` : '';
-    html = html.replace('</head>', `${favicon}<style data-mec-branding="3">${brandCss}</style></head>`);
+    html = html.replace('</head>', `${favicon}<style data-mec-branding="3">${brandCss}${html.includes('action="/login"') ? idpsHomeBackgroundCss : ''}</style></head>`);
   }
 
   const logo = logoData ? `<img class="brand-logo" src="${logoData}" alt="Material Educativo Chile">` : '';

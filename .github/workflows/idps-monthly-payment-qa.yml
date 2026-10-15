@@ -1,0 +1,28 @@
+name: IDPS monthly payment UI QA
+on:
+  pull_request:
+    paths:
+      - 'idps-system/server.js'
+      - 'idps-system/monthly-payment.js'
+      - 'idps-system/test-monthly-payment.js'
+      - 'idps-system/package.json'
+      - '.github/workflows/idps-monthly-payment-qa.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse IDPS server and monthly subscription module
+        run: |
+          node --check idps-system/server.js
+          node --check idps-system/monthly-payment.js
+      - name: Check monthly payment page and safe links
+        working-directory: idps-system
+        run: npm run qa:monthly-payment

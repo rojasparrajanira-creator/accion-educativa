@@ -47,3 +47,4 @@ Si se abre la URL del receptor directamente en el navegador (método GET), prese
 
 La prueba automática consulta desde GitHub Actions la URL pública y comprueba el estado `configured` sin leer ni exponer el secreto. Esta comprobación no activa cobros, no edita variables de entorno y no despliega la API de producción.
 <!-- Verificación de disponibilidad pública del endpoint /health; no modificar credenciales. -->
+<!-- Comprobación de disponibilidad después del reinicio aislado de Render; no incluye credenciales. -->

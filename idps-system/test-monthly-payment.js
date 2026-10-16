@@ -31,6 +31,7 @@ test('does not invite real charges when merchant credentials are missing', () =>
 
 test('configured checkout explicitly requests consent to recurring 30-day card charges',()=>{
   const env={
+    IDPS_BILLING_ENABLED:'true',
     DATABASE_URL:'postgres://placeholder/placeholder',
     MERCADOPAGO_ACCESS_TOKEN:'dummy-test-token',
     MERCADOPAGO_WEBHOOK_SECRET:'dummy-secret',

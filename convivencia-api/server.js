@@ -93,7 +93,8 @@ function storePaymentConfig(){
 }
 function storeCheckoutReady(){
   const cfg=storePaymentConfig();
-  return cfg.mode==='production'&&cfg.configured&&storeDelivery.configuration().email_ready&&storeDriveServiceAccount.enabled;
+  const authorized=cfg.provider!=='mercadopago'||String(process.env.MEC_MERCADOPAGO_CHECKOUT_ENABLED||'')==='1';
+  return authorized&&cfg.mode==='production'&&cfg.configured&&storeDelivery.configuration().email_ready&&storeDriveServiceAccount.enabled;
 }
 const storeImageUpload=multer({
   storage:multer.memoryStorage(),
@@ -2008,8 +2009,7 @@ app.get('/api/store/admin/catalog-readiness',...requireRole('platform_admin'),as
       technical_google_configured:readyForAudit,
       technical_account_email:technical.service_account_email||null,
       email_ready:mail.email_ready,payment_mode:payment.mode,payment_configured:payment.configured,
-      ready_for_live:allPublishedReady&&folderReady===total&&mail.email_ready&&
-        payment.configured&&payment.mode==='production',
+      ready_for_live:allPublishedReady&&folderReady===total&&mail.email_ready&&storeCheckoutReady(),
       items:checked});
   }catch(e){
     console.error('Store folder audit failed:',String(e?.message||'unknown').slice(0,80));

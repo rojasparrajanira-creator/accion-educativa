@@ -397,7 +397,7 @@ body.product-info-open{overflow:hidden}
   <div class="trust-strip">
     <div class="trust-item"><div class="trust-icon">✦</div><div><strong>Listo para implementar</strong><span>Menos tiempo preparando desde cero.</span></div></div>
     <div class="trust-item"><div class="trust-icon">▣</div><div><strong>Material organizado</strong><span>Recursos claros y fáciles de utilizar.</span></div></div>
-    <div class="trust-item"><div class="trust-icon">✓</div><div><strong>Compra segura</strong><span>Pago procesado mediante Webpay.</span></div></div>
+    <div class="trust-item"><div class="trust-icon">✓</div><div><strong>Compra segura</strong><span>El pago se confirma de forma segura antes de la entrega.</span></div></div>
     <div class="trust-item"><div class="trust-icon">✎</div><div><strong>Pensado para educación</strong><span>Diseñado para contextos educativos reales.</span></div></div>
   </div>
 </section>
@@ -456,7 +456,7 @@ body.product-info-open{overflow:hidden}
         <label for="invoiceCommune">Comuna *</label>
         <input id="invoiceCommune" maxlength="100" placeholder="Comuna">
       </div>
-      <button class="pay-btn" id="orderBtn" disabled>Pagar con Webpay</button>
+      <button class="pay-btn" id="orderBtn" disabled>Pago no disponible</button>
       <p id="cartMsg" class="cart-msg"></p>
     </aside>
   </div>
@@ -473,7 +473,7 @@ body.product-info-open{overflow:hidden}
 const API='https://convivencia-escolar-api.onrender.com';
 const money=v=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0));
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let products=[],cart=[],checkoutReady=false;
+let products=[],cart=[],checkoutReady=false,checkoutProvider='webpay';
 
 function splitIncluded(value){
   const raw=String(value||'').replace(/\r/g,'\n');
@@ -635,17 +635,25 @@ async function createOrder(){
     commune:document.getElementById('invoiceCommune').value.trim()
   }:null;
   if(invoice&&Object.values(invoice).some(v=>!v)){msg.textContent='Completa todos los datos de la empresa para solicitar factura.';return}
-  btn.disabled=true;msg.textContent='Conectando con Webpay…';
+  btn.disabled=true;msg.textContent='Conectando con el medio de pago…';
   try{
     const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,requested_document:requestedDocument,invoice,items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.error||'No fue posible iniciar el pago');
-    if(!d.payment_ready||!d.payment?.url||!d.payment?.token)throw new Error(d.message||'Webpay no está disponible');
+    if(!d.payment_ready||!d.payment?.url)throw new Error(d.message||'Pago no disponible');
+    if(d.provider==='mercadopago'){
+      const u=new URL(d.payment.url);
+      if(u.protocol!=='https:'||!['www.mercadopago.cl','mercadopago.cl','www.mercadopago.com','mercadopago.com'].includes(u.hostname))throw new Error('Destino de pago inválido');
+      msg.textContent='Abriendo Mercado Pago…';
+      location.assign(u.href);
+      return;
+    }
+    if(!d.payment.token)throw new Error('No fue posible abrir Webpay');
     msg.textContent='Abriendo Webpay…';
     const form=document.createElement('form');form.method='POST';form.action=d.payment.url;form.style.display='none';
     const input=document.createElement('input');input.type='hidden';input.name='token_ws';input.value=d.payment.token;form.appendChild(input);
     document.body.appendChild(form);requestAnimationFrame(()=>form.submit());
-  }catch(e){msg.textContent=e.message==='store_private_delivery_unavailable'||e.message==='store_checkout_not_ready'?'La entrega privada todavía no está autorizada. No se inició ningún cobro.':'No pudimos abrir Webpay: '+e.message;btn.disabled=!checkoutReady||!cart.length}
+  }catch(e){msg.textContent=e.message==='store_private_delivery_unavailable'||e.message==='store_checkout_not_ready'?'La entrega privada todavía no está autorizada. No se inició ningún cobro.':'No pudimos abrir el medio de pago: '+e.message;btn.disabled=!checkoutReady||!cart.length}
 }
 function updateDocumentFields(){
   const show=document.getElementById('buyerDocument').value==='factura';
@@ -656,24 +664,42 @@ document.getElementById('buyerDocument').addEventListener('change',updateDocumen
 updateDocumentFields();
 document.getElementById('orderBtn').addEventListener('click',createOrder);
 
-function paymentResult(){
+async function paymentResult(){
   const q=new URLSearchParams(location.search),result=q.get('payment'),order=q.get('order'),n=document.getElementById('paymentNotice');
   if(!result)return;
-  const map={success:'Pago confirmado'+(order?' · Pedido '+order:'')+'.',cancelled:'Pago cancelado. No se realizó ningún cobro.',failed:'El pago no pudo ser confirmado. Puedes intentarlo nuevamente.',invalid:'No fue posible validar el retorno de Webpay.'};
-  n.textContent=map[result]||'Resultado de pago: '+result;n.classList.add('show');history.replaceState({},'',location.pathname)
+  const map={cancelled:'Pago cancelado. Si observas un cargo, consúltanos con tu comprobante.',failed:'No pudimos confirmar el pago. Si ya pagaste, espera la confirmación antes de volver a comprar.',invalid:'No fue posible validar el retorno del medio de pago.'};
+  n.textContent=map[result]||'Estamos verificando el pago con el proveedor. No se entregará ningún material hasta que sea confirmado.';
+  n.classList.add('show');
+  history.replaceState({},'',location.pathname+location.hash);
+  if(!order||!['success','pending'].includes(result))return;
+  for(let retry=0;retry<12;retry++){
+    try{
+      const response=await fetch(API+'/api/store/orders/'+encodeURIComponent(order)+'/status',{cache:'no-store'});
+      const data=await response.json();
+      if(response.ok&&data.ok&&data.order?.status==='paid'){
+        n.textContent='¡Pago confirmado! Pedido '+order+'. Tus materiales se enviarán al correo indicado.';
+        return;
+      }
+    }catch{}
+    if(retry<11)await new Promise(resolve=>setTimeout(resolve,5000));
+  }
+  n.textContent='Seguimos esperando la confirmación del pago del pedido '+order+'. Si pagaste, no repitas el cobro: escríbenos con tu número de pedido.';
 }
 paymentResult();
 
-fetch(API+'/api/store/webpay/config').then(r=>r.json()).then(d=>{
+fetch(API+'/api/store/checkout/config').then(r=>r.json()).then(d=>{
   checkoutReady=!!(d.ok&&d.checkout_ready);
+  checkoutProvider=d.provider==='mercadopago'?'mercadopago':'webpay';
   const button=document.getElementById('orderBtn'),msg=document.getElementById('cartMsg');
   if(checkoutReady){
-    document.getElementById('paymentMode').textContent=d.mode==='integration'?'Webpay · ambiente de prueba':'Pago seguro con Webpay';
-    button.textContent=d.mode==='integration'?'Pagar con Webpay (prueba)':'Pagar con Webpay';
+    const label=checkoutProvider==='mercadopago'?'Mercado Pago':'Webpay';
+    document.getElementById('paymentMode').textContent='Pago único y seguro con '+label;
+    button.textContent='Pagar con '+label;
+    msg.textContent='';
   }else{
     document.getElementById('paymentMode').textContent='Compras temporalmente suspendidas';
     button.textContent='Pago no disponible';
-    msg.textContent='Estamos verificando la entrega automática y privada de tus materiales. Por seguridad no habilitaremos pagos hasta completar la conexión.';
+    msg.textContent='Estamos verificando el sistema de pago y la entrega privada de tus materiales. No se iniciará ningún cobro mientras no esté habilitado.';
   }
   renderCart();
 }).catch(()=>{

@@ -38,3 +38,7 @@ Entorno temporal de recepción para **probar la autenticidad de notificaciones**
 node --check idps-webhook-test/server.js
 node --test idps-webhook-test/test-webhook.js
 ```
+
+## Consulta desde el navegador
+
+Si se abre la URL del receptor directamente en el navegador (método GET), presenta el mismo estado que `/health` y `/status`, en vez de mostrar `not_found`. Esto **no** simula un aviso real, ni genera un pago. Si el estado muestra `configured: false`, falta guardar `MP_WEBHOOK_TEST_SECRET` en Environment **del servicio de prueba**, no en la aplicación IDPS principal.

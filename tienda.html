@@ -697,7 +697,7 @@ fetch(API+'/api/store/checkout/config').then(r=>r.json()).then(d=>{
     button.textContent='Pagar con '+label;
     msg.textContent='';
   }else{
-    document.getElementById('paymentMode').textContent='Compras temporalmente suspendidas';
+    document.getElementById('paymentMode').textContent=checkoutProvider==='mercadopago'?'Mercado Pago · en preparación':'Compras temporalmente suspendidas';
     button.textContent='Pago no disponible';
     msg.textContent='Estamos verificando el sistema de pago y la entrega privada de tus materiales. No se iniciará ningún cobro mientras no esté habilitado.';
   }

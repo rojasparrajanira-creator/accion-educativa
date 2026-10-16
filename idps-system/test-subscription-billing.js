@@ -32,7 +32,7 @@ const fixture=()=>({
   subscription:{id:'pre-01',external_reference:subscriptionId,status:'authorized',payer_email:'escuela@example.test',
     auto_recurring:{frequency:30,frequency_type:'days',currency_id:'CLP',transaction_amount:15000},
     next_payment_date:'2026-11-16T17:00:00Z'},
-  charges:new Set(),notices:new Set(),emails:0,failOneUpdate:false
+  charges:new Set(),disputes:new Map(),notices:new Set(),emails:0,failOneUpdate:false
 });
 
 function fakePool(state){
@@ -51,6 +51,14 @@ function fakePool(state){
       state.stored.preapproval_id=args[3];state.stored.checkout_url=args[4];
       state.stored.cancel_token_hash=args[5];state.checkoutExists=true;
       return {rowCount:1,rows:[]};
+    }
+    if(/INSERT INTO idps_billing_disputes\(payment_id,subscription_id,payment_status\)/.test(sql)){
+      const [paymentId,status,preapprovalId]=args;
+      if(state.charges.has(paymentId)&&state.stored.preapproval_id===preapprovalId){
+        state.disputes.set(paymentId,status);
+        return {rowCount:1,rows:[{payment_id:paymentId}]};
+      }
+      return {rowCount:0,rows:[]};
     }
     if(/SELECT \* FROM idps_billing_subscriptions WHERE status='authorized'/.test(sql))
       return {rowCount:state.stored.status==='authorized'?1:0,rows:state.stored.status==='authorized'?[{...state.stored}]:[]};
@@ -270,6 +278,46 @@ test('checkout creates only a pending 30-day authorization, not a charge or acco
       assert.equal('card_token_id' in state.checkoutRequest,false);
       assert.equal(state.charges.size,0);
       assert.equal(state.establishment.expires_at,null);
+    });
+  }finally{restore();}
+});
+
+test('refund and chargeback events flag a previously paid charge for human review, never erase school data',async()=>{
+  const restore=config(),state=fixture();
+  try{
+    const {routes,init}=registerApp(state);await init();
+    await mockNetwork(state,async()=>{
+      const route=routes['/webhooks/mercadopago/subscriptions'];
+      const approved=reply();await route(req(),approved);
+      assert.equal(approved.statusCode,200);
+      const originalExpiry=state.stored.access_until;
+      const originalInstitutionExpiry=state.establishment.expires_at;
+      state.payment.status='refunded';
+      const refunded=reply();await route(req(),refunded);
+      assert.equal(refunded.statusCode,200);
+      assert.equal(state.charges.size,1);
+      assert.equal(state.disputes.get('999'),'refunded');
+      assert.equal(state.stored.access_until,originalExpiry);
+      assert.equal(state.establishment.expires_at,originalInstitutionExpiry);
+      state.payment.status='charged_back';
+      const disputed=reply();await route(req(),disputed);
+      assert.equal(disputed.statusCode,200);
+      assert.equal(state.disputes.size,1);
+      assert.equal(state.disputes.get('999'),'charged_back');
+      assert.equal(state.emails,1);
+    });
+  }finally{restore();}
+});
+test('rejected or refunded charge that was never approved is not recorded as a dispute',async()=>{
+  const restore=config(),state=fixture();state.payment.status='refunded';
+  try{
+    const {routes,init}=registerApp(state);await init();
+    await mockNetwork(state,async()=>{
+      const res=reply();await routes['/webhooks/mercadopago/subscriptions'](req(),res);
+      assert.equal(res.statusCode,200);
+      assert.equal(state.charges.size,0);
+      assert.equal(state.disputes.size,0);
+      assert.equal(state.stored.access_until,null);
     });
   }finally{restore();}
 });

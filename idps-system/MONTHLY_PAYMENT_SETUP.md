@@ -36,6 +36,13 @@ La preparación anterior debe realizarse en **Environment** del servicio correct
 - Los Webhooks simulados ya se validaron en un **receptor aislado de pruebas** de Render. Su URL no debe reemplazar al Webhook productivo de IDPS.
 - Ninguno de estos tests realiza cargos ni modifica el servicio `idps-gestion-material-educativo`.
 
+## Devoluciones y contracargos: revisión humana
+- Si Mercado Pago informa un pago previamente aprobado como `refunded`, `partially_refunded` o `charged_back`, el sistema lo registra en `idps_billing_disputes` para revisión; **no se eliminan ni suspenden automáticamente** los datos o el acceso institucional.
+- El aviso de pagos requiere suscripción a los eventos `Planes y suscripciones` y `Pagos` compatibles con Mercado Pago. Es necesario comprobar específicamente las notificaciones reales de devoluciones y contracargos; sin ellas, se necesitará conciliación diaria por API antes del lanzamiento.
+- Consulta orientativa, solo para personal autorizado de soporte: `SELECT payment_id, payment_status, detected_at FROM idps_billing_disputes WHERE resolved_at IS NULL ORDER BY detected_at DESC;`
+- La base de datos de estudiantes no se modifica en las pruebas. Cada solicitud de reembolso debe seguir una política comercial revisada y respetar el acceso pagado según corresponda.
+- La clave de firma de prueba utilizada durante las demostraciones debe **rotarse antes de usar una integración productiva**, especialmente si alguna captura deja ver una parte. No reutilizar claves de pruebas en producción.
+
 ## Revisión de lanzamiento pendiente
 - Probar creación de suscripción, autorización de tarjeta, cobro inicial aprobado, cobro rechazado, renovaciones, cancelaciones, avisos por correo y enlaces de un solo usuario.
 - Comprobar cómo Mercado Pago entrega notificaciones de suscripciones en Chile y registrar una URL operativa. La recepción de notificaciones aún no está validada.
@@ -43,7 +50,7 @@ La preparación anterior debe realizarse en **Environment** del servicio correct
 - Configurar una tarea programada (Cron) que llame al endpoint `POST /internal/subscriptions/renewal-notices` con `x-billing-cron-key`; el módulo no envía avisos de forma autónoma sin este proceso.
 - Revisar compatibilidad con los datos de suscripciones existentes y el mecanismo de expiración real.
 - No fusionar ni activar `IDPS_BILLING_ENABLED=true` en producción hasta aprobar pruebas funcionales de extremo a extremo.
-- En caso de disputa, reversa/contracargo, cancelación bancaria y reintentos tardíos, definir cómo suspender o ajustar el acceso sin eliminar datos de estudiantes.
+- Definir política de revisión de reembolsos, contracargos, suspensiones y reintentos tardíos, y quién resolverá los registros de `idps_billing_disputes`.
 - Después de las pruebas con credenciales de test, revisar las políticas de privacidad, autorización expresa de cargos y periodicidad *exacta* de 30 días aceptada por la API para Chile.
 
 ## Calidad automatizada

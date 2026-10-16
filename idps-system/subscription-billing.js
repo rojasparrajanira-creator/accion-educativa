@@ -179,7 +179,7 @@ module.exports=function registerBilling(app,{pool,layout}){
     try{
       if(kind==='subscription_preapproval'){
         const sub=await mp('GET','/preapproval/'+encodeURIComponent(dataId));
-        const result=await pool.query('UPDATE idps_billing_subscriptions SET status=$1,next_payment_at=$2 WHERE preapproval_id=$3 AND id::text=$4 AND status<>'canceled' RETURNING id',
+        const result=await pool.query('UPDATE idps_billing_subscriptions SET status=$1,next_payment_at=$2 WHERE preapproval_id=$3 AND id::text=$4 AND status<>\'canceled\' RETURNING id\',
           [sub.status||'pending',sub.next_payment_date||null,String(sub.id),String(sub.external_reference||'')]);
         if(!result.rowCount)console.warn('Unmatched subscription update');
       }

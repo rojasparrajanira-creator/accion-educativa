@@ -5,6 +5,7 @@ on:
       - 'idps-system/server.js'
       - 'idps-system/monthly-payment.js'
       - 'idps-system/test-monthly-payment.js'
+      - 'idps-system/test-subscription-billing.js'
       - 'idps-system/subscription-billing.js'
       - 'idps-system/package.json'
       - '.github/workflows/idps-monthly-payment-qa.yml'

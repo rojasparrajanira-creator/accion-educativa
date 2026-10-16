@@ -1894,6 +1894,75 @@ app.all('/api/store/webpay/return',async(req,res)=>{
   }
 });
 
+// Confirmación real de Checkout Pro: nunca confiamos en la URL que devuelve el navegador.
+// El webhook firmado identifica el pago, y la API privada de Mercado Pago confirma importe,
+// moneda, preferencia, referencia del pedido y estado approved antes de conceder Drive.
+async function confirmMercadoPagoPayment(paymentId){
+  const cfg=mercadoPagoStore.configuration();
+  if(cfg.mode!=='production'||!cfg.configured)return {paid:false};
+  const payment=await mercadoPagoStore.getPayment(paymentId);
+  const code=String(payment.external_reference||'');
+  if(!/^MEC-[A-Z0-9-]{10,100}$/.test(code))return {paid:false};
+  let merchantOrder=null;
+  if(payment?.order?.id){
+    merchantOrder=await mercadoPagoStore.getMerchantOrder(payment.order.id);
+  }
+  const client=await pool.connect();
+  let approved=false,orderId=null,orderCode=null;
+  try{
+    await client.query('begin');
+    const query=await client.query("select id,order_code,status,total_clp,payment_provider,payment_preference_id,payment_id from store_orders where order_code=$1 for update",[code]);
+    if(!query.rowCount){await client.query('rollback');return {paid:false}}
+    const order=query.rows[0];orderCode=order.order_code;orderId=order.id;
+    if(!approvedForOrder(payment,order,cfg.mode,merchantOrder)){
+      await client.query('rollback');return {paid:false,order_code:code};
+    }
+    if(order.status==='paid'){
+      approved=String(order.payment_id)===String(payment.id);
+    }else if(order.status==='payment_initialized'&&!order.payment_id){
+      const updated=await client.query(
+        "update store_orders set status='paid',payment_id=$2,paid_at=now(),updated_at=now() where id=$1 and status='payment_initialized' and payment_id is null returning id",
+        [order.id,String(payment.id)]
+      );
+      approved=updated.rowCount===1;
+      if(approved){
+        await client.query(
+          "insert into store_payment_events(order_id,provider,event_type,provider_status,amount_clp,payload) values($1,'mercadopago','confirmed','approved',$2,$3::jsonb)",
+          [order.id,Number(order.total_clp),JSON.stringify({payment_id:String(payment.id),preference_id:order.payment_preference_id})]
+        );
+        await client.query("insert into store_tax_documents(order_id) values($1) on conflict(order_id) do nothing",[order.id]);
+        await client.query(
+          "insert into store_delivery_events(order_id,status,buyer_email,detail) select id,'ready',buyer_email,'Pago Mercado Pago confirmado; entrega en cola' from store_orders where id=$1",
+          [order.id]
+        );
+      }
+    }
+    await client.query('commit');
+  }catch(e){
+    await client.query('rollback').catch(()=>{});
+    throw e;
+  }finally{client.release()}
+  if(approved){
+    // Idempotente incluso si Mercado Pago reintenta notificaciones.
+    await storeDelivery.enqueue(orderId);
+    storeDelivery.wake();
+  }
+  return {paid:approved,order_code:orderCode};
+}
+app.post('/api/store/mercadopago/webhook',publicRateLimit({windowMs:60000,max:100}),async(req,res)=>{
+  try{
+    if(!mercadoPagoStore.verifyWebhook(req))return res.sendStatus(401);
+    const type=String(req.query.type||req.body?.type||'').toLowerCase();
+    if(type!=='payment')return res.status(200).json({ok:true,ignored:true});
+    const id=String(req.query['data.id']||'');
+    await confirmMercadoPagoPayment(id);
+    return res.status(200).json({ok:true});
+  }catch(error){
+    console.error('Mercado Pago payment confirmation unavailable:',String(error?.message||'unknown').replace(/[^a-z0-9_-]/gi,'_').slice(0,70));
+    return res.status(503).json({ok:false,error:'payment_confirmation_unavailable'});
+  }
+});
+
 app.get('/api/store/orders/:code/status',storeStatusRateLimit,async(req,res)=>{try{
   const code=String(req.params.code||'').trim();const q=await pool.query("select o.order_code,o.status,o.total_clp,o.paid_at,o.created_at,coalesce(j.status,'not_queued') delivery_status from store_orders o left join store_delivery_jobs j on j.order_id=o.id where o.order_code=$1",[code]);
   if(!q.rowCount)return res.status(404).json({ok:false,error:'order_not_found'});

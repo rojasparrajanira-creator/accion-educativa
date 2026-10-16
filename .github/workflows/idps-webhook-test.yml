@@ -1,0 +1,24 @@
+name: IDPS Mercado Pago webhook test receiver QA
+on:
+  push:
+    branches:
+      - test/idps-webhook-mercadopago-20261016
+    paths:
+      - 'idps-webhook-test/**'
+      - '.github/workflows/idps-webhook-test.yml'
+  workflow_dispatch:
+jobs:
+  webhook-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Node.js syntax
+        run: node --check idps-webhook-test/server.js
+      - name: Simulate signed Mercado Pago events
+        run: node --test idps-webhook-test/test-webhook.js

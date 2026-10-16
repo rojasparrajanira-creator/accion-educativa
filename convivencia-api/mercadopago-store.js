@@ -16,10 +16,10 @@ function isMercadoPagoCheckoutUrl(input){
   }catch{return false}
 }
 function webhookValid({signature,requestId,dataId,secret}){
-  if(!secret||!signature||!requestId||!dataId||!/^\\d{1,20}$/.test(String(dataId)))return false;
+  if(!secret||!signature||!requestId||!dataId||!/^\d{1,20}$/.test(String(dataId)))return false;
   const fields=Object.fromEntries(String(signature).split(',').map(part=>part.trim().split(/=(.*)/s).slice(0,2)).filter(p=>p.length===2));
   const ts=String(fields.ts||''),sig=String(fields.v1||'');
-  if(!/^\\d{10,16}$/.test(ts)||! /^[0-9a-f]{64}$/i.test(sig))return false;
+  if(!/^\d{10,16}$/.test(ts)||! /^[0-9a-f]{64}$/i.test(sig))return false;
   const ms=Number(ts)*(ts.length<=10?1000:1);
   if(!Number.isFinite(ms)||Math.abs(Date.now()-ms)>15*60*1000)return false;
   const manifest='id:'+String(dataId).toLowerCase()+';request-id:'+String(requestId)+';ts:'+ts+';';
@@ -34,7 +34,7 @@ function approvedForOrder(payment,order,mode='production'){
     &&String(payment?.external_reference||'')===String(order?.order_code||'')
     &&String(payment?.preference_id||'')===String(order?.payment_preference_id||'')
     &&!!order?.payment_preference_id&&order?.payment_provider==='mercadopago'
-    &&/^\\d{1,20}$/.test(String(payment?.id||''));
+    &&/^\d{1,20}$/.test(String(payment?.id||''));
 }
 function createMercadoPagoStore({env=process.env,fetchFn=fetch}={}){
   function configuration(){return config(env)}
@@ -74,7 +74,7 @@ function createMercadoPagoStore({env=process.env,fetchFn=fetch}={}){
     return {preference_id:String(result.id),url:result.init_point};
   }
   async function getPayment(id){
-    if(!/^\\d{1,20}$/.test(String(id||'')))throw Error('invalid_mercadopago_payment_id');
+    if(!/^\d{1,20}$/.test(String(id||'')))throw Error('invalid_mercadopago_payment_id');
     const payment=await call('/v1/payments/'+encodeURIComponent(String(id)));
     if(String(payment.id)!==String(id))throw Error('mercadopago_payment_mismatch');
     return payment;

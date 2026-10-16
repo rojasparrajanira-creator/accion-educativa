@@ -179,7 +179,7 @@ module.exports=function registerBilling(app,{pool,layout}){
     try{
       if(kind==='subscription_preapproval'){
         const sub=await mp('GET','/preapproval/'+encodeURIComponent(dataId));
-        const result=await pool.query('UPDATE idps_billing_subscriptions SET status=$1,next_payment_at=$2 WHERE preapproval_id=$3 AND id::text=$4 RETURNING id',
+        const result=await pool.query('UPDATE idps_billing_subscriptions SET status=$1,next_payment_at=$2 WHERE preapproval_id=$3 AND id::text=$4 AND status<>'canceled' RETURNING id',
           [sub.status||'pending',sub.next_payment_date||null,String(sub.id),String(sub.external_reference||'')]);
         if(!result.rowCount)console.warn('Unmatched subscription update');
       }
@@ -191,38 +191,54 @@ module.exports=function registerBilling(app,{pool,layout}){
           const match=await mp('GET','/authorized_payments/search?payment_id='+encodeURIComponent(dataId));
           invoice=(match.results||[]).find(x=>String(x.payment?.id)===dataId);
         }
-        if(invoice?.payment?.status==='approved' && invoice.preapproval_id &&
-            invoice.currency_id==='CLP' && Number(invoice.transaction_amount)===PRICE_CLP){
+        if(invoice?.payment?.status==='approved' && invoice.preapproval_id){
           const payment=await mp('GET','/v1/payments/'+encodeURIComponent(invoice.payment.id));
           const subscription=await mp('GET','/preapproval/'+encodeURIComponent(invoice.preapproval_id));
-          const stored=await pool.query('SELECT * FROM idps_billing_subscriptions WHERE preapproval_id=$1',
-            [invoice.preapproval_id]);
-          const s=stored.rows[0];
-          if(s && subscription.status==='authorized' && String(subscription.external_reference)===String(s.id)
-             && payment.status==='approved' && payment.currency_id==='CLP' && Number(payment.transaction_amount)===PRICE_CLP
-             && String(payment.id)===String(invoice.payment.id)){
-            const added=await pool.query('INSERT INTO idps_billing_charges(payment_id,subscription_id) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING payment_id',
-              [String(payment.id),s.id]);
-            if(added.rowCount){
-              const updated=await pool.query(
-                "UPDATE idps_billing_subscriptions SET status='authorized',last_payment_at=now(),"+
-                "access_until=GREATEST(COALESCE(access_until,now()),now())+INTERVAL '30 days',next_payment_at=$2 "+
-                'WHERE id=$1 RETURNING *',[s.id,subscription.next_payment_date||null]);
-              const u=updated.rows[0];
-              // Do not activate accounts blindly: require a separately verified institutional account.
-              await pool.query("UPDATE idps_establishments SET expires_at=$3 "+
-                "WHERE rbd_norm=$1 AND lower(email)=$2 AND status='active'",
-                [s.rbd_norm,s.email,u.access_until]);
-              // User-facing cancellation links use a separate high-entropy secret, never card data.
-              // Hash is saved; plaintext token is not recoverable. Renewal emails use a fresh token.
-              const token=crypto.randomBytes(32).toString('hex');
-              await pool.query('UPDATE idps_billing_subscriptions SET cancel_token_hash=$2 WHERE id=$1',
-                [u.id,secretHash(token)]);
-              try{await sendNotice(u,'charged',String(payment.id),token,
-                '<p>Se confirmó un cobro de <b>$15.000 CLP</b>. Tu acceso cubre 30 días y estará vigente hasta <b>'+
-                html(fmt(u.access_until))+'</b>.</p><p>Te avisaremos antes del próximo cargo.</p>');}
-              catch(e){console.error('Renewal notice failed',e.message);}
+          // Lock the subscription and record its payment within a single transaction.
+          // A concurrent webhook or database failure must never grant two cycles or lose a charge.
+          const client=await pool.connect();
+          let charged=null, cancelToken=null;
+          try{
+            await client.query('BEGIN');
+            const stored=await client.query(
+              'SELECT * FROM idps_billing_subscriptions WHERE preapproval_id=$1 FOR UPDATE',
+              [String(invoice.preapproval_id)]);
+            const s=stored.rows[0];
+            if(verifiedCharge(invoice,payment,subscription,s)){
+              const added=await client.query(
+                'INSERT INTO idps_billing_charges(payment_id,subscription_id) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING payment_id',
+                [String(payment.id),s.id]);
+              if(added.rowCount){
+                const updated=await client.query(
+                  "UPDATE idps_billing_subscriptions SET status='authorized',last_payment_at=now(),"+
+                  "access_until=GREATEST(COALESCE(access_until,now()),now())+INTERVAL '30 days',next_payment_at=$2 "+
+                  'WHERE id=$1 RETURNING *',[s.id,subscription.next_payment_date||null]);
+                charged=updated.rows[0];
+                // Only extend an already validated institutional account, never create one from a payment event.
+                await client.query("UPDATE idps_establishments SET expires_at=$3 "+
+                  "WHERE rbd_norm=$1 AND lower(email)=$2 AND status='active'",
+                  [s.rbd_norm,s.email,charged.access_until]);
+                cancelToken=crypto.randomBytes(32).toString('hex');
+                await client.query('UPDATE idps_billing_subscriptions SET cancel_token_hash=$2 WHERE id=$1',
+                  [charged.id,secretHash(cancelToken)]);
+              }
             }
+            await client.query('COMMIT');
+          }catch(error){
+            try{await client.query('ROLLBACK');}catch(rollbackError){
+              console.error('Billing rollback failed',rollbackError.message);
+            }
+            throw error;
+          }finally{client.release();}
+          // Email only after a committed, verified payment. Notification failures never repeat charges.
+          if(charged){
+            try{
+              await sendNotice(charged,'charged',String(payment.id),cancelToken,
+                '<p>Se confirmó un cobro de <b>$15.000 CLP</b> correspondiente a 30 días. '+
+                'La vigencia pagada finaliza el <b>'+html(fmt(charged.access_until))+'</b>.</p>'+
+                '<p>Si tu establecimiento ya tiene una cuenta institucional validada, su acceso será renovado. '+
+                'En caso contrario, nuestro equipo deberá verificar el registro y habilitar el acceso.</p>');
+            }catch(e){console.error('Payment receipt delivery failed',e.message);}
           }
         }
       }

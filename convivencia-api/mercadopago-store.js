@@ -27,14 +27,21 @@ function webhookValid({signature,requestId,dataId,secret}){
   const received=Buffer.from(sig,'hex');
   return expected.length===received.length&&crypto.timingSafeEqual(expected,received);
 }
-function approvedForOrder(payment,order,mode='production'){
+function approvedForOrder(payment,order,mode='production',merchantOrder=null){
+  const preferenceId=String(payment?.preference_id||merchantOrder?.preference_id||'');
+  const linked=merchantOrder===null||(
+    String(merchantOrder.external_reference||'')===String(order?.order_code||'')
+    &&Array.isArray(merchantOrder.payments)
+    &&merchantOrder.payments.some(p=>String(p.id)===String(payment?.id))
+  );
   return mode==='production'&&payment?.live_mode===true&&payment?.status==='approved'
     &&String(payment?.currency_id||'')==='CLP'
     &&Number(payment?.transaction_amount)===Number(order?.total_clp)
+    &&Number.isSafeInteger(Number(payment?.transaction_amount))
     &&String(payment?.external_reference||'')===String(order?.order_code||'')
-    &&String(payment?.preference_id||'')===String(order?.payment_preference_id||'')
+    &&preferenceId===String(order?.payment_preference_id||'')
     &&!!order?.payment_preference_id&&order?.payment_provider==='mercadopago'
-    &&/^\d{1,20}$/.test(String(payment?.id||''));
+    &&/^\d{1,20}$/.test(String(payment?.id||''))&&linked;
 }
 function createMercadoPagoStore({env=process.env,fetchFn=fetch}={}){
   function configuration(){return config(env)}
@@ -79,7 +86,13 @@ function createMercadoPagoStore({env=process.env,fetchFn=fetch}={}){
     if(String(payment.id)!==String(id))throw Error('mercadopago_payment_mismatch');
     return payment;
   }
-  return {configuration,createPreference,getPayment,verifyWebhook:(req)=>webhookValid({
+  async function getMerchantOrder(id){
+    if(!/^\d{1,20}$/.test(String(id||'')))throw Error('invalid_mercadopago_merchant_order');
+    const order=await call('/merchant_orders/'+encodeURIComponent(String(id)));
+    if(String(order.id)!==String(id))throw Error('mercadopago_merchant_order_mismatch');
+    return order;
+  }
+  return {configuration,createPreference,getPayment,getMerchantOrder,verifyWebhook:(req)=>webhookValid({
     signature:req.headers['x-signature'],
     requestId:req.headers['x-request-id'],
     dataId:req.query['data.id'],

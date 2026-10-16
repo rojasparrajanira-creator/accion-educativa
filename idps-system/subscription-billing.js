@@ -6,9 +6,10 @@ const BILLING_DAYS = 30;
 const PRICE_CLP = 15000;
 
 // IDPS never handles or stores card numbers. Mercado Pago owns the secure checkout.
-const ready = () => Boolean(process.env.DATABASE_URL && process.env.MERCADOPAGO_ACCESS_TOKEN
+const ready = () => Boolean(process.env.IDPS_BILLING_ENABLED === 'true'
+  && process.env.DATABASE_URL && process.env.MERCADOPAGO_ACCESS_TOKEN
   && process.env.MERCADOPAGO_WEBHOOK_SECRET && process.env.IDPS_BILLING_CRON_SECRET
-  && process.env.RESEND_API_KEY && process.env.PUBLIC_URL);
+  && process.env.RESEND_API_KEY && process.env.RESEND_FROM && process.env.PUBLIC_URL);
 const clean = value => String(value || '').trim();
 const rbdNorm = value => clean(value).toUpperCase().replace(/[^0-9K]/g, '');
 const html = value => clean(value).replace(/[&<>"']/g, ch =>
@@ -68,6 +69,25 @@ function validateMpSignature(req) {
   const calculated=crypto.createHmac('sha256',process.env.MERCADOPAGO_WEBHOOK_SECRET||'')
     .update(manifest).digest('hex');
   return crypto.timingSafeEqual(Buffer.from(calculated,'hex'),Buffer.from(signature,'hex'));
+}
+
+// Provider-confirmed payment and subscription details must agree with the quoted terms.
+// Do not trust an incoming webhook's JSON to activate an institutional account.
+function verifiedCharge(invoice,payment,subscription,stored) {
+  if(!invoice || !payment || !subscription || !stored || stored.status==='canceled')return false;
+  const billing=subscription.auto_recurring || {};
+  return invoice.payment?.status==='approved'
+    && String(invoice.payment.id)===String(payment.id)
+    && String(invoice.preapproval_id)===String(subscription.id)
+    && String(invoice.preapproval_id)===String(stored.preapproval_id)
+    && String(subscription.external_reference)===String(stored.id)
+    && subscription.status==='authorized'
+    && Number(billing.frequency)===BILLING_DAYS && billing.frequency_type==='days'
+    && billing.currency_id==='CLP' && Number(billing.transaction_amount)===PRICE_CLP
+    && invoice.currency_id==='CLP' && Number(invoice.transaction_amount)===PRICE_CLP
+    && payment.status==='approved'
+    && payment.currency_id==='CLP' && Number(payment.transaction_amount)===PRICE_CLP
+    && (!subscription.payer_email || clean(subscription.payer_email).toLowerCase()===stored.email);
 }
 
 module.exports=function registerBilling(app,{pool,layout}){
@@ -307,3 +327,5 @@ module.exports=function registerBilling(app,{pool,layout}){
 
 module.exports.ready = ready;
 module.exports.validateMpSignature = validateMpSignature;
+
+module.exports.verifiedCharge = verifiedCharge;

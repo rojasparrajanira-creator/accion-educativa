@@ -42,3 +42,7 @@ node --test idps-webhook-test/test-webhook.js
 ## Consulta desde el navegador
 
 Si se abre la URL del receptor directamente en el navegador (método GET), presenta el mismo estado que `/health` y `/status`, en vez de mostrar `not_found`. Esto **no** simula un aviso real, ni genera un pago. Si el estado muestra `configured: false`, falta guardar `MP_WEBHOOK_TEST_SECRET` en Environment **del servicio de prueba**, no en la aplicación IDPS principal.
+
+## Verificación de conectividad
+
+La prueba automática consulta desde GitHub Actions la URL pública y comprueba el estado `configured` sin leer ni exponer el secreto. Esta comprobación no activa cobros, no edita variables de entorno y no despliega la API de producción.

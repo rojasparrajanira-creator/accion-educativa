@@ -44,6 +44,14 @@ function fakePool(state){
     if(sql==='COMMIT'){snapshot=null;return {rows:[]};}
     if(sql==='ROLLBACK'){if(snapshot){state.stored=snapshot.stored;state.establishment=snapshot.establishment;
       state.charges=snapshot.charges;}snapshot=null;return {rows:[]};}
+    if(/WHERE rbd_norm=\$1 AND lower\(email\)=\$2 AND status IN \('pending','authorized'\)/.test(sql))
+      return {rowCount:state.checkoutExists?1:0,rows:state.checkoutExists?[{...state.stored}]:[]};
+    if(/INSERT INTO idps_billing_subscriptions\(id,rbd_norm,email,preapproval_id,checkout_url,cancel_token_hash\)/.test(sql)){
+      state.stored.id=args[0];state.stored.rbd_norm=args[1];state.stored.email=args[2];
+      state.stored.preapproval_id=args[3];state.stored.checkout_url=args[4];
+      state.stored.cancel_token_hash=args[5];state.checkoutExists=true;
+      return {rowCount:1,rows:[]};
+    }
     if(/SELECT \* FROM idps_billing_subscriptions WHERE status='authorized'/.test(sql))
       return {rowCount:state.stored.status==='authorized'?1:0,rows:state.stored.status==='authorized'?[{...state.stored}]:[]};
     if(/SELECT \* FROM idps_billing_subscriptions WHERE id=\$1/.test(sql))
@@ -104,13 +112,17 @@ function req(id='777',topic='subscription_authorized_payment'){
   const headers={'x-signature':'ts='+timestamp+',v1='+sig,'x-request-id':rid};
   return {body:{type:topic,data:{id}},query:{'data.id':id},get(name){return headers[name.toLowerCase()];}};
 }
-function reply(){return {statusCode:null,body:null,sendStatus(v){this.statusCode=v;return this;},send(v){this.body=v;return this;},json(v){this.body=v;return this;},status(v){this.statusCode=v;return this;},set(){return this;}};}
+function reply(){return {statusCode:null,body:null,sendStatus(v){this.statusCode=v;return this;},send(v){this.body=v;return this;},json(v){this.body=v;return this;},status(v){this.statusCode=v;return this;},set(){return this;},redirect(code,url){this.statusCode=code;this.redirectUrl=url;return this;}};}
 async function mockNetwork(state,run){
   const old=global.fetch;
   global.fetch=async(url,options={})=>{
     const uri=String(url);
     let obj;
-    if(uri.endsWith('/authorized_payments/777'))obj=state.invoice;
+    if(uri==='https://api.mercadopago.com/preapproval' && options.method==='POST'){
+      state.checkoutRequest=JSON.parse(options.body);
+      obj={id:'pre-01',init_point:'https://www.mercadopago.cl/subscriptions/checkout?preapproval_id=pre-01'};
+    }
+    else if(uri.endsWith('/authorized_payments/777'))obj=state.invoice;
     else if(uri.endsWith('/v1/payments/999'))obj=state.payment;
     else if(uri.endsWith('/preapproval/pre-01')){if(options.method==='PUT'){state.cancellationCalls=(state.cancellationCalls||0)+1;state.subscription.status='canceled';}obj=state.subscription;}
     else if(uri==='https://api.resend.com/emails'){state.emails++;return {ok:true,json:async()=>({})};}
@@ -236,6 +248,28 @@ test('reminder is sent before renewal only once per billing cycle',async()=>{
       const again=reply();await routes['/internal/subscriptions/renewal-notices'](request,again);
       assert.equal(again.body.sent,0);
       assert.equal(state.emails,1);
+    });
+  }finally{restore();}
+});
+
+test('checkout creates only a pending 30-day authorization, not a charge or account',async()=>{
+  const restore=config(),state=fixture();
+  try{
+    const {routes,init}=registerApp(state);await init();
+    await mockNetwork(state,async()=>{
+      const request={body:{accept:'yes',rbd:'12345',email:'escuela@example.test'}};
+      const res=reply();
+      await routes['/suscripcion/iniciar'](request,res);
+      assert.equal(res.statusCode,303);
+      assert.match(res.redirectUrl,/^https:\/\/www\.mercadopago\.cl\/subscriptions\/checkout/);
+      assert.equal(state.checkoutRequest.status,'pending');
+      assert.equal(state.checkoutRequest.auto_recurring.frequency,30);
+      assert.equal(state.checkoutRequest.auto_recurring.frequency_type,'days');
+      assert.equal(state.checkoutRequest.auto_recurring.transaction_amount,15000);
+      assert.equal(state.checkoutRequest.auto_recurring.currency_id,'CLP');
+      assert.equal('card_token_id' in state.checkoutRequest,false);
+      assert.equal(state.charges.size,0);
+      assert.equal(state.establishment.expires_at,null);
     });
   }finally{restore();}
 });

@@ -55,7 +55,7 @@ function createApp({getSecret = () => process.env.MP_WEBHOOK_TEST_SECRET || '', 
       });
       res.end(JSON.stringify(data));
     };
-    if (req.method === 'GET' && (req.url === '/health' || req.url === '/status')) {
+    if (req.method === 'GET' && (req.url === '/' || req.url === '/health' || req.url === '/status')) {
       return json(200, {
         ok: true, environment: 'test-only', configured: Boolean(getSecret()),
         chargesEnabled: false,

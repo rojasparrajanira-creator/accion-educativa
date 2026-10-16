@@ -17,6 +17,10 @@ async function withServer(secret, callback) {
 test('health reports test-only mode and hides all secrets',async()=>{
   await withServer('',async base=>{
     const r=await fetch(base+'/health');
+    const root=await (await fetch(base+'/')).json();
+    assert.equal(root.ok,true);
+    assert.equal(root.configured,false);
+    assert.equal(root.chargesEnabled,false);
     const j=await r.json();
     assert.equal(r.status,200);
     assert.equal(j.configured,false);

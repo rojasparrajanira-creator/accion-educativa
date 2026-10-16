@@ -18,6 +18,7 @@
 5. Revisar los mecanismos disponibles para las **notificaciones de Suscripciones**: la documentación oficial distingue esos eventos de los Webhooks generales. Validar el mecanismo real de notificación, la firma si corresponde, y el enlace/URL de callback compatible con la API del comercio.
 
 ## Variables de entorno del servicio Render correcto
+- `IDPS_BILLING_ENABLED=false`: **interruptor de seguridad**, dejar en `false` mientras se prueban los cobros. Solo establecer `true` tras aprobar las pruebas de extremo a extremo; tener las otras credenciales no activa cobros.
 - `MERCADOPAGO_ACCESS_TOKEN`: token privado del entorno seleccionado.
 - `MERCADOPAGO_WEBHOOK_SECRET`: firma secreta si el método de Webhooks verificados está disponible para la integración seleccionada.
 - `IDPS_BILLING_CRON_SECRET`: secreto aleatorio largo para autorizar revisión diaria.
@@ -28,13 +29,22 @@
 
 La preparación anterior debe realizarse en **Environment** del servicio correcto en Render y jamás en GitHub.
 
+## Validaciones de código completadas (no equivalen a pagos de prueba reales)
+- La rama de borrador `feature/idps-boton-pago-mensual-20261015` tiene un interruptor de seguridad que bloquea cobros sin una autorización explícita de lanzamiento.
+- Las pruebas automatizadas simulan una suscripción pendiente, su consentimiento explícito, pago aprobado, pago rechazado, importes erróneos, periodicidad alterada, Webhooks duplicados, cancelación y recordatorio de renovación.
+- Cada cobro aprobado se contrasta contra la API de Mercado Pago (factura, pago y suscripción) y se registra bajo **transacción SQL** para evitar sumar dos períodos por la misma operación, con reversión en caso de fallo.
+- Los Webhooks simulados ya se validaron en un **receptor aislado de pruebas** de Render. Su URL no debe reemplazar al Webhook productivo de IDPS.
+- Ninguno de estos tests realiza cargos ni modifica el servicio `idps-gestion-material-educativo`.
+
 ## Revisión de lanzamiento pendiente
 - Probar creación de suscripción, autorización de tarjeta, cobro inicial aprobado, cobro rechazado, renovaciones, cancelaciones, avisos por correo y enlaces de un solo usuario.
 - Comprobar cómo Mercado Pago entrega notificaciones de suscripciones en Chile y registrar una URL operativa. La recepción de notificaciones aún no está validada.
 - Verificar pago asociado a RBD/correo antes de renovar o suspender cuentas, con pruebas de concurrencia, duplicados y reintentos.
 - Configurar una tarea programada (Cron) que llame al endpoint `POST /internal/subscriptions/renewal-notices` con `x-billing-cron-key`; el módulo no envía avisos de forma autónoma sin este proceso.
 - Revisar compatibilidad con los datos de suscripciones existentes y el mecanismo de expiración real.
-- No fusionar ni configurar tokens productivos hasta aprobar pruebas funcionales de extremo a extremo.
+- No fusionar ni activar `IDPS_BILLING_ENABLED=true` en producción hasta aprobar pruebas funcionales de extremo a extremo.
+- En caso de disputa, reversa/contracargo, cancelación bancaria y reintentos tardíos, definir cómo suspender o ajustar el acceso sin eliminar datos de estudiantes.
+- Después de las pruebas con credenciales de test, revisar las políticas de privacidad, autorización expresa de cargos y periodicidad *exacta* de 30 días aceptada por la API para Chile.
 
 ## Calidad automatizada
 ```bash

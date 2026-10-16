@@ -34,3 +34,10 @@ jobs:
       - name: Billing lifecycle mock checks
         working-directory: idps-system
         run: npm run qa:monthly-payment
+      - name: Check isolated Render staging is payment-disabled and locked
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 2 --max-time 65 https://idps-suscripciones-pruebas.onrender.com/health | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["ok"] is True; assert d["environment"]=="staging"; assert d["paymentsEnabled"] is False; assert d["productionTokensBlocked"] is True; assert d["databaseConfigured"] is False'
+          code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 40 https://idps-suscripciones-pruebas.onrender.com/pago-mensual)
+          test "$code" = "401"

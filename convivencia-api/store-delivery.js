@@ -1,7 +1,9 @@
 'use strict';
-// Entrega automatizada: solo para pedidos con pago Webpay confirmado.
+// Entrega automatizada: solo para pedidos con pago confirmado por el proveedor seleccionado.
 function settings(env){
-  const mode=String(env.MEC_WEBPAY_MODE||'integration').toLowerCase()==='production'?'production':'integration';
+  const provider=String(env.MEC_STORE_PAYMENT_PROVIDER||'webpay').trim().toLowerCase();
+  const selectedMode=provider==='mercadopago'?env.MEC_MERCADOPAGO_MODE:env.MEC_WEBPAY_MODE;
+  const mode=String(selectedMode||'integration').toLowerCase()==='production'?'production':'integration';
   const enabled=env.MEC_STORE_DELIVERY_ENABLED==='1';
   const apiKey=String(env.MEC_STORE_RESEND_API_KEY||env.MEC_CONTACT_RESEND_API_KEY||'').trim();
   const from=String(env.MEC_STORE_FROM_EMAIL||env.MEC_CONTACT_FROM_EMAIL||'').trim();

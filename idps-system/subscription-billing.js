@@ -102,6 +102,12 @@ module.exports=function registerBilling(app,{pool,layout}){
     await pool.query('CREATE TABLE IF NOT EXISTS idps_billing_charges ('+
       'payment_id text PRIMARY KEY,subscription_id uuid NOT NULL REFERENCES idps_billing_subscriptions(id),'+
       'paid_at timestamptz NOT NULL DEFAULT now())');
+    // Disputes are flagged for review; never automatically erase student data or retroactively revoke access.
+    await pool.query('CREATE TABLE IF NOT EXISTS idps_billing_disputes ('+
+      'payment_id text PRIMARY KEY REFERENCES idps_billing_charges(payment_id),'+
+      'subscription_id uuid NOT NULL REFERENCES idps_billing_subscriptions(id),'+
+      'payment_status text NOT NULL,detected_at timestamptz NOT NULL DEFAULT now(),'+
+      'last_seen_at timestamptz NOT NULL DEFAULT now(),resolved_at timestamptz)');
     await pool.query('CREATE TABLE IF NOT EXISTS idps_billing_notices ('+
       'subscription_id uuid NOT NULL REFERENCES idps_billing_subscriptions(id),'+
       'kind text NOT NULL,cycle_key text NOT NULL,sent_at timestamptz NOT NULL DEFAULT now(),'+
@@ -191,9 +197,23 @@ module.exports=function registerBilling(app,{pool,layout}){
           const match=await mp('GET','/authorized_payments/search?payment_id='+encodeURIComponent(dataId));
           invoice=(match.results||[]).find(x=>String(x.payment?.id)===dataId);
         }
-        if(invoice?.payment?.status==='approved' && invoice.preapproval_id){
+        if(invoice?.preapproval_id && invoice.payment?.id){
           const payment=await mp('GET','/v1/payments/'+encodeURIComponent(invoice.payment.id));
           const subscription=await mp('GET','/preapproval/'+encodeURIComponent(invoice.preapproval_id));
+          // Financial reversals need an administrative decision, not automatic deletion of educational records.
+          if(['refunded','charged_back','partially_refunded'].includes(payment.status)){
+            const flagged=await pool.query(
+              'INSERT INTO idps_billing_disputes(payment_id,subscription_id,payment_status) '+
+              'SELECT $1,c.subscription_id,$2 FROM idps_billing_charges c '+
+              'JOIN idps_billing_subscriptions s ON s.id=c.subscription_id '+
+              'WHERE c.payment_id=$1 AND s.preapproval_id=$3 '+
+              'ON CONFLICT (payment_id) DO UPDATE SET payment_status=EXCLUDED.payment_status,last_seen_at=now() '+
+              'RETURNING payment_id',
+              [String(payment.id),payment.status,String(invoice.preapproval_id)]);
+            if(flagged.rowCount)console.warn('IDPS billing payment flagged for manual financial review');
+            return res.sendStatus(200);
+          }
+
           // Lock the subscription and record its payment within a single transaction.
           // A concurrent webhook or database failure must never grant two cycles or lose a charge.
           const client=await pool.connect();

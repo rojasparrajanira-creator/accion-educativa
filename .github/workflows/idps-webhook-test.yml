@@ -22,3 +22,13 @@ jobs:
         run: node --check idps-webhook-test/server.js
       - name: Simulate signed Mercado Pago events
         run: node --test idps-webhook-test/test-webhook.js
+      - name: Probe deployed test receiver over HTTPS
+        shell: bash
+        run: |
+          for route in / /health /status /webhooks/mercadopago; do
+            echo "CHECK PATH: $route"
+            curl --silent --show-error --location --max-time 55 --retry 1 \
+              --write-out '\nHTTP: %{http_code}; Final path: %{url_effective}\n' \
+              "https://idps-webhook-pruebas.onrender.com$route" || true
+          done
+

@@ -21,6 +21,10 @@ test('health reports test-only mode and hides all secrets',async()=>{
     assert.equal(root.ok,true);
     assert.equal(root.configured,false);
     assert.equal(root.chargesEnabled,false);
+    const webhookOpen=await (await fetch(base+'/webhooks/mercadopago')).json();
+    assert.equal(webhookOpen.ok,true);
+    assert.equal(webhookOpen.configured,false);
+    assert.equal(webhookOpen.chargesEnabled,false);
     const j=await r.json();
     assert.equal(r.status,200);
     assert.equal(j.configured,false);

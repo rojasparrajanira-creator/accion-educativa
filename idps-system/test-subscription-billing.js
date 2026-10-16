@@ -44,6 +44,17 @@ function fakePool(state){
     if(sql==='COMMIT'){snapshot=null;return {rows:[]};}
     if(sql==='ROLLBACK'){if(snapshot){state.stored=snapshot.stored;state.establishment=snapshot.establishment;
       state.charges=snapshot.charges;}snapshot=null;return {rows:[]};}
+    if(/SELECT \* FROM idps_billing_subscriptions WHERE status='authorized'/.test(sql))
+      return {rowCount:state.stored.status==='authorized'?1:0,rows:state.stored.status==='authorized'?[{...state.stored}]:[]};
+    if(/SELECT \* FROM idps_billing_subscriptions WHERE id=\$1/.test(sql))
+      return {rowCount:state.stored.id===args[0]?1:0,rows:state.stored.id===args[0]?[{...state.stored}]:[]};
+    if(/UPDATE idps_billing_subscriptions SET status='canceled',cancelled_at=now\(\)/.test(sql)){
+      state.stored.status='canceled';return {rowCount:1,rows:[]};
+    }
+    if(/UPDATE idps_billing_subscriptions SET status=\$2,next_payment_at=\$3/.test(sql)){
+      state.stored.status=args[1];state.stored.next_payment_at=args[2];
+      return {rowCount:1,rows:[]};
+    }
     if(/SELECT \* FROM idps_billing_subscriptions WHERE preapproval_id=\$1 FOR UPDATE/.test(sql)){
       return {rowCount:1,rows:[{...state.stored}]};
     }
@@ -93,15 +104,15 @@ function req(id='777',topic='subscription_authorized_payment'){
   const headers={'x-signature':'ts='+timestamp+',v1='+sig,'x-request-id':rid};
   return {body:{type:topic,data:{id}},query:{'data.id':id},get(name){return headers[name.toLowerCase()];}};
 }
-function reply(){return {statusCode:null,sendStatus(v){this.statusCode=v;return this;}};}
+function reply(){return {statusCode:null,body:null,sendStatus(v){this.statusCode=v;return this;},send(v){this.body=v;return this;},json(v){this.body=v;return this;},status(v){this.statusCode=v;return this;},set(){return this;}};}
 async function mockNetwork(state,run){
   const old=global.fetch;
-  global.fetch=async(url)=>{
+  global.fetch=async(url,options={})=>{
     const uri=String(url);
     let obj;
     if(uri.endsWith('/authorized_payments/777'))obj=state.invoice;
     else if(uri.endsWith('/v1/payments/999'))obj=state.payment;
-    else if(uri.endsWith('/preapproval/pre-01'))obj=state.subscription;
+    else if(uri.endsWith('/preapproval/pre-01')){if(options.method==='PUT'){state.cancellationCalls=(state.cancellationCalls||0)+1;state.subscription.status='canceled';}obj=state.subscription;}
     else if(uri==='https://api.resend.com/emails'){state.emails++;return {ok:true,json:async()=>({})};}
     else throw Error('Unexpected fake network URL: '+uri);
     return {ok:true,json:async()=>obj};
@@ -184,6 +195,47 @@ test('database failure rolls back payment receipt, allowing safe retry',async()=
       const retry=reply();await endpoint(req(),retry);
       assert.equal(retry.statusCode,200);
       assert.equal(state.charges.size,1);
+    });
+  }finally{restore();}
+});
+
+test('cardholder can cancel recurring charges without erasing remaining access',async()=>{
+  const restore=config(),state=fixture();
+  try{
+    const token='a'.repeat(64);state.stored.status='authorized';
+    state.stored.access_until=new Date(now()+12*86400000).toISOString();
+    state.stored.cancel_token_hash=crypto.createHash('sha256').update(token).digest('hex');
+    const {routes,init}=registerApp(state);await init();
+    await mockNetwork(state,async()=>{
+      const request={params:{id:subscriptionId},body:{token}};
+      const res=reply();await routes['/suscripcion/cancelar/:id'](request,res);
+      assert.match(res.body,/Suscripción cancelada/);
+      assert.equal(state.subscription.status,'canceled');
+      assert.equal(state.stored.status,'canceled');
+      assert.equal(state.establishment.expires_at,null);
+      assert.equal(state.stored.access_until.length>0,true);
+      assert.equal(state.cancellationCalls,1);
+      assert.equal(state.emails,1);
+      const again=reply();await routes['/suscripcion/cancelar/:id'](request,again);
+      assert.equal(state.cancellationCalls,1);
+      assert.equal(state.emails,1);
+    });
+  }finally{restore();}
+});
+test('reminder is sent before renewal only once per billing cycle',async()=>{
+  const restore=config(),state=fixture();
+  try{
+    state.stored.status='authorized';
+    state.subscription.next_payment_date=new Date(now()+2*86400000).toISOString();
+    const {routes,init}=registerApp(state);await init();
+    await mockNetwork(state,async()=>{
+      const request={get(name){return name==='x-billing-cron-key'?'dummy-cron':undefined;}};
+      const first=reply();await routes['/internal/subscriptions/renewal-notices'](request,first);
+      assert.equal(first.body.sent,1);assert.equal(first.body.errors,0);
+      assert.equal(state.emails,1);
+      const again=reply();await routes['/internal/subscriptions/renewal-notices'](request,again);
+      assert.equal(again.body.sent,0);
+      assert.equal(state.emails,1);
     });
   }finally{restore();}
 });

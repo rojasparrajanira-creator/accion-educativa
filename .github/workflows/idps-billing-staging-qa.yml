@@ -1,0 +1,36 @@
+name: IDPS billing staging isolated QA
+on:
+  push:
+    branches:
+      - test/idps-suscripciones-staging-20261016
+    paths:
+      - 'idps-system/subscription-staging.js'
+      - 'idps-system/test-subscription-staging.js'
+      - 'idps-system/subscription-billing.js'
+      - 'idps-system/monthly-payment.js'
+      - '.github/workflows/idps-billing-staging-qa.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax verification
+        run: |
+          node --check idps-system/subscription-staging.js
+          node --check idps-system/subscription-billing.js
+      - name: Install dependencies
+        working-directory: idps-system
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Security checks for staging
+        working-directory: idps-system
+        run: node --test test-subscription-staging.js
+      - name: Billing lifecycle mock checks
+        working-directory: idps-system
+        run: npm run qa:monthly-payment

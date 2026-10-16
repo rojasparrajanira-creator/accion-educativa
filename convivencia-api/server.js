@@ -8,6 +8,7 @@ const ExcelJS=require('@ayocore/exceljs');
 const {authenticator}=require('otplib');
 const {Environment,IntegrationApiKeys,IntegrationCommerceCodes,Options,WebpayPlus}=require('transbank-sdk');
 const {createStoreDelivery}=require('./store-delivery');
+const {createMercadoPagoStore,approvedForOrder}=require('./mercadopago-store');
 const {createStoreDriveAccess,driveItemId}=require('./store-drive-access');
 const {createStoreServiceAccountDriveAccess}=require('./store-drive-service-account');
 const app=express();
@@ -84,6 +85,16 @@ const storeDriveAccess=dedicatedDriveRequested
   ?storeDriveServiceAccount
   :createStoreDriveAccess({pool,decryptRefreshToken:decryptGoogleToken});
 const storeDelivery=createStoreDelivery({pool,grantAccess:storeDriveAccess.authorizeBuyer});
+const mercadoPagoStore=createMercadoPagoStore();
+function storePaymentConfig(){
+  const requested=String(process.env.MEC_STORE_PAYMENT_PROVIDER||'webpay').trim().toLowerCase();
+  const provider=requested==='mercadopago'?'mercadopago':'webpay';
+  return {provider,...(provider==='mercadopago'?mercadoPagoStore.configuration():webpayConfig())};
+}
+function storeCheckoutReady(){
+  const cfg=storePaymentConfig();
+  return cfg.mode==='production'&&cfg.configured&&storeDelivery.configuration().email_ready&&storeDriveServiceAccount.enabled;
+}
 const storeImageUpload=multer({
   storage:multer.memoryStorage(),
   limits:{files:1,fileSize:5*1024*1024},
@@ -144,6 +155,8 @@ async function initDatabase(){
   console.log('Google OAuth configured:',googleOAuthConfig().configured?'yes':'no');
   const wp=webpayConfig();
   console.log('Webpay configured:',wp.configured?'yes':'no','mode:',wp.mode);
+  const selected=storePaymentConfig();
+  console.log('Store checkout provider:',selected.provider,'configured:',selected.configured?'yes':'no','mode:',selected.mode);
   if(String(process.env.RUN_STORE_SELFTEST||'')==='1'){
     const checks=[];
     const cols=await pool.query("select table_name,column_name from information_schema.columns where table_schema='public' and table_name in ('store_products','store_drive_accounts','store_drive_oauth_states','store_product_images','store_orders','store_order_items','store_delivery_events')");
@@ -1722,13 +1735,16 @@ app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_update_failed'})}});
 
 
+app.get('/api/store/checkout/config',storeStatusRateLimit,(req,res)=>{
+  const cfg=storePaymentConfig(),ready=storeCheckoutReady();
+  ok(res,{provider:cfg.provider,configured:cfg.configured,mode:cfg.mode,checkout_ready:ready,
+    checkout_status:ready?'production_ready_for_folder_preflight':'private_delivery_or_payment_not_configured'});
+});
+// Compatibilidad con clientes antiguos: nunca ofrecemos Webpay si la tienda seleccionó otro proveedor.
 app.get('/api/store/webpay/config',storeStatusRateLimit,(req,res)=>{
-  const cfg=webpayConfig();
-  const delivery=storeDelivery.configuration();
-  const checkoutReady=cfg.mode==='production'&&cfg.configured&&delivery.email_ready&&storeDriveServiceAccount.enabled;
-  ok(res,{configured:cfg.configured,mode:cfg.mode,checkout_ready:checkoutReady,
-    checkout_status:checkoutReady?'production_ready_for_folder_preflight':
-      'private_delivery_or_payment_not_configured'});
+  const cfg=webpayConfig(),ready=storePaymentConfig().provider==='webpay'&&storeCheckoutReady();
+  ok(res,{configured:cfg.configured,mode:cfg.mode,checkout_ready:ready,
+    checkout_status:ready?'production_ready_for_folder_preflight':'private_delivery_or_payment_not_configured'});
 });
 
 app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
@@ -1761,9 +1777,8 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
     const pq=await client.query("select id,title,price_clp,drive_delivery_url,drive_account_id from store_products where status='published' and id=any($1::bigint[])",[ids]);
     if(pq.rowCount!==ids.length)return res.status(400).json({ok:false,error:'product_unavailable'});
     if(pq.rows.some(p=>!p.drive_account_id||!p.drive_delivery_url))return res.status(409).json({ok:false,error:'product_delivery_not_configured'});
-    // Fail closed BEFORE creating any order or Webpay transaction. A test email is not proof of access.
-    if(webpayConfig().mode!=='production'||!webpayConfig().configured||
-       !storeDelivery.configuration().email_ready||!storeDriveServiceAccount.enabled)
+    // Fail closed ANTES de crear un pedido o iniciar un cobro real.
+    if(!storeCheckoutReady())
       return res.status(503).json({ok:false,error:'store_checkout_not_ready'});
     try{
       await storeDriveServiceAccount.validateProducts({
@@ -1778,13 +1793,26 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
     const code='MEC-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(16).toString('hex').toUpperCase();
 
     await client.query('begin');
-    const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp,requested_document,invoice_rut,invoice_legal_name,invoice_business_activity,invoice_address,invoice_commune) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id,order_code,status,total_clp,created_at",[code,name,email,total,requestedDocument,invoiceRut,invoiceLegalName,invoiceActivity,invoiceAddress,invoiceCommune]);
+    const provider=storePaymentConfig().provider;
+    const oq=await client.query("insert into store_orders(order_code,buyer_name,buyer_email,total_clp,requested_document,invoice_rut,invoice_legal_name,invoice_business_activity,invoice_address,invoice_commune,payment_provider) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning id,order_code,buyer_name,buyer_email,status,total_clp,created_at",[code,name,email,total,requestedDocument,invoiceRut,invoiceLegalName,invoiceActivity,invoiceAddress,invoiceCommune,provider]);
     order=oq.rows[0];
     for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[order.id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);
     await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[order.id,email]);
     await client.query('commit');
     committed=true;
 
+    if(provider==='mercadopago'){
+      const mp=mercadoPagoStore.configuration();
+      const preference=await mercadoPagoStore.createPreference({
+        order,items:pq.rows.map(p=>({product_id:p.id,title:p.title,quantity:qty.get(Number(p.id)),price_clp:p.price_clp})),
+        notificationUrl:'https://convivencia-escolar-api.onrender.com/api/store/mercadopago/webhook'
+      });
+      await client.query("update store_orders set status='payment_initialized',payment_preference_id=$1,updated_at=now() where id=$2",[preference.preference_id,order.id]);
+      await client.query("insert into store_payment_events(order_id,provider,event_type,provider_status,amount_clp,payload) values($1,'mercadopago','initialized',$2,$3,$4::jsonb)",[order.id,mp.mode,Number(order.total_clp),JSON.stringify({preference_id:preference.preference_id,mode:mp.mode})]);
+      order={...order,status:'payment_initialized'};
+      return ok(res,{order:{id:order.id,order_code:order.order_code,status:order.status,total_clp:order.total_clp},
+        provider,payment_ready:true,payment_mode:mp.mode,payment:{url:preference.url},message:'Continúa tu pago único en Mercado Pago.'});
+    }
     const cfg=webpayConfig();
     if(!cfg.configured)return ok(res,{order,payment_ready:false,payment_mode:cfg.mode,message:'Pedido creado. Webpay requiere configuración de producción.'});
 
@@ -1801,9 +1829,10 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
     if(!committed)await client.query('rollback').catch(()=>{});
     if(order?.id){
       await client.query("update store_orders set status='failed',updated_at=now() where id=$1 and status<>'paid'",[order.id]).catch(()=>{});
-      await client.query("insert into store_payment_events(order_id,provider,event_type,provider_status,payload) values($1,'webpay','initialize_failed','FAILED',$2::jsonb)",[order.id,JSON.stringify({message:String(e.message||'webpay_initialize_failed').slice(0,160)})]).catch(()=>{});
+      await client.query("insert into store_payment_events(order_id,provider,event_type,provider_status,payload) values($1,$2,'initialize_failed','FAILED',$3::jsonb)",[order.id,storePaymentConfig().provider,JSON.stringify({reason:'payment_initialization_failed'})]).catch(()=>{});
     }
-    return res.status(502).json({ok:false,error:'webpay_initialize_failed'});
+    console.error('Store payment initialization failed:',String(e?.message||'unavailable').replace(/[^a-z0-9_-]/gi,'_').slice(0,80));
+    return res.status(502).json({ok:false,error:'store_payment_initialize_failed'});
   }finally{client.release()}
 });
 
@@ -1875,7 +1904,7 @@ app.get('/api/store/orders/:code/status',storeStatusRateLimit,async(req,res)=>{t
 app.get('/api/store/admin/catalog-readiness',...requireRole('platform_admin'),async(req,res)=>{
   try{
     const q=await pool.query("select id,title,status,drive_delivery_url from store_products where status in ('published','draft') order by id");
-    const payment=webpayConfig(),mail=storeDelivery.configuration(),technical=storeDriveServiceAccount.configuration();
+    const payment=storePaymentConfig(),mail=storeDelivery.configuration(),technical=storeDriveServiceAccount.configuration();
     const products=q.rows;
     const checked=new Array(products.length);
     const readyForAudit=storeDriveServiceAccount.enabled;

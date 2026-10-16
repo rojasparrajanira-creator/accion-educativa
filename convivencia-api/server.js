@@ -1852,9 +1852,11 @@ app.all('/api/store/webpay/return',async(req,res)=>{
       return back('cancelled');
     }
 
-    const oq=await pool.query("select id,order_code,status,total_clp,payment_buy_order from store_orders where payment_token_hash=$1 limit 1",[sha256(token)]);
+    const oq=await pool.query("select id,order_code,status,total_clp,payment_provider,payment_buy_order from store_orders where payment_token_hash=$1 limit 1",[sha256(token)]);
     if(!oq.rowCount)return back('invalid');
     const order=oq.rows[0];
+    // Nunca reactivar un Webpay de integración al configurar Mercado Pago productivo.
+    if(order.payment_provider!=='webpay'||storePaymentConfig().provider!=='webpay'||webpayConfig().mode!=='production')return back('failed',order.order_code);
     if(order.status==='paid'){
       try{
         await pool.query("insert into store_tax_documents(order_id) values($1) on conflict(order_id) do nothing",[order.id]);

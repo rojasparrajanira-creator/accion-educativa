@@ -335,6 +335,11 @@ CREATE TABLE IF NOT EXISTS store_orders(
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_store_orders_email_created ON store_orders(buyer_email,created_at DESC);
+-- Credenciales y referencias de Checkout Pro: pagos únicos sin modificar Webpay histórico.
+ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS payment_preference_id TEXT;
+ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS payment_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_store_orders_mp_preference ON store_orders(payment_preference_id) WHERE payment_preference_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_store_orders_mp_payment ON store_orders(payment_id) WHERE payment_id IS NOT NULL;
 
 -- Tipo de comprobante solicitado por el comprador.
 -- Nunca supone que la boleta sea exenta ni que la factura deba ser afecta.

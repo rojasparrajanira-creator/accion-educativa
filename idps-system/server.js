@@ -27,6 +27,7 @@ app.use(express.json({limit:'1mb'}));
 app.use(cookieParser());
 
 const loginLimiter = rateLimit({windowMs:15*60*1000, limit:10, standardHeaders:true, legacyHeaders:false});
+const requestLimiter=rateLimit({windowMs:60*60*1000,limit:5,standardHeaders:true,legacyHeaders:false,message:'Has realizado demasiadas solicitudes. Intenta más tarde.'});
 
 const mem = { requests: [], establishments: [] };
 
@@ -261,7 +262,7 @@ async function sendRequestReceipt(row){
   }catch(error){console.error('IDPS client request receipt failed:',error.message);return false;}
 }
 
-app.post('/solicitud', upload.single('voucher'), async(req,res)=>{
+app.post('/solicitud',requestLimiter,upload.single('voucher'),async(req,res)=>{
  try{
   const rbd=clean(req.body.rbd), rbd_norm=normalizeRbd(rbd); if(rbd_norm.length<2) throw new Error('RBD inválido.');
   const request=await createRequest({rbd,rbd_norm,establishment_name:clean(req.body.establishment_name),commune:clean(req.body.commune),contact_name:clean(req.body.contact_name),email:clean(req.body.email).toLowerCase(),voucher_name:req.file?req.file.originalname:''});

@@ -182,17 +182,37 @@ async function saveGmailToken(v){
 
 function googleRedirect(){return (process.env.PUBLIC_URL||'https://idps-gestion-material-educativo.onrender.com')+'/auth/google/callback';}
 app.get('/auth/google',requireSuper,(req,res)=>{
- const q=new URLSearchParams({client_id:process.env.GOOGLE_CLIENT_ID||'',redirect_uri:googleRedirect(),response_type:'code',scope:'https://www.googleapis.com/auth/gmail.send',access_type:'offline',prompt:'consent'});
- res.redirect('https://accounts.google.com/o/oauth2/v2/auth?'+q.toString());
+  const state=crypto.randomBytes(32).toString('hex');
+  res.cookie('idps_gmail_oauth_state',state,{httpOnly:true,
+    secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:10*60*1000});
+  const q=new URLSearchParams({client_id:process.env.GOOGLE_CLIENT_ID||'',redirect_uri:googleRedirect(),
+    response_type:'code',scope:'https://www.googleapis.com/auth/gmail.send',
+    access_type:'offline',prompt:'consent select_account',state});
+  res.redirect('https://accounts.google.com/o/oauth2/v2/auth?'+q.toString());
 });
 app.get('/auth/google/callback',requireSuper,async(req,res)=>{
- try{
-  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code:req.query.code||'',client_id:process.env.GOOGLE_CLIENT_ID||'',client_secret:process.env.GOOGLE_CLIENT_SECRET||'',redirect_uri:googleRedirect(),grant_type:'authorization_code'})});
-  const j=await r.json(); if(!r.ok) throw new Error('Google rechazó la autorización');
-  if(j.refresh_token) await saveGmailToken(j.refresh_token);
-  else if(!(await gmailToken())) throw new Error('Google no entregó autorización permanente');
-  res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Gmail conectado correctamente.'));
- }catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}
+  const state=clean(req.query.state),cookie=clean(req.cookies.idps_gmail_oauth_state);
+  res.clearCookie('idps_gmail_oauth_state');
+  const x=Buffer.from(state),y=Buffer.from(cookie);
+  if(!/^[a-f0-9]{64}$/.test(state)||x.length!==y.length||!crypto.timingSafeEqual(x,y))
+    return res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent('Autorización Gmail caducada o inválida. Intenta nuevamente.'));
+  try{
+    const r=await fetch('https://oauth2.googleapis.com/token',{
+      method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({code:clean(req.query.code),client_id:process.env.GOOGLE_CLIENT_ID||'',
+        client_secret:process.env.GOOGLE_CLIENT_SECRET||'',redirect_uri:googleRedirect(),
+        grant_type:'authorization_code'}),signal:AbortSignal.timeout(12000)});
+    const j=await r.json();
+    if(!r.ok)throw Error('Google rechazó la autorización.');
+    if(!j.refresh_token)throw Error('Google no entregó autorización permanente. Debes aceptar todos los permisos solicitados.');
+    await saveGmailToken(j.refresh_token);
+    const status=await mailer.status();
+    if(!status.connected)throw Error('Gmail no pudo validar el nuevo permiso. Intenta reconectar.');
+    res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Gmail reconectado y verificado. Ahora los correos se enviarán desde esta cuenta y quedarán en Enviados.'));
+  }catch(error){
+    console.error('IDPS Gmail connect failed:',error.message);
+    res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent('No se pudo completar la conexión con Gmail. Reintenta la autorización.'));
+  }
 });
 
 const css = `
@@ -302,7 +322,7 @@ app.get('/superadmin/dashboard',requireSuper,async(req,res)=>{
  const requestActions=r=>'<div class="actions">'+(r.status==='pending'?'<form method="post" action="/superadmin/approve/'+r.id+'"><button class="btn success">Aprobar</button></form><form method="post" action="/superadmin/reject/'+r.id+'"><button class="btn danger">Rechazar</button></form>':'')+'<form method="post" action="/superadmin/delete-request/'+r.id+'" onsubmit="return confirm(\'¿Eliminar esta solicitud?\')"><button class="btn danger">Eliminar solicitud</button></form></div>';
  const reqRows=requests.map(r=>'<tr><td>'+r.rbd+'</td><td><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></td><td>'+r.contact_name+'<br>'+r.email+'</td><td>'+(r.voucher_name||'Sin archivo')+'</td><td><span class="badge '+r.status+'">'+r.status+'</span></td><td>'+requestActions(r)+'</td></tr>').join('');
  const reqCards=requests.map(r=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+r.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Contacto</span>'+r.contact_name+'<br>'+r.email+'</div><div class="mobile-row"><span class="mobile-label">Voucher</span>'+(r.voucher_name||'Sin archivo')+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+r.status+'">'+r.status+'</span></div>'+requestActions(r)+'</div>').join('');
- const accountActions=e=>'<div class="actions"><form method="post" action="/superadmin/send-password/'+e.id+'"><button class="btn secondary">Enviar PIN de acceso</button></form><form method="post" action="/superadmin/remove/'+e.id+'" onsubmit="return confirm(\'¿Eliminar esta cuenta?\')"><button class="btn danger">Eliminar cuenta</button></form></div>';
+ const accountActions=e=>'<div class="actions"><form method="post" action="/superadmin/send-password/'+e.id+'" onsubmit="return confirm(\'Esto generará un PIN nuevo y anulará el anterior. ¿Continuar?\')"><button class="btn secondary">Generar y enviar PIN nuevo</button></form><form method="post" action="/superadmin/remove/'+e.id+'" onsubmit="return confirm(\'¿Eliminar esta cuenta?\')"><button class="btn danger">Eliminar cuenta</button></form></div>';
  const estRows=ests.map(e=>'<tr><td>'+e.rbd+'</td><td><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></td><td>'+e.email+'</td><td><span class="badge '+e.status+'">'+e.status+'</span></td><td>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</td><td>'+accountActions(e)+'</td></tr>').join('');
  const estCards=ests.map(e=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+e.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Correo</span>'+e.email+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+e.status+'">'+e.status+'</span></div><div class="mobile-row"><span class="mobile-label">Vigencia</span>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</div>'+accountActions(e)+'</div>').join('');
  res.send(layout('Panel superadministrador',`<div class="grid"><div class="col12 card"><h2>Correo institucional</h2><p>${gmailStatus.connected?'Gmail autorizado y operativo para el envío de mensajes.':'Gmail necesita reconexión: los correos no pueden enviarse todavía.'}</p><p>Los envíos se harán desde la cuenta de Gmail autorizada y quedarán en su carpeta Enviados.</p><a class="btn secondary" href="/auth/google">${gmailStatus.connected?'Cambiar o renovar Gmail':'Reconectar Gmail'}</a> <a class="btn primary" href="/superadmin/correos">Ver historial de correos</a></div><div class="col12 card"><h2>Avisos de solicitudes</h2><p>Hay <b>${missingNotices}</b> solicitud(es) pendiente(s) cuyos avisos no constan como aceptados por el proveedor de correo. Esto no confirma recepción en la bandeja del destinatario.</p><form method="post" action="/superadmin/notificaciones/reintentar"><button class="btn secondary" ${missingNotices===0?'disabled':''}>Reintentar avisos pendientes</button></form></div><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Correo automático</h2>${gmailStatus.connected?'<p class="muted">Gmail disponible para enviar. Los mensajes quedan en Enviados.</p><span class="btn success">✓ Gmail operativo</span>':'<p class="muted">Gmail necesita autorización para enviar correos.</p><a class="btn primary" href="/auth/google">Reconectar Gmail</a>'}</div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table><div class="mobile-list">${reqCards||'<p class="muted">Aún no hay solicitudes.</p>'}</div></div><div class="col12 card"><h2>Establecimientos</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table><div class="mobile-list">${estCards||'<p class="muted">Aún no hay cuentas activas.</p>'}</div></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
@@ -376,6 +396,8 @@ app.post('/superadmin/approve/:id',requireSuper,async(req,res)=>{
 app.post('/superadmin/reject/:id',requireSuper,async(req,res)=>{await rejectRequest(req.params.id); res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Solicitud rechazada.'));});
 app.post('/superadmin/delete-request/:id',requireSuper,async(req,res)=>{try{await deleteRequest(req.params.id);res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Solicitud eliminada correctamente.'));}catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}});
 app.post('/superadmin/send-password/:id',requireSuper,async(req,res)=>{
+  const connection=await mailer.status();
+  if(!connection.connected)return res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent('Gmail no está conectado. Reconéctalo antes de generar un PIN nuevo. La clave actual no se modificó.'));
   let reset;
   try{reset=await resetPin(req.params.id);}
   catch(error){console.error('IDPS PIN reset error:',error.message);

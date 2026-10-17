@@ -156,18 +156,8 @@ async function removeEst(eid){
 }
 
 async function sendActivation(est,pin){
-  const url='https://idps-gestion-material-educativo.onrender.com';
-  const safe=mailer.escape;
-  const expiry=est.expires_at?new Date(est.expires_at).toLocaleDateString('es-CL'):'';
-  const html='<div style="font-family:Arial,sans-serif;color:#0F2D52;line-height:1.6">'+
-    '<h2>Acceso institucional IDPS</h2><p>Estimado/a '+safe(est.contact_name||'responsable')+':</p>'+
-    '<p>La cuenta de <b>'+safe(est.name)+'</b> fue habilitada.</p>'+
-    '<p><b>RBD:</b> '+safe(est.rbd)+'<br><b>PIN de acceso:</b> '+safe(pin)+
-    '<br><b>Vigencia:</b> '+safe(expiry)+'</p>'+
-    '<p><a href="'+url+'">Ingresar a la plataforma IDPS</a></p>'+
-    '<p>Conserva tus datos de acceso de manera privada.</p>'+
-    '<p>Saludos cordiales,<br><b>Material Educativo Chile · Acción Educativa SPA</b></p></div>';
-  return mailer.send({to:est.email,subject:'Cuenta activada · IDPS Material Educativo Chile',html,category:'acceso_pin',relatedId:est.id});
+  const email=require('./activation-email-template')(est,pin);
+  return mailer.send({to:est.email,subject:email.subject,html:email.html,category:'acceso_pin',relatedId:est.id});
 }
 
 async function gmailToken(){

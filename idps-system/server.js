@@ -30,6 +30,7 @@ const loginLimiter = rateLimit({windowMs:15*60*1000, limit:10, standardHeaders:t
 const requestLimiter=rateLimit({windowMs:60*60*1000,limit:5,standardHeaders:true,legacyHeaders:false,message:'Has realizado demasiadas solicitudes. Intenta más tarde.'});
 
 const mem = { requests: [], establishments: [] };
+const payments=require('./request-payment');
 
 function normalizeRbd(v=''){ return String(v).toUpperCase().replace(/[^0-9K]/g,''); }
 function clean(v=''){ return String(v).trim(); }
@@ -57,17 +58,38 @@ async function initDb(){
     'sent_at timestamptz,last_attempt_at timestamptz,attempts integer NOT NULL DEFAULT 0)');
   await pool.query("INSERT INTO idps_request_notifications(request_id) "+
     "SELECT id FROM idps_account_requests WHERE status='pending' ON CONFLICT DO NOTHING");
+  // Existing pending requests keep a legacy review path; never require an old uploader
+  // to submit a file that the previous version discarded.
+  await pool.query('ALTER TABLE idps_account_requests ADD COLUMN IF NOT EXISTS payment_status text');
+  await pool.query("UPDATE idps_account_requests SET payment_status='legacy' WHERE payment_status IS NULL");
+  await pool.query('ALTER TABLE idps_account_requests ADD COLUMN IF NOT EXISTS payment_verified_at timestamptz');
+  await pool.query('CREATE TABLE IF NOT EXISTS idps_request_vouchers ('+
+    'request_id uuid PRIMARY KEY REFERENCES idps_account_requests(id) ON DELETE CASCADE,'+
+    'filename text NOT NULL, mimetype text NOT NULL,'+
+    'file_size integer NOT NULL CHECK(file_size>0 AND file_size<=5242880),'+
+    'sha256 text NOT NULL, content bytea NOT NULL, uploaded_at timestamptz NOT NULL DEFAULT now())');
 }
 
-async function createRequest(data){
-  const row = {id:id(), ...data, status:'pending', created_at:new Date().toISOString()};
-  if(pool){
-    await pool.query(`INSERT INTO idps_account_requests(id,rbd,rbd_norm,establishment_name,commune,contact_name,email,voucher_name,status)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending')`,[row.id,row.rbd,row.rbd_norm,row.establishment_name,row.commune,row.contact_name,row.email,row.voucher_name]);
-    await pool.query('INSERT INTO idps_request_notifications(request_id) VALUES($1) ON CONFLICT DO NOTHING',[row.id]);
-  } else mem.requests.unshift(row);
+async function createRequest(data,file){
+  if(!pool)throw Error('Las solicitudes se encuentran temporalmente fuera de servicio.');
+  const checked=payments.validate(file);
+  const row={id:id(),...data,status:'pending',payment_status:'pending',created_at:new Date().toISOString()};
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    await client.query(
+      "INSERT INTO idps_account_requests(id,rbd,rbd_norm,establishment_name,commune,contact_name,email,voucher_name,status,payment_status) "+
+      "VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending','pending')",
+      [row.id,row.rbd,row.rbd_norm,row.establishment_name,row.commune,row.contact_name,row.email,checked.filename]);
+    await client.query('INSERT INTO idps_request_vouchers(request_id,filename,mimetype,file_size,sha256,content) VALUES($1,$2,$3,$4,$5,$6)',
+      [row.id,checked.filename,checked.mime,checked.size,checked.sha256,checked.content]);
+    await client.query('INSERT INTO idps_request_notifications(request_id) VALUES($1) ON CONFLICT DO NOTHING',[row.id]);
+    await client.query('COMMIT');
+  }catch(error){await client.query('ROLLBACK');throw error;}
+  finally{client.release();}
   return row;
 }
+
 async function listRequests(){
   if(pool) return (await pool.query(`SELECT r.*,n.sent_at AS notification_sent_at FROM idps_account_requests r LEFT JOIN idps_request_notifications n ON n.request_id=r.id ORDER BY r.created_at DESC`)).rows;
   return mem.requests;
@@ -106,25 +128,34 @@ async function findRequest(rid){
   return mem.requests.find(x=>x.id===rid);
 }
 async function approveRequest(rid){
-  const r = await findRequest(rid); if(!r) throw new Error('Solicitud no encontrada');
-  const generatedPin = pin6(); const pinHash = await bcrypt.hash(generatedPin, 10);
-  const est = {id:id(), rbd:r.rbd, rbd_norm:r.rbd_norm, name:r.establishment_name, commune:r.commune, contact_name:r.contact_name, email:r.email, pin_hash:pinHash, status:'active', created_at:new Date().toISOString(), expires_at:new Date(Date.now()+30*86400000).toISOString()};
-  if(pool){
-    await pool.query('BEGIN');
-    try{
-      await pool.query(`INSERT INTO idps_establishments(id,rbd,rbd_norm,name,commune,contact_name,email,pin_hash,status,expires_at)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active',$9)
-        ON CONFLICT (rbd_norm) DO UPDATE SET name=EXCLUDED.name, commune=EXCLUDED.commune, contact_name=EXCLUDED.contact_name, email=EXCLUDED.email, pin_hash=EXCLUDED.pin_hash, status='active', expires_at=EXCLUDED.expires_at`,
-        [est.id,est.rbd,est.rbd_norm,est.name,est.commune,est.contact_name,est.email,est.pin_hash,est.expires_at]);
-      await pool.query(`UPDATE idps_account_requests SET status='approved', reviewed_at=now() WHERE id=$1`,[rid]);
-      await pool.query('COMMIT');
-    } catch(e){ await pool.query('ROLLBACK'); throw e; }
-  } else {
-    const idx=mem.establishments.findIndex(x=>x.rbd_norm===est.rbd_norm); if(idx>=0) mem.establishments[idx]=est; else mem.establishments.unshift(est);
-    r.status='approved'; r.reviewed_at=new Date().toISOString();
-  }
-  return {est, generatedPin};
+  if(!pool)throw Error('La aprobación requiere base de datos permanente.');
+  const client=await pool.connect();
+  let est,generatedPin;
+  try{
+    await client.query('BEGIN');
+    const r=(await client.query('SELECT * FROM idps_account_requests WHERE id=$1 FOR UPDATE',[rid])).rows[0];
+    if(!r||r.status!=='pending')throw Error('Solicitud no encontrada o ya procesada.');
+    if(!['verified','legacy'].includes(r.payment_status))
+      throw Error('Debes revisar el comprobante y confirmar primero el abono de la transferencia.');
+    generatedPin=pin6();
+    const pinHash=await bcrypt.hash(generatedPin,10);
+    est={id:id(),rbd:r.rbd,rbd_norm:r.rbd_norm,name:r.establishment_name,
+      commune:r.commune,contact_name:r.contact_name,email:r.email,pin_hash:pinHash,
+      status:'active',created_at:new Date().toISOString(),expires_at:new Date(Date.now()+30*86400000).toISOString()};
+    await client.query(
+      "INSERT INTO idps_establishments(id,rbd,rbd_norm,name,commune,contact_name,email,pin_hash,status,expires_at) "+
+      "VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active',$9) "+
+      "ON CONFLICT (rbd_norm) DO UPDATE SET name=EXCLUDED.name,commune=EXCLUDED.commune,"+
+      "contact_name=EXCLUDED.contact_name,email=EXCLUDED.email,pin_hash=EXCLUDED.pin_hash,status='active',"+
+      "expires_at=GREATEST(idps_establishments.expires_at,EXCLUDED.expires_at)",
+      [est.id,est.rbd,est.rbd_norm,est.name,est.commune,est.contact_name,est.email,est.pin_hash,est.expires_at]);
+    await client.query("UPDATE idps_account_requests SET status='approved',reviewed_at=now() WHERE id=$1",[rid]);
+    await client.query('COMMIT');
+  }catch(error){await client.query('ROLLBACK');throw error;}
+  finally{client.release();}
+  return {est,generatedPin};
 }
+
 async function rejectRequest(rid){
   if(pool) await pool.query(`UPDATE idps_account_requests SET status='rejected', reviewed_at=now() WHERE id=$1`,[rid]);
   else { const r=mem.requests.find(x=>x.id===rid); if(r){r.status='rejected'; r.reviewed_at=new Date().toISOString();} }

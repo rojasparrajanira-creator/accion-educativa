@@ -1,0 +1,29 @@
+name: IDPS welcome email QA
+on:
+  push:
+    branches:
+      - feature/idps-correo-bienvenida-20261017
+    paths:
+      - 'idps-system/server.js'
+      - 'idps-system/activation-email-template.js'
+      - 'idps-system/test-activation-email-template.js'
+      - '.github/workflows/idps-welcome-email-qa.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify syntax
+        run: |
+          node --check idps-system/server.js
+          node --check idps-system/activation-email-template.js
+      - name: Verify dynamic welcome email
+        working-directory: idps-system
+        run: node --test test-activation-email-template.js

@@ -91,7 +91,7 @@ async function createRequest(data,file){
 }
 
 async function listRequests(){
-  if(pool) return (await pool.query(`SELECT r.*,n.sent_at AS notification_sent_at FROM idps_account_requests r LEFT JOIN idps_request_notifications n ON n.request_id=r.id ORDER BY r.created_at DESC`)).rows;
+  if(pool) return (await pool.query(`SELECT r.*,n.sent_at AS notification_sent_at,(v.request_id IS NOT NULL) AS voucher_available FROM idps_account_requests r LEFT JOIN idps_request_notifications n ON n.request_id=r.id LEFT JOIN idps_request_vouchers v ON v.request_id=r.id ORDER BY r.created_at DESC`)).rows;
   return mem.requests;
 }
 
@@ -369,13 +369,24 @@ app.post('/superadmin/login',loginLimiter,async(req,res)=>{
   }
 });
 
+require('./request-payment-admin')(app,{pool,requireSuper,findRequest,layout});
+
 app.get('/superadmin/dashboard',requireSuper,async(req,res)=>{
  const [requests,ests,gmailStatus]=await Promise.all([listRequests(),listEstablishments(),mailer.status()]);
  const pending=requests.filter(x=>x.status==='pending').length;
  const missingNotices=requests.filter(x=>x.status==='pending'&&!x.notification_sent_at).length;
- const requestActions=r=>'<div class="actions">'+(r.status==='pending'?'<form method="post" action="/superadmin/approve/'+r.id+'"><button class="btn success">Aprobar</button></form><form method="post" action="/superadmin/reject/'+r.id+'"><button class="btn danger">Rechazar</button></form>':'')+'<form method="post" action="/superadmin/delete-request/'+r.id+'" onsubmit="return confirm(\'¿Eliminar esta solicitud?\')"><button class="btn danger">Eliminar solicitud</button></form></div>';
- const reqRows=requests.map(r=>'<tr><td>'+r.rbd+'</td><td><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></td><td>'+r.contact_name+'<br>'+r.email+'</td><td>'+(r.voucher_name||'Sin archivo')+'</td><td><span class="badge '+r.status+'">'+r.status+'</span></td><td>'+requestActions(r)+'</td></tr>').join('');
- const reqCards=requests.map(r=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+r.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Contacto</span>'+r.contact_name+'<br>'+r.email+'</div><div class="mobile-row"><span class="mobile-label">Voucher</span>'+(r.voucher_name||'Sin archivo')+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+r.status+'">'+r.status+'</span></div>'+requestActions(r)+'</div>').join('');
+ const requestActions=r=>{
+   const payment=r.payment_status==='verified'?'Pago confirmado':r.payment_status==='legacy'?'Solicitud anterior':'Pago pendiente';
+   const canApprove=r.status==='pending'&&['verified','legacy'].includes(r.payment_status);
+   return '<div><span class="badge '+(r.payment_status==='verified'?'approved':'pending')+'">'+payment+'</span></div>'+
+     '<div class="actions">'+
+     (r.voucher_available?'<a class="btn secondary" href="/superadmin/pagos/'+r.id+'">Ver comprobante / pago</a>':'')+
+     (canApprove?'<form method="post" action="/superadmin/approve/'+r.id+'"><button class="btn success">Aprobar cuenta</button></form>':'')+
+     (r.status==='pending'?'<form method="post" action="/superadmin/reject/'+r.id+'"><button class="btn danger">Rechazar</button></form>':'')+
+     '<form method="post" action="/superadmin/delete-request/'+r.id+'" onsubmit="return confirm(\'¿Eliminar esta solicitud?\')"><button class="btn danger">Eliminar solicitud</button></form></div>';
+ };
+ const reqRows=requests.map(r=>'<tr><td>'+r.rbd+'</td><td><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></td><td>'+r.contact_name+'<br>'+r.email+'</td><td>'+(r.voucher_available?'<a href="/superadmin/pagos/'+r.id+'">Ver fotografía o PDF</a>':r.voucher_name?'Comprobante antiguo no conservado':'Sin archivo')+'</td><td><span class="badge '+r.status+'">'+r.status+'</span></td><td>'+requestActions(r)+'</td></tr>').join('');
+ const reqCards=requests.map(r=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+r.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Contacto</span>'+r.contact_name+'<br>'+r.email+'</div><div class="mobile-row"><span class="mobile-label">Voucher</span>'+(r.voucher_available?'<a href="/superadmin/pagos/'+r.id+'">Ver fotografía o PDF</a>':r.voucher_name?'Comprobante antiguo no conservado':'Sin archivo')+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+r.status+'">'+r.status+'</span></div>'+requestActions(r)+'</div>').join('');
  const accountActions=e=>'<div class="actions"><form method="post" action="/superadmin/send-password/'+e.id+'" onsubmit="return confirm(\'Esto generará un PIN nuevo y anulará el anterior. ¿Continuar?\')"><button class="btn secondary">Generar y enviar PIN nuevo</button></form><form method="post" action="/superadmin/remove/'+e.id+'" onsubmit="return confirm(\'¿Eliminar esta cuenta?\')"><button class="btn danger">Eliminar cuenta</button></form></div>';
  const estRows=ests.map(e=>'<tr><td>'+e.rbd+'</td><td><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></td><td>'+e.email+'</td><td><span class="badge '+e.status+'">'+e.status+'</span></td><td>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</td><td>'+accountActions(e)+'</td></tr>').join('');
  const estCards=ests.map(e=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+e.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Correo</span>'+e.email+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+e.status+'">'+e.status+'</span></div><div class="mobile-row"><span class="mobile-label">Vigencia</span>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</div>'+accountActions(e)+'</div>').join('');

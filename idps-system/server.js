@@ -91,7 +91,7 @@ async function sendRequestNotice(row){
   try{
     await pool.query('UPDATE idps_request_notifications SET attempts=attempts+1,last_attempt_at=now() WHERE request_id=$1',[row.id]);
     await mailer.send({to:SUPERADMIN_EMAIL,
-      subject:'IDPS · Nueva solicitud de acceso',html:body});
+      subject:'IDPS · Nueva solicitud de acceso',html:body,category:'solicitud_admin',relatedId:row.id});
     await pool.query('UPDATE idps_request_notifications SET sent_at=now() WHERE request_id=$1',[row.id]);
     return true;
   }catch(error){
@@ -166,7 +166,7 @@ async function sendActivation(est,pin){
     '<p><a href="'+url+'">Ingresar a la plataforma IDPS</a></p>'+
     '<p>Conserva tus datos de acceso de manera privada.</p>'+
     '<p>Saludos cordiales,<br><b>Material Educativo Chile · Acción Educativa SPA</b></p></div>';
-  return mailer.send({to:est.email,subject:'Cuenta activada · IDPS Material Educativo Chile',html});
+  return mailer.send({to:est.email,subject:'Cuenta activada · IDPS Material Educativo Chile',html,category:'acceso_pin',relatedId:est.id});
 }
 
 async function gmailToken(){
@@ -236,7 +236,7 @@ async function sendRequestReceipt(row){
         '<p>Recibimos la solicitud de <b>'+safe(row.establishment_name)+'</b>, RBD <b>'+safe(row.rbd)+'</b>.</p>'+
         '<p>La solicitud queda pendiente de revisión. Esta confirmación NO contiene clave de acceso.</p>'+
         '<p>Una vez aprobada, te comunicaremos cómo ingresar a IDPS.</p>'+
-        '<p>Saludos,<br><b>Material Educativo Chile · Acción Educativa SPA</b></p></div>'});
+        '<p>Saludos,<br><b>Material Educativo Chile · Acción Educativa SPA</b></p></div>',category:'solicitud_cliente',relatedId:row.id});
     return true;
   }catch(error){console.error('IDPS client request receipt failed:',error.message);return false;}
 }
@@ -273,7 +273,7 @@ const superRecovery=require('./superadmin-recovery')(app,{
       '<h2>Restablecer contraseña de Superadministrador</h2>'+
       '<p>Se solicitó recuperar el acceso a IDPS. El enlace es de un solo uso y caduca en 30 minutos.</p>'+
       '<p><a href="'+mailer.escape(link)+'">Crear nueva contraseña</a></p>'+
-      '<p>Si no lo solicitaste, ignora este mensaje; tu contraseña no cambiará.</p></div>'
+      '<p>Si no lo solicitaste, ignora este mensaje; tu contraseña no cambiará.</p></div>',category:'recuperacion_admin'
   })
 });
 
@@ -296,7 +296,7 @@ app.post('/superadmin/login',loginLimiter,async(req,res)=>{
 });
 
 app.get('/superadmin/dashboard',requireSuper,async(req,res)=>{
- const [requests,ests,gmailConnected]=await Promise.all([listRequests(),listEstablishments(),gmailToken().then(Boolean).catch(()=>false)]);
+ const [requests,ests,gmailStatus]=await Promise.all([listRequests(),listEstablishments(),mailer.status()]);
  const pending=requests.filter(x=>x.status==='pending').length;
  const missingNotices=requests.filter(x=>x.status==='pending'&&!x.notification_sent_at).length;
  const requestActions=r=>'<div class="actions">'+(r.status==='pending'?'<form method="post" action="/superadmin/approve/'+r.id+'"><button class="btn success">Aprobar</button></form><form method="post" action="/superadmin/reject/'+r.id+'"><button class="btn danger">Rechazar</button></form>':'')+'<form method="post" action="/superadmin/delete-request/'+r.id+'" onsubmit="return confirm(\'¿Eliminar esta solicitud?\')"><button class="btn danger">Eliminar solicitud</button></form></div>';
@@ -305,7 +305,41 @@ app.get('/superadmin/dashboard',requireSuper,async(req,res)=>{
  const accountActions=e=>'<div class="actions"><form method="post" action="/superadmin/send-password/'+e.id+'"><button class="btn secondary">Enviar PIN de acceso</button></form><form method="post" action="/superadmin/remove/'+e.id+'" onsubmit="return confirm(\'¿Eliminar esta cuenta?\')"><button class="btn danger">Eliminar cuenta</button></form></div>';
  const estRows=ests.map(e=>'<tr><td>'+e.rbd+'</td><td><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></td><td>'+e.email+'</td><td><span class="badge '+e.status+'">'+e.status+'</span></td><td>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</td><td>'+accountActions(e)+'</td></tr>').join('');
  const estCards=ests.map(e=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+e.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Correo</span>'+e.email+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+e.status+'">'+e.status+'</span></div><div class="mobile-row"><span class="mobile-label">Vigencia</span>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</div>'+accountActions(e)+'</div>').join('');
- res.send(layout('Panel superadministrador',`<div class="grid"><div class="col12 card"><h2>Avisos de solicitudes</h2><p>Hay <b>${missingNotices}</b> solicitud(es) pendiente(s) cuyos avisos no constan como aceptados por el proveedor de correo. Esto no confirma recepción en la bandeja del destinatario.</p><form method="post" action="/superadmin/notificaciones/reintentar"><button class="btn secondary" ${missingNotices===0?'disabled':''}>Reintentar avisos pendientes</button></form></div><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Correo automático</h2>${gmailConnected?'<p class="muted">La cuenta de Acción Educativa está autorizada para enviar accesos desde Gmail.</p><span class="btn success">✓ Gmail conectado</span>':'<p class="muted">Autoriza la cuenta de Acción Educativa para enviar accesos desde Gmail.</p><a class="btn primary" href="/auth/google">Conectar Gmail</a>'}</div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table><div class="mobile-list">${reqCards||'<p class="muted">Aún no hay solicitudes.</p>'}</div></div><div class="col12 card"><h2>Establecimientos</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table><div class="mobile-list">${estCards||'<p class="muted">Aún no hay cuentas activas.</p>'}</div></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
+ res.send(layout('Panel superadministrador',`<div class="grid"><div class="col12 card"><h2>Correo institucional</h2><p>${gmailStatus.connected?'Gmail autorizado y operativo para el envío de mensajes.':'Gmail necesita reconexión: los correos no pueden enviarse todavía.'}</p><p>Los envíos se harán desde la cuenta de Gmail autorizada y quedarán en su carpeta Enviados.</p><a class="btn secondary" href="/auth/google">${gmailStatus.connected?'Cambiar o renovar Gmail':'Reconectar Gmail'}</a> <a class="btn primary" href="/superadmin/correos">Ver historial de correos</a></div><div class="col12 card"><h2>Avisos de solicitudes</h2><p>Hay <b>${missingNotices}</b> solicitud(es) pendiente(s) cuyos avisos no constan como aceptados por el proveedor de correo. Esto no confirma recepción en la bandeja del destinatario.</p><form method="post" action="/superadmin/notificaciones/reintentar"><button class="btn secondary" ${missingNotices===0?'disabled':''}>Reintentar avisos pendientes</button></form></div><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Correo automático</h2>${gmailStatus.connected?'<p class="muted">Gmail disponible para enviar. Los mensajes quedan en Enviados.</p><span class="btn success">✓ Gmail operativo</span>':'<p class="muted">Gmail necesita autorización para enviar correos.</p><a class="btn primary" href="/auth/google">Reconectar Gmail</a>'}</div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table><div class="mobile-list">${reqCards||'<p class="muted">Aún no hay solicitudes.</p>'}</div></div><div class="col12 card"><h2>Establecimientos</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table><div class="mobile-list">${estCards||'<p class="muted">Aún no hay cuentas activas.</p>'}</div></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
+});
+
+app.get('/superadmin/correos',requireSuper,async(req,res)=>{
+  try{
+    const items=await mailer.history(100);
+    const safe=mailer.escape;
+    const rows=items.map(m=>{
+      const date=new Date(m.created_at);
+      const when=Number.isFinite(date.getTime())?date.toLocaleString('es-CL',{timeZone:'America/Santiago'}):'—';
+      const status=m.status==='accepted'?'Aceptado por Gmail':'Fallido';
+      return '<tr><td>'+safe(when)+'</td><td>'+safe(m.category.replaceAll('_',' '))+'</td>'+
+        '<td>'+safe(m.recipient)+'</td><td>'+safe(m.subject)+'</td>'+
+        '<td>'+status+'</td><td>'+safe(m.provider_message_id||'—')+'</td></tr>';
+    }).join('');
+    res.set('Cache-Control','no-store');
+    return res.send(layout('Historial de correos IDPS',
+      '<div class="card"><h1>Historial de correos institucionales</h1>'+
+      '<p>El estado «Aceptado por Gmail» significa que el proveedor recibió el mensaje para envío; '+
+      '<b>no demuestra que la clienta lo haya recibido, abierto o leído</b>.</p>'+
+      '<p>Los correos aceptados se guardan en la carpeta <b>Enviados</b> del Gmail conectado.</p>'+
+      '<p><a class="btn primary" href="https://mail.google.com/mail/u/0/#sent" target="_blank" rel="noopener noreferrer">Abrir Gmail · Enviados</a> '+
+      '<a class="btn secondary" href="/superadmin/dashboard">Volver al panel</a></p>'+
+      '<div style="overflow-x:auto"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Destinatario</th>'+
+      '<th>Asunto</th><th>Estado</th><th>ID Gmail</th></tr></thead><tbody>'+
+      (rows||'<tr><td colspan="6">No existen correos registrados por la nueva función.</td></tr>')+
+      '</tbody></table></div>'+
+      '<p class="muted">Los envíos anteriores a la activación de este registro no pueden reconstruirse desde aquí.</p></div>',
+      '<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>'));
+  }catch(error){
+    console.error('IDPS email history unavailable:',error.message);
+    return res.status(503).send(layout('Historial no disponible',
+      '<div class="card"><h1>Historial temporalmente no disponible</h1>'+
+      '<p><a href="/superadmin/dashboard">Volver al panel</a></p></div>'));
+  }
 });
 
 app.post('/superadmin/notificaciones/reintentar',requireSuper,async(req,res)=>{
@@ -365,4 +399,4 @@ app.post('/superadmin/remove/:id',requireSuper,async(req,res)=>{try{await remove
 app.get('/logout',(req,res)=>{res.clearCookie('idps_session');res.redirect('/');});
 app.get('/health',(req,res)=>res.json({ok:true,database:pool?'postgres':'temporary',mail:!!process.env.RESEND_API_KEY}));
 
-initDb().then(()=>superRecovery.init()).then(()=>app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`))).catch(err=>{console.error(err);process.exit(1)});
+initDb().then(()=>mailer.init()).then(()=>superRecovery.init()).then(()=>app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`))).catch(err=>{console.error(err);process.exit(1)});

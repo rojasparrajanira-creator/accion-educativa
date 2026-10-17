@@ -19,6 +19,7 @@ const SURVEY_URL = process.env.SURVEY_URL || 'https://diagnostico-idps-material-
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const upload = multer({storage: multer.memoryStorage(), limits:{fileSize: 5 * 1024 * 1024}});
 const pool = DATABASE_URL ? new Pool({connectionString:DATABASE_URL, ssl:{rejectUnauthorized:false}}) : null;
+const mailer = require('./idps-mailer')({pool,env:process.env});
 
 app.use(helmet({contentSecurityPolicy:false}));
 app.use(express.urlencoded({extended:true}));
@@ -50,6 +51,11 @@ async function initDb(){
     commune text, contact_name text, email text NOT NULL, pin_hash text NOT NULL,
     status text NOT NULL DEFAULT 'active', created_at timestamptz NOT NULL DEFAULT now(), expires_at timestamptz
   )`);
+  await pool.query('CREATE TABLE IF NOT EXISTS idps_request_notifications ('+
+    'request_id uuid PRIMARY KEY REFERENCES idps_account_requests(id) ON DELETE CASCADE,'+
+    'sent_at timestamptz,last_attempt_at timestamptz,attempts integer NOT NULL DEFAULT 0)');
+  await pool.query("INSERT INTO idps_request_notifications(request_id) "+
+    "SELECT id FROM idps_account_requests WHERE status='pending' ON CONFLICT DO NOTHING");
 }
 
 async function createRequest(data){
@@ -57,13 +63,43 @@ async function createRequest(data){
   if(pool){
     await pool.query(`INSERT INTO idps_account_requests(id,rbd,rbd_norm,establishment_name,commune,contact_name,email,voucher_name,status)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending')`,[row.id,row.rbd,row.rbd_norm,row.establishment_name,row.commune,row.contact_name,row.email,row.voucher_name]);
+    await pool.query('INSERT INTO idps_request_notifications(request_id) VALUES($1) ON CONFLICT DO NOTHING',[row.id]);
   } else mem.requests.unshift(row);
   return row;
 }
 async function listRequests(){
-  if(pool) return (await pool.query(`SELECT * FROM idps_account_requests ORDER BY created_at DESC`)).rows;
+  if(pool) return (await pool.query(`SELECT r.*,n.sent_at AS notification_sent_at FROM idps_account_requests r LEFT JOIN idps_request_notifications n ON n.request_id=r.id ORDER BY r.created_at DESC`)).rows;
   return mem.requests;
 }
+
+async function sendRequestNotice(row){
+  if(!pool)return false;
+  const exists=await pool.query('SELECT sent_at FROM idps_request_notifications WHERE request_id=$1',[row.id]);
+  if(exists.rows[0]?.sent_at)return true;
+  const safe=mailer.escape;
+  const body='<div style="font:15px Arial,sans-serif;color:#153657;line-height:1.6">'+
+    '<h2>Nueva solicitud de acceso a IDPS</h2>'+
+    '<p>Se ha recibido una solicitud y está <b>pendiente de aprobación</b>.</p>'+
+    '<p><b>Establecimiento:</b> '+safe(row.establishment_name)+'<br>'+
+    '<b>RBD:</b> '+safe(row.rbd)+'<br>'+
+    '<b>Comuna:</b> '+safe(row.commune||'No informada')+'<br>'+
+    '<b>Responsable:</b> '+safe(row.contact_name)+'<br>'+
+    '<b>Correo:</b> '+safe(row.email)+'</p>'+
+    '<p><a href="https://idps-gestion-material-educativo.onrender.com/superadmin/dashboard">'+
+    'Revisar solicitud en el panel del Superadministrador</a></p>'+
+    '<p><small>La solicitud no está aprobada y el acceso no se genera automáticamente.</small></p></div>';
+  try{
+    await pool.query('UPDATE idps_request_notifications SET attempts=attempts+1,last_attempt_at=now() WHERE request_id=$1',[row.id]);
+    await mailer.send({to:SUPERADMIN_EMAIL,
+      subject:'IDPS · Nueva solicitud de acceso',html:body});
+    await pool.query('UPDATE idps_request_notifications SET sent_at=now() WHERE request_id=$1',[row.id]);
+    return true;
+  }catch(error){
+    console.error('IDPS institutional access notice delivery failed:',error.message);
+    return false;
+  }
+}
+
 async function findRequest(rid){
   if(pool) return (await pool.query(`SELECT * FROM idps_account_requests WHERE id=$1`,[rid])).rows[0];
   return mem.requests.find(x=>x.id===rid);
@@ -119,25 +155,18 @@ async function removeEst(eid){
 }
 
 async function sendActivation(est,pin){
-  const apiKey = String(process.env.RESEND_API_KEY || '').trim();
-  if(!apiKey) return {sent:false, reason:'RESEND_API_KEY pendiente'};
-  const accessUrl = process.env.PUBLIC_URL || 'https://idps-gestion-material-educativo.onrender.com';
-  const subject = 'Cuenta activada · Diagnóstico IDPS Material Educativo Chile';
-  const expiry = est.expires_at ? new Date(est.expires_at).toLocaleDateString('es-CL') : '';
-  const html = '<div style="font-family:Arial,sans-serif;color:#0F2D52"><h2>Cuenta activada</h2><p>Estimado/a '+(est.contact_name||'responsable')+':</p><p>La cuenta de <b>'+est.name+'</b> ha sido aprobada.</p><p><b>RBD:</b> '+est.rbd+'<br><b>PIN de acceso:</b> '+pin+'<br><b>Vigencia:</b> '+expiry+'</p><p>Acceso: '+accessUrl+'</p><p>Por seguridad, conserve este PIN solo para el equipo autorizado.</p><p>Saludos cordiales,<br><b>Acción Educativa SPA</b></p></div>';
-  const response = await fetch('https://api.resend.com/emails', {
-    method:'POST',
-    headers:{Authorization:'Bearer '+apiKey,'Content-Type':'application/json'},
-    body:JSON.stringify({
-      from:process.env.RESEND_FROM || 'Acción Educativa SPA <onboarding@resend.dev>',
-      to:[est.email],
-      subject,
-      html
-    })
-  });
-  const body = await response.text();
-  if(!response.ok) throw new Error('Resend HTTP '+response.status+': '+body.slice(0,240));
-  return {sent:true, provider:'resend'};
+  const url='https://idps-gestion-material-educativo.onrender.com';
+  const safe=mailer.escape;
+  const expiry=est.expires_at?new Date(est.expires_at).toLocaleDateString('es-CL'):'';
+  const html='<div style="font-family:Arial,sans-serif;color:#0F2D52;line-height:1.6">'+
+    '<h2>Acceso institucional IDPS</h2><p>Estimado/a '+safe(est.contact_name||'responsable')+':</p>'+
+    '<p>La cuenta de <b>'+safe(est.name)+'</b> fue habilitada.</p>'+
+    '<p><b>RBD:</b> '+safe(est.rbd)+'<br><b>PIN de acceso:</b> '+safe(pin)+
+    '<br><b>Vigencia:</b> '+safe(expiry)+'</p>'+
+    '<p><a href="'+url+'">Ingresar a la plataforma IDPS</a></p>'+
+    '<p>Conserva tus datos de acceso de manera privada.</p>'+
+    '<p>Saludos cordiales,<br><b>Material Educativo Chile · Acción Educativa SPA</b></p></div>';
+  return mailer.send({to:est.email,subject:'Cuenta activada · IDPS Material Educativo Chile',html});
 }
 
 async function gmailToken(){
@@ -200,7 +229,8 @@ app.get('/solicitud',(req,res)=>res.send(layout('Solicitud de cuenta',`<div clas
 app.post('/solicitud', upload.single('voucher'), async(req,res)=>{
  try{
   const rbd=clean(req.body.rbd), rbd_norm=normalizeRbd(rbd); if(rbd_norm.length<2) throw new Error('RBD inválido.');
-  await createRequest({rbd,rbd_norm,establishment_name:clean(req.body.establishment_name),commune:clean(req.body.commune),contact_name:clean(req.body.contact_name),email:clean(req.body.email).toLowerCase(),voucher_name:req.file?req.file.originalname:''});
+  const request=await createRequest({rbd,rbd_norm,establishment_name:clean(req.body.establishment_name),commune:clean(req.body.commune),contact_name:clean(req.body.contact_name),email:clean(req.body.email).toLowerCase(),voucher_name:req.file?req.file.originalname:''});
+   await sendRequestNotice(request);
   res.redirect('/?msg='+encodeURIComponent('Solicitud recibida. Quedó pendiente de aprobación.'));
  } catch(e){ res.redirect('/?err=1&msg='+encodeURIComponent(e.message)); }
 });
@@ -219,7 +249,18 @@ app.get('/panel', requireEst, async(req,res)=>{
  res.send(layout('Panel establecimiento',`<div class="dashboard-shell"><section class="dashboard-hero"><div><span class="eyebrow">PANEL DEL ESTABLECIMIENTO</span><h1>Bienvenida/o al espacio de gestión</h1><p>Administra la aplicación IDPS, revisa resultados y utiliza la información para orientar decisiones educativas.</p></div><div class="school-chip"><div class="school-chip-icon">⌂</div><div><b>${est.name}</b><span>RBD ${est.rbd}</span><span>${est.commune||''}</span></div></div></section><div class="grid dashboard-kpis"><div class="col4 card kpi-card"><div class="kpi">0</div><b>Estudiantes cargados</b><p class="muted">La carga de nómina se habilitará en el siguiente módulo.</p></div><div class="col4 card kpi-card"><div class="kpi">0%</div><b>Aplicación</b><p class="muted">Seguimiento por curso y nivel.</p></div><div class="col4 card kpi-card"><div class="kpi">—</div><b>Diagnóstico</b><p class="muted">Se activará al recibir respuestas.</p></div></div><section class="quick-section"><div class="section-heading"><div><span class="eyebrow">ACCESOS RÁPIDOS</span><h2>Gestión institucional</h2></div><p>Todo lo necesario para administrar el proceso desde un mismo panel.</p></div><div class="quick-grid"><a class="quick-card qc-turq" href="/panel/estudiantes"><span class="quick-icon">👥</span><div><b>Nómina de estudiantes</b><small>Carga de matrícula, altas, retiros y gestión de cursos.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-blue" href="/panel/aplicacion"><span class="quick-icon">▣</span><div><b>Aplicación de encuestas</b><small>Genera accesos y revisa el avance de respuestas.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-yellow" href="/panel/resultados"><span class="quick-icon">▥</span><div><b>Resultados</b><small>Visualiza resultados individuales, por curso e institucionales.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-navy" href="/panel/informe/institucional"><span class="quick-icon">▤</span><div><b>Informe institucional</b><small>Diagnóstico, interpretación y síntesis para la toma de decisiones.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-turq" href="/panel/informe/institucional#plan-intervencion"><span class="quick-icon">◎</span><div><b>Plan de intervención</b><small>Acciones, responsables, metas, currículum y Carta Gantt.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-blue" href="${SURVEY_URL}/encuesta-idps.html" target="_blank"><span class="quick-icon">↗</span><div><b>Portal del estudiante</b><small>Abre directamente la aplicación para estudiantes.</small></div><span class="quick-arrow">›</span></a></div></section><section class="dashboard-banner"><div><span class="eyebrow">INDICADORES DE DESARROLLO PERSONAL Y SOCIAL</span><h2>Información para fortalecer el bienestar y el desarrollo integral.</h2><p>Los resultados permiten orientar acciones de acompañamiento, convivencia, participación y vida saludable.</p></div><div class="banner-mark">IDPS</div></section><div class="legacy-controls" aria-hidden="true"><a class="btn primary" href="${SURVEY_URL}" target="_blank">Abrir encuesta publicada</a><button class="btn secondary" disabled>Cargar nómina Excel · próximo módulo</button></div></div>`,`<a href="/panel">Inicio</a><a href="/panel/estudiantes">Nómina</a><a href="/panel/aplicacion">Aplicación</a><a href="/panel/resultados">Resultados</a><a href="/logout">Cerrar sesión</a>`));
 });
 
-const superRecovery=require('./superadmin-recovery')(app,{pool,adminEmail:SUPERADMIN_EMAIL,legacyPasswordHash:SUPERADMIN_PASSWORD_HASH,legacySalt:SUPERADMIN_SALT,layout});
+const superRecovery=require('./superadmin-recovery')(app,{
+  pool,adminEmail:SUPERADMIN_EMAIL,legacyPasswordHash:SUPERADMIN_PASSWORD_HASH,legacySalt:SUPERADMIN_SALT,layout,
+  mailAvailable:mailer.available,
+  sendEmail:(email,link)=>mailer.send({
+    to:email,subject:'Restablecer contraseña · Superadministrador IDPS',
+    html:'<div style="font-family:Arial,sans-serif;line-height:1.6;color:#153657">'+
+      '<h2>Restablecer contraseña de Superadministrador</h2>'+
+      '<p>Se solicitó recuperar el acceso a IDPS. El enlace es de un solo uso y caduca en 30 minutos.</p>'+
+      '<p><a href="'+mailer.escape(link)+'">Crear nueva contraseña</a></p>'+
+      '<p>Si no lo solicitaste, ignora este mensaje; tu contraseña no cambiará.</p></div>'
+  })
+});
 
 app.get('/superadmin',(req,res)=>{
  const msg=req.query.msg?`<div class="notice ${req.query.err?'error':'ok'}">${clean(req.query.msg)}</div>`:'';

@@ -266,8 +266,30 @@ app.get('/demo',(req,res)=>{
  res.send(layout('Demo de la Plataforma IDPS','<div class="idps-demo-page"><a class="idps-demo-back" href="/">← Volver al inicio</a><span class="home-kicker">MATERIAL EDUCATIVO CHILE</span><h1>Conoce nuestra plataforma IDPS</h1><p>Descubre cómo funciona el proceso de matrícula, aplicación, seguimiento, resultados, informes y planificación institucional.</p>'+media+'</div>','<a href="/">Inicio</a>'));
 });
 
-app.get('/solicitud',(req,res)=>res.send(layout('Solicitud de cuenta',`<div class="card" style="max-width:760px;margin:auto"><h1>Solicitud de cuenta</h1><p class="muted">La cuenta quedará pendiente hasta que Acción Educativa SPA revise y apruebe la solicitud.</p><form method="post" action="/solicitud" enctype="multipart/form-data"><div class="grid"><div class="col6 field"><label>RBD *</label><input name="rbd" required></div><div class="col6 field"><label>Nombre del establecimiento *</label><input name="establishment_name" required></div><div class="col6 field"><label>Comuna</label><input name="commune"></div><div class="col6 field"><label>Nombre responsable *</label><input name="contact_name" required></div><div class="col6 field"><label>Correo de contacto *</label><input name="email" type="email" required></div><div class="col6 field"><label>Voucher / comprobante de pago</label><input name="voucher" type="file" accept=".pdf,.jpg,.jpeg,.png"></div></div><button class="btn primary">Enviar solicitud</button></form></div>`,`<a href="/">Volver</a>`)));
-
+app.get('/solicitud',(req,res)=>{
+  const info=payments.details(process.env);
+  const notice=req.query.msg?'<div class="notice error">'+payments.escape(req.query.msg)+'</div>':'';
+  const preface='<div class="card" style="max-width:800px;margin:auto"><h1>Solicitar cuenta IDPS</h1>'+notice+
+    '<p>Para comenzar, realiza la transferencia, carga el comprobante y completa los datos del establecimiento. '+
+    'Acción Educativa SPA revisará el pago antes de habilitar la cuenta.</p>'+
+    payments.paymentInstruction(info);
+  if(!info.ready)return res.send(layout('Solicitud de cuenta IDPS',preface+
+    '<p>Los datos bancarios deben estar confirmados antes de aceptar pagos. Consultas: '+
+    '<a href="mailto:accioneducativaspa@gmail.com">accioneducativaspa@gmail.com</a>.</p>'+
+    '<p><a href="/">Volver</a></p></div>','<a href="/">Inicio</a>'));
+  const form='<h2>2. Solicita la cuenta y adjunta el comprobante</h2>'+
+    '<form method="post" action="/solicitud" enctype="multipart/form-data"><div class="grid">'+
+    '<div class="col6 field"><label>RBD *</label><input name="rbd" maxlength="20" required></div>'+
+    '<div class="col6 field"><label>Establecimiento *</label><input name="establishment_name" maxlength="140" required></div>'+
+    '<div class="col6 field"><label>Comuna</label><input name="commune" maxlength="80"></div>'+
+    '<div class="col6 field"><label>Nombre del responsable *</label><input name="contact_name" maxlength="120" required></div>'+
+    '<div class="col6 field"><label>Correo *</label><input name="email" type="email" maxlength="254" required></div>'+
+    '<div class="col6 field"><label>Comprobante de transferencia * (PDF, JPG o PNG; máximo 5 MB)</label>'+
+    '<input name="voucher" type="file" accept="image/png,image/jpeg,application/pdf" required></div></div>'+
+    '<p class="muted">Tu comprobante será privado y solo el Superadministrador podrá verlo. La activación queda pendiente de confirmar el abono.</p>'+
+    '<button class="btn primary">Enviar solicitud con comprobante</button></form><p><a href="/">Volver</a></p></div>';
+  res.send(layout('Solicitud de cuenta IDPS',preface+form,'<a href="/">Inicio</a>'));
+});
 async function sendRequestReceipt(row){
   const safe=mailer.escape;
   try{
@@ -284,14 +306,24 @@ async function sendRequestReceipt(row){
 }
 
 app.post('/solicitud',requestLimiter,upload.single('voucher'),async(req,res)=>{
- try{
-  const rbd=clean(req.body.rbd), rbd_norm=normalizeRbd(rbd); if(rbd_norm.length<2) throw new Error('RBD inválido.');
-  const request=await createRequest({rbd,rbd_norm,establishment_name:clean(req.body.establishment_name),commune:clean(req.body.commune),contact_name:clean(req.body.contact_name),email:clean(req.body.email).toLowerCase(),voucher_name:req.file?req.file.originalname:''});
-   await Promise.all([sendRequestNotice(request),sendRequestReceipt(request)]);
-  res.redirect('/?msg='+encodeURIComponent('Solicitud recibida. Quedó pendiente de aprobación.'));
- } catch(e){ res.redirect('/?err=1&msg='+encodeURIComponent(e.message)); }
+  try{
+    if(!payments.details(process.env).ready)
+      throw Error('Los datos de pago aún no están publicados. No transfieras hasta que aparezcan en la plataforma.');
+    const rbd=clean(req.body.rbd),rbd_norm=normalizeRbd(rbd);
+    if(rbd_norm.length<2)throw Error('RBD inválido.');
+    const data={rbd,rbd_norm,establishment_name:clean(req.body.establishment_name),
+      commune:clean(req.body.commune),contact_name:clean(req.body.contact_name),
+      email:clean(req.body.email).toLowerCase(),
+      voucher_name:req.file?.originalname||''};
+    if(!data.establishment_name||!data.contact_name||!(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)))
+      throw Error('Debes completar los datos del establecimiento y el contacto.');
+    const request=await createRequest(data,req.file);
+    await Promise.all([sendRequestNotice(request),sendRequestReceipt(request)]);
+    res.redirect('/?msg='+encodeURIComponent('Solicitud recibida con comprobante. Acción Educativa SPA verificará el abono antes de habilitar tu cuenta.'));
+  }catch(error){
+    res.redirect('/solicitud?err=1&msg='+encodeURIComponent(error.message));
+  }
 });
-
 app.post('/login', loginLimiter, async(req,res)=>{
  try{
    const est=await findEstByRbd(normalizeRbd(req.body.rbd));

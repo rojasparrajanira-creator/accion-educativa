@@ -30,6 +30,8 @@ const loginLimiter = rateLimit({windowMs:15*60*1000, limit:10, standardHeaders:t
 const requestLimiter=rateLimit({windowMs:60*60*1000,limit:5,standardHeaders:true,legacyHeaders:false,message:'Has realizado demasiadas solicitudes. Intenta más tarde.'});
 
 const mem = { requests: [], establishments: [] };
+const payments=require('./request-payment');
+const paymentSettings=require('./idps-transfer-settings')({pool,requireSuper,layout});
 
 function normalizeRbd(v=''){ return String(v).toUpperCase().replace(/[^0-9K]/g,''); }
 function clean(v=''){ return String(v).trim(); }
@@ -57,19 +59,40 @@ async function initDb(){
     'sent_at timestamptz,last_attempt_at timestamptz,attempts integer NOT NULL DEFAULT 0)');
   await pool.query("INSERT INTO idps_request_notifications(request_id) "+
     "SELECT id FROM idps_account_requests WHERE status='pending' ON CONFLICT DO NOTHING");
+  // Existing pending requests keep a legacy review path; never require an old uploader
+  // to submit a file that the previous version discarded.
+  await pool.query('ALTER TABLE idps_account_requests ADD COLUMN IF NOT EXISTS payment_status text');
+  await pool.query("UPDATE idps_account_requests SET payment_status='legacy' WHERE payment_status IS NULL");
+  await pool.query('ALTER TABLE idps_account_requests ADD COLUMN IF NOT EXISTS payment_verified_at timestamptz');
+  await pool.query('CREATE TABLE IF NOT EXISTS idps_request_vouchers ('+
+    'request_id uuid PRIMARY KEY REFERENCES idps_account_requests(id) ON DELETE CASCADE,'+
+    'filename text NOT NULL, mimetype text NOT NULL,'+
+    'file_size integer NOT NULL CHECK(file_size>0 AND file_size<=5242880),'+
+    'sha256 text NOT NULL, content bytea NOT NULL, uploaded_at timestamptz NOT NULL DEFAULT now())');
 }
 
-async function createRequest(data){
-  const row = {id:id(), ...data, status:'pending', created_at:new Date().toISOString()};
-  if(pool){
-    await pool.query(`INSERT INTO idps_account_requests(id,rbd,rbd_norm,establishment_name,commune,contact_name,email,voucher_name,status)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending')`,[row.id,row.rbd,row.rbd_norm,row.establishment_name,row.commune,row.contact_name,row.email,row.voucher_name]);
-    await pool.query('INSERT INTO idps_request_notifications(request_id) VALUES($1) ON CONFLICT DO NOTHING',[row.id]);
-  } else mem.requests.unshift(row);
+async function createRequest(data,file){
+  if(!pool)throw Error('Las solicitudes se encuentran temporalmente fuera de servicio.');
+  const checked=payments.validate(file);
+  const row={id:id(),...data,status:'pending',payment_status:'pending',created_at:new Date().toISOString()};
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    await client.query(
+      "INSERT INTO idps_account_requests(id,rbd,rbd_norm,establishment_name,commune,contact_name,email,voucher_name,status,payment_status) "+
+      "VALUES($1,$2,$3,$4,$5,$6,$7,$8,'pending','pending')",
+      [row.id,row.rbd,row.rbd_norm,row.establishment_name,row.commune,row.contact_name,row.email,checked.filename]);
+    await client.query('INSERT INTO idps_request_vouchers(request_id,filename,mimetype,file_size,sha256,content) VALUES($1,$2,$3,$4,$5,$6)',
+      [row.id,checked.filename,checked.mime,checked.size,checked.sha256,checked.content]);
+    await client.query('INSERT INTO idps_request_notifications(request_id) VALUES($1) ON CONFLICT DO NOTHING',[row.id]);
+    await client.query('COMMIT');
+  }catch(error){await client.query('ROLLBACK');throw error;}
+  finally{client.release();}
   return row;
 }
+
 async function listRequests(){
-  if(pool) return (await pool.query(`SELECT r.*,n.sent_at AS notification_sent_at FROM idps_account_requests r LEFT JOIN idps_request_notifications n ON n.request_id=r.id ORDER BY r.created_at DESC`)).rows;
+  if(pool) return (await pool.query(`SELECT r.*,n.sent_at AS notification_sent_at,(v.request_id IS NOT NULL) AS voucher_available FROM idps_account_requests r LEFT JOIN idps_request_notifications n ON n.request_id=r.id LEFT JOIN idps_request_vouchers v ON v.request_id=r.id ORDER BY r.created_at DESC`)).rows;
   return mem.requests;
 }
 
@@ -106,25 +129,37 @@ async function findRequest(rid){
   return mem.requests.find(x=>x.id===rid);
 }
 async function approveRequest(rid){
-  const r = await findRequest(rid); if(!r) throw new Error('Solicitud no encontrada');
-  const generatedPin = pin6(); const pinHash = await bcrypt.hash(generatedPin, 10);
-  const est = {id:id(), rbd:r.rbd, rbd_norm:r.rbd_norm, name:r.establishment_name, commune:r.commune, contact_name:r.contact_name, email:r.email, pin_hash:pinHash, status:'active', created_at:new Date().toISOString(), expires_at:new Date(Date.now()+30*86400000).toISOString()};
-  if(pool){
-    await pool.query('BEGIN');
-    try{
-      await pool.query(`INSERT INTO idps_establishments(id,rbd,rbd_norm,name,commune,contact_name,email,pin_hash,status,expires_at)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active',$9)
-        ON CONFLICT (rbd_norm) DO UPDATE SET name=EXCLUDED.name, commune=EXCLUDED.commune, contact_name=EXCLUDED.contact_name, email=EXCLUDED.email, pin_hash=EXCLUDED.pin_hash, status='active', expires_at=EXCLUDED.expires_at`,
-        [est.id,est.rbd,est.rbd_norm,est.name,est.commune,est.contact_name,est.email,est.pin_hash,est.expires_at]);
-      await pool.query(`UPDATE idps_account_requests SET status='approved', reviewed_at=now() WHERE id=$1`,[rid]);
-      await pool.query('COMMIT');
-    } catch(e){ await pool.query('ROLLBACK'); throw e; }
-  } else {
-    const idx=mem.establishments.findIndex(x=>x.rbd_norm===est.rbd_norm); if(idx>=0) mem.establishments[idx]=est; else mem.establishments.unshift(est);
-    r.status='approved'; r.reviewed_at=new Date().toISOString();
-  }
-  return {est, generatedPin};
+  if(!pool)throw Error('La aprobación requiere base de datos permanente.');
+  const client=await pool.connect();
+  let est,generatedPin;
+  try{
+    await client.query('BEGIN');
+    const r=(await client.query('SELECT * FROM idps_account_requests WHERE id=$1 FOR UPDATE',[rid])).rows[0];
+    if(!r||r.status!=='pending')throw Error('Solicitud no encontrada o ya procesada.');
+    if(!['verified','legacy'].includes(r.payment_status))
+      throw Error('Debes revisar el comprobante y confirmar primero el abono de la transferencia.');
+    generatedPin=pin6();
+    const pinHash=await bcrypt.hash(generatedPin,10);
+    est={id:id(),rbd:r.rbd,rbd_norm:r.rbd_norm,name:r.establishment_name,
+      commune:r.commune,contact_name:r.contact_name,email:r.email,pin_hash:pinHash,
+      status:'active',created_at:new Date().toISOString(),expires_at:new Date(Date.now()+30*86400000).toISOString()};
+    const updated=await client.query(
+      "INSERT INTO idps_establishments(id,rbd,rbd_norm,name,commune,contact_name,email,pin_hash,status,expires_at) "+
+      "VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active',$9) "+
+      "ON CONFLICT (rbd_norm) DO UPDATE SET name=EXCLUDED.name,commune=EXCLUDED.commune,"+
+      "contact_name=EXCLUDED.contact_name,email=EXCLUDED.email,pin_hash=EXCLUDED.pin_hash,status='active',"+
+      "expires_at=CASE WHEN idps_establishments.expires_at > now() "+
+      "THEN idps_establishments.expires_at + interval '30 days' ELSE EXCLUDED.expires_at END "+
+      "RETURNING expires_at",
+      [est.id,est.rbd,est.rbd_norm,est.name,est.commune,est.contact_name,est.email,est.pin_hash,est.expires_at]);
+    est.expires_at=updated.rows[0].expires_at;
+    await client.query("UPDATE idps_account_requests SET status='approved',reviewed_at=now() WHERE id=$1",[rid]);
+    await client.query('COMMIT');
+  }catch(error){await client.query('ROLLBACK');throw error;}
+  finally{client.release();}
+  return {est,generatedPin};
 }
+
 async function rejectRequest(rid){
   if(pool) await pool.query(`UPDATE idps_account_requests SET status='rejected', reviewed_at=now() WHERE id=$1`,[rid]);
   else { const r=mem.requests.find(x=>x.id===rid); if(r){r.status='rejected'; r.reviewed_at=new Date().toISOString();} }
@@ -235,8 +270,30 @@ app.get('/demo',(req,res)=>{
  res.send(layout('Demo de la Plataforma IDPS','<div class="idps-demo-page"><a class="idps-demo-back" href="/">← Volver al inicio</a><span class="home-kicker">MATERIAL EDUCATIVO CHILE</span><h1>Conoce nuestra plataforma IDPS</h1><p>Descubre cómo funciona el proceso de matrícula, aplicación, seguimiento, resultados, informes y planificación institucional.</p>'+media+'</div>','<a href="/">Inicio</a>'));
 });
 
-app.get('/solicitud',(req,res)=>res.send(layout('Solicitud de cuenta',`<div class="card" style="max-width:760px;margin:auto"><h1>Solicitud de cuenta</h1><p class="muted">La cuenta quedará pendiente hasta que Acción Educativa SPA revise y apruebe la solicitud.</p><form method="post" action="/solicitud" enctype="multipart/form-data"><div class="grid"><div class="col6 field"><label>RBD *</label><input name="rbd" required></div><div class="col6 field"><label>Nombre del establecimiento *</label><input name="establishment_name" required></div><div class="col6 field"><label>Comuna</label><input name="commune"></div><div class="col6 field"><label>Nombre responsable *</label><input name="contact_name" required></div><div class="col6 field"><label>Correo de contacto *</label><input name="email" type="email" required></div><div class="col6 field"><label>Voucher / comprobante de pago</label><input name="voucher" type="file" accept=".pdf,.jpg,.jpeg,.png"></div></div><button class="btn primary">Enviar solicitud</button></form></div>`,`<a href="/">Volver</a>`)));
-
+app.get('/solicitud',async(req,res)=>{
+  const info=await paymentSettings.get();
+  const notice=req.query.msg?'<div class="notice error">'+payments.escape(req.query.msg)+'</div>':'';
+  const preface='<div class="card" style="max-width:800px;margin:auto"><h1>Solicitar cuenta IDPS</h1>'+notice+
+    '<p>Para comenzar, realiza la transferencia, carga el comprobante y completa los datos del establecimiento. '+
+    'Acción Educativa SPA revisará el pago antes de habilitar la cuenta.</p>'+
+    payments.paymentInstruction(info);
+  if(!info.ready)return res.send(layout('Solicitud de cuenta IDPS',preface+
+    '<p>Los datos bancarios deben estar confirmados antes de aceptar pagos. Consultas: '+
+    '<a href="mailto:accioneducativaspa@gmail.com">accioneducativaspa@gmail.com</a>.</p>'+
+    '<p><a href="/">Volver</a></p></div>','<a href="/">Inicio</a>'));
+  const form='<h2>2. Solicita la cuenta y adjunta el comprobante</h2>'+
+    '<form method="post" action="/solicitud" enctype="multipart/form-data"><div class="grid">'+
+    '<div class="col6 field"><label>RBD *</label><input name="rbd" maxlength="20" required></div>'+
+    '<div class="col6 field"><label>Establecimiento *</label><input name="establishment_name" maxlength="140" required></div>'+
+    '<div class="col6 field"><label>Comuna</label><input name="commune" maxlength="80"></div>'+
+    '<div class="col6 field"><label>Nombre del responsable *</label><input name="contact_name" maxlength="120" required></div>'+
+    '<div class="col6 field"><label>Correo *</label><input name="email" type="email" maxlength="254" required></div>'+
+    '<div class="col6 field"><label>Comprobante de transferencia * (PDF, JPG o PNG; máximo 5 MB)</label>'+
+    '<input name="voucher" type="file" accept="image/png,image/jpeg,application/pdf" required></div></div>'+
+    '<p class="muted">Tu comprobante será privado y solo el Superadministrador podrá verlo. La activación queda pendiente de confirmar el abono.</p>'+
+    '<button class="btn primary">Enviar solicitud con comprobante</button></form><p><a href="/">Volver</a></p></div>';
+  res.send(layout('Solicitud de cuenta IDPS',preface+form,'<a href="/">Inicio</a>'));
+});
 async function sendRequestReceipt(row){
   const safe=mailer.escape;
   try{
@@ -253,14 +310,24 @@ async function sendRequestReceipt(row){
 }
 
 app.post('/solicitud',requestLimiter,upload.single('voucher'),async(req,res)=>{
- try{
-  const rbd=clean(req.body.rbd), rbd_norm=normalizeRbd(rbd); if(rbd_norm.length<2) throw new Error('RBD inválido.');
-  const request=await createRequest({rbd,rbd_norm,establishment_name:clean(req.body.establishment_name),commune:clean(req.body.commune),contact_name:clean(req.body.contact_name),email:clean(req.body.email).toLowerCase(),voucher_name:req.file?req.file.originalname:''});
-   await Promise.all([sendRequestNotice(request),sendRequestReceipt(request)]);
-  res.redirect('/?msg='+encodeURIComponent('Solicitud recibida. Quedó pendiente de aprobación.'));
- } catch(e){ res.redirect('/?err=1&msg='+encodeURIComponent(e.message)); }
+  try{
+    if(!(await paymentSettings.get()).ready)
+      throw Error('Los datos de pago aún no están publicados. No transfieras hasta que aparezcan en la plataforma.');
+    const rbd=clean(req.body.rbd),rbd_norm=normalizeRbd(rbd);
+    if(rbd_norm.length<2)throw Error('RBD inválido.');
+    const data={rbd,rbd_norm,establishment_name:clean(req.body.establishment_name),
+      commune:clean(req.body.commune),contact_name:clean(req.body.contact_name),
+      email:clean(req.body.email).toLowerCase(),
+      voucher_name:req.file?.originalname||''};
+    if(!data.establishment_name||!data.contact_name||!(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)))
+      throw Error('Debes completar los datos del establecimiento y el contacto.');
+    const request=await createRequest(data,req.file);
+    await Promise.all([sendRequestNotice(request),sendRequestReceipt(request)]);
+    res.redirect('/?msg='+encodeURIComponent('Solicitud recibida con comprobante. Acción Educativa SPA verificará el abono antes de habilitar tu cuenta.'));
+  }catch(error){
+    res.redirect('/solicitud?err=1&msg='+encodeURIComponent(error.message));
+  }
 });
-
 app.post('/login', loginLimiter, async(req,res)=>{
  try{
    const est=await findEstByRbd(normalizeRbd(req.body.rbd));
@@ -306,17 +373,29 @@ app.post('/superadmin/login',loginLimiter,async(req,res)=>{
   }
 });
 
+require('./request-payment-admin')(app,{pool,requireSuper,findRequest,layout});
+paymentSettings.register(app);
+
 app.get('/superadmin/dashboard',requireSuper,async(req,res)=>{
  const [requests,ests,gmailStatus]=await Promise.all([listRequests(),listEstablishments(),mailer.status()]);
  const pending=requests.filter(x=>x.status==='pending').length;
  const missingNotices=requests.filter(x=>x.status==='pending'&&!x.notification_sent_at).length;
- const requestActions=r=>'<div class="actions">'+(r.status==='pending'?'<form method="post" action="/superadmin/approve/'+r.id+'"><button class="btn success">Aprobar</button></form><form method="post" action="/superadmin/reject/'+r.id+'"><button class="btn danger">Rechazar</button></form>':'')+'<form method="post" action="/superadmin/delete-request/'+r.id+'" onsubmit="return confirm(\'¿Eliminar esta solicitud?\')"><button class="btn danger">Eliminar solicitud</button></form></div>';
- const reqRows=requests.map(r=>'<tr><td>'+r.rbd+'</td><td><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></td><td>'+r.contact_name+'<br>'+r.email+'</td><td>'+(r.voucher_name||'Sin archivo')+'</td><td><span class="badge '+r.status+'">'+r.status+'</span></td><td>'+requestActions(r)+'</td></tr>').join('');
- const reqCards=requests.map(r=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+r.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Contacto</span>'+r.contact_name+'<br>'+r.email+'</div><div class="mobile-row"><span class="mobile-label">Voucher</span>'+(r.voucher_name||'Sin archivo')+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+r.status+'">'+r.status+'</span></div>'+requestActions(r)+'</div>').join('');
+ const requestActions=r=>{
+   const payment=r.payment_status==='verified'?'Pago confirmado':r.payment_status==='legacy'?'Solicitud anterior':'Pago pendiente';
+   const canApprove=r.status==='pending'&&['verified','legacy'].includes(r.payment_status);
+   return '<div><span class="badge '+(r.payment_status==='verified'?'approved':'pending')+'">'+payment+'</span></div>'+
+     '<div class="actions">'+
+     (r.voucher_available?'<a class="btn secondary" href="/superadmin/pagos/'+r.id+'">Ver comprobante / pago</a>':'')+
+     (canApprove?'<form method="post" action="/superadmin/approve/'+r.id+'"><button class="btn success">Aprobar cuenta</button></form>':'')+
+     (r.status==='pending'?'<form method="post" action="/superadmin/reject/'+r.id+'"><button class="btn danger">Rechazar</button></form>':'')+
+     '<form method="post" action="/superadmin/delete-request/'+r.id+'" onsubmit="return confirm(\'¿Eliminar esta solicitud?\')"><button class="btn danger">Eliminar solicitud</button></form></div>';
+ };
+ const reqRows=requests.map(r=>'<tr><td>'+r.rbd+'</td><td><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></td><td>'+r.contact_name+'<br>'+r.email+'</td><td>'+(r.voucher_available?'<a href="/superadmin/pagos/'+r.id+'">Ver fotografía o PDF</a>':r.voucher_name?'Comprobante antiguo no conservado':'Sin archivo')+'</td><td><span class="badge '+r.status+'">'+r.status+'</span></td><td>'+requestActions(r)+'</td></tr>').join('');
+ const reqCards=requests.map(r=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+r.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Contacto</span>'+r.contact_name+'<br>'+r.email+'</div><div class="mobile-row"><span class="mobile-label">Voucher</span>'+(r.voucher_available?'<a href="/superadmin/pagos/'+r.id+'">Ver fotografía o PDF</a>':r.voucher_name?'Comprobante antiguo no conservado':'Sin archivo')+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+r.status+'">'+r.status+'</span></div>'+requestActions(r)+'</div>').join('');
  const accountActions=e=>'<div class="actions"><form method="post" action="/superadmin/send-password/'+e.id+'" onsubmit="return confirm(\'Esto generará un PIN nuevo y anulará el anterior. ¿Continuar?\')"><button class="btn secondary">Generar y enviar PIN nuevo</button></form><form method="post" action="/superadmin/remove/'+e.id+'" onsubmit="return confirm(\'¿Eliminar esta cuenta?\')"><button class="btn danger">Eliminar cuenta</button></form></div>';
  const estRows=ests.map(e=>'<tr><td>'+e.rbd+'</td><td><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></td><td>'+e.email+'</td><td><span class="badge '+e.status+'">'+e.status+'</span></td><td>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</td><td>'+accountActions(e)+'</td></tr>').join('');
  const estCards=ests.map(e=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+e.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Correo</span>'+e.email+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+e.status+'">'+e.status+'</span></div><div class="mobile-row"><span class="mobile-label">Vigencia</span>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</div>'+accountActions(e)+'</div>').join('');
- res.send(layout('Panel superadministrador',`<div class="grid"><div class="col12 card"><h2>Correo institucional</h2><p>${gmailStatus.connected?'Gmail autorizado y operativo para el envío de mensajes.':'Gmail necesita reconexión: los correos no pueden enviarse todavía.'}</p><p>Los envíos se harán desde la cuenta de Gmail autorizada y quedarán en su carpeta Enviados.</p><a class="btn secondary" href="/auth/google">${gmailStatus.connected?'Cambiar o renovar Gmail':'Reconectar Gmail'}</a> <a class="btn primary" href="/superadmin/correos">Ver historial de correos</a></div><div class="col12 card"><h2>Avisos de solicitudes</h2><p>Hay <b>${missingNotices}</b> solicitud(es) pendiente(s) cuyos avisos no constan como aceptados por el proveedor de correo. Esto no confirma recepción en la bandeja del destinatario.</p><form method="post" action="/superadmin/notificaciones/reintentar"><button class="btn secondary" ${missingNotices===0?'disabled':''}>Reintentar avisos pendientes</button></form></div><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Correo automático</h2>${gmailStatus.connected?'<p class="muted">Gmail disponible para enviar. Los mensajes quedan en Enviados.</p><span class="btn success">✓ Gmail operativo</span>':'<p class="muted">Gmail necesita autorización para enviar correos.</p><a class="btn primary" href="/auth/google">Reconectar Gmail</a>'}</div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table><div class="mobile-list">${reqCards||'<p class="muted">Aún no hay solicitudes.</p>'}</div></div><div class="col12 card"><h2>Establecimientos</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table><div class="mobile-list">${estCards||'<p class="muted">Aún no hay cuentas activas.</p>'}</div></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
+ res.send(layout('Panel superadministrador',`<div class="grid"><div class="col12 card"><h2>Pagos por transferencia</h2><p>Configura los datos bancarios que verán los establecimientos al solicitar una cuenta y revisa sus comprobantes antes de aprobar.</p><a class="btn primary" href="/superadmin/datos-transferencia">Datos de transferencia</a></div><div class="col12 card"><h2>Correo institucional</h2><p>${gmailStatus.connected?'Gmail autorizado y operativo para el envío de mensajes.':'Gmail necesita reconexión: los correos no pueden enviarse todavía.'}</p><p>Los envíos se harán desde la cuenta de Gmail autorizada y quedarán en su carpeta Enviados.</p><a class="btn secondary" href="/auth/google">${gmailStatus.connected?'Cambiar o renovar Gmail':'Reconectar Gmail'}</a> <a class="btn primary" href="/superadmin/correos">Ver historial de correos</a></div><div class="col12 card"><h2>Avisos de solicitudes</h2><p>Hay <b>${missingNotices}</b> solicitud(es) pendiente(s) cuyos avisos no constan como aceptados por el proveedor de correo. Esto no confirma recepción en la bandeja del destinatario.</p><form method="post" action="/superadmin/notificaciones/reintentar"><button class="btn secondary" ${missingNotices===0?'disabled':''}>Reintentar avisos pendientes</button></form></div><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Correo automático</h2>${gmailStatus.connected?'<p class="muted">Gmail disponible para enviar. Los mensajes quedan en Enviados.</p><span class="btn success">✓ Gmail operativo</span>':'<p class="muted">Gmail necesita autorización para enviar correos.</p><a class="btn primary" href="/auth/google">Reconectar Gmail</a>'}</div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table><div class="mobile-list">${reqCards||'<p class="muted">Aún no hay solicitudes.</p>'}</div></div><div class="col12 card"><h2>Establecimientos</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table><div class="mobile-list">${estCards||'<p class="muted">Aún no hay cuentas activas.</p>'}</div></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
 });
 
 app.get('/superadmin/correos',requireSuper,async(req,res)=>{
@@ -412,4 +491,4 @@ app.post('/superadmin/remove/:id',requireSuper,async(req,res)=>{try{await remove
 app.get('/logout',(req,res)=>{res.clearCookie('idps_session');res.redirect('/');});
 app.get('/health',(req,res)=>res.json({ok:true,database:pool?'postgres':'temporary',mail:!!process.env.RESEND_API_KEY}));
 
-initDb().then(()=>mailer.init()).then(()=>superRecovery.init()).then(()=>app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`))).catch(err=>{console.error(err);process.exit(1)});
+initDb().then(()=>mailer.init()).then(()=>paymentSettings.init()).then(()=>superRecovery.init()).then(()=>app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`))).catch(err=>{console.error(err);process.exit(1)});

@@ -1,0 +1,30 @@
+name: IDPS production recovery smoke checks
+on:
+  push:
+    branches:
+      - feature/idps-superadmin-recovery-20261016
+    paths:
+      - '.github/workflows/idps-recovery-prod-smoke.yml'
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Probe published recovery routes without sending emails
+        run: |
+          set -euo pipefail
+          BASE="https://idps-gestion-material-educativo.onrender.com"
+          curl -fSLsS --retry 4 --retry-delay 4 --retry-all-errors --max-time 70 "$BASE/superadmin" -o /tmp/login.html
+          curl -fSLsS --retry 4 --retry-delay 4 --retry-all-errors --max-time 70 "$BASE/superadmin/recuperar" -o /tmp/recover.html
+          curl -fSLsS --retry 4 --retry-delay 4 --retry-all-errors --max-time 70 "$BASE/health" -o /tmp/health.json
+          grep -q 'Olvidaste tu contraseña' /tmp/login.html || grep -q 'Olvidaste' /tmp/login.html || grep -q 'Olvidaste tu contrase' /tmp/login.html || grep -q 'Olvidaste' /tmp/login.html
+          grep -q 'Solicitar enlace' /tmp/recover.html
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const health=JSON.parse(fs.readFileSync('/tmp/health.json','utf8'));
+          console.log('Production health:',JSON.stringify({ok:health.ok,database:health.database,mail:health.mail}));
+          if(!health.ok||health.database!=='postgres')process.exitCode=1;
+          NODE

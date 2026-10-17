@@ -1,0 +1,33 @@
+name: Diagnose IDPS password recovery mail readiness
+on:
+  push:
+    branches:
+      - test/idps-superadmin-mail-diagnostic-20261017
+    paths:
+      - '.github/workflows/idps-superadmin-mail-diagnostic.yml'
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check availability without requesting a real password reset
+        run: |
+          set -euo pipefail
+          URL="https://idps-gestion-material-educativo.onrender.com/superadmin/recuperar"
+          # A deliberately unregistered example.invalid address can never receive an email.
+          # The HTTP status distinguishes mail configuration disabled (503) from enabled (200).
+          code=$(curl -sSL --max-time 60 -o /tmp/reset-response.html -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data 'email=not-a-real-admin%40example.invalid' "$URL")
+          echo "Recovery test HTTP: $code"
+          if [ "$code" = "503" ]; then
+            echo "DIAGNOSIS: recovery mail is not fully configured on IDPS"
+          elif [ "$code" = "200" ]; then
+            echo "DIAGNOSIS: recovery mail configuration is enabled; actual delivery still unverified"
+          else
+            echo "DIAGNOSIS: unexpected response; inspect status code"
+          fi
+          grep -o 'Recuperación no disponible\|Revisa tu correo\|Demasiadas solicitudes' /tmp/reset-response.html | head -3 || true

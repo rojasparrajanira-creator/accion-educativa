@@ -1,0 +1,35 @@
+name: IDPS access email workflow QA
+on:
+  push:
+    branches:
+      - feature/idps-notificaciones-acceso-20261017
+    paths:
+      - 'idps-system/server.js'
+      - 'idps-system/idps-mailer.js'
+      - 'idps-system/superadmin-recovery.js'
+      - 'idps-system/test-idps-mailer.js'
+      - 'idps-system/test-superadmin-recovery.js'
+      - '.github/workflows/idps-access-email-qa.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse IDPS and mailer
+        run: |
+          node --check idps-system/server.js
+          node --check idps-system/superadmin-recovery.js
+          node --check idps-system/idps-mailer.js
+      - name: Install tests
+        working-directory: idps-system
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Verify mailer and recovery
+        working-directory: idps-system
+        run: node --test test-idps-mailer.js test-superadmin-recovery.js

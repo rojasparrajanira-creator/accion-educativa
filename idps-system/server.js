@@ -35,7 +35,7 @@ function pin6(){ return String(crypto.randomInt(100000, 1000000)); }
 function id(){ return crypto.randomUUID(); }
 function token(payload){ return jwt.sign(payload, JWT_SECRET, {expiresIn:'8h'}); }
 function getAuth(req){ try { return jwt.verify(req.cookies.idps_session || '', JWT_SECRET); } catch { return null; } }
-function requireSuper(req,res,next){ const a=getAuth(req); if(!a || a.role!=='superadmin') return res.redirect('/superadmin'); req.auth=a; next(); }
+async function requireSuper(req,res,next){ const a=getAuth(req); if(!a || a.role!=='superadmin'||!(await superRecovery.sessionValid(a))) return res.redirect('/superadmin'); req.auth=a; next(); }
 function requireEst(req,res,next){ const a=getAuth(req); if(!a || a.role!=='establishment') return res.redirect('/'); req.auth=a; next(); }
 
 async function initDb(){
@@ -219,17 +219,24 @@ app.get('/panel', requireEst, async(req,res)=>{
  res.send(layout('Panel establecimiento',`<div class="dashboard-shell"><section class="dashboard-hero"><div><span class="eyebrow">PANEL DEL ESTABLECIMIENTO</span><h1>Bienvenida/o al espacio de gestión</h1><p>Administra la aplicación IDPS, revisa resultados y utiliza la información para orientar decisiones educativas.</p></div><div class="school-chip"><div class="school-chip-icon">⌂</div><div><b>${est.name}</b><span>RBD ${est.rbd}</span><span>${est.commune||''}</span></div></div></section><div class="grid dashboard-kpis"><div class="col4 card kpi-card"><div class="kpi">0</div><b>Estudiantes cargados</b><p class="muted">La carga de nómina se habilitará en el siguiente módulo.</p></div><div class="col4 card kpi-card"><div class="kpi">0%</div><b>Aplicación</b><p class="muted">Seguimiento por curso y nivel.</p></div><div class="col4 card kpi-card"><div class="kpi">—</div><b>Diagnóstico</b><p class="muted">Se activará al recibir respuestas.</p></div></div><section class="quick-section"><div class="section-heading"><div><span class="eyebrow">ACCESOS RÁPIDOS</span><h2>Gestión institucional</h2></div><p>Todo lo necesario para administrar el proceso desde un mismo panel.</p></div><div class="quick-grid"><a class="quick-card qc-turq" href="/panel/estudiantes"><span class="quick-icon">👥</span><div><b>Nómina de estudiantes</b><small>Carga de matrícula, altas, retiros y gestión de cursos.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-blue" href="/panel/aplicacion"><span class="quick-icon">▣</span><div><b>Aplicación de encuestas</b><small>Genera accesos y revisa el avance de respuestas.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-yellow" href="/panel/resultados"><span class="quick-icon">▥</span><div><b>Resultados</b><small>Visualiza resultados individuales, por curso e institucionales.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-navy" href="/panel/informe/institucional"><span class="quick-icon">▤</span><div><b>Informe institucional</b><small>Diagnóstico, interpretación y síntesis para la toma de decisiones.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-turq" href="/panel/informe/institucional#plan-intervencion"><span class="quick-icon">◎</span><div><b>Plan de intervención</b><small>Acciones, responsables, metas, currículum y Carta Gantt.</small></div><span class="quick-arrow">›</span></a><a class="quick-card qc-blue" href="${SURVEY_URL}/encuesta-idps.html" target="_blank"><span class="quick-icon">↗</span><div><b>Portal del estudiante</b><small>Abre directamente la aplicación para estudiantes.</small></div><span class="quick-arrow">›</span></a></div></section><section class="dashboard-banner"><div><span class="eyebrow">INDICADORES DE DESARROLLO PERSONAL Y SOCIAL</span><h2>Información para fortalecer el bienestar y el desarrollo integral.</h2><p>Los resultados permiten orientar acciones de acompañamiento, convivencia, participación y vida saludable.</p></div><div class="banner-mark">IDPS</div></section><div class="legacy-controls" aria-hidden="true"><a class="btn primary" href="${SURVEY_URL}" target="_blank">Abrir encuesta publicada</a><button class="btn secondary" disabled>Cargar nómina Excel · próximo módulo</button></div></div>`,`<a href="/panel">Inicio</a><a href="/panel/estudiantes">Nómina</a><a href="/panel/aplicacion">Aplicación</a><a href="/panel/resultados">Resultados</a><a href="/logout">Cerrar sesión</a>`));
 });
 
+const superRecovery=require('./superadmin-recovery')(app,{pool,adminEmail:SUPERADMIN_EMAIL,legacyPasswordHash:SUPERADMIN_PASSWORD_HASH,legacySalt:SUPERADMIN_SALT,layout});
+
 app.get('/superadmin',(req,res)=>{
  const msg=req.query.msg?`<div class="notice ${req.query.err?'error':'ok'}">${clean(req.query.msg)}</div>`:'';
- res.send(layout('Superadministrador',`${msg}<div class="card" style="max-width:560px;margin:auto"><h1>Superadministrador</h1><p class="muted">Acceso exclusivo de Acción Educativa SPA.</p><form method="post" action="/superadmin/login"><div class="field"><label>Correo</label><input name="email" type="email" value="accioneducativaspa@gmail.com" required></div><div class="field"><label>Contraseña</label><input name="password" type="password" required></div><button class="btn primary">Ingresar</button></form></div>`,`<a href="/">Inicio</a>`));
+ res.send(layout('Superadministrador',`${msg}<div class="card" style="max-width:560px;margin:auto"><h1>Superadministrador</h1><p class="muted">Acceso exclusivo de Acción Educativa SPA.</p><form method="post" action="/superadmin/login"><div class="field"><label>Correo</label><input name="email" type="email" value="accioneducativaspa@gmail.com" required></div><div class="field"><label>Contraseña</label><input name="password" type="password" required></div><button class="btn primary">Ingresar</button></form><p style="margin-top:20px"><a href="/superadmin/recuperar">¿Olvidaste tu contraseña?</a></p></div>`,`<a href="/">Inicio</a>`));
 });
-app.post('/superadmin/login',loginLimiter,(req,res)=>{
- const okEmail=clean(req.body.email).toLowerCase()===SUPERADMIN_EMAIL;
- const candidate=crypto.scryptSync(clean(req.body.password),SUPERADMIN_SALT,64).toString('hex');
- const a=Buffer.from(candidate,'hex'), b=Buffer.from(SUPERADMIN_PASSWORD_HASH,'hex');
- const okPass=a.length===b.length && crypto.timingSafeEqual(a,b);
- if(!okEmail||!okPass) return res.redirect('/superadmin?err=1&msg='+encodeURIComponent('Credenciales incorrectas.'));
- res.cookie('idps_session',token({role:'superadmin'}),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:8*60*60*1000}); res.redirect('/superadmin/dashboard');
+app.post('/superadmin/login',loginLimiter,async(req,res)=>{
+  try{
+    const result=await superRecovery.verifyPassword(req.body.email,req.body.password);
+    if(!result.ok)return res.redirect('/superadmin?err=1&msg='+encodeURIComponent('Credenciales incorrectas.'));
+    res.cookie('idps_session',token({role:'superadmin',sv:result.version}),{
+      httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:8*60*60*1000
+    });
+    return res.redirect('/superadmin/dashboard');
+  }catch(error){
+    console.error('Superadmin login unavailable:',error.message);
+    return res.redirect('/superadmin?err=1&msg='+encodeURIComponent('Acceso temporalmente no disponible.'));
+  }
 });
 
 app.get('/superadmin/dashboard',requireSuper,async(req,res)=>{
@@ -261,4 +268,4 @@ app.post('/superadmin/remove/:id',requireSuper,async(req,res)=>{try{await remove
 app.get('/logout',(req,res)=>{res.clearCookie('idps_session');res.redirect('/');});
 app.get('/health',(req,res)=>res.json({ok:true,database:pool?'postgres':'temporary',mail:!!process.env.RESEND_API_KEY}));
 
-initDb().then(()=>app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`))).catch(err=>{console.error(err);process.exit(1)});
+initDb().then(()=>superRecovery.init()).then(()=>app.listen(PORT,()=>console.log(`IDPS portal on ${PORT}`))).catch(err=>{console.error(err);process.exit(1)});

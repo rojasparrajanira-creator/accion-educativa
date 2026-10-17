@@ -12,9 +12,9 @@ const passwordValid=v=>typeof v==='string'&&v.length>=12&&v.length<=128&&!/[\x00
 const tokenValid=v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
 const privateHeaders=res=>res.set({'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'});
 
-function registerSuperadminRecovery(app,{pool,adminEmail,legacyPasswordHash,legacySalt,layout,env=process.env,sendEmail=null}){
+function registerSuperadminRecovery(app,{pool,adminEmail,legacyPasswordHash,legacySalt,layout,env=process.env,sendEmail=null,mailAvailable=null}){
   if(!/^[a-f0-9]{128}$/i.test(legacyPasswordHash))throw Error('Invalid legacy superadmin password hash');
-  const enabled=()=>Boolean(pool&&((env.RESEND_API_KEY&&env.RESEND_FROM)||sendEmail));
+  const enabled=async()=>Boolean(pool&&(mailAvailable?await mailAvailable():((env.RESEND_API_KEY&&env.RESEND_FROM)||sendEmail)));
   async function init(){
     if(!pool)return;
     await pool.query('CREATE TABLE IF NOT EXISTS idps_superadmin_credentials ('+
@@ -48,7 +48,7 @@ function registerSuperadminRecovery(app,{pool,adminEmail,legacyPasswordHash,lega
   }
   async function deliver(email,link){
     if(sendEmail)return sendEmail(email,link);
-    if(!enabled())throw Error('Mail not configured');
+    if(!(await enabled()))throw Error('Mail not configured');
     const html='<div style="font-family:Arial,sans-serif;color:#17324d;line-height:1.6">'+
       '<h2>Restablecer contraseña de Superadministrador · IDPS</h2>'+
       '<p>Se solicitó recuperar el acceso al panel de Material Educativo Chile.</p>'+
@@ -80,7 +80,7 @@ function registerSuperadminRecovery(app,{pool,adminEmail,legacyPasswordHash,lega
       '<section class="card"><h1>Revisa tu correo</h1>'+
       '<p>Si el correo corresponde al Superadministrador, recibirás un enlace válido por 30 minutos.</p>'+
       '<p><a href="/superadmin">Volver al ingreso</a></p></section>');
-    if(!enabled())return res.status(503).send(layout('Recuperación no disponible',
+    if(!(await enabled()))return res.status(503).send(layout('Recuperación no disponible',
       '<section class="card"><h1>Recuperación no disponible</h1>'+
       '<p>El envío de correos de recuperación aún no está configurado. Contacta al administrador técnico.</p></section>'));
     if(clean(req.body?.email).toLowerCase()!==adminEmail)return res.send(generic);

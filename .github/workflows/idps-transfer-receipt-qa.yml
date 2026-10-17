@@ -8,6 +8,8 @@ on:
       - 'idps-system/request-payment.js'
       - 'idps-system/request-payment-admin.js'
       - 'idps-system/test-request-payment.js'
+      - 'idps-system/idps-transfer-settings.js'
+      - 'idps-system/test-idps-transfer-settings.js'
       - '.github/workflows/idps-transfer-receipt-qa.yml'
   workflow_dispatch:
 jobs:
@@ -26,6 +28,7 @@ jobs:
           node --check idps-system/server.js
           node --check idps-system/request-payment.js
           node --check idps-system/request-payment-admin.js
+          node --check idps-system/idps-transfer-settings.js
       - name: Verify receipt types, payment info and escaping
         working-directory: idps-system
-        run: node --test test-request-payment.js
+        run: node --test test-request-payment.js test-idps-transfer-settings.js

@@ -143,13 +143,16 @@ async function approveRequest(rid){
     est={id:id(),rbd:r.rbd,rbd_norm:r.rbd_norm,name:r.establishment_name,
       commune:r.commune,contact_name:r.contact_name,email:r.email,pin_hash:pinHash,
       status:'active',created_at:new Date().toISOString(),expires_at:new Date(Date.now()+30*86400000).toISOString()};
-    await client.query(
+    const updated=await client.query(
       "INSERT INTO idps_establishments(id,rbd,rbd_norm,name,commune,contact_name,email,pin_hash,status,expires_at) "+
       "VALUES($1,$2,$3,$4,$5,$6,$7,$8,'active',$9) "+
       "ON CONFLICT (rbd_norm) DO UPDATE SET name=EXCLUDED.name,commune=EXCLUDED.commune,"+
       "contact_name=EXCLUDED.contact_name,email=EXCLUDED.email,pin_hash=EXCLUDED.pin_hash,status='active',"+
-      "expires_at=GREATEST(idps_establishments.expires_at,EXCLUDED.expires_at)",
+      "expires_at=CASE WHEN idps_establishments.expires_at > now() "+
+      "THEN idps_establishments.expires_at + interval '30 days' ELSE EXCLUDED.expires_at END "+
+      "RETURNING expires_at",
       [est.id,est.rbd,est.rbd_norm,est.name,est.commune,est.contact_name,est.email,est.pin_hash,est.expires_at]);
+    est.expires_at=updated.rows[0].expires_at;
     await client.query("UPDATE idps_account_requests SET status='approved',reviewed_at=now() WHERE id=$1",[rid]);
     await client.query('COMMIT');
   }catch(error){await client.query('ROLLBACK');throw error;}

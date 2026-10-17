@@ -576,6 +576,12 @@ body:has(.mec-hero) .mec-hero-copy-slide h1,body:has(.mec-hero) .mec-hero-copy-s
  .mec-filters .mec-filter-clear{width:100%}
  .mec-filters input,.mec-filters select{font-size:16px}
 }
+
+/* Mensajes rotativos solo dentro de la tarjeta azul; información fija y sin saltos. */
+body:has(.mec-hero) .mec-hero-copy-slides{display:grid;align-items:center;min-height:240px}
+body:has(.mec-hero) .mec-hero-copy-slide{grid-area:1/1}
+body:has(.mec-hero) .mec-hero-copy-nav{margin-top:19px}
+@media(max-width:560px){body:has(.mec-hero) .mec-hero-copy-slides{min-height:265px}}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -645,12 +651,21 @@ function home(){return `${header('Inicio')}<main>
 <path d="M-100 684 C210 516 368 823 680 621 S950 536 1100 585" fill="none" stroke="#9B79FF" stroke-width="4" opacity=".52"/>
 <path d="M650 185 C830 122 894 284 1090 210 L1090 305 C868 381 795 220 650 287 Z" fill="url(#mecWaveRibbon)" opacity=".76"/>
 </svg>
-<div class="mec-hero-copy-slides"><div class="mec-hero-copy-slide is-active" data-copy-slide="0" aria-hidden="false">
+<div class="mec-hero-copy-slides">
+<div class="mec-hero-copy-slide is-active" data-copy-slide="0" aria-hidden="false">
 <span class="mec-kicker">MATERIAL EDUCATIVO CHILE</span>
 <h1>Plataforma de <span>Intervención Institucional</span></h1>
 <p>Recursos pedagógicos, herramientas profesionales y plataformas educativas en un solo lugar. Diseñados para acompañar tu trabajo y potenciar cada intervención.</p>
+</div>
+<div class="mec-hero-copy-slide" data-copy-slide="1" aria-hidden="true">
+<span class="mec-kicker">¿QUIÉNES SOMOS?</span>
+<h1>Innovamos para <span>transformar la educación.</span></h1>
+<p>Integramos tecnología, recursos pedagógicos y herramientas profesionales para fortalecer la gestión educativa, optimizar el trabajo de los equipos y generar un impacto real en las comunidades escolares.</p>
+</div>
+</div>
 <div class="mec-hero-extra"><strong>Recursos pedagógicos para transformar la enseñanza</strong><span>Material digital · Editable · Listo para implementar</span><span>Materiales para docentes y equipos educativos: talleres, programas, cuadernillos, presentaciones, protocolos y planes.</span><span>Plataformas de Orientación Vocacional, Convivencia Escolar e IDPS.</span></div>
-</div></div></div></div></section>
+<div class="mec-hero-copy-nav" aria-label="Cambiar presentación"><button type="button" class="is-active" aria-label="Mostrar Plataforma de Intervención Institucional" aria-current="true" onclick="goMecCarousel(0);pauseMecCarousel()"></button><button type="button" aria-label="Mostrar Quiénes somos" onclick="goMecCarousel(1);pauseMecCarousel()"></button></div>
+</div></div></section>
 ${portalCatalogSection()}
 <section class="mec-platforms" id="plataformas"><div class="container"><div class="mec-section-heading"><span class="mec-kicker">SOLUCIONES PARA TU ESTABLECIMIENTO</span><h2>Conoce nuestras plataformas</h2><p>Tres espacios especializados para acompañar las trayectorias educativas, evaluar indicadores de desarrollo personal y social y fortalecer la gestión institucional.</p></div><div class="mec-platform-grid">
 <article class="mec-platform-card voc"><div class="mec-platform-symbol">◈</div><div class="mec-platform-label">ORIENTACIÓN VOCACIONAL</div><h3>Decisiones con sentido para cada trayectoria</h3><p>Autoconocimiento, exploración de alternativas, seguimiento e informes para orientar el proyecto de vida de los estudiantes.</p><a href="#/orientacion-vocacional" class="mec-platform-cta">Conoce la plataforma de Orientación Vocacional →</a></article>
@@ -904,18 +919,17 @@ function goMecHeroCopy(index){
  document.querySelectorAll('.mec-hero-copy-nav button').forEach((dot,i)=>{dot.classList.toggle('is-active',i===active);if(i===active)dot.setAttribute('aria-current','true');else dot.removeAttribute('aria-current')});
 }
 function goMecCarousel(index){
-  const slides=[...document.querySelectorAll('.mec-carousel-slide')];
-  if(!slides.length)return;
-  mecCarouselIndex=(index+slides.length)%slides.length;
-  goMecHeroCopy(mecCarouselIndex%2);
-  slides.forEach((slide,i)=>{slide.classList.toggle('is-active',i===mecCarouselIndex);slide.setAttribute('aria-hidden',i===mecCarouselIndex?'false':'true')});
-  document.querySelectorAll('.mec-carousel-dots button').forEach((dot,i)=>{dot.classList.toggle('is-active',i===mecCarouselIndex);if(i===mecCarouselIndex)dot.setAttribute('aria-current','true');else dot.removeAttribute('aria-current')});
+  // Rotación propia de la tarjeta principal: no depende del carrusel blanco eliminado.
+  const copySlides=[...document.querySelectorAll('.mec-hero-copy-slide')];
+  if(!copySlides.length)return;
+  mecCarouselIndex=((index%copySlides.length)+copySlides.length)%copySlides.length;
+  goMecHeroCopy(mecCarouselIndex);
 }
 function moveMecCarousel(delta){goMecCarousel(mecCarouselIndex+delta);resumeMecCarousel()}
 function pauseMecCarousel(){if(mecCarouselTimer){clearInterval(mecCarouselTimer);mecCarouselTimer=null}}
 function resumeMecCarousel(){
   pauseMecCarousel();
-  if(!document.querySelector('.mec-carousel-slide')||document.hidden||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  if(document.querySelectorAll('.mec-hero-copy-slide').length<2||document.hidden||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   mecCarouselTimer=setInterval(()=>{if(document.hidden){pauseMecCarousel();return}goMecCarousel(mecCarouselIndex+1)},5000);
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseMecCarousel();else resumeMecCarousel()});

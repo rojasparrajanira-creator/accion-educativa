@@ -226,11 +226,26 @@ app.get('/demo',(req,res)=>{
 
 app.get('/solicitud',(req,res)=>res.send(layout('Solicitud de cuenta',`<div class="card" style="max-width:760px;margin:auto"><h1>Solicitud de cuenta</h1><p class="muted">La cuenta quedará pendiente hasta que Acción Educativa SPA revise y apruebe la solicitud.</p><form method="post" action="/solicitud" enctype="multipart/form-data"><div class="grid"><div class="col6 field"><label>RBD *</label><input name="rbd" required></div><div class="col6 field"><label>Nombre del establecimiento *</label><input name="establishment_name" required></div><div class="col6 field"><label>Comuna</label><input name="commune"></div><div class="col6 field"><label>Nombre responsable *</label><input name="contact_name" required></div><div class="col6 field"><label>Correo de contacto *</label><input name="email" type="email" required></div><div class="col6 field"><label>Voucher / comprobante de pago</label><input name="voucher" type="file" accept=".pdf,.jpg,.jpeg,.png"></div></div><button class="btn primary">Enviar solicitud</button></form></div>`,`<a href="/">Volver</a>`)));
 
+async function sendRequestReceipt(row){
+  const safe=mailer.escape;
+  try{
+    await mailer.send({to:row.email,subject:'Recibimos tu solicitud de acceso · IDPS',
+      html:'<div style="font-family:Arial,sans-serif;line-height:1.6;color:#153657">'+
+        '<h2>Solicitud de acceso registrada</h2>'+
+        '<p>Estimada/o '+safe(row.contact_name)+':</p>'+
+        '<p>Recibimos la solicitud de <b>'+safe(row.establishment_name)+'</b>, RBD <b>'+safe(row.rbd)+'</b>.</p>'+
+        '<p>La solicitud queda pendiente de revisión. Esta confirmación NO contiene clave de acceso.</p>'+
+        '<p>Una vez aprobada, te comunicaremos cómo ingresar a IDPS.</p>'+
+        '<p>Saludos,<br><b>Material Educativo Chile · Acción Educativa SPA</b></p></div>'});
+    return true;
+  }catch(error){console.error('IDPS client request receipt failed:',error.message);return false;}
+}
+
 app.post('/solicitud', upload.single('voucher'), async(req,res)=>{
  try{
   const rbd=clean(req.body.rbd), rbd_norm=normalizeRbd(rbd); if(rbd_norm.length<2) throw new Error('RBD inválido.');
   const request=await createRequest({rbd,rbd_norm,establishment_name:clean(req.body.establishment_name),commune:clean(req.body.commune),contact_name:clean(req.body.contact_name),email:clean(req.body.email).toLowerCase(),voucher_name:req.file?req.file.originalname:''});
-   await sendRequestNotice(request);
+   await Promise.all([sendRequestNotice(request),sendRequestReceipt(request)]);
   res.redirect('/?msg='+encodeURIComponent('Solicitud recibida. Quedó pendiente de aprobación.'));
  } catch(e){ res.redirect('/?err=1&msg='+encodeURIComponent(e.message)); }
 });
@@ -283,27 +298,68 @@ app.post('/superadmin/login',loginLimiter,async(req,res)=>{
 app.get('/superadmin/dashboard',requireSuper,async(req,res)=>{
  const [requests,ests,gmailConnected]=await Promise.all([listRequests(),listEstablishments(),gmailToken().then(Boolean).catch(()=>false)]);
  const pending=requests.filter(x=>x.status==='pending').length;
+ const missingNotices=requests.filter(x=>x.status==='pending'&&!x.notification_sent_at).length;
  const requestActions=r=>'<div class="actions">'+(r.status==='pending'?'<form method="post" action="/superadmin/approve/'+r.id+'"><button class="btn success">Aprobar</button></form><form method="post" action="/superadmin/reject/'+r.id+'"><button class="btn danger">Rechazar</button></form>':'')+'<form method="post" action="/superadmin/delete-request/'+r.id+'" onsubmit="return confirm(\'¿Eliminar esta solicitud?\')"><button class="btn danger">Eliminar solicitud</button></form></div>';
  const reqRows=requests.map(r=>'<tr><td>'+r.rbd+'</td><td><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></td><td>'+r.contact_name+'<br>'+r.email+'</td><td>'+(r.voucher_name||'Sin archivo')+'</td><td><span class="badge '+r.status+'">'+r.status+'</span></td><td>'+requestActions(r)+'</td></tr>').join('');
  const reqCards=requests.map(r=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+r.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+r.establishment_name+'</b><br><span class="muted">'+(r.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Contacto</span>'+r.contact_name+'<br>'+r.email+'</div><div class="mobile-row"><span class="mobile-label">Voucher</span>'+(r.voucher_name||'Sin archivo')+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+r.status+'">'+r.status+'</span></div>'+requestActions(r)+'</div>').join('');
  const accountActions=e=>'<div class="actions"><form method="post" action="/superadmin/send-password/'+e.id+'"><button class="btn secondary">Enviar PIN de acceso</button></form><form method="post" action="/superadmin/remove/'+e.id+'" onsubmit="return confirm(\'¿Eliminar esta cuenta?\')"><button class="btn danger">Eliminar cuenta</button></form></div>';
  const estRows=ests.map(e=>'<tr><td>'+e.rbd+'</td><td><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></td><td>'+e.email+'</td><td><span class="badge '+e.status+'">'+e.status+'</span></td><td>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</td><td>'+accountActions(e)+'</td></tr>').join('');
  const estCards=ests.map(e=>'<div class="mobile-item"><div class="mobile-row"><span class="mobile-label">RBD</span><b>'+e.rbd+'</b></div><div class="mobile-row"><span class="mobile-label">Establecimiento</span><b>'+e.name+'</b><br><span class="muted">'+(e.commune||'')+'</span></div><div class="mobile-row"><span class="mobile-label">Correo</span>'+e.email+'</div><div class="mobile-row"><span class="mobile-label">Estado</span><span class="badge '+e.status+'">'+e.status+'</span></div><div class="mobile-row"><span class="mobile-label">Vigencia</span>'+(e.expires_at?new Date(e.expires_at).toLocaleDateString('es-CL'):'—')+'</div>'+accountActions(e)+'</div>').join('');
- res.send(layout('Panel superadministrador',`<div class="grid"><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Correo automático</h2>${gmailConnected?'<p class="muted">La cuenta de Acción Educativa está autorizada para enviar accesos desde Gmail.</p><span class="btn success">✓ Gmail conectado</span>':'<p class="muted">Autoriza la cuenta de Acción Educativa para enviar accesos desde Gmail.</p><a class="btn primary" href="/auth/google">Conectar Gmail</a>'}</div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table><div class="mobile-list">${reqCards||'<p class="muted">Aún no hay solicitudes.</p>'}</div></div><div class="col12 card"><h2>Establecimientos</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table><div class="mobile-list">${estCards||'<p class="muted">Aún no hay cuentas activas.</p>'}</div></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
+ res.send(layout('Panel superadministrador',`<div class="grid"><div class="col12 card"><h2>Avisos de solicitudes</h2><p>Hay <b>${missingNotices}</b> solicitud(es) pendiente(s) cuyos avisos no constan como aceptados por el proveedor de correo. Esto no confirma recepción en la bandeja del destinatario.</p><form method="post" action="/superadmin/notificaciones/reintentar"><button class="btn secondary" ${missingNotices===0?'disabled':''}>Reintentar avisos pendientes</button></form></div><div class="col4 card"><div class="kpi">${pending}</div><b>Solicitudes pendientes</b></div><div class="col4 card"><div class="kpi">${ests.filter(x=>x.status==='active').length}</div><b>Establecimientos activos</b></div><div class="col4 card"><div class="kpi">${requests.length}</div><b>Solicitudes totales</b></div><div class="col12 card"><h2>Correo automático</h2>${gmailConnected?'<p class="muted">La cuenta de Acción Educativa está autorizada para enviar accesos desde Gmail.</p><span class="btn success">✓ Gmail conectado</span>':'<p class="muted">Autoriza la cuenta de Acción Educativa para enviar accesos desde Gmail.</p><a class="btn primary" href="/auth/google">Conectar Gmail</a>'}</div><div class="col12 card"><h2>Solicitudes de cuenta</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Contacto</th><th>Voucher</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>${reqRows||'<tr><td colspan="6">Aún no hay solicitudes.</td></tr>'}</tbody></table><div class="mobile-list">${reqCards||'<p class="muted">Aún no hay solicitudes.</p>'}</div></div><div class="col12 card"><h2>Establecimientos</h2><table class="desktop-table"><thead><tr><th>RBD</th><th>Establecimiento</th><th>Correo</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>${estRows||'<tr><td colspan="6">Aún no hay cuentas activas.</td></tr>'}</tbody></table><div class="mobile-list">${estCards||'<p class="muted">Aún no hay cuentas activas.</p>'}</div></div></div>`,`<a href="/superadmin/dashboard">Panel</a><a href="/logout">Cerrar sesión</a>`));
+});
+
+app.post('/superadmin/notificaciones/reintentar',requireSuper,async(req,res)=>{
+  try{
+    const items=(await listRequests()).filter(r=>r.status==='pending'&&!r.notification_sent_at).slice(0,30);
+    let ok=0;
+    for(const item of items)if(await sendRequestNotice(item))ok++;
+    return res.redirect('/superadmin/dashboard?msg='+encodeURIComponent(
+      'El proveedor aceptó '+ok+' de '+items.length+' aviso(s). La recepción por el destinatario no está confirmada.'));
+  }catch(error){console.error('IDPS retry notices failed:',error.message);
+    return res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent('No se pudieron reintentar los avisos.'));}
 });
 
 app.post('/superadmin/approve/:id',requireSuper,async(req,res)=>{
- try{
-   const {est,generatedPin}=await approveRequest(req.params.id); const mail=await sendActivation(est,generatedPin);
-   const suffix=mail.sent?' Correo de activación enviado.':' Cuenta activada; el correo automático quedará habilitado al configurar Gmail.';
-   res.redirect('/superadmin/dashboard?msg='+encodeURIComponent(`Cuenta aprobada para ${est.name}. PIN generado: ${generatedPin}.${suffix}`));
- }catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}
+  let result;
+  try{result=await approveRequest(req.params.id);}
+  catch(error){console.error('IDPS account approval failed:',error.message);
+    return res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent('No se pudo aprobar la cuenta.'));}
+  try{
+    await sendActivation(result.est,result.generatedPin);
+    return res.redirect('/superadmin/dashboard?msg='+encodeURIComponent(
+      'Cuenta aprobada. El proveedor aceptó el correo de acceso; confirma recepción con el establecimiento.'));
+  }catch(error){
+    console.error('IDPS activation email failed:',error.message);
+    res.set('Cache-Control','no-store');
+    return res.send(layout('Cuenta aprobada, correo pendiente',
+      '<section class="card"><h1>Cuenta aprobada, correo pendiente</h1>'+
+      '<p>La cuenta se creó, pero el correo no se envió correctamente. Entrega el PIN por un canal privado verificado o vuelve a generarlo cuando funcione el correo.</p>'+
+      '<p><b>RBD:</b> '+mailer.escape(result.est.rbd)+'</p>'+
+      '<p><b>PIN provisional (se muestra una vez):</b> <strong>'+mailer.escape(result.generatedPin)+'</strong></p>'+
+      '<p><a href="/superadmin/dashboard">Volver al panel</a></p></section>'));
+  }
 });
 app.post('/superadmin/reject/:id',requireSuper,async(req,res)=>{await rejectRequest(req.params.id); res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Solicitud rechazada.'));});
 app.post('/superadmin/delete-request/:id',requireSuper,async(req,res)=>{try{await deleteRequest(req.params.id);res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Solicitud eliminada correctamente.'));}catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}});
 app.post('/superadmin/send-password/:id',requireSuper,async(req,res)=>{
- try{const x=await resetPin(req.params.id);const mail=await sendActivation(x.est,x.generatedPin);res.redirect('/superadmin/dashboard?msg='+encodeURIComponent(mail.sent?'Nueva contraseña enviada al correo registrado.':'Nueva contraseña creada, pero no pudo enviarse.'));}
- catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}
+  let reset;
+  try{reset=await resetPin(req.params.id);}
+  catch(error){console.error('IDPS PIN reset error:',error.message);
+    return res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent('No se pudo generar el PIN.'));}
+  try{
+    await sendActivation(reset.est,reset.generatedPin);
+    return res.redirect('/superadmin/dashboard?msg='+encodeURIComponent(
+      'Nuevo PIN generado. El proveedor aceptó el correo; verifica recepción con el establecimiento.'));
+  }catch(error){
+    console.error('IDPS PIN delivery failed:',error.message);
+    res.set('Cache-Control','no-store');
+    return res.send(layout('PIN nuevo, correo no enviado',
+      '<section class="card"><h1>PIN generado, pero correo no enviado</h1>'+
+      '<p>El PIN anterior ya fue reemplazado. Puedes comunicar el nuevo PIN por un medio privado.</p>'+
+      '<p><b>RBD:</b> '+mailer.escape(reset.est.rbd)+'</p>'+
+      '<p><b>PIN provisional (se muestra una vez):</b> <strong>'+mailer.escape(reset.generatedPin)+'</strong></p>'+
+      '<p><a href="/superadmin/dashboard">Volver al panel</a></p></section>'));
+  }
 });
 app.post('/superadmin/remove/:id',requireSuper,async(req,res)=>{try{await removeEst(req.params.id);res.redirect('/superadmin/dashboard?msg='+encodeURIComponent('Cuenta eliminada correctamente.'));}catch(e){res.redirect('/superadmin/dashboard?err=1&msg='+encodeURIComponent(e.message));}});
 app.get('/logout',(req,res)=>{res.clearCookie('idps_session');res.redirect('/');});

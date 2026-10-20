@@ -350,6 +350,25 @@ body.product-info-open{overflow:hidden}
 .mec-invoice-fields label{margin-top:10px;display:block}
 .mec-invoice-fields label:first-child{margin-top:0}
 .mec-invoice-fields input{margin-bottom:4px}
+/* Enlaces individuales de materiales: portada destacada sin alterar pagos ni catálogo. */
+.product-link-notice{margin:0 0 18px;padding:15px 18px;background:linear-gradient(115deg,#edfaff,#fff);border:1px solid #a8dfe7;border-radius:16px;color:#0F2D52}
+.product-link-notice[hidden]{display:none!important}
+.product-link-notice strong{display:block;font-size:16px;line-height:1.4}
+.product-link-notice span{display:block;margin-top:4px;font-size:13px;color:#375b76}
+.product-link-notice button{margin-top:10px;border:1px solid #9ccddd;background:#fff;border-radius:10px;color:#0F2D52;padding:9px 12px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.product-share-button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 12px;padding:12px 10px;background:#f5fbff;color:#096390;border:1.5px solid #b8dfea;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.product-share-button:hover,.product-share-button:focus-visible{background:#e3f6fb;outline:2px solid #71b9d2}
+.product-card.is-individual{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);min-height:440px}
+.product-card.is-individual:before{display:none}
+.product-card.is-individual .product-media{display:flex;align-items:center;justify-content:center;background:#f7fbfe;min-height:380px;padding:18px}
+.product-card.is-individual .product-image{width:100%;height:auto;max-height:520px;aspect-ratio:auto;object-fit:contain;border-radius:10px}
+.product-card.is-individual .product-body{padding:26px 28px}
+.product-card.is-individual .product-title{font-size:clamp(23px,2.5vw,33px)}
+.product-full-details{margin:12px 0;padding:15px 17px;background:#f7fbff;border:1px solid #deebf5;border-radius:13px}
+.product-full-details h4{font-size:15px;margin:4px 0 8px;color:#0F2D52}
+.product-full-details p,.product-full-details li{font-size:13px;color:#43566e;line-height:1.55;margin:3px 0}
+.product-full-details ul{padding-left:20px;margin:6px 0}
+@media(max-width:850px){.product-card.is-individual{grid-template-columns:1fr}.product-card.is-individual .product-media{min-height:0;padding:12px}.product-card.is-individual .product-image{max-height:380px}.product-card.is-individual .product-body{padding:21px}}
 </style>
 </head>
 <body>
@@ -416,6 +435,7 @@ body.product-info-open{overflow:hidden}
 
 <main class="main" id="catalogo">
   <div id="paymentNotice" class="notice"></div>
+  <div id="productLinkNotice" class="product-link-notice" hidden role="status"></div>
   <div class="section-head">
     <div><h2>Explora nuestros materiales</h2><p>Encuentra el recurso que necesitas por título o nivel educativo.</p></div>
     <span class="catalog-count" id="catalogCount" role="status" aria-live="polite"></span>
@@ -474,6 +494,48 @@ const API='https://convivencia-escolar-api.onrender.com';
 const money=v=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0));
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let products=[],cart=[],checkoutReady=false,checkoutProvider='webpay';
+let selectedProductSlug=(new URLSearchParams(location.search).get('producto')||'').trim();
+function materialUrl(p){
+  const url=new URL('https://materialeducativochile.cl/tienda.html');
+  url.searchParams.set('producto',String(p.slug));
+  url.hash='catalogo';
+  return url.href;
+}
+async function copyMaterialLink(slug,button){
+  const item=products.find(p=>String(p.slug)===String(slug));
+  if(!item)return;
+  const url=materialUrl(item);
+  let copied=false;
+  try{
+    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(url);copied=true}
+    else{
+      const area=document.createElement('textarea');
+      area.value=url;area.setAttribute('readonly','');area.style.position='fixed';area.style.opacity='0';
+      document.body.appendChild(area);area.select();copied=document.execCommand('copy');area.remove();
+    }
+  }catch{}
+  if(copied){
+    button.textContent='✓ Enlace copiado · listo para enviar';
+    setTimeout(()=>{if(button.isConnected)button.textContent='🔗 Copiar enlace de este material'},3000);
+  }else{
+    window.prompt('Copia el enlace de este material para enviarlo al cliente:',url);
+  }
+}
+function leaveIndividualProduct(){
+  if(!selectedProductSlug)return;
+  selectedProductSlug='';
+  const url=new URL(location.href);
+  url.searchParams.delete('producto');
+  history.replaceState({},'',url.pathname+url.search+(url.hash||'#catalogo'));
+  document.getElementById('productLinkNotice').hidden=true;
+}
+function openFullCatalog(){
+  leaveIndividualProduct();
+  document.getElementById('catalogSearch').value='';
+  document.getElementById('catalogCourse').value='';
+  renderProducts();
+  document.getElementById('catalogo').scrollIntoView({behavior:'smooth',block:'start'});
+}
 
 function splitIncluded(value){
   const raw=String(value||'').replace(/\r/g,'\n');
@@ -506,9 +568,10 @@ function courseMatches(audience,course){
   }
   return false;
 }
-document.getElementById('catalogSearch').addEventListener('input',renderProducts);
-document.getElementById('catalogCourse').addEventListener('change',renderProducts);
+document.getElementById('catalogSearch').addEventListener('input',()=>{leaveIndividualProduct();renderProducts()});
+document.getElementById('catalogCourse').addEventListener('change',()=>{leaveIndividualProduct();renderProducts()});
 document.getElementById('catalogReset').addEventListener('click',()=>{
+  leaveIndividualProduct();
   document.getElementById('catalogSearch').value='';
   document.getElementById('catalogCourse').value='';
   renderProducts();
@@ -519,11 +582,19 @@ function renderProducts(){
   const root=document.getElementById('grid');
   const search=normalizeSearch(document.getElementById('catalogSearch').value.trim());
   const course=document.getElementById('catalogCourse').value;
-  const filtered=products.filter(p=>{
+  const requested=selectedProductSlug?products.find(p=>String(p.slug)===selectedProductSlug):null;
+  const filtered=requested?[requested]:products.filter(p=>{
     const text=normalizeSearch([p.title,p.audience,p.objective,p.description,p.included_materials].join(' '));
     return (!search||text.includes(search))&&(!course||courseMatches(p.audience,course));
   });
-  document.getElementById('catalogCount').textContent=filtered.length+' de '+products.length+' materiales';
+  const banner=document.getElementById('productLinkNotice');
+  if(selectedProductSlug){
+    banner.hidden=false;
+    banner.innerHTML=requested
+      ?'<strong>Estás viendo: '+esc(requested.title)+'</strong><span>Ficha del material · revisa su contenido y agrégalo a tu compra cuando quieras.</span><button type="button" data-full-catalog>← Ver todos los materiales</button>'
+      :'<strong>Este material no está disponible en el catálogo.</strong><span>Puedes revisar los recursos publicados.</span><button type="button" data-full-catalog>Ver catálogo completo</button>';
+  }else{banner.hidden=true;banner.textContent=''}
+  document.getElementById('catalogCount').textContent=requested?'1 material seleccionado':filtered.length+' de '+products.length+' materiales';
   if(!filtered.length){
     root.innerHTML='<p class="catalog-empty">'+(products.length?'No encontramos materiales con esos filtros. Prueba otro título o curso.':'Próximamente encontrarás aquí los materiales publicados.')+'</p>';
     return;
@@ -531,7 +602,11 @@ function renderProducts(){
   root.innerHTML=filtered.map(p=>{
     const includes=splitIncluded(p.included_materials).map(x=>'<li>'+esc(x)+'</li>').join('');
     const saving=savingText(p);
-    return '<article class="product-card">'+
+    const individual=!!requested&&Number(requested.id)===Number(p.id);
+    const longDetails=individual
+      ?'<div class="product-full-details">'+(p.description?'<h4>¿Qué se trabaja?</h4>'+paragraphs(p.description):'')+(includes?'<h4>Materiales incluidos</h4><ul>'+includes+'</ul>':'')+'</div>'
+      :'';
+    return '<article class="product-card'+(individual?' is-individual':'')+'">'+
       '<div class="product-media">'+(p.compare_at_price_clp?'<span class="offer-badge">Oferta especial</span>':'')+'<img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'"></div>'+
       '<div class="product-body">'+
         '<span class="level-tag">'+esc(p.audience||'Material educativo')+'</span>'+
@@ -540,7 +615,9 @@ function renderProducts(){
         '<div class="value-chips"><span>Material digital · listo para implementar</span></div>'+
         '<div class="price-row"><span class="price">'+money(p.price_clp)+'</span>'+(p.compare_at_price_clp?'<span class="old-price">'+money(p.compare_at_price_clp)+'</span>':'')+'</div>'+
         (saving?'<div class="saving">'+esc(saving)+'</div>':'')+
+        longDetails+
         '<button class="product-info-trigger" type="button" data-info="'+Number(p.id)+'" aria-haspopup="dialog">Ver todo lo que incluye</button>'+
+        '<button class="product-share-button" type="button" data-share="'+esc(String(p.slug||''))+'" aria-label="Copiar enlace del material '+esc(p.title)+'">🔗 Copiar enlace de este material</button>'+
         '<button class="add-btn" type="button" data-buy="'+Number(p.id)+'">Agregar a mi compra</button>'+
       '</div></article>';
   }).join('');
@@ -614,6 +691,8 @@ document.addEventListener('keydown',e=>{
 
 function removeCart(index){cart.splice(index,1);renderCart()}
 document.addEventListener('click',e=>{
+  const shared=e.target.closest('[data-share]');if(shared){copyMaterialLink(shared.dataset.share,shared);return}
+  const full=e.target.closest('[data-full-catalog]');if(full){openFullCatalog();return}
   const info=e.target.closest('[data-info]');if(info)openProductInfo(Number(info.dataset.info));
   const buy=e.target.closest('[data-buy]');if(buy)addCart(Number(buy.dataset.buy));
   const rem=e.target.closest('[data-remove]');if(rem)removeCart(Number(rem.dataset.remove));
@@ -707,7 +786,7 @@ fetch(API+'/api/store/checkout/config').then(r=>r.json()).then(d=>{
   document.getElementById('paymentMode').textContent='Compras temporalmente suspendidas';
   document.getElementById('cartMsg').textContent='No fue posible comprobar el estado de la entrega. No se iniciará ningún cobro.';
 });
-fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];const term=new URLSearchParams(location.search).get('buscar');if(term){document.getElementById('catalogSearch').value=term;location.hash='#catalogo'}renderProducts();setHeroProduct()}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
+fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];const term=new URLSearchParams(location.search).get('buscar');if(term&&!selectedProductSlug){document.getElementById('catalogSearch').value=term;location.hash='#catalogo'}if(selectedProductSlug)location.hash='#catalogo';renderProducts();setHeroProduct()}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
 </script>
 </body>
 </html>

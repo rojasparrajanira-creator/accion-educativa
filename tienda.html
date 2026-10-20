@@ -370,8 +370,6 @@ body.product-info-open{overflow:hidden}
 .product-full-details ul{padding-left:20px;margin:6px 0}
 @media(max-width:850px){.product-card.is-individual{grid-template-columns:1fr}.product-card.is-individual .product-media{min-height:0;padding:12px}.product-card.is-individual .product-image{max-height:380px}.product-card.is-individual .product-body{padding:21px}}
 
-/* Vista individual: contador real discreto, preservando las tarjetas y colores de la tienda. */
-.mec-site-resource-views{font-size:11px;color:#56718A;font-weight:750;line-height:1.45;margin:2px 0 7px}
 
 </style>
 </head>
@@ -615,7 +613,7 @@ function renderProducts(){
       '<div class="product-media">'+(p.compare_at_price_clp?'<span class="offer-badge">Oferta especial</span>':'')+'<img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'"></div>'+
       '<div class="product-body">'+
         '<span class="level-tag">'+esc(p.audience||'Material educativo')+'</span>'+
-        '<h3 class="product-title">'+esc(p.title)+'</h3>'+(p.view_count!=null?'<div class="mec-site-resource-views" data-product-views="'+Number(p.id)+'">◉ '+new Intl.NumberFormat("es-CL").format(Number(p.view_count)||0)+' visualizaciones</div>':'')+
+        '<h3 class="product-title">'+esc(p.title)+'</h3>'+
         '<p class="product-objective">'+esc(p.objective||'')+'</p>'+
         '<div class="value-chips"><span>Material digital · listo para implementar</span></div>'+
         '<div class="price-row"><span class="price">'+money(p.price_clp)+'</span>'+(p.compare_at_price_clp?'<span class="old-price">'+money(p.compare_at_price_clp)+'</span>':'')+'</div>'+
@@ -657,14 +655,8 @@ function productInfoSection(icon,heading,body){
 }
 function registerProductView(p){
   if(!p||!window.MECAnalytics)return;
-  window.MECAnalytics.record('product_view',p.id).then(recorded=>{
-    if(!recorded)return;
-    p.view_count=(Number(p.view_count)||0)+1;
-    document.querySelectorAll('[data-product-views="'+Number(p.id)+'"]').forEach(el=>{
-      el.textContent='◉ '+window.MECAnalytics.formatCount(p.view_count)+' visualizaciones';
-    });
-    window.MECAnalytics.refreshStats();
-  }).catch(()=>{});
+  // Se mantiene el registro interno, pero las visualizaciones se ven solo en superadministración.
+  window.MECAnalytics.record('product_view',p.id).catch(()=>{});
 }
 function openProductInfo(id){
   const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;

@@ -2253,6 +2253,14 @@ initDatabase().then(()=>app.listen(port,()=>{
   const delivery=storeDelivery.configuration();
   console.log('Store delivery enabled:',delivery.enabled?'yes':'no','email ready:',delivery.email_ready?'yes':'no','mode:',delivery.mode);
   console.log('Private Google Drive technical account:',storeDriveServiceAccount.enabled?'configured':'not configured');
+  // Reparación limitada a 17 carpetas auditadas. No modifica pedidos ni pagos.
+  setTimeout(async()=>{
+    try{
+      const {runFolderPermissionRepair}=require('./repair-folder-permissions');
+      await runFolderPermissionRepair({pool,decryptGoogleToken,serviceAccount:storeDriveServiceAccount});
+    }catch(e){console.error('MEC_FOLDER_REPAIR ERROR '+String(e?.message||'unknown').replace(/[^a-z0-9_]/gi,'_').slice(0,90))}
+  },7000);
+
   // Diagnóstico de lectura, temporal: no crea pedidos ni concede acceso a clientes.
   setTimeout(async()=>{
     try{

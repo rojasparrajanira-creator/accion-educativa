@@ -19,9 +19,11 @@
     }catch(_){return null}
   }
   function ids(){
-    if(!visitor)visitor=identifier(window.localStorage,VISITOR_KEY);
-    if(!session)session=identifier(window.sessionStorage,SESSION_KEY);
-    return Boolean(visitor&&session);
+    try{
+      if(!visitor)visitor=identifier(window.localStorage,VISITOR_KEY);
+      if(!session)session=identifier(window.sessionStorage,SESSION_KEY);
+      return Boolean(visitor&&session);
+    }catch(_){return false}
   }
   async function record(type,productId){
     if(!ids())return false;
@@ -66,8 +68,7 @@
   function start(){
     if(started){refreshStats();return}
     started=true;
-    record('visit');
-    refreshStats();
+    record('visit').finally(refreshStats);
     timer=window.setInterval(()=>{
       if(document.visibilityState!=='visible')return;
       heartbeat();

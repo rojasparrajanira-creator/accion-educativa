@@ -749,7 +749,7 @@ async function createOrder(){
     const form=document.createElement('form');form.method='POST';form.action=d.payment.url;form.style.display='none';
     const input=document.createElement('input');input.type='hidden';input.name='token_ws';input.value=d.payment.token;form.appendChild(input);
     document.body.appendChild(form);requestAnimationFrame(()=>form.submit());
-  }catch(e){msg.textContent=e.message==='store_private_delivery_unavailable'||e.message==='store_checkout_not_ready'?'La entrega privada todavía no está autorizada. No se inició ningún cobro.':'No pudimos abrir el medio de pago: '+e.message;btn.disabled=!checkoutReady||!cart.length}
+  }catch(e){msg.textContent=e.message==='store_private_delivery_unavailable'||e.message==='store_checkout_not_ready'?'Este material aún no tiene habilitada su entrega automática. No se realizó ningún cobro. Escríbenos por Instagram a @materialeducativo.chile para ayudarte con la compra.':'No pudimos abrir el medio de pago: '+e.message;btn.disabled=!checkoutReady||!cart.length}
 }
 function updateDocumentFields(){
   const show=document.getElementById('buyerDocument').value==='factura';

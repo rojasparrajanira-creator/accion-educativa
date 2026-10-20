@@ -835,7 +835,7 @@ function portalCourseMatch(audience,course){
   for(let i=0;i<found.length-1;i++)if(/\b(a|hasta)\b/.test(a.slice(found[i].end,found[i+1].start))&&idx>=found[i].index&&idx<=found[i+1].index)return true;
   return false;
 }
-function portalProductCard(p){return `<article class="mec-product"><div class="mec-product-photo"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></div><div class="mec-product-content"><span class="mec-product-level">${esc(p.audience||'Material educativo')}</span><h3>${esc(p.title)}</h3><p>${esc(p.objective||'')}</p><div class="mec-product-bottom"><strong>${clp(p.price_clp)}</strong><a href="tienda.html?buscar=${encodeURIComponent(p.title)}#catalogo" aria-label="Ver y comprar ${esc(p.title)}">Ver y comprar →</a></div></div></article>`}
+function portalProductCard(p){return `<article class="mec-product"><div class="mec-product-photo"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></div><div class="mec-product-content"><span class="mec-product-level">${esc(p.audience||'Material educativo')}</span><h3>${esc(p.title)}</h3><p>${esc(p.objective||'')}</p><div class="mec-product-bottom"><strong>${clp(p.price_clp)}</strong><a href="tienda.html?producto=${encodeURIComponent(p.slug)}#catalogo" aria-label="Ver y comprar ${esc(p.title)}">Ver y comprar →</a></div></div></article>`}
 // Filtro de presentación: usa la denominación del producto, sin modificar sus datos.
 function portalMaterialTypeMatch(product,type){
   if(!type)return true;

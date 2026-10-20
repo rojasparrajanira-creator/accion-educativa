@@ -1740,7 +1740,7 @@ app.post('/api/site/analytics/event',siteAnalyticsWriteLimit,async(req,res)=>{
   }finally{if(client)client.release()}
 });
 app.get('/api/site/analytics/public',siteAnalyticsReadLimit,async(req,res)=>{
-  try{return ok(res,{stats:await siteAnalyticsTotals(),since:'activation',online_window_minutes:5})}
+  try{const stats=await siteAnalyticsTotals();return ok(res,{stats:{visitors:stats.visitors},since:'activation'})}
   catch(err){console.error('Site analytics read failed:',err.message);return res.status(503).json({ok:false,error:'analytics_temporarily_unavailable'})}
 });
 app.get('/api/site/analytics/admin',...requireRole('platform_admin'),async(req,res)=>{
@@ -1756,13 +1756,12 @@ app.get('/api/site/analytics/admin',...requireRole('platform_admin'),async(req,r
 });
 
 app.get('/api/store/products',async(req,res)=>{try{
-  const q=await pool.query(`select p.id,p.title,p.slug,p.objective,p.description,p.included_materials,p.audience,p.image_url,p.price_clp,p.compare_at_price_clp,p.updated_at,coalesce(s.sales_count,0)::int as sales_count,coalesce(v.views_count,0)::int as view_count
+  const q=await pool.query(`select p.id,p.title,p.slug,p.objective,p.description,p.included_materials,p.audience,p.image_url,p.price_clp,p.compare_at_price_clp,p.updated_at,coalesce(s.sales_count,0)::int as sales_count
     from store_products p left join (
       select i.product_id,sum(i.quantity)::int as sales_count
       from store_order_items i join store_orders o on o.id=i.order_id and o.status='paid'
       group by i.product_id
     ) s on s.product_id=p.id
-    left join (select product_id,count(*)::int as views_count from site_analytics_product_views group by product_id) v on v.product_id=p.id
     where p.status='published' order by p.updated_at desc`);
   ok(res,{products:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'store_products_failed'})}});

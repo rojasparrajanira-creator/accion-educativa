@@ -1687,13 +1687,82 @@ app.get('/api/store/images/:name',async(req,res)=>{try{
   res.setHeader('Content-Length',String(row.image_data.length));
   return res.send(row.image_data);
 }catch(e){console.error('Store image read failed:',e.message);return res.sendStatus(404)}});
+
+// Métricas públicas de la tienda: sin cookies identificadoras ni datos personales.
+const siteAnalyticsWriteLimit=publicRateLimit({windowMs:60000,max:100});
+const siteAnalyticsReadLimit=publicRateLimit({windowMs:60000,max:120});
+const uuidAnalytics=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const digestAnalytics=value=>crypto.createHash('sha256').update(value).digest('hex');
+async function siteAnalyticsTotals(){
+  const q=await pool.query(`select
+    (select count(*) from site_analytics_visitors) as visitors,
+    (select count(*) from site_analytics_product_views) as resource_views,
+    (select count(distinct product_id) from site_analytics_product_views) as explored_materials,
+    (select count(distinct visitor_hash) from site_analytics_sessions where last_seen>now()-interval '5 minutes') as online`);
+  const a=q.rows[0]||{};
+  return {visitors:Number(a.visitors||0),resource_views:Number(a.resource_views||0),explored_materials:Number(a.explored_materials||0),online:Number(a.online||0)};
+}
+app.post('/api/site/analytics/event',siteAnalyticsWriteLimit,async(req,res)=>{
+  const origin=String(req.headers.origin||'');
+  // Únicamente la tienda y los portales autorizados pueden emitir eventos.
+  if(!allowedOrigins.has(origin))return res.status(403).json({ok:false,error:'origin_not_allowed'});
+  if(/bot|spider|crawler|slurp|headless|lighthouse|facebookexternalhit|preview/i.test(String(req.headers['user-agent']||'')))return ok(res,{recorded:false});
+  const b=req.body||{},visitor=String(b.visitor_id||''),session=String(b.session_id||''),type=String(b.type||'');
+  if(!uuidAnalytics.test(visitor)||!uuidAnalytics.test(session)||!['visit','heartbeat','product_view'].includes(type))return res.status(400).json({ok:false,error:'invalid_analytics_event'});
+  const productId=Number(b.product_id);
+  if(type==='product_view'&&(!Number.isSafeInteger(productId)||productId<1))return res.status(400).json({ok:false,error:'invalid_product'});
+  let client;
+  try{
+    if(type==='product_view'){
+      const found=await pool.query("select 1 from store_products where id=$1 and status='published'",[productId]);
+      if(!found.rowCount)return res.status(404).json({ok:false,error:'product_not_found'});
+    }
+    client=await pool.connect();
+    await client.query('BEGIN');
+    const visitorHash=digestAnalytics(visitor),sessionHash=digestAnalytics(session);
+    await client.query(`insert into site_analytics_visitors(visitor_hash) values($1)
+      on conflict(visitor_hash) do update set last_seen=now()`,[visitorHash]);
+    await client.query(`insert into site_analytics_sessions(session_hash,visitor_hash) values($1,$2)
+      on conflict(session_hash) do update set last_seen=now()
+      where site_analytics_sessions.visitor_hash=excluded.visitor_hash`,[sessionHash,visitorHash]);
+    let recorded=true;
+    if(type==='product_view'){
+      const added=await client.query(`insert into site_analytics_product_views(session_hash,product_id)
+        values($1,$2) on conflict do nothing returning product_id`,[sessionHash,productId]);
+      recorded=added.rowCount>0;
+    }
+    await client.query('COMMIT');
+    return ok(res,{recorded});
+  }catch(err){
+    if(client)try{await client.query('ROLLBACK')}catch(_){}
+    console.error('Site analytics event failed:',err.message);
+    return res.status(503).json({ok:false,error:'analytics_temporarily_unavailable'});
+  }finally{if(client)client.release()}
+});
+app.get('/api/site/analytics/public',siteAnalyticsReadLimit,async(req,res)=>{
+  try{return ok(res,{stats:await siteAnalyticsTotals(),since:'activation',online_window_minutes:5})}
+  catch(err){console.error('Site analytics read failed:',err.message);return res.status(503).json({ok:false,error:'analytics_temporarily_unavailable'})}
+});
+app.get('/api/site/analytics/admin',...requireRole('platform_admin'),async(req,res)=>{
+  try{
+    const [stats,items]=await Promise.all([
+      siteAnalyticsTotals(),
+      pool.query(`select p.id,p.title,p.slug,count(v.session_hash)::int as views
+        from store_products p left join site_analytics_product_views v on v.product_id=p.id
+        group by p.id,p.title,p.slug order by views desc,p.title asc limit 20`)
+    ]);
+    return ok(res,{stats,most_viewed:items.rows});
+  }catch(err){console.error('Site analytics admin failed:',err.message);return res.status(503).json({ok:false,error:'analytics_temporarily_unavailable'})}
+});
+
 app.get('/api/store/products',async(req,res)=>{try{
-  const q=await pool.query(`select p.id,p.title,p.slug,p.objective,p.description,p.included_materials,p.audience,p.image_url,p.price_clp,p.compare_at_price_clp,p.updated_at,coalesce(s.sales_count,0)::int as sales_count
+  const q=await pool.query(`select p.id,p.title,p.slug,p.objective,p.description,p.included_materials,p.audience,p.image_url,p.price_clp,p.compare_at_price_clp,p.updated_at,coalesce(s.sales_count,0)::int as sales_count,coalesce(v.views_count,0)::int as view_count
     from store_products p left join (
       select i.product_id,sum(i.quantity)::int as sales_count
       from store_order_items i join store_orders o on o.id=i.order_id and o.status='paid'
       group by i.product_id
     ) s on s.product_id=p.id
+    left join (select product_id,count(*)::int as views_count from site_analytics_product_views group by product_id) v on v.product_id=p.id
     where p.status='published' order by p.updated_at desc`);
   ok(res,{products:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'store_products_failed'})}});

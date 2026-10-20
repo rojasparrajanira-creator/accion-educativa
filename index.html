@@ -696,6 +696,97 @@ body:has(.mec-hero) .mec-hero-shop :is(a,button):focus-visible{outline-color:#84
 .mec-live-label{color:#513572!important}
 @media(max-width:700px){.mec-live-grid{grid-template-columns:minmax(0,1fr)!important}.mec-live-cell{min-height:90px}}
 
+
+/* Ajuste compacto de portada y comunidad - 2026-10-20.
+   Sólo tamaños y espaciado: se conservan identidad, tonos y ondas. */
+body:has(.mec-hero) .mec-hero-grid{
+  width:100%;
+  max-width:880px!important;
+  margin-inline:auto!important;
+  padding-top:12px!important;
+  padding-bottom:12px!important;
+}
+body:has(.mec-hero) .mec-hero-copy-rotator.mec-hero-shop{
+  width:100%;
+  max-width:880px!important;
+  min-height:0!important;
+  margin-inline:auto!important;
+  padding:22px 26px!important;
+  border-radius:20px!important;
+}
+body:has(.mec-hero) .mec-hero-shop .mec-hero-copy-slides{
+  min-height:0!important;
+}
+body:has(.mec-hero) .mec-hero-shop .mec-hero-copy-slide h1{
+  font-size:clamp(29px,3.15vw,39px)!important;
+  line-height:1.10!important;
+  max-width:720px!important;
+  margin:9px 0 11px!important;
+}
+body:has(.mec-hero) .mec-hero-shop .mec-hero-copy-slide p{
+  font-size:clamp(13px,1.25vw,15px)!important;
+  line-height:1.45!important;
+  max-width:630px!important;
+  margin:0!important;
+}
+body:has(.mec-hero) .mec-hero-shop .mec-kicker{font-size:11px!important}
+.mec-shop-cta-row{margin-top:15px!important;gap:10px!important}
+.mec-shop-cta-primary,.mec-shop-cta-secondary{
+  min-height:40px!important;
+  padding:9px 16px!important;
+  border-radius:11px!important;
+  font-size:13px!important;
+}
+.mec-shop-cta-primary span{font-size:18px!important}
+.mec-shop-benefits{margin-top:10px!important;gap:6px 13px!important;font-size:11px!important}
+.mec-shop-quicklinks{margin-top:14px!important;padding-top:11px!important;gap:8px 12px!important}
+.mec-shop-quicklinks button{padding:7px 10px!important;font-size:11px!important}
+.mec-shop-quicklinks-label{font-size:12px!important}
+.mec-live-metrics{padding:4px 0 12px!important}
+.mec-live-metrics .container{
+  width:100%;
+  max-width:880px!important;
+  margin-inline:auto!important;
+}
+.mec-live-shell{
+  width:100%;
+  max-width:880px!important;
+  margin-inline:auto!important;
+  padding:16px 20px 12px!important;
+  border-radius:19px!important;
+}
+.mec-live-top{margin-bottom:10px!important;gap:8px!important}
+.mec-live-top h2{font-size:clamp(17px,2vw,20px)!important;margin:3px 0 0!important}
+.mec-live-cell{
+  width:min(100%,310px)!important;
+  min-height:82px!important;
+  padding:10px!important;
+  gap:4px!important;
+  border-radius:13px!important;
+}
+.mec-live-number{font-size:29px!important}
+.mec-live-label{font-size:12px!important}
+.mec-live-footnote{margin-top:9px!important;font-size:10px!important}
+@media(max-width:700px){
+  body:has(.mec-hero) .mec-hero-grid{
+    width:100%;padding-top:10px!important;padding-bottom:10px!important;
+  }
+  body:has(.mec-hero) .mec-hero-copy-rotator.mec-hero-shop{
+    padding:18px 17px!important;border-radius:16px!important;
+  }
+  body:has(.mec-hero) .mec-hero-shop .mec-hero-copy-slide h1{
+    font-size:clamp(25px,6.8vw,31px)!important;margin:8px 0 10px!important;
+  }
+  body:has(.mec-hero) .mec-hero-shop .mec-hero-copy-slide p{font-size:13px!important}
+  .mec-shop-cta-row{margin-top:13px!important}
+  .mec-shop-cta-primary,.mec-shop-cta-secondary{min-height:39px!important}
+  .mec-shop-quicklinks{margin-top:11px!important;padding-top:9px!important}
+  .mec-live-shell{padding:14px 13px 12px!important}
+  .mec-live-cell{width:min(100%,290px)!important;min-height:76px!important}
+  .mec-live-number{font-size:27px!important}
+  .mec-live-footnote{font-size:9px!important}
+}
+
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>

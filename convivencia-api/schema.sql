@@ -510,3 +510,27 @@ CREATE TABLE IF NOT EXISTS store_delivery_jobs(
 CREATE INDEX IF NOT EXISTS idx_store_delivery_jobs_due ON store_delivery_jobs(next_attempt_at,created_at) WHERE status IN ('pending','failed') AND attempts<6;
 
 ALTER TABLE store_delivery_jobs ADD COLUMN IF NOT EXISTS payment_mode TEXT NOT NULL DEFAULT 'integration' CHECK(payment_mode IN ('integration','production'));
+
+-- Métricas públicas agregadas de Material Educativo Chile.
+-- Se guardan identificadores aleatorios con SHA-256; no se almacena IP, correo ni identidad real.
+-- Los registros comienzan desde la activación del contador (no se inventan visitas históricas).
+CREATE TABLE IF NOT EXISTS site_analytics_visitors (
+ visitor_hash CHAR(64) PRIMARY KEY,
+ first_seen TIMESTAMPTZ NOT NULL DEFAULT now(),
+ last_seen TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS site_analytics_sessions (
+ session_hash CHAR(64) PRIMARY KEY,
+ visitor_hash CHAR(64) NOT NULL REFERENCES site_analytics_visitors(visitor_hash) ON DELETE CASCADE,
+ first_seen TIMESTAMPTZ NOT NULL DEFAULT now(),
+ last_seen TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_site_analytics_sessions_recent ON site_analytics_sessions(last_seen DESC);
+CREATE INDEX IF NOT EXISTS idx_site_analytics_sessions_visitor ON site_analytics_sessions(visitor_hash);
+CREATE TABLE IF NOT EXISTS site_analytics_product_views (
+ session_hash CHAR(64) NOT NULL REFERENCES site_analytics_sessions(session_hash) ON DELETE CASCADE,
+ product_id BIGINT NOT NULL REFERENCES store_products(id) ON DELETE CASCADE,
+ viewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ PRIMARY KEY(session_hash,product_id)
+);
+CREATE INDEX IF NOT EXISTS idx_site_analytics_views_product ON site_analytics_product_views(product_id);

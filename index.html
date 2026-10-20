@@ -652,6 +652,50 @@ body:has(.mec-hero) .mec-featured .mec-section-heading{margin-bottom:18px}
  .mec-live-footnote{font-size:9px;margin-top:10px}
 }
 
+
+/* Portada solicitada: tarjeta blanca con degradado violeta, sin cambiar el resto de la web. */
+body:has(.mec-hero) .mec-hero-copy-rotator.mec-hero-shop{
+ background:linear-gradient(116deg,#fff 0%,#fff 48%,#faf7ff 70%,#eaddff 100%)!important;
+ border:1px solid rgba(115,61,172,.20)!important;
+ box-shadow:0 16px 42px rgba(65,38,126,.12)!important;
+}
+body:has(.mec-hero) .mec-hero-shop .mec-hero-impact-waves{opacity:.20!important}
+body:has(.mec-hero) .mec-hero-shop .mec-kicker{color:#7231ad!important;letter-spacing:.095em}
+body:has(.mec-hero) .mec-hero-shop .mec-hero-copy-slide h1{color:#241848!important}
+body:has(.mec-hero) .mec-hero-shop .mec-hero-copy-slide h1 span{color:#7735b5!important}
+body:has(.mec-hero) .mec-hero-shop .mec-hero-copy-slide p{color:#50466e!important}
+body:has(.mec-hero) .mec-hero-shop .mec-shop-cta-primary{
+ background:linear-gradient(110deg,#7130b5,#984bd4)!important;color:#fff!important;
+ box-shadow:0 8px 22px rgba(106,45,161,.21)!important}
+body:has(.mec-hero) .mec-hero-shop .mec-shop-cta-primary:hover{background:linear-gradient(110deg,#60269e,#873ccc)!important}
+body:has(.mec-hero) .mec-hero-shop .mec-shop-cta-secondary{
+ color:#63318d!important;border:1px solid rgba(118,56,166,.35)!important;background:rgba(255,255,255,.7)!important}
+body:has(.mec-hero) .mec-hero-shop .mec-shop-benefits{color:#5e4a79!important}
+body:has(.mec-hero) .mec-hero-shop .mec-shop-quicklinks{
+ border-top:1px solid rgba(119,55,176,.20)!important}
+body:has(.mec-hero) .mec-hero-shop .mec-shop-quicklinks-label{color:#553077!important}
+body:has(.mec-hero) .mec-hero-shop .mec-shop-quicklinks button{
+ background:rgba(142,83,194,.08)!important;border-color:rgba(124,67,176,.30)!important;color:#5c2e89!important}
+body:has(.mec-hero) .mec-hero-shop .mec-shop-quicklinks button:hover{background:rgba(142,83,194,.17)!important}
+body:has(.mec-hero) .mec-hero-shop :is(a,button):focus-visible{outline-color:#8445c5!important}
+
+/* Solo visitantes en el sitio público: blanco y violeta, sin indicadores privados. */
+.mec-live-shell{
+ background:linear-gradient(115deg,#fff 0%,#fff 65%,#f1e7ff 100%)!important;
+ border:1px solid rgba(133,72,186,.20)!important;
+ box-shadow:0 11px 32px rgba(62,39,120,.10)!important}
+.mec-live-kicker{color:#7639b2!important}
+.mec-live-top h2{color:#2c2050!important}
+.mec-live-period,.mec-live-footnote{color:#685779!important}
+.mec-live-grid{grid-template-columns:minmax(0,1fr)!important;justify-items:center}
+.mec-live-cell{
+ width:min(100%,460px);min-height:116px;
+ background:linear-gradient(120deg,#fff 0%,#f1e5ff 100%)!important;
+ border:1px solid rgba(127,64,182,.22)!important}
+.mec-live-number{color:#7637b3!important}
+.mec-live-label{color:#513572!important}
+@media(max-width:700px){.mec-live-grid{grid-template-columns:minmax(0,1fr)!important}.mec-live-cell{min-height:90px}}
+
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -744,11 +788,8 @@ function home(){return `${header('Inicio')}<main>
  <div class="mec-live-top"><div><span class="mec-live-kicker">MATERIAL EDUCATIVO CHILE</span><h2>Nuestra comunidad en cifras</h2></div><span class="mec-live-period">Estadísticas registradas desde la activación</span></div>
  <div class="mec-live-grid">
  <div class="mec-live-cell"><span class="mec-live-number" data-mec-stat="visitors">—</span><span class="mec-live-label">Visitantes del sitio</span></div>
- <div class="mec-live-cell"><span class="mec-live-number" data-mec-stat="resource_views">—</span><span class="mec-live-label">Visualizaciones de recursos</span></div>
- <div class="mec-live-cell"><span class="mec-live-number" data-mec-stat="explored_materials">—</span><span class="mec-live-label">Materiales explorados</span></div>
- <div class="mec-live-cell"><span class="mec-live-number" data-mec-stat="online">—</span><span class="mec-live-label"><span class="mec-live-dot" aria-hidden="true"></span> Visitantes activos</span></div>
  </div>
- <p class="mec-live-footnote">Datos estimados según navegadores y fichas consultadas. Actividad reciente: últimos 5 minutos. Se actualizan automáticamente.</p>
+ <p class="mec-live-footnote">Visitantes contabilizados desde la activación de las estadísticas. Cifra actualizada automáticamente.</p>
  </div></div>
 </section>
 <section class="mec-featured" id="destacados"><div class="container"><div class="mec-section-heading"><span class="mec-kicker">DESCUBRE NUESTROS RECURSOS</span><h2 id="featuredTitle">Materiales destacados</h2><p id="featuredIntro">Una selección de recursos del catálogo actual.</p></div><div class="mec-products-grid" id="portalFeatured"><p class="mec-loading">Cargando materiales…</p></div></div></section>
@@ -921,7 +962,7 @@ function portalCourseMatch(audience,course){
   for(let i=0;i<found.length-1;i++)if(/\b(a|hasta)\b/.test(a.slice(found[i].end,found[i+1].start))&&idx>=found[i].index&&idx<=found[i+1].index)return true;
   return false;
 }
-function portalProductCard(p){return `<article class="mec-product"><div class="mec-product-photo"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></div><div class="mec-product-content"><span class="mec-product-level">${esc(p.audience||'Material educativo')}</span><h3>${esc(p.title)}</h3>${p.view_count!=null?`<div class="mec-product-views">◉ ${Number(p.view_count).toLocaleString('es-CL')} visualizaciones</div>`:''}<p>${esc(p.objective||'')}</p><div class="mec-product-bottom"><strong>${clp(p.price_clp)}</strong><a href="tienda.html?producto=${encodeURIComponent(p.slug)}#catalogo" aria-label="Ver y comprar ${esc(p.title)}">Ver y comprar →</a></div></div></article>`}
+function portalProductCard(p){return `<article class="mec-product"><div class="mec-product-photo"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></div><div class="mec-product-content"><span class="mec-product-level">${esc(p.audience||'Material educativo')}</span><h3>${esc(p.title)}</h3><p>${esc(p.objective||'')}</p><div class="mec-product-bottom"><strong>${clp(p.price_clp)}</strong><a href="tienda.html?producto=${encodeURIComponent(p.slug)}#catalogo" aria-label="Ver y comprar ${esc(p.title)}">Ver y comprar →</a></div></div></article>`}
 // Filtro de presentación: usa la denominación del producto, sin modificar sus datos.
 function portalMaterialTypeMatch(product,type){
   if(!type)return true;

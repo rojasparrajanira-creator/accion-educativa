@@ -2253,6 +2253,27 @@ initDatabase().then(()=>app.listen(port,()=>{
   const delivery=storeDelivery.configuration();
   console.log('Store delivery enabled:',delivery.enabled?'yes':'no','email ready:',delivery.email_ready?'yes':'no','mode:',delivery.mode);
   console.log('Private Google Drive technical account:',storeDriveServiceAccount.enabled?'configured':'not configured');
+  // Diagnóstico temporal, solo lectura: verificar permisos de toda la tienda.
+  setTimeout(async()=>{
+    try{
+      const r=await pool.query("select id,drive_delivery_url from store_products where status='published' order by id");
+      const pending=r.rows.slice(),failed=[];let ready=0;
+      const worker=async()=>{
+        while(pending.length){
+          const item=pending.shift();if(!item)break;
+          try{
+            await storeDriveServiceAccount.validateProducts({items:[{delivery_url_snapshot:item.drive_delivery_url}]});
+            ready++;
+          }catch(e){
+            failed.push({id:Number(item.id),reason:String(e?.message||'unknown').replace(/[^a-z0-9_]/gi,'_').slice(0,65)});
+          }
+        }
+      };
+      await Promise.all([worker(),worker()]);
+      console.log('MEC_VERIFY_47 '+JSON.stringify({total:r.rowCount,ready,failed}));
+    }catch(e){console.error('MEC_VERIFY_47_ERROR '+String(e?.message||'unknown').replace(/[^a-z0-9_]/gi,'_').slice(0,80))}
+  },6000);
+
   if(String(process.env.RUN_PILOT_SELFTEST||'')==='1'){
     const {runPilotSelfTest}=require('./pilot-selftest');
     setTimeout(async()=>{

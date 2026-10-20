@@ -2253,6 +2253,35 @@ initDatabase().then(()=>app.listen(port,()=>{
   const delivery=storeDelivery.configuration();
   console.log('Store delivery enabled:',delivery.enabled?'yes':'no','email ready:',delivery.email_ready?'yes':'no','mode:',delivery.mode);
   console.log('Private Google Drive technical account:',storeDriveServiceAccount.enabled?'configured':'not configured');
+  // Diagnóstico de lectura, temporal: no crea pedidos ni concede acceso a clientes.
+  setTimeout(async()=>{
+    try{
+      const cfg=storeDriveServiceAccount.configuration();
+      console.log('MEC_FOLDER_AUDIT account:',cfg.service_account_email||'not_configured');
+      const q=await pool.query("select id,title,price_clp,drive_delivery_url from store_products where status='published' order by case when price_clp=3490 then 0 else 1 end,id limit 50");
+      let good=0,bad=0;
+      const jobs=q.rows.slice();
+      const worker=async()=>{
+        while(jobs.length){
+          const p=jobs.shift();
+          if(!p)break;
+          try{
+            await storeDriveServiceAccount.validateProducts({items:[{delivery_url_snapshot:p.drive_delivery_url}]});
+            good++;
+          }catch(e){
+            bad++;
+            const id=driveItemId(p.drive_delivery_url)||'invalid_url';
+            const reason=String(e?.message||'unknown').replace(/[^a-z0-9_]/gi,'_').slice(0,90);
+            const title=String(p.title||'').replace(/[\r\n\t]/g,' ').slice(0,90);
+            console.warn('MEC_FOLDER_AUDIT FAIL '+JSON.stringify({product_id:p.id,title,price:p.price_clp,folder_id:id,reason}));
+          }
+        }
+      };
+      await Promise.all([worker(),worker()]);
+      console.log('MEC_FOLDER_AUDIT SUMMARY '+JSON.stringify({checked:q.rows.length,good,bad}));
+    }catch(e){console.error('MEC_FOLDER_AUDIT ERROR '+String(e?.message||'unknown').replace(/[^a-z0-9_]/gi,'_').slice(0,100))}
+  },5000);
+
   if(String(process.env.RUN_PILOT_SELFTEST||'')==='1'){
     const {runPilotSelfTest}=require('./pilot-selftest');
     setTimeout(async()=>{

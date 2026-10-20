@@ -5,10 +5,37 @@
 <script>MECAuth.guard({roles:['platform_admin'],bindEstablishment:false,forbiddenToLogin:true});</script>
 <style>
 html:not([data-auth="ok"]) body{visibility:hidden}
-:root{--navy:#003898;--cyan:#13C4D9;--yellow:#FFD200;--ink:#182238;--muted:#6B7280;--line:#E3EAF5}*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(135deg,#f4fbff 0%,#fff 62%,#fff9dc 100%);color:var(--ink)}header{background-color:#fff;background-image:radial-gradient(circle at 12px 12px,rgba(19,196,217,.10) 1.2px,transparent 1.4px),radial-gradient(circle at 5px 5px,rgba(255,210,0,.10) 1px,transparent 1.2px);background-size:28px 28px,36px 36px;border-bottom:1px solid var(--line);padding:18px 24px;display:flex;justify-content:space-between;align-items:center;color:var(--navy)}main{max-width:1100px;margin:auto;padding:24px}.card{background:#fff;border:1px solid #e4e9ef;border-radius:20px;padding:22px;margin-bottom:18px;box-shadow:0 10px 28px rgba(0,56,152,.07)}h1,h2{margin:0 0 14px;color:var(--navy)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.full{grid-column:1/-1}label{font-size:13px;font-weight:800;display:block;margin-bottom:6px;color:#344069}input,textarea,select{width:100%;padding:12px 13px;border:1px solid #cfd7e1;border-radius:11px;font:inherit;background:#fff}input:focus,textarea:focus,select:focus{outline:2px solid rgba(19,196,217,.24);border-color:var(--cyan)}textarea{min-height:90px;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{border:0;border-radius:999px;padding:11px 18px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--navy),#0756d8);color:#fff;box-shadow:0 7px 16px rgba(0,56,152,.18)}button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}.secondary{background:#fff;color:var(--navy);border:1px solid #cbd9ef;box-shadow:none}.product{display:grid;grid-template-columns:90px 1fr auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid #edf0f3}.product img{width:90px;height:70px;object-fit:cover;border-radius:12px;background:#eef2f5}.muted{color:var(--muted);font-size:13px}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e9f8ff;color:var(--navy);font-size:12px;font-weight:900}.card:first-of-type{border-top:5px solid var(--cyan)}.card:nth-of-type(2){border-top:5px solid var(--navy)}.card:nth-of-type(3){border-top:5px solid var(--yellow)}@media(max-width:720px){header{padding:14px 16px;gap:10px}header strong{max-width:65%;line-height:1.2}main{padding:16px 12px}.card{padding:18px 15px}.grid{grid-template-columns:1fr}.full{grid-column:auto}.product{grid-template-columns:70px 1fr}.product>button{grid-column:1/-1}.product img{width:70px;height:60px}}</style><link rel="stylesheet" href="css/portal-footer.css">
+:root{--navy:#003898;--cyan:#13C4D9;--yellow:#FFD200;--ink:#182238;--muted:#6B7280;--line:#E3EAF5}*{box-sizing:border-box}body{margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:linear-gradient(135deg,#f4fbff 0%,#fff 62%,#fff9dc 100%);color:var(--ink)}header{background-color:#fff;background-image:radial-gradient(circle at 12px 12px,rgba(19,196,217,.10) 1.2px,transparent 1.4px),radial-gradient(circle at 5px 5px,rgba(255,210,0,.10) 1px,transparent 1.2px);background-size:28px 28px,36px 36px;border-bottom:1px solid var(--line);padding:18px 24px;display:flex;justify-content:space-between;align-items:center;color:var(--navy)}main{max-width:1100px;margin:auto;padding:24px}.card{background:#fff;border:1px solid #e4e9ef;border-radius:20px;padding:22px;margin-bottom:18px;box-shadow:0 10px 28px rgba(0,56,152,.07)}h1,h2{margin:0 0 14px;color:var(--navy)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.full{grid-column:1/-1}label{font-size:13px;font-weight:800;display:block;margin-bottom:6px;color:#344069}input,textarea,select{width:100%;padding:12px 13px;border:1px solid #cfd7e1;border-radius:11px;font:inherit;background:#fff}input:focus,textarea:focus,select:focus{outline:2px solid rgba(19,196,217,.24);border-color:var(--cyan)}textarea{min-height:90px;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{border:0;border-radius:999px;padding:11px 18px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--navy),#0756d8);color:#fff;box-shadow:0 7px 16px rgba(0,56,152,.18)}button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}.secondary{background:#fff;color:var(--navy);border:1px solid #cbd9ef;box-shadow:none}.product{display:grid;grid-template-columns:90px 1fr auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid #edf0f3}.product img{width:90px;height:70px;object-fit:cover;border-radius:12px;background:#eef2f5}.muted{color:var(--muted);font-size:13px}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e9f8ff;color:var(--navy);font-size:12px;font-weight:900}.card:first-of-type{border-top:5px solid var(--cyan)}.card:nth-of-type(2){border-top:5px solid var(--navy)}.card:nth-of-type(3){border-top:5px solid var(--yellow)}@media(max-width:720px){header{padding:14px 16px;gap:10px}header strong{max-width:65%;line-height:1.2}main{padding:16px 12px}.card{padding:18px 15px}.grid{grid-template-columns:1fr}.full{grid-column:auto}.product{grid-template-columns:70px 1fr}.product>button{grid-column:1/-1}.product img{width:70px;height:60px}}
+/* Panel estadístico protegido: conserva la identidad de administración. */
+.mec-admin-analytics{border-top:5px solid #8351bd!important;background:linear-gradient(115deg,#fff 0%,#fff 70%,#f8f2ff 100%)!important}
+.mec-admin-analytics-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.mec-admin-analytics-top h1{color:#33205b;margin:6px 0 7px}
+.mec-admin-analytics-tag{color:#7940ab;font-size:10px;font-weight:900;letter-spacing:.095em}
+.mec-admin-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:16px 0}
+.mec-admin-stat{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px;min-height:116px;padding:17px 11px;border-radius:16px;background:linear-gradient(145deg,#fff,#f0e7fc);border:1px solid #e2d5f3}
+.mec-admin-stat strong{font-size:clamp(25px,3vw,36px);font-weight:900;line-height:1.07;color:#7135aa;font-variant-numeric:tabular-nums}
+.mec-admin-stat span{font-size:12px;font-weight:800;color:#59416c;line-height:1.35}
+.mec-admin-popular{margin-top:19px;border-top:1px solid #ece2f7;padding-top:16px}
+.mec-admin-popular h2{font-size:18px;color:#342258;margin-bottom:5px}
+.mec-admin-popular-list{margin-top:10px}
+.mec-admin-popular-row{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:10px 0;border-top:1px solid #efe8f7}
+.mec-admin-popular-row span{font-size:13px;color:#463956}
+.mec-admin-popular-row strong{font-size:13px;white-space:nowrap;color:#6c35a5}
+@media(max-width:770px){.mec-admin-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:380px){.mec-admin-stat-grid{grid-template-columns:minmax(0,1fr)}}
+</style><link rel="stylesheet" href="css/portal-footer.css">
 </head>
 <body><header><strong>Material Educativo Chile · Superadministrador · Tienda</strong><div style="display:flex;gap:9px;flex-wrap:wrap"><button class="secondary" onclick="location.href='admin-centro.html'">Centro de administración</button><button class="secondary" onclick="location.href='https://material-educativo-chile-portal.onrender.com'">Volver al portal</button></div></header>
-<main><section class="card"><h1>Cuentas de Google Drive</h1><p class="muted">Conecta de forma segura las cuentas donde alojas tus materiales. La contraseña de Google nunca se entrega ni se almacena en esta plataforma.</p><div id="oauthHelp" class="muted" style="margin:10px 0 16px"></div><div class="grid"><div><label>Nombre para identificar la cuenta</label><input id="driveLabel" placeholder="Ej.: Materiales cuenta 1"></div><div><label>Correo Google</label><input id="driveEmail" type="email" placeholder="correo@gmail.com"></div></div><div class="actions"><button type="button" id="saveDrive">Registrar cuenta Drive</button></div><div id="driveList" class="muted"></div><p id="driveMsg" class="muted"></p></section><section class="card"><h1>Administrar productos</h1><p class="muted">Tú eliges qué materiales publicar. El enlace de Drive se guarda para la entrega posterior al pago y no aparece en el catálogo público.</p>
+<main><section class="card mec-admin-analytics" aria-labelledby="adminAnalyticsTitle">
+<div class="mec-admin-analytics-top"><div><span class="mec-admin-analytics-tag">SOLO SÚPER ADMINISTRADOR</span><h1 id="adminAnalyticsTitle">Estadísticas de la tienda</h1><p class="muted">Indicadores privados, no visibles para los compradores.</p></div><button type="button" class="secondary" id="refreshAdminAnalytics">Actualizar cifras</button></div>
+<div class="mec-admin-stat-grid">
+<div class="mec-admin-stat"><strong data-admin-stat="visitors">—</strong><span>Visitantes del sitio</span></div>
+<div class="mec-admin-stat"><strong data-admin-stat="resource_views">—</strong><span>Visualizaciones de recursos</span></div>
+<div class="mec-admin-stat"><strong data-admin-stat="explored_materials">—</strong><span>Materiales explorados</span></div>
+<div class="mec-admin-stat"><strong data-admin-stat="online">—</strong><span>Visitantes activos</span></div></div>
+<p class="muted" id="adminAnalyticsStatus" role="status" aria-live="polite">Cargando estadísticas…</p>
+<div class="mec-admin-popular"><h2>Materiales más visualizados</h2><p class="muted">Visualizaciones acumuladas desde la activación del registro.</p><div id="adminPopularMaterials" class="mec-admin-popular-list">Cargando materiales…</div></div>
+</section><section class="card"><h1>Cuentas de Google Drive</h1><p class="muted">Conecta de forma segura las cuentas donde alojas tus materiales. La contraseña de Google nunca se entrega ni se almacena en esta plataforma.</p><div id="oauthHelp" class="muted" style="margin:10px 0 16px"></div><div class="grid"><div><label>Nombre para identificar la cuenta</label><input id="driveLabel" placeholder="Ej.: Materiales cuenta 1"></div><div><label>Correo Google</label><input id="driveEmail" type="email" placeholder="correo@gmail.com"></div></div><div class="actions"><button type="button" id="saveDrive">Registrar cuenta Drive</button></div><div id="driveList" class="muted"></div><p id="driveMsg" class="muted"></p></section><section class="card"><h1>Administrar productos</h1><p class="muted">Tú eliges qué materiales publicar. El enlace de Drive se guarda para la entrega posterior al pago y no aparece en el catálogo público.</p>
 <form id="form"><input type="hidden" id="id"><div class="grid">
 <div><label>Nombre del material *</label><input id="title" required></div>
 <div><label>Destinatarios / niveles</label><input id="audience" placeholder="Ej.: 7°–8° básico"></div>
@@ -278,5 +305,35 @@ $('storeOrdersList').addEventListener('click',async e=>{
   }catch(err){$('storeOrdersMessage').textContent='No fue posible reintentar: '+err.message;btn.disabled=false}
 });
 loadStoreOrders();
+
+const mecStatFormatter=new Intl.NumberFormat('es-CL');
+let adminAnalyticsBusy=false;
+async function refreshAdminAnalytics(){
+ if(adminAnalyticsBusy)return;
+ adminAnalyticsBusy=true;
+ const btn=$('refreshAdminAnalytics'),status=$('adminAnalyticsStatus'),list=$('adminPopularMaterials');
+ btn.disabled=true;status.textContent='Actualizando estadísticas privadas…';
+ try{
+  const data=await api('/api/site/analytics/admin'),stats=data.stats||{};
+  for(const name of ['visitors','resource_views','explored_materials','online']){
+   const node=document.querySelector('[data-admin-stat="'+name+'"]'),n=Number(stats[name]);
+   if(node)node.textContent=Number.isSafeInteger(n)&&n>=0?mecStatFormatter.format(n):'—';
+  }
+  list.replaceChildren();
+  const items=Array.isArray(data.most_viewed)?data.most_viewed.slice(0,10):[];
+  if(!items.length){const p=document.createElement('p');p.className='muted';p.textContent='Aún no se registran materiales.';list.appendChild(p)}
+  else for(const item of items){
+   const row=document.createElement('div');row.className='mec-admin-popular-row';
+   const title=document.createElement('span');title.textContent=String(item.title||'Material educativo');
+   const amount=document.createElement('strong'),n=Number(item.views);amount.textContent=mecStatFormatter.format(Number.isFinite(n)&&n>=0?n:0)+' vistas';
+   row.append(title,amount);list.appendChild(row);
+  }
+  status.textContent='Estadísticas actualizadas. Visitantes activos: últimos 5 minutos. Datos desde la activación del registro.';
+ }catch(e){status.textContent='No se pudieron cargar las estadísticas. Utiliza «Actualizar cifras» para reintentar.'}
+ finally{btn.disabled=false;adminAnalyticsBusy=false}
+}
+$('refreshAdminAnalytics').addEventListener('click',refreshAdminAnalytics);
+refreshAdminAnalytics();
+window.setInterval(()=>{if(document.visibilityState==='visible')refreshAdminAnalytics()},120000);
 </script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
 </body></html>

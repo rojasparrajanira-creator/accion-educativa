@@ -351,11 +351,10 @@ body.product-info-open{overflow:hidden}
 .mec-invoice-fields label:first-child{margin-top:0}
 .mec-invoice-fields input{margin-bottom:4px}
 /* Enlaces individuales de materiales: portada destacada sin alterar pagos ni catálogo. */
-.product-link-notice{margin:0 0 18px;padding:15px 18px;background:linear-gradient(115deg,#edfaff,#fff);border:1px solid #a8dfe7;border-radius:16px;color:#0F2D52}
+.product-link-notice{margin:0 0 12px;padding:0;background:none;border:0;border-radius:0;color:#0F2D52}
 .product-link-notice[hidden]{display:none!important}
-.product-link-notice strong{display:block;font-size:16px;line-height:1.4}
-.product-link-notice span{display:block;margin-top:4px;font-size:13px;color:#375b76}
-.product-link-notice button{margin-top:10px;border:1px solid #9ccddd;background:#fff;border-radius:10px;color:#0F2D52;padding:9px 12px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.product-link-notice button{padding:4px 0;margin:0;background:none;border:0;color:#116b7c;font:inherit;font-size:13px;font-weight:650;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.product-link-notice button:hover,.product-link-notice button:focus-visible{color:#06455d;text-decoration-thickness:2px;outline-offset:3px}
 .product-share-button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 12px;padding:12px 10px;background:#f5fbff;color:#096390;border:1.5px solid #b8dfea;border-radius:10px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
 .product-share-button:hover,.product-share-button:focus-visible{background:#e3f6fb;outline:2px solid #71b9d2}
 .product-card.is-individual{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,0.9fr) minmax(0,1.1fr);min-height:440px}
@@ -637,9 +636,7 @@ function renderProducts(){
   const banner=document.getElementById('productLinkNotice');
   if(selectedProductSlug){
     banner.hidden=false;
-    banner.innerHTML=requested
-      ?'<strong>Estás viendo: '+esc(requested.title)+'</strong><span>Ficha del material · revisa su contenido y agrégalo a tu compra cuando quieras.</span><button type="button" data-full-catalog>← Ver todos los materiales</button>'
-      :'<strong>Este material no está disponible en el catálogo.</strong><span>Puedes revisar los recursos publicados.</span><button type="button" data-full-catalog>Ver catálogo completo</button>';
+    banner.innerHTML='<button type="button" data-full-catalog>← Volver al catálogo completo</button>';
   }else{banner.hidden=true;banner.textContent=''}
   document.getElementById('catalogCount').textContent=requested?'1 material seleccionado':filtered.length+' de '+products.length+' materiales';
   if(!filtered.length){

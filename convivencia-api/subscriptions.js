@@ -124,7 +124,7 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
  // Bloquear acciones autenticadas iniciadas desde un sitio ajeno (cookies SameSite=None).
  const origins=new Set(['https://www.materialeducativochile.cl','https://materialeducativochile.cl','https://convivencia-escolar-material-educativo.onrender.com','https://material-educativo-chile-portal.onrender.com',new URL(publicOrigin).origin,...String(env.MEC_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean)]);
  app.use((req,res,next)=>{const related=req.path.startsWith('/api/subscriptions/')||req.path==='/api/auth/request-access'||/^\/api\/auth\/users\/\d+\/send-temporary-key$/.test(req.path);if(related&&req.method!=='GET'&&req.method!=='OPTIONS'&&req.path!=='/api/subscriptions/oneclick/return'&&req.headers.origin&&!origins.has(req.headers.origin))return res.status(403).json({ok:false,error:'origin_forbidden'});next()});
- const mercadoPagoFlow=attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,env});
+ const mercadoPagoFlow=attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,getMailReady:()=>configuration().mailReady,env});
  const limits=rateLimit({windowMs:3600000,max:8});
  app.get('/api/subscriptions/plans',(req,res)=>{const provider=paymentProviderForNew();res.json({ok:true,plans:Object.values(PLANS),period_days:30,payment_provider:provider,payment_ready:paymentReadyFor(provider),oneclick_ready:configuration().ready,mercadopago_ready:mercadoPagoFlow.configuration().ready})});
  app.post('/api/subscriptions/requests',limits,async(req,res)=>{try{

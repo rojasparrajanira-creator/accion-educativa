@@ -3,8 +3,8 @@
 // Inhabilitado por defecto hasta pruebas reales controladas.
 const {createMercadoPagoSubscriptions,verifiedRecurringPayment}=require('./mercadopago-subscriptions');
 const crypto=require('crypto');
-function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,getMailReady=()=>true,env=process.env}){
- const mp=createMercadoPagoSubscriptions({env});
+function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,getMailReady=()=>true,mpOverride=null,env=process.env}){
+ const mp=mpOverride||createMercadoPagoSubscriptions({env});
  const mpReady=()=>mp.configuration().ready&&getMailReady();
  async function synchronize(id){
   if(!mpReady())return {disabled:true};
@@ -18,6 +18,14 @@ function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,qu
       String(pre.auto_recurring?.currency_id)!=='CLP'||
       Number(pre.auto_recurring?.transaction_amount)!==Number(s.price_clp)||
       String(pre.id)!==String(s.mp_preapproval_id))throw Error('mp_preapproval_mismatch');
+   // La cancelación realizada directamente en Mercado Pago también debe detener
+   // futuros cobros locales. Los días ya pagados permanecen disponibles.
+   if(pre.status==='canceled'&&!s.cancelled_at){
+    await c.query("update mec_subscriptions set cancelled_at=now(),next_charge_at=null,status='cancelled',updated_at=now() where id=$1 and cancelled_at is null",[s.id]);
+    await queueMail(c,s.id,s.email,'Suscripción cancelada · Convivencia Escolar',
+     'Mercado Pago confirmó la cancelación de tu suscripción. No se programarán nuevas renovaciones. El acceso pagado se mantiene hasta su vencimiento.');
+    wakeMail();
+   }
    const invoices=await mp.listInvoices(s.mp_preapproval_id);
    const sorted=invoices.sort((a,b)=>new Date(a.date_created||0)-new Date(b.date_created||0));
    let confirmed=0;
@@ -77,7 +85,7 @@ function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,qu
     if(row.mp_preapproval_id){
      const old=await mp.getPreapproval(row.mp_preapproval_id);
      if(old.status!=='pending'||String(old.external_reference)!=='MEC-CONV-'+row.id)throw Error('enrollment_not_available');
-     if(!old.init_point)throw Error('enrollment_not_available');
+     if(!old.init_point||!require('./mercadopago-subscriptions').checkoutUrl(old.init_point))throw Error('enrollment_not_available');
      return {url:old.init_point};
     }
     const created=await mp.createPreapproval({id:row.id,email:row.email,establishmentName:row.establishment_name,

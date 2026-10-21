@@ -1,0 +1,32 @@
+name: Convivencia - Pruebas Mercado Pago
+on:
+  push:
+    branches:
+      - 'feature/convivencia-mercadopago-suscripciones-20261021'
+  pull_request:
+    paths:
+      - 'convivencia-api/**'
+      - 'convivencia-escolar/planes.html'
+      - 'convivencia-escolar/solicitud-cuenta.html'
+      - 'convivencia-escolar/admin-suscripciones.html'
+      - '.github/workflows/convivencia-mercadopago-test.yml'
+permissions:
+  contents: read
+jobs:
+  subscriptions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Comprobar sintaxis del servidor y del proveedor
+        run: |
+          node --check convivencia-api/server.js
+          node --check convivencia-api/subscriptions.js
+          node --check convivencia-api/mercadopago-subscriptions.js
+          node --check convivencia-api/mercadopago-subscription-flow.js
+          node --check convivencia-api/test-mercadopago-subscriptions.cjs
+      - name: Probar integración recurrente aislada, sin pagos reales
+        run: node --test convivencia-api/test-mercadopago-subscriptions.cjs

@@ -1013,6 +1013,16 @@ body:has(.mec-home-main) .footer{background:transparent!important;border-top:1px
  .mec-catalog-quicklinks button{padding:9px 12px;font-size:12px}
  .mec-home-main .mec-featured{padding:20px 0 27px}
 }
+
+/* Portada: abrir ficha desde foto o precio, además del enlace. */
+.mec-product-photo .mec-product-cover-link{display:block;width:100%;height:100%;min-width:0;cursor:pointer}
+.mec-product-photo .mec-product-cover-link img{width:100%;height:100%;object-fit:contain}
+.mec-product-bottom .mec-product-price-link{text-decoration:none;border-radius:5px;cursor:pointer}
+.mec-product-bottom .mec-product-price-link strong{font-size:inherit;color:#163b9d}
+.mec-product-photo .mec-product-cover-link:focus-visible,.mec-product-bottom .mec-product-price-link:focus-visible{outline:3px solid #ffd532;outline-offset:2px}
+body:has(.mec-home-main) .public-header{background:rgba(8,22,91,.42)!important;background-image:none!important;border-bottom:1px solid rgba(232,239,255,.25)!important}
+body:has(.mec-home-main) .public-header .nav a{color:#fff}
+body:has(.mec-home-main) .public-header .nav a:hover{color:#ffdb50}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -1249,7 +1259,7 @@ function portalFeaturedCover(p){
   const href='tienda.html?producto='+encodeURIComponent(p.slug)+'#catalogo';
   return `<a class="mec-featured-cover" href="${href}" aria-label="Ver detalles y comprar ${esc(p.title)}" title="${esc(p.title)}"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></a>`;
 }
-function portalProductCard(p){return `<article class="mec-product"><div class="mec-product-photo"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></div><div class="mec-product-content"><span class="mec-product-level">${esc(p.audience||'Material educativo')}</span><h3>${esc(p.title)}</h3><p>${esc(p.objective||'')}</p><div class="mec-product-bottom"><strong>${clp(p.price_clp)}</strong><a href="tienda.html?producto=${encodeURIComponent(p.slug)}#catalogo" aria-label="Ver y comprar ${esc(p.title)}">Ver y comprar →</a></div></div></article>`}
+function portalProductCard(p){const href=`tienda.html?producto=${encodeURIComponent(p.slug)}#catalogo`;return `<article class="mec-product"><div class="mec-product-photo"><a class="mec-product-cover-link" href="${href}" aria-label="Ver y comprar ${esc(p.title)}"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></a></div><div class="mec-product-content"><span class="mec-product-level">${esc(p.audience||'Material educativo')}</span><h3>${esc(p.title)}</h3><p>${esc(p.objective||'')}</p><div class="mec-product-bottom"><a class="mec-product-price-link" href="${href}" aria-label="Ver precio, ficha y comprar ${esc(p.title)}"><strong>${clp(p.price_clp)}</strong></a><a href="${href}" aria-label="Ver y comprar ${esc(p.title)}">Ver y comprar →</a></div></div></article>`}
 // Filtro de presentación: usa la denominación del producto, sin modificar sus datos.
 function portalMaterialTypeMatch(product,type){
   if(!type)return true;

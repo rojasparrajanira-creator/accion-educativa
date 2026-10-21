@@ -15,18 +15,25 @@ permissions:
 jobs:
   subscriptions:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Comprobar sintaxis del servidor y del proveedor
+      - name: Instalar dependencias solo en entorno de pruebas
+        working-directory: convivencia-api
+        run: npm install --no-audit --no-fund
+      - name: Comprobar sintaxis del servidor y proveedores
+        working-directory: convivencia-api
         run: |
-          node --check convivencia-api/server.js
-          node --check convivencia-api/subscriptions.js
-          node --check convivencia-api/mercadopago-subscriptions.js
-          node --check convivencia-api/mercadopago-subscription-flow.js
-          node --check convivencia-api/test-mercadopago-subscriptions.cjs
-      - name: Probar integración recurrente aislada, sin pagos reales
-        run: node --test convivencia-api/test-mercadopago-subscriptions.cjs
+          node --check server.js
+          node --check subscriptions.js
+          node --check mercadopago-subscriptions.js
+          node --check mercadopago-subscription-flow.js
+          node --check test-mercadopago-integration.cjs
+      - name: Probar Mercado Pago, ciclo integral y regresión Oneclick sin cobros reales
+        working-directory: convivencia-api
+        run: |
+          node --test test-mercadopago-subscriptions.cjs test-mercadopago-integration.cjs
+          node --test test-subscriptions.cjs

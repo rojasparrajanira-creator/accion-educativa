@@ -540,7 +540,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
 const API='https://convivencia-escolar-api.onrender.com';
 const money=v=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0));
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let products=[],cart=[],checkoutReady=false,checkoutProvider='webpay';
+let products=[],cart=[],checkoutReady=false,checkoutProvider='mercadopago';
 let selectedProductSlug=(new URLSearchParams(location.search).get('producto')||'').trim();
 function materialUrl(p){
   const url=new URL('https://materialeducativochile.cl/tienda.html');
@@ -776,18 +776,12 @@ async function createOrder(){
     const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.error||'No fue posible iniciar el pago');
     if(!d.payment_ready||!d.payment?.url)throw new Error(d.message||'Pago no disponible');
-    if(d.provider==='mercadopago'){
-      const u=new URL(d.payment.url);
-      if(u.protocol!=='https:'||!['www.mercadopago.cl','mercadopago.cl','www.mercadopago.com','mercadopago.com'].includes(u.hostname))throw new Error('Destino de pago inválido');
-      msg.textContent='Abriendo Mercado Pago…';
-      location.assign(u.href);
-      return;
-    }
-    if(!d.payment.token)throw new Error('No fue posible abrir Webpay');
-    msg.textContent='Abriendo Webpay…';
-    const form=document.createElement('form');form.method='POST';form.action=d.payment.url;form.style.display='none';
-    const input=document.createElement('input');input.type='hidden';input.name='token_ws';input.value=d.payment.token;form.appendChild(input);
-    document.body.appendChild(form);requestAnimationFrame(()=>form.submit());
+    if(d.provider!=='mercadopago')throw new Error('Mercado Pago no está disponible para este pedido');
+    const u=new URL(d.payment.url);
+    if(u.protocol!=='https:'||!['www.mercadopago.cl','mercadopago.cl','www.mercadopago.com','mercadopago.com'].includes(u.hostname))throw new Error('Destino de pago inválido');
+    msg.textContent='Abriendo Mercado Pago…';
+    location.assign(u.href);
+    return;
   }catch(e){msg.textContent=e.message==='store_private_delivery_unavailable'||e.message==='store_checkout_not_ready'?'Este material aún no tiene habilitada su entrega automática. No se realizó ningún cobro. Escríbenos por Instagram a @materialeducativo.chile para ayudarte con la compra.':'No pudimos abrir el medio de pago: '+e.message;btn.disabled=!checkoutReady||!cart.length}
 }
 function updateDocumentFields(){
@@ -823,16 +817,15 @@ async function paymentResult(){
 paymentResult();
 
 fetch(API+'/api/store/checkout/config').then(r=>r.json()).then(d=>{
-  checkoutReady=!!(d.ok&&d.checkout_ready);
-  checkoutProvider=d.provider==='mercadopago'?'mercadopago':'webpay';
+  checkoutProvider='mercadopago';
+  checkoutReady=!!(d.ok&&d.checkout_ready&&d.provider==='mercadopago');
   const button=document.getElementById('orderBtn'),msg=document.getElementById('cartMsg');
   if(checkoutReady){
-    const label=checkoutProvider==='mercadopago'?'Mercado Pago':'Webpay';
-    document.getElementById('paymentMode').textContent='Pago único y seguro con '+label;
-    button.textContent='Pagar con '+label;
+    document.getElementById('paymentMode').textContent='Pago único y seguro con Mercado Pago';
+    button.textContent='Pagar con Mercado Pago';
     msg.textContent='';
   }else{
-    document.getElementById('paymentMode').textContent=checkoutProvider==='mercadopago'?'Mercado Pago · en preparación':'Compras temporalmente suspendidas';
+    document.getElementById('paymentMode').textContent='Mercado Pago · no disponible temporalmente';
     button.textContent='Pago no disponible';
     msg.textContent='Estamos verificando el sistema de pago y la entrega privada de tus materiales. No se iniciará ningún cobro mientras no esté habilitado.';
   }

@@ -119,14 +119,14 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
    await c.query('commit');wakeMail();return summary(u.rows[0]);
   }catch(e){await c.query('rollback');throw e}
  })}
- const mercadoPagoFlow=attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,env});
  function paymentProviderForNew(){return String(env.MEC_SUBSCRIPTION_PAYMENT_PROVIDER||'oneclick').trim().toLowerCase()==='mercadopago'?'mercadopago':'oneclick'}
  function paymentReadyFor(provider){return provider==='mercadopago'?mercadoPagoFlow.configuration().ready:configuration().ready}
  // Bloquear acciones autenticadas iniciadas desde un sitio ajeno (cookies SameSite=None).
  const origins=new Set(['https://www.materialeducativochile.cl','https://materialeducativochile.cl','https://convivencia-escolar-material-educativo.onrender.com','https://material-educativo-chile-portal.onrender.com',new URL(publicOrigin).origin,...String(env.MEC_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean)]);
  app.use((req,res,next)=>{const related=req.path.startsWith('/api/subscriptions/')||req.path==='/api/auth/request-access'||/^\/api\/auth\/users\/\d+\/send-temporary-key$/.test(req.path);if(related&&req.method!=='GET'&&req.method!=='OPTIONS'&&req.path!=='/api/subscriptions/oneclick/return'&&req.headers.origin&&!origins.has(req.headers.origin))return res.status(403).json({ok:false,error:'origin_forbidden'});next()});
+ const mercadoPagoFlow=attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,env});
  const limits=rateLimit({windowMs:3600000,max:8});
- app.get('/api/subscriptions/plans',(req,res)=>{const provider=paymentProviderForNew();res.json({ok:true,plans:Object.values(PLANS),period_days:30,payment_provider:provider,payment_ready:paymentReadyFor(provider)})});
+ app.get('/api/subscriptions/plans',(req,res)=>{const provider=paymentProviderForNew();res.json({ok:true,plans:Object.values(PLANS),period_days:30,payment_provider:provider,payment_ready:paymentReadyFor(provider),oneclick_ready:configuration().ready,mercadopago_ready:mercadoPagoFlow.configuration().ready})});
  app.post('/api/subscriptions/requests',limits,async(req,res)=>{try{
   const b=req.body||{},plan=PLANS[String(b.plan_code)],rbd=rbdOf(b.rbd),name=String(b.full_name||'').trim(),school=String(b.establishment_name||'').trim(),email=String(b.email||'').trim().toLowerCase(),rut=normalizeRut(b.rut);
   if(!plan||!/^\d{1,6}$/.test(rbd)||Number(rbd)<1||name.length<3||name.length>120||school.length<3||school.length>160||!validRut(rut)||!/^\S+@\S+\.\S+$/.test(email)||email.length>100||b.consent!==true||b.recurring_consent!==true)return res.status(400).json({ok:false,error:'invalid_request'});
@@ -174,8 +174,10 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
  app.get('/api/subscriptions/me',requireAuth,async(req,res)=>{try{const q=await pool.query('select * from mec_subscriptions where establishment_id=$1',[req.auth.establishment_id]);res.json({ok:true,subscription:q.rowCount?summary(q.rows[0]):null})}catch(e){res.status(503).json({ok:false,error:'status_unavailable'})}});
  app.post('/api/subscriptions/cancel',...requireRole('coordinador_convivencia'),async(req,res)=>{try{const q=await pool.query('select id from mec_subscriptions where establishment_id=$1 and user_id=$2',[req.auth.establishment_id,req.auth.id]);if(!q.rowCount)return res.status(403).json({ok:false,error:'owner_required'});res.json({ok:true,subscription:await cancel(q.rows[0].id)})}catch(e){res.status(503).json({ok:false,error:'cancellation_failed'})}});
  app.get('/api/subscriptions/admin',...requireRole('platform_admin'),async(req,res)=>{try{
-  const q=await pool.query(`select s.id,s.rbd,s.establishment_name,s.full_name,s.rut,s.email,s.plan_code,s.student_limit,s.price_clp,s.status,s.created_at,s.access_until,s.cancelled_at,s.activated_at,
-   (select count(*) from mec_subscription_payments p where p.subscription_id=s.id and p.state='authorized')::int approved_payments,
+  const q=await pool.query(`select s.payment_provider,s.id,s.rbd,s.establishment_name,s.full_name,s.rut,s.email,s.plan_code,s.student_limit,s.price_clp,s.status,s.created_at,s.access_until,s.cancelled_at,s.activated_at,
+   (case when s.payment_provider='mercadopago'
+     then (select count(*) from mec_subscription_mp_invoices p where p.subscription_id=s.id)
+     else (select count(*) from mec_subscription_payments p where p.subscription_id=s.id and p.state='authorized') end)::int approved_payments,
    (select count(*) from mec_subscription_payments p where p.subscription_id=s.id and p.state in ('processing','uncertain'))::int uncertain_payments,
    (select count(*) from mec_subscription_mail m where m.subscription_id=s.id and m.status<>'sent')::int pending_emails
    from mec_subscriptions s order by s.created_at desc limit 200`);

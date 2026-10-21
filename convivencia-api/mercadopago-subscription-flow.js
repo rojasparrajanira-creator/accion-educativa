@@ -34,7 +34,7 @@ function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,qu
       confirmed++;
       const current=(await c.query('select * from mec_subscriptions where id=$1',[s.id])).rows[0];
       if(current.cancelled_at){
-       await queueMail(c,s.id,null===null?String(env.MEC_SUBSCRIPTION_NOTIFY_EMAIL||env.MEC_PLATFORM_ADMIN_EMAIL||'accioneducativaspa@gmail.com'):'',
+       await queueMail(c,s.id,String(env.MEC_SUBSCRIPTION_NOTIFY_EMAIL||env.MEC_PLATFORM_ADMIN_EMAIL||'accioneducativaspa@gmail.com'),
         '[MEC] Cobro posterior a cancelación para revisión',
         'Se detectó un pago aprobado en una suscripción cancelada. Revisar posible devolución. Referencia: '+reference);
       }else if(!current.activated_at){

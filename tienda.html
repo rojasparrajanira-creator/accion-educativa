@@ -371,17 +371,77 @@ body.product-info-open{overflow:hidden}
 @media(max-width:850px){.product-card.is-individual{grid-template-columns:1fr}.product-card.is-individual .product-media{min-height:0;padding:12px}.product-card.is-individual .product-image{max-height:380px}.product-card.is-individual .product-body{padding:21px}}
 
 
+
+/* Consistencia editorial MEC · rediseño de tienda sin cambios a checkout */
+html{background:#071454}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-weight:400;
+ background:linear-gradient(100deg,#071454 0%,#133baf 32%,#3a1fa3 65%,#711ece 100%) fixed!important}
+.site-header{background:rgba(6,18,82,.48)!important;border-bottom:1px solid rgba(233,237,255,.25)!important}
+.site-header:after{display:none}
+.site-header .brand-title,.site-header .brand-title span{color:#fff!important;font-weight:650}
+.site-header .brand-title span{color:#dbe9ff!important}
+.site-header .brand img{width:60px;height:60px;box-shadow:none;border:2px solid rgba(255,255,255,.72)}
+.store-header-links{display:flex;align-items:center;gap:10px}
+.store-instagram,.site-header .portal-link{background:rgba(255,255,255,.1);border:1px solid rgba(229,239,255,.5);padding:10px 14px;border-radius:12px;color:#fff!important;text-decoration:none;font-size:13px;font-weight:600}
+.store-instagram:hover,.site-header .portal-link:hover{background:rgba(255,255,255,.21)}
+.hero{margin-top:16px}
+.hero-card{background:rgba(255,255,255,.08)!important;border:1px solid rgba(225,236,255,.22);box-shadow:0 12px 32px rgba(6,12,63,.16)}
+.hero h1{font-weight:650!important;letter-spacing:-.035em!important}
+.hero p{font-weight:400}
+.main{background:transparent!important}
+.section-head h2,.section-head p,.catalog-count{color:#fff!important}
+.section-head h2{font-weight:650;letter-spacing:-.025em}
+.product-card .product-photo-link{display:block;width:100%;text-decoration:none;cursor:pointer}
+.product-card .product-photo-link:hover img{transform:scale(1.015)}
+.product-card .product-photo-link img{transition:transform .18s ease}
+.product-card .product-price-link{display:inline-flex;text-decoration:none;border-bottom:1.5px solid transparent;cursor:pointer}
+.product-card .product-price-link:hover{border-bottom-color:#4432da}
+.product-card .product-price-link:hover .price{color:#4432da}
+.product-card .product-photo-link:focus-visible,.product-card .product-price-link:focus-visible{outline:3px solid #6c42ee;outline-offset:3px}
+.product-card .product-title{font-weight:650;letter-spacing:-.015em}
+.product-card .add-btn{background:linear-gradient(105deg,#6427e9,#2064e8)!important;color:#fff!important;border:2px solid #ffd83e!important;font-size:clamp(13px,1.6vw,15px)!important;font-weight:700!important;
+ padding:13px 14px!important;min-height:46px!important;box-shadow:0 8px 18px rgba(84,35,218,.23)!important}
+.product-card .add-btn:hover{background:linear-gradient(105deg,#7b3cff,#1e81ef)!important}
+.product-card .add-btn:focus-visible,.mec-share-links :is(a,button):focus-visible{outline:3px solid #ffc928;outline-offset:3px}
+.mec-share-box{margin:12px 0 14px;padding:11px;border-radius:12px;background:#f3f5ff;border:1px solid #dfe5fb}
+.mec-share-box p{margin:0 0 10px;color:#30426d;font-size:12px;line-height:1.4;font-weight:550}
+.mec-share-links{display:flex;gap:7px;flex-wrap:wrap}
+.mec-share-links :is(a,button){display:inline-flex;align-items:center;justify-content:center;flex:1 1 auto;min-height:36px;
+ text-decoration:none;background:#fff;color:#234dac;border:1px solid #c5d0ee;border-radius:9px;padding:8px 10px;font:inherit;font-size:12px;font-weight:650;cursor:pointer}
+.mec-share-links :is(a,button):hover{background:#eaf1ff}
+.mec-share-links .product-share-button{width:auto;margin:0;box-shadow:none}
+.store-footer{background:transparent;border-top:1px solid rgba(225,230,255,.35);padding:30px 5% 24px;color:#fff}
+.store-footer-inner{max-width:1120px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.store-footer-brand{display:flex;align-items:center;gap:12px}
+.store-footer-brand img{width:52px;height:52px;object-fit:contain;border-radius:50%}
+.store-footer-brand div{display:flex;flex-direction:column;gap:4px}
+.store-footer-brand strong{font-size:15px;font-weight:650}
+.store-footer-brand span,.store-footer small{font-size:12px;color:#e1eafa}
+.store-footer-links{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.store-footer-links a{color:#fff;font-size:13px;text-decoration:none}
+.store-footer-links a:hover{text-decoration:underline}
+@media(max-width:640px){
+ .site-header .nav{gap:7px;padding:11px 15px}
+ .site-header .brand{gap:8px}
+ .site-header .brand img{width:45px;height:45px}
+ .site-header .brand-title{font-size:14px}
+ .store-header-links{gap:6px}
+ .store-instagram,.site-header .portal-link{padding:8px 9px;font-size:11px}
+ .store-footer-inner{justify-content:center;text-align:center}
+ .store-footer-links{justify-content:center}
+ .mec-share-links :is(a,button){font-size:11px}
+}
 </style>
 </head>
 <body>
-<div class="topbar">Material Educativo Chile · Aprender · Incluir · Transformar</div>
+
 <header class="site-header">
   <nav class="nav">
     <div class="brand">
       <img src="assets/material-educativo/logo-oficial.jpg" alt="Logo Material Educativo Chile">
       <div class="brand-title">Material <span>Educativo Chile</span></div>
     </div>
-    <a class="portal-link" href="index.html">Volver al portal</a>
+    <div class="store-header-links"><a class="store-instagram" href="https://www.instagram.com/materialeducativo.chile/" target="_blank" rel="noopener noreferrer" aria-label="Instagram oficial de Material Educativo Chile">Instagram ↗</a><a class="portal-link" href="index.html">Inicio</a></div>
   </nav>
 </header>
 
@@ -391,16 +451,13 @@ body.product-info-open{overflow:hidden}
       <span class="eyebrow">Tienda oficial · Recursos digitales</span>
       <h1>Recursos educativos digitales que <em>potencian tu trabajo</em> y marcan la diferencia.</h1>
       <p>Materiales prácticos, editables y listos para implementar, creados para ayudarte a ahorrar tiempo, trabajar con mayor claridad y generar intervenciones de mayor impacto.</p>
-      <div class="hero-actions">
-        <a class="hero-btn" href="#catalogo">Ver materiales</a>
-        <a class="hero-btn secondary" href="#valor">Descubre por qué elegirnos</a>
-      </div>
+
     </div>
     <div class="hero-art" aria-hidden="true">
       <div class="mock-stage">
         <div class="mock-sheet s1"></div><div class="mock-sheet s2"></div>
         <div class="hero-product">
-          <img id="heroProductImage" src="assets/material-educativo/logo-oficial.jpg" alt="">
+          <img id="heroProductImage" src="assets/material-educativo/logo-oficial.jpg" alt="" decoding="async" loading="lazy" fetchpriority="low">
           <h3 id="heroProductTitle">Material Educativo Chile</h3>
           <div class="hero-product-price"><strong id="heroProductPrice">Recurso digital</strong><span id="heroProductOld"></span></div>
         </div>
@@ -410,27 +467,6 @@ body.product-info-open{overflow:hidden}
         <span class="doodle d1"><svg viewBox="0 0 40 40"><path d="M9 7h16a4 4 0 0 1 4 4v22H12a5 5 0 0 1-5-5V9a2 2 0 0 1 2-2Z"/><path d="M12 7v26M15 13h9"/></svg></span>
         <span class="doodle d2"><svg viewBox="0 0 40 40"><path d="M20 5a11 11 0 0 0-6 20v4h12v-4A11 11 0 0 0 20 5Z"/><path d="M15 33h10M18 37h4"/></svg></span>
       </div>
-    </div>
-  </div>
-</section>
-
-<section class="trust-wrap">
-  <div class="trust-strip">
-    <div class="trust-item"><div class="trust-icon">✦</div><div><strong>Listo para implementar</strong><span>Menos tiempo preparando desde cero.</span></div></div>
-    <div class="trust-item"><div class="trust-icon">▣</div><div><strong>Material organizado</strong><span>Recursos claros y fáciles de utilizar.</span></div></div>
-    <div class="trust-item"><div class="trust-icon">✓</div><div><strong>Compra segura</strong><span>El pago se confirma de forma segura antes de la entrega.</span></div></div>
-    <div class="trust-item"><div class="trust-icon">✎</div><div><strong>Pensado para educación</strong><span>Diseñado para contextos educativos reales.</span></div></div>
-  </div>
-</section>
-
-
-<section class="value-section" id="valor" aria-label="Ventajas de nuestros materiales">
-  <div class="value-bar">
-    <div class="value-bar-intro"><span class="value-bar-kicker">MATERIAL EDUCATIVO CHILE</span><h2>Más impacto. <span>Menos tiempo.</span></h2></div>
-    <div class="value-bar-points">
-      <div class="value-bar-point"><span class="value-bar-icon" aria-hidden="true">✦</span><div><strong>Ahorra tiempo</strong><span>Recursos preparados</span></div></div>
-      <div class="value-bar-point"><span class="value-bar-icon" aria-hidden="true">✎</span><div><strong>Adáptalo</strong><span>A tu contexto educativo</span></div></div>
-      <div class="value-bar-point"><span class="value-bar-icon" aria-hidden="true">▣</span><div><strong>Implementa</strong><span>Con claridad y orden</span></div></div>
     </div>
   </div>
 </section>
@@ -482,8 +518,16 @@ body.product-info-open{overflow:hidden}
       <p id="cartMsg" class="cart-msg"></p>
     </aside>
   </div>
-  <div class="brand-footer"><img src="assets/material-educativo/logo-oficial.jpg" alt=""><span>Material Educativo Chile · Educación con propósito, recursos que transforman.</span></div>
 </main>
+<footer class="store-footer">
+ <div class="store-footer-inner">
+  <div class="store-footer-brand"><img src="assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile"><div><strong>Material Educativo Chile</strong><span>Recursos educativos que transforman.</span></div></div>
+  <nav class="store-footer-links" aria-label="Enlaces del sitio">
+   <a href="index.html">Inicio</a><a href="index.html#/contacto">Contacto</a><a href="index.html#/blog">Blog</a><a href="index.html#/privacidad">Privacidad</a><a href="https://www.instagram.com/materialeducativo.chile/" target="_blank" rel="noopener noreferrer">Instagram ↗</a>
+  </nav>
+  <small>© 2026 · @materialeducativo.chile</small>
+ </div>
+</footer>
 
 <div id="productInfoBackdrop" class="product-info-backdrop" hidden></div>
 <section id="productInfoPanel" class="product-info-panel" role="dialog" aria-modal="true" aria-labelledby="productInfoTitle" tabindex="-1" hidden>
@@ -496,7 +540,7 @@ body.product-info-open{overflow:hidden}
 const API='https://convivencia-escolar-api.onrender.com';
 const money=v=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0));
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let products=[],cart=[],checkoutReady=false,checkoutProvider='webpay';
+let products=[],cart=[],checkoutReady=false,checkoutProvider='mercadopago';
 let selectedProductSlug=(new URLSearchParams(location.search).get('producto')||'').trim();
 function materialUrl(p){
   const url=new URL('https://materialeducativochile.cl/tienda.html');
@@ -518,10 +562,10 @@ async function copyMaterialLink(slug,button){
     }
   }catch{}
   if(copied){
-    button.textContent='✓ Enlace copiado · listo para enviar';
-    setTimeout(()=>{if(button.isConnected)button.textContent='🔗 Copiar enlace de este material'},3000);
+    button.textContent='✓ Enlace copiado · pégalo en Instagram';
+    setTimeout(()=>{if(button.isConnected)button.textContent='Copiar enlace para Instagram'},4000);
   }else{
-    window.prompt('Copia el enlace de este material para enviarlo al cliente:',url);
+    window.prompt('Copia este enlace y envíaselo a un colega por Instagram o mensajería:',url);
   }
 }
 function leaveIndividualProduct(){
@@ -602,25 +646,30 @@ function renderProducts(){
     root.innerHTML='<p class="catalog-empty">'+(products.length?'No encontramos materiales con esos filtros. Prueba otro título o curso.':'Próximamente encontrarás aquí los materiales publicados.')+'</p>';
     return;
   }
-  root.innerHTML=filtered.map(p=>{
+  root.innerHTML=filtered.map((p,index)=>{
     const includes=splitIncluded(p.included_materials).map(x=>'<li>'+esc(x)+'</li>').join('');
     const saving=savingText(p);
     const individual=!!requested&&Number(requested.id)===Number(p.id);
+    const imageLoading=individual||index<2?'eager':'lazy';
+    const imagePriority=individual||index===0?'high':'low';
     const longDetails=individual
       ?'<div class="product-full-details">'+(p.description?'<h4>¿Qué se trabaja?</h4>'+paragraphs(p.description):'')+(includes?'<h4>Materiales incluidos</h4><ul>'+includes+'</ul>':'')+'</div>'
       :'';
     return '<article class="product-card'+(individual?' is-individual':'')+'">'+
-      '<div class="product-media">'+(p.compare_at_price_clp?'<span class="offer-badge">Oferta especial</span>':'')+'<img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'"></div>'+
+      '<div class="product-media">'+(p.compare_at_price_clp?'<span class="offer-badge">Oferta especial</span>':'')+'<a class="product-photo-link" href="'+esc(materialUrl(p))+'" aria-label="Ver detalles de '+esc(p.title)+'"><img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'" loading="'+imageLoading+'" decoding="async" fetchpriority="'+imagePriority+'"></a></div>'+
       '<div class="product-body">'+
         '<span class="level-tag">'+esc(p.audience||'Material educativo')+'</span>'+
         '<h3 class="product-title">'+esc(p.title)+'</h3>'+
         '<p class="product-objective">'+esc(p.objective||'')+'</p>'+
         '<div class="value-chips"><span>Material digital · listo para implementar</span></div>'+
-        '<div class="price-row"><span class="price">'+money(p.price_clp)+'</span>'+(p.compare_at_price_clp?'<span class="old-price">'+money(p.compare_at_price_clp)+'</span>':'')+'</div>'+
+        '<div class="price-row"><a class="product-price-link" href="'+esc(materialUrl(p))+'" aria-label="Ver ficha y comprar '+esc(p.title)+'"><span class="price">'+money(p.price_clp)+'</span></a>'+(p.compare_at_price_clp?'<span class="old-price">'+money(p.compare_at_price_clp)+'</span>':'')+'</div>'+
         (saving?'<div class="saving">'+esc(saving)+'</div>':'')+
         longDetails+
         '<button class="product-info-trigger" type="button" data-info="'+Number(p.id)+'" aria-haspopup="dialog">Ver todo lo que incluye</button>'+
-        '<button class="product-share-button" type="button" data-share="'+esc(String(p.slug||''))+'" aria-label="Copiar enlace del material '+esc(p.title)+'">🔗 Copiar enlace de este material</button>'+
+        '<div class="mec-share-box"><p>¿Te gustó este material? Compártelo con un colega.</p><div class="mec-share-links">'+
+        '<a href="https://wa.me/?text='+encodeURIComponent('Te comparto este material educativo: '+p.title+' '+materialUrl(p))+'" target="_blank" rel="noopener noreferrer" aria-label="Compartir por WhatsApp">WhatsApp</a>'+
+        '<a href="https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(materialUrl(p))+'" target="_blank" rel="noopener noreferrer" aria-label="Compartir en Facebook">Facebook</a>'+
+        '<button class="product-share-button" type="button" data-share="'+esc(String(p.slug||''))+'" aria-label="Copiar enlace para compartir por Instagram">Copiar enlace para Instagram</button></div></div>'+
         '<button class="add-btn" type="button" data-buy="'+Number(p.id)+'">Agregar a mi compra</button>'+
       '</div></article>';
   }).join('');
@@ -729,18 +778,12 @@ async function createOrder(){
     const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.error||'No fue posible iniciar el pago');
     if(!d.payment_ready||!d.payment?.url)throw new Error(d.message||'Pago no disponible');
-    if(d.provider==='mercadopago'){
-      const u=new URL(d.payment.url);
-      if(u.protocol!=='https:'||!['www.mercadopago.cl','mercadopago.cl','www.mercadopago.com','mercadopago.com'].includes(u.hostname))throw new Error('Destino de pago inválido');
-      msg.textContent='Abriendo Mercado Pago…';
-      location.assign(u.href);
-      return;
-    }
-    if(!d.payment.token)throw new Error('No fue posible abrir Webpay');
-    msg.textContent='Abriendo Webpay…';
-    const form=document.createElement('form');form.method='POST';form.action=d.payment.url;form.style.display='none';
-    const input=document.createElement('input');input.type='hidden';input.name='token_ws';input.value=d.payment.token;form.appendChild(input);
-    document.body.appendChild(form);requestAnimationFrame(()=>form.submit());
+    if(d.provider!=='mercadopago')throw new Error('Mercado Pago no está disponible para este pedido');
+    const u=new URL(d.payment.url);
+    if(u.protocol!=='https:'||!['www.mercadopago.cl','mercadopago.cl','www.mercadopago.com','mercadopago.com'].includes(u.hostname))throw new Error('Destino de pago inválido');
+    msg.textContent='Abriendo Mercado Pago…';
+    location.assign(u.href);
+    return;
   }catch(e){msg.textContent=e.message==='store_private_delivery_unavailable'||e.message==='store_checkout_not_ready'?'Este material aún no tiene habilitada su entrega automática. No se realizó ningún cobro. Escríbenos por Instagram a @materialeducativo.chile para ayudarte con la compra.':'No pudimos abrir el medio de pago: '+e.message;btn.disabled=!checkoutReady||!cart.length}
 }
 function updateDocumentFields(){
@@ -776,16 +819,15 @@ async function paymentResult(){
 paymentResult();
 
 fetch(API+'/api/store/checkout/config').then(r=>r.json()).then(d=>{
-  checkoutReady=!!(d.ok&&d.checkout_ready);
-  checkoutProvider=d.provider==='mercadopago'?'mercadopago':'webpay';
+  checkoutProvider='mercadopago';
+  checkoutReady=!!(d.ok&&d.checkout_ready&&d.provider==='mercadopago');
   const button=document.getElementById('orderBtn'),msg=document.getElementById('cartMsg');
   if(checkoutReady){
-    const label=checkoutProvider==='mercadopago'?'Mercado Pago':'Webpay';
-    document.getElementById('paymentMode').textContent='Pago único y seguro con '+label;
-    button.textContent='Pagar con '+label;
+    document.getElementById('paymentMode').textContent='Pago único y seguro con Mercado Pago';
+    button.textContent='Pagar con Mercado Pago';
     msg.textContent='';
   }else{
-    document.getElementById('paymentMode').textContent=checkoutProvider==='mercadopago'?'Mercado Pago · en preparación':'Compras temporalmente suspendidas';
+    document.getElementById('paymentMode').textContent='Mercado Pago · no disponible temporalmente';
     button.textContent='Pago no disponible';
     msg.textContent='Estamos verificando el sistema de pago y la entrega privada de tus materiales. No se iniciará ningún cobro mientras no esté habilitado.';
   }

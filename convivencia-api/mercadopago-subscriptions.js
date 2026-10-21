@@ -76,8 +76,14 @@ function createMercadoPagoSubscriptions({env=process.env,fetchFn=fetch}={}){
   return result;
  }
  async function listInvoices(preapprovalId){
-  const result=await request('/authorized_payments/search?preapproval_id='+validId(preapprovalId)+'&limit=50');
-  return Array.isArray(result.results)?result.results.filter(x=>String(x.preapproval_id)===String(preapprovalId)):[];
+  const id=validId(preapprovalId),out=[];
+  for(let offset=0;offset<1000;offset+=50){
+    const d=await request('/authorized_payments/search?preapproval_id='+id+'&limit=50&offset='+offset);
+    const rows=Array.isArray(d.results)?d.results:[];
+    out.push(...rows.filter(row=>String(row.preapproval_id)===String(preapprovalId)));
+    if(rows.length<50||Number(d.paging?.total)<=offset+50)return out;
+  }
+  throw Error('subscription_mp_pagination_exceeded');
  }
  async function getInvoice(invoiceId){
   const result=await request('/authorized_payments/'+validInvoiceId(invoiceId));

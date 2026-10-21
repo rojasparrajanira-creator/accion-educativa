@@ -978,7 +978,14 @@ body:has(.mec-hero) .mec-hero-shop .mec-shop-quicklinks button:hover{
 
 /* Rediseño de portada · 2026-10-21 · sólo componentes públicos */
 body:has(.mec-home-main),body:has(.mec-home-main) .mec-home-main{
-  background:linear-gradient(100deg,#071454 0%,#133baf 32%,#3a1fa3 65%,#711ece 100%) fixed!important;
+  /* Trama diagonal fina y micropuntos sobre un degradado azul, verde y turquesa. */
+  background:
+    radial-gradient(ellipse at 15% 22%,rgba(42,255,163,.20) 0%,transparent 43%),
+    radial-gradient(ellipse at 81% 38%,rgba(0,224,219,.16) 0%,transparent 46%),
+    repeating-linear-gradient(135deg,rgba(255,255,255,.024) 0px,rgba(255,255,255,.024) 1px,transparent 1px,transparent 27px),
+    radial-gradient(circle,rgba(255,255,255,.047) 1px,transparent 1.7px),
+    linear-gradient(104deg,#071848 0%,#0b426f 34%,#183e86 65%,#48228e 100%) fixed!important;
+  background-size:auto,auto,auto,26px 26px,auto!important;
 }
 .mec-home-main .mec-featured,.mec-home-main .mec-catalog,.mec-home-main .mec-platforms{
   background:transparent!important;
@@ -1024,18 +1031,18 @@ body:has(.mec-home-main) .public-header{background:rgba(8,22,91,.42)!important;b
 body:has(.mec-home-main) .public-header .nav a{color:#fff}
 body:has(.mec-home-main) .public-header .nav a:hover{color:#ffdb50}
 
-/* Bienvenida de la tienda: colores flúor definidos, sin resplandor neón. Solo presentación. */
+/* Bienvenida de la tienda: verde y turquesa flúor, sin resplandor neón. Solo presentación. */
 .mec-welcome{padding:clamp(26px,4.5vw,55px) 0 18px;background:transparent;color:#fff}
 .mec-welcome-inner{max-width:1100px;margin-inline:auto}
-.mec-welcome-kicker{margin:0 0 15px;color:#7dfbed;letter-spacing:.14em;font-size:clamp(11px,1.25vw,14px);font-weight:700}
+.mec-welcome-kicker{margin:0 0 15px;color:#a7ffb5;letter-spacing:.14em;font-size:clamp(11px,1.25vw,14px);font-weight:700}
 .mec-welcome-title{margin:0 0 21px;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-weight:800;letter-spacing:-.044em;line-height:1.11;text-wrap:balance}
-.mec-welcome-title .mec-word-encuentra{display:block;font-size:clamp(50px,8.2vw,98px);background:linear-gradient(100deg,#00ffd5 5%,#3cf1ff 59%,#91f7ff 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.mec-welcome-title .mec-word-encuentra{display:block;font-size:clamp(50px,8.2vw,98px);background:linear-gradient(102deg,#aeff50 0%,#51ff8b 33%,#00edc7 72%,#34eaff 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .mec-welcome-title-rest{display:block;font-size:clamp(33px,4.8vw,59px);line-height:1.23}
 .mec-welcome-title-rest>span{display:inline-block;white-space:nowrap}
 .mec-welcome-title .mec-word-el{color:#fff}
-.mec-welcome-title .mec-word-material{background:linear-gradient(105deg,#ff45b5 0%,#e466ff 48%,#9763ff 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.mec-welcome-title .mec-word-que{background:linear-gradient(95deg,#fff25a 0%,#cbff45 54%,#86ff75 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.mec-welcome-title .mec-word-necesitas{background:linear-gradient(100deg,#55aeff 0%,#37d7ff 55%,#1affce 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.mec-welcome-title .mec-word-material{background:linear-gradient(104deg,#82ff5a 0%,#25ffa2 48%,#00d9db 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.mec-welcome-title .mec-word-que{background:linear-gradient(95deg,#d1ff62 0%,#8dff6b 54%,#39f9bb 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.mec-welcome-title .mec-word-necesitas{background:linear-gradient(100deg,#4cff9a 0%,#00efce 50%,#6deaff 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .mec-welcome-promise,.mec-welcome-description{color:#fff!important;max-width:950px;line-height:1.5}
 .mec-welcome-promise{font-size:clamp(17px,2.05vw,23px);font-weight:500;margin:0 0 8px}
 .mec-welcome-promise strong{font-weight:750}

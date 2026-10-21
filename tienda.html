@@ -457,7 +457,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
       <div class="mock-stage">
         <div class="mock-sheet s1"></div><div class="mock-sheet s2"></div>
         <div class="hero-product">
-          <img id="heroProductImage" src="assets/material-educativo/logo-oficial.jpg" alt="">
+          <img id="heroProductImage" src="assets/material-educativo/logo-oficial.jpg" alt="" decoding="async" loading="lazy" fetchpriority="low">
           <h3 id="heroProductTitle">Material Educativo Chile</h3>
           <div class="hero-product-price"><strong id="heroProductPrice">Recurso digital</strong><span id="heroProductOld"></span></div>
         </div>
@@ -646,15 +646,17 @@ function renderProducts(){
     root.innerHTML='<p class="catalog-empty">'+(products.length?'No encontramos materiales con esos filtros. Prueba otro título o curso.':'Próximamente encontrarás aquí los materiales publicados.')+'</p>';
     return;
   }
-  root.innerHTML=filtered.map(p=>{
+  root.innerHTML=filtered.map((p,index)=>{
     const includes=splitIncluded(p.included_materials).map(x=>'<li>'+esc(x)+'</li>').join('');
     const saving=savingText(p);
     const individual=!!requested&&Number(requested.id)===Number(p.id);
+    const imageLoading=individual||index<2?'eager':'lazy';
+    const imagePriority=individual||index===0?'high':'low';
     const longDetails=individual
       ?'<div class="product-full-details">'+(p.description?'<h4>¿Qué se trabaja?</h4>'+paragraphs(p.description):'')+(includes?'<h4>Materiales incluidos</h4><ul>'+includes+'</ul>':'')+'</div>'
       :'';
     return '<article class="product-card'+(individual?' is-individual':'')+'">'+
-      '<div class="product-media">'+(p.compare_at_price_clp?'<span class="offer-badge">Oferta especial</span>':'')+'<a class="product-photo-link" href="'+esc(materialUrl(p))+'" aria-label="Ver detalles de '+esc(p.title)+'"><img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'"></a></div>'+
+      '<div class="product-media">'+(p.compare_at_price_clp?'<span class="offer-badge">Oferta especial</span>':'')+'<a class="product-photo-link" href="'+esc(materialUrl(p))+'" aria-label="Ver detalles de '+esc(p.title)+'"><img class="product-image" src="'+esc(p.image_url||'')+'" alt="'+esc(p.title||'Material educativo')+'" loading="'+imageLoading+'" decoding="async" fetchpriority="'+imagePriority+'"></a></div>'+
       '<div class="product-body">'+
         '<span class="level-tag">'+esc(p.audience||'Material educativo')+'</span>'+
         '<h3 class="product-title">'+esc(p.title)+'</h3>'+

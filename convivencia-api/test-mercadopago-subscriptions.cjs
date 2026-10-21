@@ -63,3 +63,41 @@ test('No se invoca un cobro si Mercado Pago todavía no está habilitado',async(
  await assert.rejects(service.createPreapproval({id:'82cd056c-d53a-43a0-884a-acaa68c47a1f',email:'prueba@example.test',amountClp:12990,backUrl:'https://example.test'}),/not_ready/);
  assert.equal(invoked,0);
 });
+
+
+test('La conciliación recorre páginas completas sin mezclar facturas ajenas',async()=>{
+ const seen=[],wanted='pre-abc';
+ const service=createMercadoPagoSubscriptions({env:settings,fetchFn:async(url)=>{
+   seen.push(url);
+   const offset=Number(new URL(url).searchParams.get('offset')||0);
+   const results=offset===0
+    ?Array.from({length:50},(_,i)=>({id:i+1,preapproval_id:i===0?'otro':wanted}))
+    :[{id:51,preapproval_id:wanted}];
+   return {ok:true,json:async()=>({paging:{offset,total:51},results})};
+ }});
+ const invoices=await service.listInvoices(wanted);
+ assert.equal(seen.length,2);
+ assert.equal(invoices.length,50);
+ assert.ok(invoices.every(x=>x.preapproval_id===wanted));
+});
+test('Rechazos, pagos de prueba y referencias incorrectas no habilitan acceso',()=>{
+ const invoice={id:610,preapproval_id:'p1',external_reference:'MEC-CONV-abc',currency_id:'CLP',
+  transaction_amount:22990,payment:{id:100,status:'approved'}};
+ const payment={id:100,live_mode:true,status:'approved',currency_id:'CLP',transaction_amount:22990};
+ const link={preapprovalId:'p1',externalReference:'MEC-CONV-abc',amountClp:22990};
+ for(const mismatch of [
+  {invoice:{...invoice,currency_id:'ARS'},payment},
+  {invoice,payment:{...payment,status:'pending'}},
+  {invoice,payment:{...payment,transaction_amount:12990}},
+  {invoice:{...invoice,external_reference:'MEC-CONV-other'},payment},
+  {invoice,payment:{...payment,id:999}},
+  {invoice,payment:{...payment,live_mode:false}}
+ ])assert.equal(verifiedRecurringPayment(mismatch.invoice,mismatch.payment,link),false);
+});
+test('Cancelación abortada no se registra como confirmada',async()=>{
+ const api=createMercadoPagoSubscriptions({env:settings,fetchFn:async(url)=>{
+  if(url.includes('/preapproval/'))return {ok:true,json:async()=>({id:'sub-123',status:'authorized'})};
+  throw Error('unexpected');
+ }});
+ await assert.rejects(api.cancelPreapproval('sub-123'),/unconfirmed/);
+});

@@ -3,9 +3,9 @@
 // Inhabilitado por defecto hasta pruebas reales controladas.
 const {createMercadoPagoSubscriptions,verifiedRecurringPayment}=require('./mercadopago-subscriptions');
 const crypto=require('crypto');
-function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,env=process.env}){
+function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,getMailReady=()=>true,env=process.env}){
  const mp=createMercadoPagoSubscriptions({env});
- const mpReady=()=>mp.configuration().ready;
+ const mpReady=()=>mp.configuration().ready&&getMailReady();
  async function synchronize(id){
   if(!mpReady())return {disabled:true};
   return locked(id,async c=>{
@@ -14,6 +14,7 @@ function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,qu
    const pre=await mp.getPreapproval(s.mp_preapproval_id);
    const reference='MEC-CONV-'+s.id;
    if(String(pre.external_reference)!==reference||
+      Number(pre.auto_recurring?.frequency)!==30||String(pre.auto_recurring?.frequency_type)!=='days'||
       String(pre.auto_recurring?.currency_id)!=='CLP'||
       Number(pre.auto_recurring?.transaction_amount)!==Number(s.price_clp)||
       String(pre.id)!==String(s.mp_preapproval_id))throw Error('mp_preapproval_mismatch');
@@ -54,6 +55,7 @@ function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,qu
      await c.query('commit');
     }catch(e){await c.query('rollback');throw e}
    }
+   await c.query('update mec_subscriptions set mp_last_checked_at=now() where id=$1',[s.id]);
    if(confirmed)wakeMail();
    return {confirmed,checked:sorted.length};
   });
@@ -116,10 +118,10 @@ function attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,qu
  });
  async function worker(){
   if(!mpReady())return;
-  const rows=await pool.query("select id from mec_subscriptions where payment_provider='mercadopago' and mp_preapproval_id is not null and cancelled_at is null order by updated_at asc limit 25");
+  const rows=await pool.query("select id from mec_subscriptions where payment_provider='mercadopago' and mp_preapproval_id is not null and cancelled_at is null order by mp_last_checked_at asc nulls first limit 25");
   for(const s of rows.rows){try{await synchronize(s.id)}catch(e){console.error('Mercado Pago subscription reconciliation needs review')}}
  }
  function startWorkers(){const timer=setInterval(()=>worker().catch(()=>{}),5*60000);timer.unref()}
- return {configuration:mp.configuration,synchronize,beforeCancel,startWorkers};
+ return {configuration:()=>({...mp.configuration(),ready:mpReady()}),synchronize,beforeCancel,startWorkers};
 }
 module.exports={attachMercadoPagoSubscriptions};

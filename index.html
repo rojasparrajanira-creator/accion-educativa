@@ -938,6 +938,43 @@ body:has(.mec-hero) .mec-hero-shop .mec-shop-quicklinks button:hover{
   .mec-shop-community-note{margin-left:0;flex-basis:100%;font-size:9px}
 }
 
+
+/* Portada: miniaturas clicables de los más vendidos; las fichas completas permanecen en el catálogo. */
+.mec-featured #featuredIntro{display:none}
+.mec-featured #portalFeatured{
+  grid-template-columns:repeat(4,minmax(0,160px));
+  justify-content:center;
+  gap:14px;
+  margin-top:18px;
+}
+.mec-featured #portalFeatured .mec-featured-cover{
+  display:block;
+  width:100%;
+  aspect-ratio:1/1;
+  overflow:hidden;
+  border-radius:13px;
+  background:#fff;
+  border:1px solid rgba(173,196,237,.65);
+  box-shadow:0 6px 18px rgba(9,21,83,.16);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.mec-featured #portalFeatured .mec-featured-cover img{
+  display:block;width:100%;height:100%;object-fit:contain;
+}
+.mec-featured #portalFeatured .mec-featured-cover:hover{
+  transform:translateY(-3px);box-shadow:0 10px 22px rgba(9,21,83,.24);
+}
+.mec-featured #portalFeatured .mec-featured-cover:focus-visible{
+  outline:3px solid #8ed8ff;outline-offset:3px;
+}
+@media(max-width:600px){
+  .mec-featured #portalFeatured{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px;
+    margin-top:12px;
+  }
+  .mec-featured #portalFeatured .mec-featured-cover{border-radius:9px}
+}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -1201,6 +1238,10 @@ function portalCourseMatch(audience,course){
   for(let i=0;i<found.length-1;i++)if(/\b(a|hasta)\b/.test(a.slice(found[i].end,found[i+1].start))&&idx>=found[i].index&&idx<=found[i+1].index)return true;
   return false;
 }
+function portalFeaturedCover(p){
+  const href='tienda.html?producto='+encodeURIComponent(p.slug)+'#catalogo';
+  return `<a class="mec-featured-cover" href="${href}" aria-label="Ver detalles y comprar ${esc(p.title)}" title="${esc(p.title)}"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></a>`;
+}
 function portalProductCard(p){return `<article class="mec-product"><div class="mec-product-photo"><img src="${esc(portalImageUrl(p.image_url))}" loading="lazy" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></div><div class="mec-product-content"><span class="mec-product-level">${esc(p.audience||'Material educativo')}</span><h3>${esc(p.title)}</h3><p>${esc(p.objective||'')}</p><div class="mec-product-bottom"><strong>${clp(p.price_clp)}</strong><a href="tienda.html?producto=${encodeURIComponent(p.slug)}#catalogo" aria-label="Ver y comprar ${esc(p.title)}">Ver y comprar →</a></div></div></article>`}
 // Filtro de presentación: usa la denominación del producto, sin modificar sus datos.
 function portalMaterialTypeMatch(product,type){
@@ -1250,7 +1291,7 @@ async function hydratePortal(){
     const featured=sold.length?sold.slice(0,4):portalProducts.slice(0,4);
     if($('#featuredTitle'))$('#featuredTitle').textContent=sold.length?'Los más vendidos':'Materiales destacados';
     if($('#featuredIntro'))$('#featuredIntro').textContent=sold.length?'Los materiales con más unidades vendidas en nuestra tienda.':'Conoce algunos de nuestros materiales publicados.';
-    if($('#portalFeatured'))$('#portalFeatured').innerHTML=featured.length?featured.map(portalProductCard).join(''):'<p class="mec-loading">Los materiales aparecerán aquí cuando estén publicados.</p>';
+    if($('#portalFeatured'))$('#portalFeatured').innerHTML=featured.length?featured.map(portalFeaturedCover).join(''):'<p class="mec-loading">Los materiales aparecerán aquí cuando estén publicados.</p>';
   }catch(e){
     if($('#portalProducts'))$('#portalProducts').innerHTML='<div class="mec-catalog-empty">No pudimos cargar el catálogo en este momento. <a href="tienda.html">Revisar la tienda</a>.</div>';
     if($('#portalCatalogStatus'))$('#portalCatalogStatus').textContent='Catálogo temporalmente no disponible';

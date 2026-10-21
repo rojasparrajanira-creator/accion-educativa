@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS mec_password_recoveries (
 -- Mercado Pago para suscripciones. Las cuentas históricas Oneclick no se migran automáticamente.
 ALTER TABLE mec_subscriptions ADD COLUMN IF NOT EXISTS payment_provider TEXT NOT NULL DEFAULT 'oneclick';
 ALTER TABLE mec_subscriptions ADD COLUMN IF NOT EXISTS mp_preapproval_id TEXT;
+ALTER TABLE mec_subscriptions ADD COLUMN IF NOT EXISTS mp_last_checked_at TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS mec_subscription_mp_preapproval_unique ON mec_subscriptions(mp_preapproval_id) WHERE mp_preapproval_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS mec_subscription_mp_invoices (
  invoice_id TEXT PRIMARY KEY,

@@ -96,8 +96,8 @@ function createMercadoPagoSubscriptions({env=process.env,fetchFn=fetch}={}){
   return result;
  }
  async function cancelPreapproval(id){
-  const result=await request('/preapproval/'+validId(id),{method:'PUT',body:{status:'canceled'}});
-  if(String(result.id)!==String(id)||result.status!=='canceled')throw Error('subscription_mp_cancellation_unconfirmed');
+  const result=await request('/preapproval/'+validId(id),{method:'PUT',body:{status:'cancelled'}});
+  if(String(result.id)!==String(id)||result.status!=='cancelled')throw Error('subscription_mp_cancellation_unconfirmed');
   return result;
  }
  function webhookValid(req){

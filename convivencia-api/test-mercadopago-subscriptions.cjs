@@ -52,8 +52,8 @@ test('Crear suscripción genera referencia segura y recurrencia cada 30 días',a
  assert.ok(calls[0].opts.headers['X-Idempotency-Key'].includes(id));
 });
 test('Cancelación externa requiere confirmación de Mercado Pago',async()=>{
- const service=createMercadoPagoSubscriptions({env:settings,fetchFn:async()=>({ok:true,json:async()=>({id:'sub123',status:'canceled'})})});
- assert.equal((await service.cancelPreapproval('sub123')).status,'canceled');
+ const service=createMercadoPagoSubscriptions({env:settings,fetchFn:async()=>({ok:true,json:async()=>({id:'sub123',status:'cancelled'})})});
+ assert.equal((await service.cancelPreapproval('sub123')).status,'cancelled');
  const failed=createMercadoPagoSubscriptions({env:settings,fetchFn:async()=>({ok:true,json:async()=>({id:'sub123',status:'authorized'})})});
  await assert.rejects(failed.cancelPreapproval('sub123'),/unconfirmed/);
 });

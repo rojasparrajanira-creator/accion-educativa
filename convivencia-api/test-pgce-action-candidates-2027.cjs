@@ -44,9 +44,14 @@ test('todos los enfoques de acción tienen guías y vínculos normativos, no fec
   assert.equal(def.questions.length,2);
   assert.ok(DIMENSIONS[id].clauses.length>0);
  }
- const example=Object.entries(DIMENSIONS).map(([id,definition])=>({
-  id,review_topics:[{audience:'estudiantes',evidence_ref:'PGCE-EST-2027-M1-7-8-'+id,
-   favorable_band:'50–74 %'}]}));
+ const example=Object.entries(DIMENSIONS).map(([id,definition])=>{
+  if(definition.student.length)return {id,review_topics:[
+   {audience:'estudiantes',evidence_ref:'PGCE-EST-2027-M1-7-8-'+id,favorable_band:'50–74 %'}]};
+  const adult=Object.entries(bank.audiences).flatMap(([audience,b])=>
+   b.items.filter(q=>q.dimension===id).map(q=>({audience,question_id:q.id,favorable_band:'50–74 %'})))[0];
+  assert.ok(adult,'Debe existir fuente adulta para '+id);
+  return {id,review_topics:[adult]};
+ });
  const out=createActionCandidates({dimensions:example,student_measurement_code:'M1'});
  assert.equal(out.actions.length,10);
  assert.ok(out.actions.every(x=>x.measurement_code==='M1'&&x.can_be_added_without_review===false));

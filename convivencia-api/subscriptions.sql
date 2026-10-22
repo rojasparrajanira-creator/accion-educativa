@@ -48,3 +48,18 @@ CREATE TABLE IF NOT EXISTS mec_subscription_cancellation_tokens (
 CREATE TABLE IF NOT EXISTS mec_password_recoveries (
  user_id BIGINT PRIMARY KEY REFERENCES users(id),password_hash TEXT NOT NULL,password_salt TEXT NOT NULL,expires_at TIMESTAMPTZ NOT NULL,created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+
+-- Mercado Pago para suscripciones. Las cuentas históricas Oneclick no se migran automáticamente.
+ALTER TABLE mec_subscriptions ADD COLUMN IF NOT EXISTS payment_provider TEXT NOT NULL DEFAULT 'oneclick';
+ALTER TABLE mec_subscriptions ADD COLUMN IF NOT EXISTS mp_preapproval_id TEXT;
+ALTER TABLE mec_subscriptions ADD COLUMN IF NOT EXISTS mp_last_checked_at TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS mec_subscription_mp_preapproval_unique ON mec_subscriptions(mp_preapproval_id) WHERE mp_preapproval_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS mec_subscription_mp_invoices (
+ invoice_id TEXT PRIMARY KEY,
+ subscription_id UUID NOT NULL REFERENCES mec_subscriptions(id),
+ payment_id TEXT NOT NULL UNIQUE,
+ amount_clp INT NOT NULL CHECK(amount_clp>0),
+ paid_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS mec_subscription_mp_invoices_by_subscription ON mec_subscription_mp_invoices(subscription_id,paid_at);

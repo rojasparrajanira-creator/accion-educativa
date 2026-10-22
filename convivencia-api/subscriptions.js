@@ -1,8 +1,9 @@
 'use strict';
 const crypto=require('crypto');
+const {attachMercadoPagoSubscriptions}=require('./mercadopago-subscription-flow');
 const {Oneclick,Options,Environment,TransactionDetail}=require('transbank-sdk');
 const {PLANS,hash,cipher,authorized,active,temporaryExpired,nextPeriod}=require('./subscription-domain');
-function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePassword,validRut,normalizeRut,env=process.env,gatewayOverride,mailOverride,lockOverride}){
+function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePassword,validRut,normalizeRut,env=process.env,gatewayOverride,mailOverride,lockOverride,mercadoPagoOverride}){
  const vault=cipher(env.MEC_SUBSCRIPTION_ENCRYPTION_KEY||env.MEC_GOOGLE_TOKEN_ENCRYPTION_KEY);
  const publicOrigin=String(env.MEC_SUBSCRIPTION_WEB_ORIGIN||'https://www.materialeducativochile.cl/convivencia-escolar').replace(/\/$/,'');
  const apiOrigin=String(env.MEC_SUBSCRIPTION_API_ORIGIN||'https://convivencia-escolar-api.onrender.com').replace(/\/$/,'');
@@ -47,7 +48,7 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
  async function getByToken(token){if(typeof token!=='string'||token.length<32||token.length>100)return null;const q=await pool.query('select * from mec_subscriptions where management_token_hash=$1 or id in (select subscription_id from mec_subscription_cancellation_tokens where token_hash=$1)',[hash(token)]);return q.rows[0]||null}
  function rbdOf(value){const raw=String(value||'').trim();return /^\d{1,6}(?:-[0-9Kk])?$/.test(raw)?String(Number(raw.split('-')[0])):''}
  async function cancellationLink(c,id){const token=crypto.randomBytes(32).toString('base64url');await c.query('insert into mec_subscription_cancellation_tokens(id,subscription_id,token_hash) values($1,$2,$3)',[crypto.randomUUID(),id,hash(token)]);return '\n\nCancelar suscripción de Plataforma de Convivencia Escolar:\n'+publicOrigin+'/cancelar-suscripcion.html#'+token}
- function summary(s){return {id:s.id,plan_code:s.plan_code,student_limit:s.student_limit,price_clp:s.price_clp,status:s.status,activated_at:s.activated_at,access_until:s.access_until,next_charge_at:s.next_charge_at,cancelled_at:s.cancelled_at,access_active:active(s)}}
+ function summary(s){return {payment_provider:s.payment_provider||'oneclick',id:s.id,plan_code:s.plan_code,student_limit:s.student_limit,price_clp:s.price_clp,status:s.status,activated_at:s.activated_at,access_until:s.access_until,next_charge_at:s.next_charge_at,cancelled_at:s.cancelled_at,access_active:active(s)}}
  function paymentDestination(id,status){return publicOrigin+'/solicitud-cuenta.html?solicitud='+encodeURIComponent(id)+'&resultado='+status}
  async function charge(id,initial=false){return locked(id,async c=>{
   const sq=await c.query('select * from mec_subscriptions where id=$1',[id]);const s=sq.rows[0];
@@ -103,7 +104,11 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
   }catch(e){await c.query('rollback');throw e}
   wakeMail();return {approved,declined:!approved};
  })}
- async function cancel(id){return locked(id,async c=>{
+ async function cancel(id){
+ const existing=(await pool.query('select * from mec_subscriptions where id=$1',[id])).rows[0];
+ if(!existing)throw Error('subscription_not_found');
+ if(!existing.cancelled_at)await mercadoPagoFlow.beforeCancel(existing);
+ return locked(id,async c=>{
   const q=await c.query('select * from mec_subscriptions where id=$1',[id]);const s=q.rows[0];if(!s)throw Error('subscription_not_found');
   if(s.cancelled_at)return summary(s);
   await c.query('begin');
@@ -114,25 +119,30 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
    await c.query('commit');wakeMail();return summary(u.rows[0]);
   }catch(e){await c.query('rollback');throw e}
  })}
+ function paymentProviderForNew(){return String(env.MEC_SUBSCRIPTION_PAYMENT_PROVIDER||'oneclick').trim().toLowerCase()==='mercadopago'?'mercadopago':'oneclick'}
+ function paymentReadyFor(provider){return provider==='mercadopago'?mercadoPagoFlow.configuration().ready:configuration().ready}
  // Bloquear acciones autenticadas iniciadas desde un sitio ajeno (cookies SameSite=None).
  const origins=new Set(['https://www.materialeducativochile.cl','https://materialeducativochile.cl','https://convivencia-escolar-material-educativo.onrender.com','https://material-educativo-chile-portal.onrender.com',new URL(publicOrigin).origin,...String(env.MEC_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean)]);
  app.use((req,res,next)=>{const related=req.path.startsWith('/api/subscriptions/')||req.path==='/api/auth/request-access'||/^\/api\/auth\/users\/\d+\/send-temporary-key$/.test(req.path);if(related&&req.method!=='GET'&&req.method!=='OPTIONS'&&req.path!=='/api/subscriptions/oneclick/return'&&req.headers.origin&&!origins.has(req.headers.origin))return res.status(403).json({ok:false,error:'origin_forbidden'});next()});
+ const mercadoPagoFlow=attachMercadoPagoSubscriptions({app,pool,getByToken,locked,rateLimit,queueMail,wakeMail,publicOrigin,getMailReady:()=>configuration().mailReady,mpOverride:mercadoPagoOverride,env});
  const limits=rateLimit({windowMs:3600000,max:8});
- app.get('/api/subscriptions/plans',(req,res)=>{const c=configuration();res.json({ok:true,plans:Object.values(PLANS),period_days:30,payment_ready:c.ready})});
+ app.get('/api/subscriptions/plans',(req,res)=>{const provider=paymentProviderForNew();res.json({ok:true,plans:Object.values(PLANS),period_days:30,payment_provider:provider,payment_ready:paymentReadyFor(provider),oneclick_ready:configuration().ready,mercadopago_ready:mercadoPagoFlow.configuration().ready})});
  app.post('/api/subscriptions/requests',limits,async(req,res)=>{try{
   const b=req.body||{},plan=PLANS[String(b.plan_code)],rbd=rbdOf(b.rbd),name=String(b.full_name||'').trim(),school=String(b.establishment_name||'').trim(),email=String(b.email||'').trim().toLowerCase(),rut=normalizeRut(b.rut);
   if(!plan||!/^\d{1,6}$/.test(rbd)||Number(rbd)<1||name.length<3||name.length>120||school.length<3||school.length>160||!validRut(rut)||!/^\S+@\S+\.\S+$/.test(email)||email.length>100||b.consent!==true||b.recurring_consent!==true)return res.status(400).json({ok:false,error:'invalid_request'});
   const exists=await pool.query("select id from establishments where regexp_replace(split_part(rbd,'-',1),'^0+','')=$1",[rbd]);if(exists.rowCount)return res.status(409).json({ok:false,error:'rbd_already_registered'});
   const id=crypto.randomUUID(),token=crypto.randomBytes(32).toString('base64url');
-  await pool.query('insert into mec_subscriptions(id,rbd,establishment_name,full_name,rut,email,plan_code,student_limit,price_clp,management_token_hash,username,recurring_consent_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now())',[id,rbd,school,name,rut,email,plan.code,plan.student_limit,plan.price_clp,hash(token),'mec-'+id]);
+  const provider=paymentProviderForNew();
+  await pool.query('insert into mec_subscriptions(id,rbd,establishment_name,full_name,rut,email,plan_code,student_limit,price_clp,management_token_hash,username,recurring_consent_at,payment_provider) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now(),$12)',[id,rbd,school,name,rut,email,plan.code,plan.student_limit,plan.price_clp,hash(token),'mec-'+id,provider]);
   const manageUrl=publicOrigin+'/cancelar-suscripcion.html#'+token;
   await queueMail(pool,id,notifyEmail,'[MEC] Nueva solicitud de cuenta','Nueva solicitud de '+school+' (RBD '+rbd+'). Plan hasta '+plan.student_limit+' estudiantes, $'+plan.price_clp+' cada 30 días. El pago aún no está aprobado. Revisa '+publicOrigin+'/admin-centro.html#suscripciones');
   await queueMail(pool,id,email,'Solicitud recibida · Material Educativo Chile','Estimado/a '+name+':\n\nGracias por preferir a Material Educativo Chile, una plataforma con sello de calidad que acompaña a tu comunidad educativa. Registramos tu solicitud. El pago y la activación están pendientes.\n\nPuedes cancelar tu solicitud desde este enlace personal (no lo compartas):\n'+manageUrl);
-  wakeMail();res.status(201).json({ok:true,id,management_token:token,payment_ready:configuration().ready});
+  wakeMail();res.status(201).json({ok:true,id,management_token:token,payment_provider:provider,payment_ready:paymentReadyFor(provider)});
  }catch(e){res.status(e.code==='23505'?409:500).json({ok:false,error:e.code==='23505'?'request_already_exists':'request_failed'})}});
  app.post('/api/subscriptions/enroll',limits,async(req,res)=>{try{
   if(!configuration().ready)return res.status(503).json({ok:false,error:'billing_not_ready'});
   const s=await getByToken(req.body?.token);if(!s)return res.status(404).json({ok:false,error:'subscription_not_found'});
+  if(s.payment_provider==='mercadopago')return res.status(409).json({ok:false,error:'payment_provider_mismatch'});
   const result=await locked(s.id,async c=>{
    const row=(await c.query('select * from mec_subscriptions where id=$1',[s.id])).rows[0];
    if(row.cancelled_at||row.status!=='requested')throw Error('enrollment_not_available');
@@ -164,20 +174,25 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
  app.get('/api/subscriptions/me',requireAuth,async(req,res)=>{try{const q=await pool.query('select * from mec_subscriptions where establishment_id=$1',[req.auth.establishment_id]);res.json({ok:true,subscription:q.rowCount?summary(q.rows[0]):null})}catch(e){res.status(503).json({ok:false,error:'status_unavailable'})}});
  app.post('/api/subscriptions/cancel',...requireRole('coordinador_convivencia'),async(req,res)=>{try{const q=await pool.query('select id from mec_subscriptions where establishment_id=$1 and user_id=$2',[req.auth.establishment_id,req.auth.id]);if(!q.rowCount)return res.status(403).json({ok:false,error:'owner_required'});res.json({ok:true,subscription:await cancel(q.rows[0].id)})}catch(e){res.status(503).json({ok:false,error:'cancellation_failed'})}});
  app.get('/api/subscriptions/admin',...requireRole('platform_admin'),async(req,res)=>{try{
-  const q=await pool.query(`select s.id,s.rbd,s.establishment_name,s.full_name,s.rut,s.email,s.plan_code,s.student_limit,s.price_clp,s.status,s.created_at,s.access_until,s.cancelled_at,s.activated_at,
-   (select count(*) from mec_subscription_payments p where p.subscription_id=s.id and p.state='authorized')::int approved_payments,
+  const q=await pool.query(`select s.payment_provider,s.id,s.rbd,s.establishment_name,s.full_name,s.rut,s.email,s.plan_code,s.student_limit,s.price_clp,s.status,s.created_at,s.access_until,s.cancelled_at,s.activated_at,
+   (case when s.payment_provider='mercadopago'
+     then (select count(*) from mec_subscription_mp_invoices p where p.subscription_id=s.id)
+     else (select count(*) from mec_subscription_payments p where p.subscription_id=s.id and p.state='authorized') end)::int approved_payments,
    (select count(*) from mec_subscription_payments p where p.subscription_id=s.id and p.state in ('processing','uncertain'))::int uncertain_payments,
    (select count(*) from mec_subscription_mail m where m.subscription_id=s.id and m.status<>'sent')::int pending_emails
    from mec_subscriptions s order by s.created_at desc limit 200`);
   const access=await pool.query('select r.id,r.created_at,u.name,u.email,e.rbd,e.name establishment from mec_access_requests r join users u on u.id=r.user_id join establishments e on e.id=u.establishment_id where r.status=$1 order by r.created_at desc limit 100',['pending']);
-  const c=configuration();res.json({ok:true,subscriptions:q.rows,access_requests:access.rows,configuration:{production:c.production,oneclick_ready:c.configured,email_ready:c.mailReady,payment_ready:c.ready}});
+  const c=configuration(),provider=paymentProviderForNew();res.json({ok:true,subscriptions:q.rows,access_requests:access.rows,configuration:{production:c.production,oneclick_ready:c.configured,email_ready:c.mailReady,payment_provider:provider,payment_ready:paymentReadyFor(provider)}});
  }catch(e){res.status(503).json({ok:false,error:'admin_unavailable'})}});
  app.post('/api/subscriptions/admin/:id/activate',...requireRole('platform_admin'),async(req,res)=>{try{
   if(!configuration().mailReady)return res.status(503).json({ok:false,error:'email_not_ready'});
   const result=await locked(req.params.id,async c=>{
    const s=(await c.query('select * from mec_subscriptions where id=$1',[req.params.id])).rows[0];
    if(!s||s.status!=='paid_pending_activation'||s.cancelled_at)throw Error('approved_payment_required');
-   const payment=await c.query("select id from mec_subscription_payments where subscription_id=$1 and cycle_key='initial' and state='authorized'",[s.id]);if(!payment.rowCount)throw Error('approved_payment_required');
+   const payment=s.payment_provider==='mercadopago'
+     ?await c.query('select invoice_id from mec_subscription_mp_invoices where subscription_id=$1 limit 1',[s.id])
+     :await c.query("select id from mec_subscription_payments where subscription_id=$1 and cycle_key='initial' and state='authorized'",[s.id]);
+   if(!payment.rowCount)throw Error('approved_payment_required');
    await c.query('begin');
    try{
     const e=await c.query('insert into establishments(name,rbd) values($1,$2) returning id',[s.establishment_name,s.rbd]);
@@ -192,7 +207,7 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
    }catch(e){await c.query('rollback');throw e}
   });res.json({ok:true,...result});
  }catch(e){res.status(409).json({ok:false,error:e.code==='23505'?'rbd_already_registered':'activation_not_available'})}});
- app.post('/api/subscriptions/admin/:id/reconcile',...requireRole('platform_admin'),async(req,res)=>{try{const s=(await pool.query('select activated_at from mec_subscriptions where id=$1',[req.params.id])).rows[0];if(!s)return res.status(404).json({ok:false,error:'subscription_not_found'});res.json({ok:true,...await charge(req.params.id,!s.activated_at)})}catch(e){res.status(503).json({ok:false,error:'reconciliation_unavailable'})}});
+ app.post('/api/subscriptions/admin/:id/reconcile',...requireRole('platform_admin'),async(req,res)=>{try{const s=(await pool.query('select activated_at from mec_subscriptions where id=$1',[req.params.id])).rows[0];if(!s)return res.status(404).json({ok:false,error:'subscription_not_found'});res.json({ok:true,...await (s.payment_provider==='mercadopago'?mercadoPagoFlow.synchronize(req.params.id):charge(req.params.id,!s.activated_at))})}catch(e){res.status(503).json({ok:false,error:'reconciliation_unavailable'})}});
  app.post('/api/subscriptions/admin/mail/retry',...requireRole('platform_admin'),async(req,res)=>{try{await pool.query("update mec_subscription_mail set next_attempt_at=now(),attempts=0 where status<>'sent'");await flushMail();res.json({ok:true})}catch(e){res.status(503).json({ok:false,error:'mail_unavailable'})}});
  async function prepareRecovery(userId){
   if(!configuration().mailReady)return false;
@@ -246,10 +261,11 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
  app.post('/api/subscriptions/admin/access/:id/resolve',...requireRole('platform_admin'),async(req,res)=>{try{const r=await pool.query("select user_id from mec_access_requests where id=$1 and status='pending'",[req.params.id]);if(!r.rowCount)return res.status(404).json({ok:false,error:'request_not_found'});res.json({ok:true,...await issueTemporaryCredential(r.rows[0].user_id,req.auth,true)})}catch(e){res.status(409).json({ok:false,error:'credential_delivery_unavailable'})}});
  async function runRenewals(){
   if(!configuration().ready)return;
-  const due=await pool.query("select id from mec_subscriptions where (cancelled_at is null and ((activated_at is not null and next_charge_at<=now()) or status='payment_pending')) or (cancelled_at is not null and exists(select 1 from mec_subscription_payments p where p.subscription_id=mec_subscriptions.id and p.state in ('processing','uncertain'))) order by next_charge_at nulls first limit 25");
+  const due=await pool.query("select id from mec_subscriptions where payment_provider='oneclick' and ((cancelled_at is null and ((activated_at is not null and next_charge_at<=now()) or status='payment_pending')) or (cancelled_at is not null and exists(select 1 from mec_subscription_payments p where p.subscription_id=mec_subscriptions.id and p.state in ('processing','uncertain')))) order by next_charge_at nulls first limit 25");
   for(const s of due.rows){try{const row=(await pool.query('select activated_at from mec_subscriptions where id=$1',[s.id])).rows[0];await charge(s.id,!row.activated_at)}catch(e){console.error('Subscription renewal needs review')}}
  }
  function startWorkers(){
+  mercadoPagoFlow.startWorkers();
   const work=()=>Promise.allSettled([runRenewals(),runRecoveries().then(flushMail)]);work();const timer=setInterval(work,60000);timer.unref();
   console.log('Subscription production payment ready:',configuration().ready?'yes':'no');
   console.log('Subscription email ready:',configuration().mailReady?'yes':'no');

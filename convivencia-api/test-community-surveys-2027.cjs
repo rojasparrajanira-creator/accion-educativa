@@ -150,26 +150,46 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   assert.equal(isolatedDiagnostic.code,200);
   assert.equal(isolatedDiagnostic.data.diagnostic.sources_used.length,0);
   assert.equal(isolatedDiagnostic.data.diagnostic.review_topics.length,0);
-  const dimensions=await call('GET','/api/community-surveys/dimensions?school_year=2027');
+  const mm=await insert("insert into measurements(establishment_id,code,school_year,status) values($1,'M1',2027,'active') returning id",[est]);
+  for(let i=1;i<=10;i++){
+   const v=await insert('insert into students(establishment_id,course_id,rut,name) values($1,$2,$3,$4) returning id',
+    [est,course.id,'PILOT-27-'+i,'MENOR FICTICIO PARA PRUEBAS '+i]);
+   const ap=await insert("insert into survey_applications(measurement_id,student_id,survey_level,status) values($1,$2,'1-2','completed') returning id",
+    [mm.id,v.id]);
+   await pool.query("insert into responses(application_id,item_code,value) values($1,'D01_01','3')",[ap.id]);
+  }
+  const badWindow=await call('GET','/api/community-surveys/dimensions?school_year=2027');
+  assert.equal(badWindow.code,400);
+  const m1q=await call('GET','/api/community-surveys/dimensions?school_year=2027&measurement_code=M1');
+  assert.equal(m1q.code,200);
+  assert.equal(m1q.data.report.student_source_status,'verified_aggregates_received');
+  assert.ok(m1q.data.report.student_levels_present.includes('1-2'));
+  assert.equal(m1q.data.report.student_measurement_code,'M1');
+  assert.ok(m1q.data.report.dimensions.find(x=>x.id==='SEG').review_topics.some(x=>x.audience==='estudiantes'&&x.favorable_band==='75–100 %'));
+  assert.ok(!JSON.stringify(m1q.data).includes('MENOR FICTICIO'));
+  assert.ok(!JSON.stringify(m1q.data).includes('PILOT-27-'));
+  assert.ok(!JSON.stringify(m1q.data).includes('"participant_count"'));
+  const dimensions=await call('GET','/api/community-surveys/dimensions?school_year=2027&measurement_code=M1');
   assert.equal(dimensions.code,200);
   assert.equal(dimensions.data.report.dimensions.length,10);
-  assert.equal(dimensions.data.report.student_source_status,'not_integrated_yet');
+  assert.equal(dimensions.data.report.student_source_status,'verified_aggregates_received');
   assert.ok(dimensions.data.report.dimensions.some(x=>x.review_topics.length>0));
   assert.ok(!JSON.stringify(dimensions.data).includes('90000001'));
   assert.ok(!JSON.stringify(dimensions.data).includes('Docente Ficticio'));
-  const planStruct=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027');
+  const planStruct=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1');
   assert.equal(planStruct.code,200);
   assert.equal(planStruct.data.plan.sections.length,7);
   assert.equal(planStruct.data.plan.preflight.status,'draft_incomplete');
   assert.equal(planStruct.data.plan.can_publish,false);
   assert.equal(planStruct.data.plan.draft.director_approval,null);
   assert.ok(!JSON.stringify(planStruct.data).includes('90000001'));
-  const forbiddenPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027',undefined,{est,role:'profesor'});
+  const forbiddenPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1',undefined,{est,role:'profesor'});
   assert.equal(forbiddenPlan.code,403);
-  const otherDimensions=await call('GET','/api/community-surveys/dimensions?school_year=2027',undefined,{est:estB,role:'coordinador_convivencia'});
+  const otherDimensions=await call('GET','/api/community-surveys/dimensions?school_year=2027&measurement_code=M1',undefined,{est:estB,role:'coordinador_convivencia'});
   assert.equal(otherDimensions.code,200);
   assert.equal(otherDimensions.data.report.dimensions.filter(x=>x.review_topics.length>0).length,0);
   assert.equal(otherDimensions.data.report.audience_availability.filter(x=>x.available).length,0);
+  assert.equal(otherDimensions.data.report.student_source_status,'not_integrated_yet');
   const otherReport=await call('GET','/api/community-surveys/report?school_year=2027&audience=docente',undefined,{est:estB,role:'coordinador_convivencia'});
   assert.equal(otherReport.data.available,false);
   assert.ok(!('participant_band' in otherReport.data));

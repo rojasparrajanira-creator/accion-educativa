@@ -5,6 +5,7 @@
 const crypto=require('node:crypto');
 const C=require('./community-surveys-core.cjs');
 const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
+const studentDimensions=require('./student-dimensions-adapter-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
 const goodCode=v=>/^[a-zA-Z0-9_-]{32}$/.test(v);
@@ -169,19 +170,28 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
  // Nunca aceptar filas, recuentos o resultados estudiantiles desde parámetros del cliente.
  async function getInstitutionDimensionReport(req){
    const establishmentId=C.safePositiveInt(req.auth.establishment_id);
-   if(!establishmentId||Number(req.query.school_year)!==2027)throw Error('invalid_year');
-   const rows=await pool.query(
-    'select audience,answers from community_survey_submissions where establishment_id=$1 and school_year=2027 and bank_version=$2',
-    [establishmentId,C.bank.version]);
-   return PGCE.buildDimensionReport(rows.rows,[]);
+   const measurementCode=String(req.query.measurement_code||'');
+   if(!establishmentId||Number(req.query.school_year)!==2027||
+      !studentDimensions.PERIODS.includes(measurementCode))throw Error('invalid_reporting_window');
+   // No unimos M1/M2/M3 ni escalas de distintos niveles.
+   const [adults,students]=await Promise.all([
+    pool.query('select audience,answers from community_survey_submissions where establishment_id=$1 and school_year=2027 and bank_version=$2',
+      [establishmentId,C.bank.version]),
+    studentDimensions.loadStudentDimensionAggregates(pool,{
+     establishmentId,schoolYear:2027,measurementCode})
+   ]);
+   const report=PGCE.buildDimensionReport(adults.rows,students);
+   report.student_measurement_code=measurementCode;
+   report.student_interpretation='Proporción de respuestas favorables por nivel y área temática, no puntaje DIA/SIMCE. Los niveles usan escalas distintas. Prohibido promediar o comparar entre niveles; NT1/NT2 pendientes.';
+   return report;
  }
  app.get('/api/community-surveys/dimensions',...admin,noStore,async(req,res)=>{
-  if(Number(req.query.school_year)!==2027)return sendError(res,400,'invalid_year');
+  if(Number(req.query.school_year)!==2027||!studentDimensions.PERIODS.includes(String(req.query.measurement_code||'')))return sendError(res,400,'invalid_reporting_window');
   try{return res.json({ok:true,report:await getInstitutionDimensionReport(req)})}
   catch(e){return sendError(res,503,'dimensions_unavailable')}
  });
  app.get('/api/community-surveys/pgce-scaffold',...admin,noStore,async(req,res)=>{
-  if(Number(req.query.school_year)!==2027)return sendError(res,400,'invalid_year');
+  if(Number(req.query.school_year)!==2027||!studentDimensions.PERIODS.includes(String(req.query.measurement_code||'')))return sendError(res,400,'invalid_reporting_window');
   try{
    const report=await getInstitutionDimensionReport(req);
    return res.json({ok:true,dimensions:report,

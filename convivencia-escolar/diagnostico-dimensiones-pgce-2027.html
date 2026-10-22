@@ -28,7 +28,13 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  <span class="brand">Material Educativo Chile · Convivencia Educativa</span>
  <h1>Diagnóstico y Plan de Gestión 2027</h1>
  <p>Vista de revisión para profesionales: dimensiones del diagnóstico de convivencia, antecedentes que faltan y estructura para planificar acciones pertinentes a cada colegio.</p>
- <div class="note"><strong>Importante:</strong> esta pantalla está en desarrollo y no es una certificación de cumplimiento. Aún no están integrados los resultados estudiantiles. Solo presenta resultados adultos agregados cuando existe un grupo suficientemente grande. El Plan siempre requiere revisión y aprobación institucional.</div>
+ <div class="note"><strong>Importante:</strong> esta pantalla está en desarrollo y no es una certificación de cumplimiento. Integra resultados de estudiantes por nivel y medición cuando existen al menos 10 participaciones válidas. NT1/NT2 siguen pendientes de validación pedagógica. Los adultos se presentan por estamento, sin respuestas individuales. El Plan siempre requiere revisión y aprobación institucional.</div>
+ <label for="measurement" style="display:block;font-weight:750;margin:14px 0 7px">Medición estudiantil 2027</label>
+ <select id="measurement" aria-label="Seleccionar medición estudiantil" style="display:block;width:min(320px,100%);padding:12px;border:1px solid #d4e9ef;border-radius:12px;margin-bottom:13px">
+  <option value="M1">M1 · Diagnóstico inicial</option>
+  <option value="M2">M2 · Seguimiento intermedio</option>
+  <option value="M3">M3 · Evaluación final</option>
+ </select>
  <button id="load" class="action" type="button">Cargar diagnóstico institucional</button>
  <p id="status" class="error" role="alert" aria-live="polite"></p>
 </header>
@@ -77,7 +83,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    el('sources').appendChild(box);
   }
   const pending=report.student_levels_pending||[];
-  el('pending').textContent='Estudiantes: integración pendiente ('+pending.length+' niveles previstos, desde NT1 y NT2 hasta IV medio). Faltan además actas, observación, registros institucionales y participación del Consejo Escolar.';
+  el('pending').textContent='Medición '+(report.student_measurement_code||'sin seleccionar')+': '+(report.student_levels_present||[]).length+' niveles con información agregada suficiente; '+pending.length+' niveles pendientes. NT1 y NT2 aún sin medición operativa. Faltan actas, observación, registros institucionales y participación del Consejo Escolar.';
   const wrap=el('dimensions');wrap.replaceChildren();
   for(const d of report.dimensions){
    const card=document.createElement('article');card.className='dim';
@@ -111,7 +117,9 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  el('load').onclick=async()=>{
   const btn=el('load');btn.disabled=true;el('status').textContent='Consultando información autorizada…';
   try{
-   const r=await fetch(API+'/api/community-surveys/pgce-scaffold?school_year=2027',
+   const period=el('measurement').value;
+   if(!['M1','M2','M3'].includes(period))throw Error('Medición inválida.');
+   const r=await fetch(API+'/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code='+encodeURIComponent(period),
     {credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'});
    const d=await r.json();
    if(!r.ok||!d.ok||!d.dimensions||!d.plan)throw Error('Debes ingresar con un perfil autorizado; el módulo aún podría no estar habilitado.');

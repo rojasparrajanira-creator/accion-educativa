@@ -5,7 +5,7 @@
 ## Qué contiene
 - **NT1 (prekínder):** 8 preguntas breves.
 - **NT2 (kínder):** 10 preguntas adaptadas.
-- Tres respuestas visuales: **😊 Sí, 😐 A veces, 🙁 No**, cada una con botón de audio.
+- Tres respuestas visuales: **😊 Sí, 🙁 No, 🤔 No sé**, cada una con botón de audio; «No sé» expresa incertidumbre, no frecuencia y NO debe puntuarse como un valor intermedio.
 - Lectura en voz alta de las preguntas con `MECVoice` y voz preferente es-CL, con alternativa de lectura por la persona acompañante si no hay soporte.
 - Botones grandes, navegación anterior/siguiente, opción **Prefiero no responder**, progreso, texto y etiquetas accesibles.
 - Sin RUN, nombre, PIN, login, envío al servidor, almacenamiento local o informes de resultados.
@@ -28,3 +28,5 @@ Antes de una aplicación real, es necesario revisar redacción con educadoras y 
 5. Probar dispositivos móviles reales y lectura es-CL: el test de CI comprueba sintaxis, datos y restricciones de privacidad, **no reemplaza prueba visual o de usabilidad**.
 
 **Rama:** `feature/convivencia-prototipo-nt1-nt2`. No fusionar hasta validación.
+## Revisión de escala (22-10-2026)
+Se retiró «A veces» del prototipo, puesto que no corresponde interpretar sin pruebas de comprensión una carita neutral como frecuencia temporal. Se usa **Sí / No / No sé** como hipótesis provisional; esta elección tampoco equivale a una escala validada y debe pilotearse con niños y niñas reales mediante procedimientos aprobados por el establecimiento y familias. «No sé» y «Prefiero no responder» son categorías distintas, y ninguna debe tratarse como el punto medio numérico ni entrar en promedios. Se privilegian hechos concretos frente a sentimientos abstractos. Las respuestas se deben contrastar con observación pedagógica, entrevistas a familias y otras fuentes, sin convertir el resultado de una sola pregunta en una alerta automática.

@@ -181,6 +181,11 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   assert.equal(planStruct.data.plan.sections.length,7);
   assert.equal(planStruct.data.plan.preflight.status,'draft_incomplete');
   assert.equal(planStruct.data.plan.can_publish,false);
+  assert.equal(planStruct.data.suggested_actions.status,'suggestions_not_a_plan');
+  assert.ok(planStruct.data.suggested_actions.actions.length>=1);
+  assert.ok(planStruct.data.suggested_actions.actions.every(x=>x.can_be_added_without_review===false));
+  assert.ok(!JSON.stringify(planStruct.data.suggested_actions).includes('MENOR FICTICIO'));
+  assert.ok(!JSON.stringify(planStruct.data.suggested_actions).includes('Docente Ficticio'));
   assert.equal(planStruct.data.plan.draft.director_approval,null);
   assert.ok(!JSON.stringify(planStruct.data).includes('90000001'));
   const forbiddenPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1',undefined,{est,role:'profesor'});

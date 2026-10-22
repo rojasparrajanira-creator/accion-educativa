@@ -38,7 +38,8 @@ function verifiedStudentAggregate(items){
    !BANDS.includes(x.favorable_band)||x.aggregation_verified!==true||
    !Number.isInteger(x.participant_count)||x.participant_count<10||
    !Number.isInteger(x.valid_response_count)||x.valid_response_count<10||
-   x.valid_response_count>x.participant_count||
+   // Una persona puede responder varios ítems de la misma dimensión.
+   x.valid_response_count>x.participant_count*12||
    typeof x.evidence_ref!=='string'||!/^[-a-zA-Z0-9_./]{6,80}$/.test(x.evidence_ref)||
    seen.has(x.level+'|'+x.dimension))return false;
   seen.add(x.level+'|'+x.dimension);return true;

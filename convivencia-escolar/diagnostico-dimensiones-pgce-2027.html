@@ -75,7 +75,11 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  <section class="panel">
   <h2>Editor de acciones institucionales 2027</h2>
   <p class="muted">Selecciona uno de los siete apartados, completa los campos y vincúlalo con un hallazgo revisado. Los cambios solo se guardan cuando utilizas el botón Guardar borrador.</p>
-  <div class="field"><label for="action-clause">Componente del artículo 16 D</label><select id="action-clause"></select></div>
+  <div class="field"><label for="action-clause">Acción a editar (identificador individual)</label><select id="action-clause"></select></div>
+  <div class="form-grid">
+   <div class="field"><label for="new-action-clause">Apartado para nueva acción</label><select id="new-action-clause"></select></div>
+   <div class="field"><label for="add-action">Agregar otra acción dentro del mismo apartado</label><button type="button" id="add-action" class="muted-action">+ Agregar acción</button></div>
+  </div>
   <div class="form-grid" id="action-fields"></div>
   <div class="field"><label for="action-finding">Hallazgo relacionado con esta acción</label><select id="action-finding"></select></div>
   <div class="note">Este documento es un borrador editable. Guardarlo no significa que el Consejo Escolar lo haya revisado ni que Dirección lo haya aprobado.</div>
@@ -213,8 +217,8 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   });
  }
  function selectedFollowup(){
-  const clause=el('followup-clause').value,measurement_code=el('followup-period').value;
-  return followupRecords.find(x=>x.clause===clause&&x.measurement_code===measurement_code);
+  const actionId=el('followup-clause').value,measurement_code=el('followup-period').value;
+  return followupRecords.find(x=>x.action_id===actionId&&x.measurement_code===measurement_code);
  }
  function renderFollowup(){
   const record=selectedFollowup();
@@ -266,11 +270,28 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    row.append(title,need.wrap,evidence.wrap,remove);wrap.append(row);
   }
  }
+ function actionLabel(a){return '16D-'+a.clause+' · '+(a.title?.trim()||'Acción por completar')+' · '+a.action_id}
+ function refreshActionChoices(keepId){
+  const selected=keepId||el('action-clause').value;
+  const actionSelect=el('action-clause'),followSelect=el('followup-clause');
+  const followOld=followSelect.value;
+  actionSelect.replaceChildren();followSelect.replaceChildren();
+  for(const a of currentDraft.actions){
+   for(const select of [actionSelect,followSelect]){
+    const option=document.createElement('option');
+    option.value=a.action_id;option.textContent=actionLabel(a);select.append(option);
+   }
+  }
+  if(currentDraft.actions.some(a=>a.action_id===selected))actionSelect.value=selected;
+  if(currentDraft.actions.some(a=>a.action_id===followOld))followSelect.value=followOld;
+  actionSelect.onchange=renderActionEditor;
+  followSelect.onchange=renderFollowup;
+ }
  function renderActionEditor(){
   const wrap=el('action-fields');wrap.replaceChildren();
   if(!currentDraft)return;
-  const code=el('action-clause').value;
-  const action=currentDraft.actions.find(x=>x.clause===code);
+  const actionId=el('action-clause').value;
+  const action=currentDraft.actions.find(x=>x.action_id===actionId);
   if(!action)return;
   for(const [key,title] of actionFieldLabels){
    const value=key==='target_courses'?(action.target_courses||[]).join(', '):action[key]||'';
@@ -280,6 +301,13 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    input.oninput=()=>{
     if(key==='target_courses')action.target_courses=input.value.split(',').map(x=>x.trim()).filter(Boolean);
     else action[key]=input.value;
+    if(key==='title'){
+     const id=action.action_id;
+     for(const select of [el('action-clause'),el('followup-clause')]){
+      const option=[...select.options].find(o=>o.value===id);
+      if(option)option.textContent=actionLabel(action);
+     }
+    }
    };
    wrap.append(box);
   }
@@ -344,20 +372,14 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    const option=document.createElement('option');option.value=d.id;option.textContent=d.label;findingSelect.append(option);
   }
   renderFindings();
-  const actionSelect=el('action-clause');actionSelect.replaceChildren();
+  const newClauseSelect=el('new-action-clause');newClauseSelect.replaceChildren();
   for(const section of plan.sections){
    const option=document.createElement('option');
-   option.value=section.clause.replace('16D-','');option.textContent=section.title;actionSelect.append(option);
+   option.value=section.clause.replace('16D-','');option.textContent=section.title;newClauseSelect.append(option);
   }
-  actionSelect.onchange=renderActionEditor;
+  refreshActionChoices();
   renderActionEditor();
   institutionEditor();
-  const followSelect=el('followup-clause');followSelect.replaceChildren();
-  for(const section of plan.sections){
-   const option=document.createElement('option');option.value=section.clause.replace('16D-','');
-   option.textContent=section.title;followSelect.append(option);
-  }
-  followSelect.onchange=renderFollowup;
   el('followup-period').onchange=renderFollowup;
   followupRecords=[];renderFollowup();
   el('save-status').textContent=savedRevision?'Borrador recuperado, revisión '+savedRevision+'.':'Sin borrador guardado todavía.';
@@ -386,8 +408,11 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   const button=el('save-followup');button.disabled=true;
   try{
    const old=selectedFollowup();
+   const actionId=el('followup-clause').value;
+   const selectedAction=currentDraft.actions.find(x=>x.action_id===actionId);
+   if(!selectedAction)throw Error('Selecciona una acción existente.');
    const input={
-    clause:el('followup-clause').value,measurement_code:el('followup-period').value,
+    action_id:actionId,clause:selectedAction.clause,measurement_code:el('followup-period').value,
     status:el('followup-status').value,progress_percent:Number(el('followup-percent').value),
     evidence_refs:el('followup-evidence').value.split(',').map(x=>x.trim()).filter(Boolean),
     professional_note:el('followup-note').value,
@@ -408,6 +433,26 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
     '. Pendiente de evaluación y aprobación institucional.';
   }catch(e){el('followup-state').textContent=e.message||'Error al guardar avance.'}
   finally{button.disabled=false}
+ };
+ el('add-action').onclick=()=>{
+  if(!currentDraft)return;
+  if(currentDraft.actions.length>=70){
+   el('save-status').textContent='Se alcanzó el máximo de 70 acciones.';return;
+  }
+  const clause=el('new-action-clause').value;
+  if(!'abcdefg'.includes(clause))return;
+  const existing=currentDraft.actions
+   .filter(a=>a.clause===clause).map(a=>Number(a.action_id?.split('-')[2]||0));
+  const seq=Math.max(0,...existing)+1;
+  if(seq>99999)return;
+  const actionId='ACT-'+clause+'-'+String(seq).padStart(3,'0');
+  if(currentDraft.actions.some(a=>a.action_id===actionId))return;
+  currentDraft.actions.push({action_id:actionId,clause,title:'',objective:'',
+   strategy:'',responsible:'',indicator:'',baseline:'',target:'',place:'',
+   resources:'',expected_evidence:'',start_date:'',end_date:'',finding_ids:[]});
+  refreshActionChoices(actionId);
+  renderActionEditor();renderFollowup();
+  el('save-status').textContent='Acción '+actionId+' agregada. Completa sus campos y guarda el borrador.';
  };
  el('add-finding').onclick=()=>{
   if(!currentDraft)return;

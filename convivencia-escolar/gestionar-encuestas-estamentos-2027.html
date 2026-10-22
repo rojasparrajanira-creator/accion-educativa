@@ -104,16 +104,13 @@ async function loadTargets(){
  el('family-fields').hidden=audience!=='familia';
  el('target-label').textContent=audience==='familia'?'Estudiante vinculado a la persona adulta':'Funcionario/a que recibirá la invitación';
  try{
-  if(audience==='familia'){
-   const data=await api('/api/students?establishment_id='+encodeURIComponent(establishmentId)+'&active=true');
-   targets=(data.students||[]).map(x=>({id:x.id,name:x.name,extra:x.course||''}));
-  }else{
-   const data=await api('/api/users');
-   targets=(data.users||[]).filter(x=>x.active&&validStaff[audience]?.includes(x.role))
-     .map(x=>({id:x.id,name:x.name,extra:x.role}));
-  }
+  const data=await api('/api/community-surveys/targets?audience='+encodeURIComponent(audience));
+  targets=(data.targets||[]).map(x=>({id:x.id,name:x.name,extra:x.extra||''}));
   filter();el('status').textContent='';
- }catch(e){targets=[];filter();el('status').textContent='No se pudo cargar el listado con este perfil. Coordina la emisión con la persona encargada de convivencia.'}
+ }catch(e){
+  targets=[];filter();
+  el('status').textContent='No se pudo cargar el listado con este perfil. Coordina la emisión con la persona encargada de convivencia.';
+ }
 }
 function filter(){
  const t=el('target');t.replaceChildren();

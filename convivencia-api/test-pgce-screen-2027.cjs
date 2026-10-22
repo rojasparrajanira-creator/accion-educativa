@@ -18,6 +18,14 @@ test('panel de 10 dimensiones exige ingreso profesional y no publica respuestas 
  assert.match(page,/id="finding-need"/);
  assert.match(page,/id="action-fields"/);
  assert.match(page,/id="save-draft"/);
+ assert.match(page,/id="institution-fields"/);
+ assert.match(page,/id="participation-editor"/);
+ assert.match(page,/id="diagnostic-sources-editor"/);
+ assert.match(page,/id="save-followup"/);
+ assert.match(page,/\/api\/community-surveys\/pgce-followup\?school_year=2027/);
+ assert.match(page,/id="followup-period"/);
+ assert.match(page,/id="followup-percent"/);
+ assert.match(page,/loadFollowups/);
  assert.match(page,/expected_revision:savedRevision/);
  assert.match(page,/method:'PUT'/);
  assert.match(page,/status===409/);

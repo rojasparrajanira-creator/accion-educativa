@@ -69,6 +69,8 @@ test('editor PGCE 2027: multi colegio, ediciones con revisión y sólo Direcció
   };
   const route='/api/community-surveys/pgce-plan';
   let r=await call('GET',route+'?school_year=2027');assert.equal(r.code,200);assert.equal(r.data.exists,false);
+  r=await call('POST',route,{school_year:2027,expected_revision:0,document:completeDraft()},actors.coord,'');
+  assert.equal(r.code,403);assert.equal(r.data.error,'origin_forbidden');
   r=await call('POST',route,{school_year:2027,expected_revision:0,document:completeDraft()},actors.prof);
   assert.equal(r.code,403);
   const incomplete=completeDraft();incomplete.actions[0].indicator='';
@@ -91,6 +93,8 @@ test('editor PGCE 2027: multi colegio, ediciones con revisión y sólo Direcció
   r=await call('POST',route,{school_year:2027,expected_revision:3,document:completeDraft()});
   assert.equal(r.code,409);assert.equal(r.data.error,'approved_plan_immutable');
   r=await call('GET',route+'?school_year=2027',undefined,actors.coord);
+  assert.equal(r.data.document.rbd,'TEST-A');
+  assert.equal(r.data.document.establishment_name,'Ficticio A');
   assert.equal(r.data.status,'approved');
   assert.equal(r.data.document.director_approval.approval_document_ref,'ACTA-DIR-01');
   assert.ok(!JSON.stringify(r.data).includes('Profesional Ficticio'));

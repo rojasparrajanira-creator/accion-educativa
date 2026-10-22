@@ -56,7 +56,7 @@ function createActionCandidates(report){
    .filter(x=>x&&(
       (['familia','docente','asistente','directivo'].includes(x.audience)&&
        typeof x.question_id==='string'&&new RegExp('^'+x.audience.toUpperCase()+'_\\d{2}$').test(x.question_id))
-      || (x.audience==='estudiantes'&&typeof x.evidence_ref==='string'&&
+      || (x.audience==='estudiantes'&&def.student.length>0&&typeof x.evidence_ref==='string'&&
         /^PGCE-EST-2027-M[123]-(1-2|3-4|5-6|7-8|1-2-medio|3-4-medio)-[A-Z]{3,4}$/.test(x.evidence_ref))
    )&&BANDS.includes(x.favorable_band));
   if(!topics.length)continue;

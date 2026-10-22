@@ -36,8 +36,11 @@ function verifiedStudentAggregate(items){
  return items.filter(x=>{
   if(!x||!Object.hasOwn(DIMENSIONS,x.dimension)||!LEVELS.includes(x.level)||
    !BANDS.includes(x.favorable_band)||x.aggregation_verified!==true||
+   // NT1 y NT2 continúan como prototipos sin metodología de integración.
+   x.level==='nt1'||x.level==='nt2'||
    !Number.isInteger(x.participant_count)||x.participant_count<10||
    !Number.isInteger(x.valid_response_count)||x.valid_response_count<10||
+   x.valid_response_count<x.participant_count||
    // Una persona puede responder varios ítems de la misma dimensión.
    x.valid_response_count>x.participant_count*12||
    typeof x.evidence_ref!=='string'||!/^[-a-zA-Z0-9_./]{6,80}$/.test(x.evidence_ref)||

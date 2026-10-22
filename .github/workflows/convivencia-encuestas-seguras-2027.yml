@@ -29,6 +29,7 @@ jobs:
           node --check test-community-front-2027.cjs
           node --check pgce-dimensions-integrated-2027.cjs
           node --check test-pgce-dimensions-integrated-2027.cjs
+          node --check test-pgce-screen-2027.cjs
       - name: Recorrido HTTP con datos sintéticos y PostgreSQL en memoria
         working-directory: convivencia-api
         run: node --test test-community-surveys-2027.cjs test-community-front-2027.cjs test-pgce-dimensions-integrated-2027.cjs

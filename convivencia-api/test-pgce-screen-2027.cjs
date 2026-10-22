@@ -26,3 +26,24 @@ test('panel de 10 dimensiones exige ingreso profesional y no publica respuestas 
  assert.ok(m);
  new vm.Script(m[1]);
 });
+
+test('editor de Plan 2027 muestra todos los apartados, guarda versión con protección y no aprueba',()=>{
+ const page=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/editar-plan-pgce-2027.html'),'utf8');
+ assert.match(page,/lang="es-CL"/);
+ assert.match(page,/name="viewport"/);
+ assert.match(page,/id="main-editor" hidden/);
+ assert.match(page,/id="actions"/);
+ assert.match(page,/id="findings"/);
+ assert.match(page,/id="participation"/);
+ assert.match(page,/id="governance"/);
+ assert.match(page,/expected_revision:revision/);
+ assert.match(page,/\/api\/community-surveys\/pgce-draft/);
+ assert.match(page,/credentials:'include'/);
+ assert.match(page,/revision_conflict|Existe una versión más reciente/);
+ assert.match(page,/No aprobado/);
+ assert.ok(!/\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b/.test(page));
+ assert.ok(!/\binnerHTML\s*=/.test(page));
+ const js=page.match(/<script>\s*([\s\S]*?)\s*<\/script>/);
+ assert.ok(js);
+ new vm.Script(js[1]);
+});

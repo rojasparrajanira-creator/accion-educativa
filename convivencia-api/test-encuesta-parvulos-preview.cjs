@@ -31,9 +31,11 @@ test('NT1 y NT2 son cuestionarios distintos, breves y exclusivamente ficticios',
 
 test('la escala ofrece tres caritas y la opción de no responder',()=>{
   assert.equal(data.scale.length,3);
-  assert.deepEqual(Array.from(data.scale,x=>x.value),['yes','sometimes','no']);
-  assert.deepEqual(Array.from(data.scale,x=>x.label),['Sí','A veces','No']);
+  assert.deepEqual(Array.from(data.scale,x=>x.value),['yes','no','dont_know']);
+  assert.deepEqual(Array.from(data.scale,x=>x.label),['Sí','No','No sé']);
   assert.equal(data.skip.value,'skip');
+  assert.ok(!data.scale.some(x=>x.value==='sometimes'||x.label==='A veces'),'No usar frecuencia ambigua sin prueba de comprensión');
+  assert.ok(data.scale.find(x=>x.value==='dont_know'),'Debe existir incertidumbre no puntuable');
   assert.ok(data.scale.every(x=>x.face&&x.spoken));
 });
 

@@ -353,7 +353,7 @@ function firstValue(m,aliases){
 }
 function courseKey(v){
   const n=plain(v).replace(/º/g,'°').replace(/[._-]+/g,' ').replace(/\s+/g,' ').trim();
-  let m=n.match(/^(i|ii|iii|iv)\s*°?\s*(?:medio|media)?\s*([a-z])?\b/);
+  let m=n.match(/^(iv|iii|ii|i)(?=\s|°|$)\s*°?\s*(?:medio|media)?\s*(?:([a-z])\b)?/);
   if(m){
     const num={i:1,ii:2,iii:3,iv:4}[m[1]];
     // Los terceros y cuartos medios TP/HC NO son el mismo curso.

@@ -1,0 +1,102 @@
+'use strict';
+// Persistencia opt-in del borrador anual PGCE, separada de respuestas individuales.
+// No se aprueban planes ni se aceptan registros personales de estudiantes.
+const {DIMENSIONS}=require('./pgce-dimensions-integrated-2027.cjs');
+const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
+const ROOT_FIELDS=new Set([
+ 'establishment_name','rbd','director','responsible','version','school_year',
+ 'findings','actions','diagnostic_sources','participation','council_school',
+ 'policy_alignment','pei_alignment','rie_alignment','pme_alignment','diffusion',
+ 'follow_up','director_approval'
+]);
+const FINDING_FIELDS=new Set(['id','dimension_id','need','evidence_refs','priority','professional_validation_note']);
+const ACTION_FIELDS=new Set([
+ 'clause','title','objective','strategy','responsible','indicator','baseline',
+ 'target','place','resources','expected_evidence','start_date','end_date',
+ 'finding_ids','target_courses','evaluation_method'
+]);
+const bannedKey=/^(?:__proto__|constructor|prototype|rut|run|student_id|student_name|answers|individual_responses)$/i;
+const apparentRut=/(?:^|[^0-9])\d{1,2}\.?\d{3}\.?\d{3}-[\dkK](?:$|[^a-z0-9])/i;
+function invalid(){throw Error('invalid_pgce_draft')}
+function deepCheck(obj,depth=0){
+ if(depth>7)invalid();
+ if(typeof obj==='string'){
+  if(obj.length>1800||apparentRut.test(obj))invalid();
+ }else if(Array.isArray(obj)){
+  if(obj.length>100)invalid();
+  for(const x of obj)deepCheck(x,depth+1);
+ }else if(obj&&typeof obj==='object'){
+  if(Object.keys(obj).length>50)invalid();
+  for(const [k,v] of Object.entries(obj)){if(bannedKey.test(k))invalid();deepCheck(v,depth+1)}
+ }else if(obj!==null&&typeof obj!=='boolean'&&!(typeof obj==='number'&&Number.isFinite(obj)))invalid();
+}
+function validatePgceDraft(raw){
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))invalid();
+ if(Buffer.byteLength(JSON.stringify(raw),'utf8')>65536)invalid();
+ if(Object.keys(raw).some(k=>!ROOT_FIELDS.has(k)))invalid();
+ if(raw.school_year!==2027||raw.director_approval!==null)invalid();
+ if(!Array.isArray(raw.findings)||raw.findings.length>40||!Array.isArray(raw.actions)||
+  raw.actions.length>70)invalid();
+ deepCheck(raw);
+ const ids=new Set();
+ for(const f of raw.findings){
+  if(!f||typeof f!=='object'||Array.isArray(f)||Object.keys(f).some(k=>!FINDING_FIELDS.has(k))||
+   typeof f.id!=='string'||!/^H-[a-zA-Z0-9_-]{2,40}$/.test(f.id)||
+   ids.has(f.id)||!Object.hasOwn(DIMENSIONS,f.dimension_id)||
+   typeof f.need!=='string'||!Array.isArray(f.evidence_refs)||f.evidence_refs.length>15||
+   f.evidence_refs.some(x=>typeof x!=='string'||x.length>120)||
+   (f.priority!==undefined&&!['','low','medium','high'].includes(f.priority)))invalid();
+  ids.add(f.id);
+ }
+ for(const a of raw.actions){
+  if(!a||typeof a!=='object'||Array.isArray(a)||Object.keys(a).some(k=>!ACTION_FIELDS.has(k))||
+   !'abcdefg'.includes(a.clause)||typeof a.clause!=='string'||
+   !Array.isArray(a.finding_ids)||a.finding_ids.some(x=>!ids.has(x))||
+   (a.target_courses!==undefined&&(!Array.isArray(a.target_courses)||
+    a.target_courses.length>40||a.target_courses.some(x=>typeof x!=='string'||x.length>80))))invalid();
+ }
+ // Esta función solo valida la estructura de un BORRADOR; la aprobación es externa.
+ return JSON.parse(JSON.stringify(raw));
+}
+async function loadPgceDraft(pool,establishmentId){
+ const q=await pool.query(
+  'SELECT draft,revision,updated_at FROM community_pgce_drafts_2027 WHERE establishment_id=$1 AND school_year=2027',
+  [establishmentId]);
+ const row=q.rows[0];
+ return row?{draft:row.draft,revision:Number(row.revision),updated_at:row.updated_at}:null;
+}
+async function savePgceDraft(pool,{establishmentId,actorId,expectedRevision,draft}){
+ if(!Number.isSafeInteger(establishmentId)||establishmentId<=0||
+  !Number.isSafeInteger(actorId)||actorId<=0||
+  !Number.isSafeInteger(expectedRevision)||expectedRevision<0)invalid();
+ const clean=validatePgceDraft(draft);
+ const client=await pool.connect();
+ try{
+  await client.query('BEGIN');
+  let q;
+  if(expectedRevision===0){
+   q=await client.query(
+    'INSERT INTO community_pgce_drafts_2027(establishment_id,school_year,revision,draft,updated_by) VALUES($1,2027,1,$2::jsonb,$3) ON CONFLICT(establishment_id,school_year) DO NOTHING RETURNING revision,updated_at',
+    [establishmentId,JSON.stringify(clean),actorId]);
+  }else{
+   q=await client.query(
+    'UPDATE community_pgce_drafts_2027 SET draft=$1::jsonb,revision=revision+1,updated_by=$2,updated_at=now() WHERE establishment_id=$3 AND school_year=2027 AND revision=$4 RETURNING revision,updated_at',
+    [JSON.stringify(clean),actorId,establishmentId,expectedRevision]);
+  }
+  if(!q.rowCount){
+   await client.query('ROLLBACK');
+   return {conflict:true};
+  }
+  const revision=Number(q.rows[0].revision);
+  await client.query(
+   "INSERT INTO community_pgce_draft_audit_2027(establishment_id,school_year,revision,performed_by,action) VALUES($1,2027,$2,$3,'draft_saved')",
+   [establishmentId,revision,actorId]);
+  await client.query('COMMIT');
+  return {conflict:false,revision,updated_at:q.rows[0].updated_at,
+   preflight:inspectPgceDraft(clean)};
+ }catch(e){
+  try{await client.query('ROLLBACK')}catch(_){}
+  throw e;
+ }finally{client.release()}
+}
+module.exports={validatePgceDraft,loadPgceDraft,savePgceDraft};

@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {validatePgceDraft}=require('./pgce-planning-drafts-2027.cjs');
+const {validatePgceDraft,normalizeLegacyActionIds}=require('./pgce-planning-drafts-2027.cjs');
 const {buildPgceScaffold,buildDimensionReport}=require('./pgce-dimensions-integrated-2027.cjs');
 const initial=()=>buildPgceScaffold(buildDimensionReport()).draft;
 test('el editor conserva borradores incompletos sin elevarlos a aprobados',()=>{
@@ -44,10 +44,27 @@ test('no admite hallazgos repetidos, dimensiones ajenas ni referencias inexisten
  assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
 });
 
-test('el borrador rechaza dos acciones con la misma cláusula hasta disponer de ID único por acción',()=>{
+test('permite varias acciones en el mismo apartado, con ID propio e inmutable',()=>{
  const d=initial();
+ d.actions.push({...d.actions[0],action_id:'ACT-a-002',title:'Segunda acción de coordinación'});
+ const plan=validatePgceDraft(d);
+ assert.equal(plan.actions.filter(x=>x.clause==='a').length,2);
+ assert.equal(new Set(plan.actions.map(x=>x.action_id)).size,8);
  d.actions.push({...d.actions[0]});
  assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+ d.actions.pop();
+ d.actions[7].action_id='ACT-b-002';
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+});
+test('migración de borradores antiguos agrega IDs determinísticos sin alterar textos',()=>{
+ const old=initial();
+ old.actions.forEach(x=>delete x.action_id);
+ old.actions.find(x=>x.clause==='c').title='Acción anterior de bienestar';
+ const migrated=normalizeLegacyActionIds(old);
+ assert.equal(migrated.actions.find(x=>x.clause==='c').action_id,'ACT-c-001');
+ assert.equal(migrated.actions.find(x=>x.clause==='c').title,'Acción anterior de bienestar');
+ assert.ok(old.actions.every(x=>!('action_id' in x)));
+ assert.deepEqual(migrated,validatePgceDraft(migrated));
 });
 test('no es posible introducir estructuras de identidad dentro de las fuentes documentales',()=>{
  const d=initial();

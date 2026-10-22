@@ -92,3 +92,36 @@ CREATE TABLE IF NOT EXISTS community_pgce_draft_audit_2027 (
 );
 CREATE INDEX IF NOT EXISTS idx_community_pgce_draft_audit_est
  ON community_pgce_draft_audit_2027(establishment_id,created_at DESC);
+
+
+-- Seguimiento de acciones institucionales 2027, escrito exclusivamente por profesionales.
+-- M1/M2/M3 identifica el corte de seguimiento, no una comparación automática
+-- de puntajes entre cursos ni una medición oficial.
+CREATE TABLE IF NOT EXISTS community_pgce_action_followups_2027 (
+  establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+  school_year INT NOT NULL DEFAULT 2027 CHECK(school_year=2027),
+  clause TEXT NOT NULL CHECK(clause IN ('a','b','c','d','e','f','g')),
+  measurement_code TEXT NOT NULL CHECK(measurement_code IN ('M1','M2','M3')),
+  revision INT NOT NULL DEFAULT 1 CHECK(revision>=1),
+  status TEXT NOT NULL CHECK(status IN ('pending','in_progress','completed','reprogrammed','suspended')),
+  progress_percent INT NOT NULL CHECK(progress_percent BETWEEN 0 AND 100),
+  evidence_refs JSONB NOT NULL DEFAULT '[]'::jsonb CHECK(jsonb_typeof(evidence_refs)='array'),
+  professional_note TEXT NOT NULL DEFAULT '',
+  adjustment_note TEXT NOT NULL DEFAULT '',
+  updated_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY(establishment_id,school_year,clause,measurement_code)
+);
+CREATE TABLE IF NOT EXISTS community_pgce_followup_audit_2027 (
+  id BIGSERIAL PRIMARY KEY,
+  establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+  school_year INT NOT NULL DEFAULT 2027 CHECK(school_year=2027),
+  clause TEXT NOT NULL CHECK(clause IN ('a','b','c','d','e','f','g')),
+  measurement_code TEXT NOT NULL CHECK(measurement_code IN ('M1','M2','M3')),
+  revision INT NOT NULL CHECK(revision>=1),
+  performed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(establishment_id,school_year,clause,measurement_code,revision)
+);
+CREATE INDEX IF NOT EXISTS idx_community_pgce_followup_establishment_2027
+ ON community_pgce_followup_audit_2027(establishment_id,created_at DESC);

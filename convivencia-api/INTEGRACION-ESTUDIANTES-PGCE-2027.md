@@ -52,3 +52,55 @@ El módulo `buildPgceScaffold` sigue generando exclusivamente la estructura de s
 `node --test test-student-dimensions-adapter-2027.cjs test-community-surveys-2027.cjs`
 
 Cobertura de datos **ficticios en PostgreSQL aislado**, con grupos de 9 y 10, escalas 3/4/5, años, mediciones, estados de finalización, aislamiento de colegios y prohibición de publicar datos individuales. **No se ha probado con datos reales ni se ha desplegado**.
+
+## Etapa adicional: edición profesional del borrador institucional
+
+En la rama de prueba se incorporó una **cola de revisión de señales agregadas** al objeto
+`dimensions.review_queue`. Sus referencias identifican únicamente instrumentos e
+ítems agregados; su propósito es permitir que el equipo profesional contraste
+antecedentes antes de redactar un hallazgo. No asigna prioridades, necesidades,
+intervenciones, responsables ni metas automáticamente.
+
+El portal de diagnóstico ahora permite:
+- Registrar, modificar o quitar hallazgos **redactados por un profesional**, asociados a una dimensión y a referencias documentales.
+- Editar acciones de los siete apartados (16 D, letras a–g), sus objetivos, destinatarios por curso, estrategias, metas, indicadores, fechas, recursos y evidencias.
+- Asociar cada acción a hallazgos registrados por el profesional.
+- Guardar un borrador anual **por establecimiento y año escolar 2027**, sin fusionar las mediciones estudiantiles M1, M2 y M3.
+- Recuperar el borrador guardado en `GET /api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1`, o con M2/M3 para consultar la evidencia del período seleccionado.
+
+La ruta **`PUT /api/community-surveys/pgce-draft?school_year=2027`** admite
+`{ "expected_revision": 0, "draft": { ... } }` para guardar por primera vez y
+posteriormente requiere la revisión devuelta por el servidor. Una revisión antigua
+recibe **409** y no sobrescribe cambios; se recomienda recargar para reconciliar.
+Solo pueden guardar perfiles profesionales autorizados y pertenecientes al mismo
+establecimiento. Se exige origen confiable y se aplica control de tamaño, estructura,
+enlaces a hallazgos, y rechazo de patrones reconocibles de RUN. El sistema no puede
+garantizar por sí solo que un texto libre esté libre de datos personales; la
+institución debe capacitar y supervisar a quienes lo redactan.
+
+Persistencia opt-in en `community-surveys.sql`:
+- `community_pgce_drafts_2027`: plan anual versionado por establecimiento.
+- `community_pgce_draft_audit_2027`: bitácora de revisiones guardadas,
+  usuario autorizado y fecha, sin duplicar el contenido completo en el registro
+  de auditoría.
+
+**Importante:** el campo `director_approval` permanece en `null` y un intento de
+aprobación por API se rechaza. `can_publish` y `can_certify_compliance` son
+**false**. Las actas del Consejo Escolar, la participación real, el contexto, y
+el acto formal de Dirección se deben registrar y verificar por vías institucionales
+autorizadas antes de cualquier publicación. Este desarrollo no constituye
+certificación normativa.
+
+### Pruebas de esta etapa
+
+Se agregaron casos para el guardado/relectura del borrador, control de revisión,
+aislamiento entre establecimientos, prevención de acceso no autorizado, rechazo
+de autoaprobación, exclusión de un RUN reconocible en el texto, vínculos a hallazgos,
+y edición por curso. Se añadió la prueba
+`test-pgce-planning-drafts-2027.cjs` al workflow opt-in.
+
+**Estado de validación:** la sintaxis de los archivos JavaScript modificados se
+comprobó mediante análisis de JavaScript, y el validador de datos superó comprobaciones
+puntuales aisladas. La ejecución completa de GitHub Actions y las pruebas HTTP con
+PGlite siguen pendientes de confirmación. No activar en producción ni aplicar
+migraciones a la base real hasta completar la revisión y la autorización.

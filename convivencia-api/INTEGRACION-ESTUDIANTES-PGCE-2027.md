@@ -104,3 +104,57 @@ comprobó mediante análisis de JavaScript, y el validador de datos superó comp
 puntuales aisladas. La ejecución completa de GitHub Actions y las pruebas HTTP con
 PGlite siguen pendientes de confirmación. No activar en producción ni aplicar
 migraciones a la base real hasta completar la revisión y la autorización.
+
+## Seguimiento manual M1 / M2 / M3 e información institucional del Plan
+
+Etapa incorporada en la rama de pruebas, sin activación en Render.
+
+### Información institucional editable
+El editor de la pantalla `convivencia-escolar/diagnostico-dimensiones-pgce-2027.html`
+permite completar la identificación institucional, articulación con PEI/PME/RIE,
+participación por estamento, referencias a fuentes, Consejo Escolar, difusión y
+método de seguimiento. Se siguen guardando como **borrador profesional** en
+`community_pgce_drafts_2027`, con revisión optimista y auditoría de guardado.
+Los campos de aprobación de Dirección siguen bloqueados (`null`).
+
+### Avance periódico de acciones
+Cada una de las siete acciones de la estructura 16D puede tener un registro
+independiente por M1, M2 y M3 en
+`community_pgce_action_followups_2027`, con:
+- Estado manual: pendiente, en ejecución, completada, reprogramada o suspendida.
+- Avance porcentual informado por un profesional (no calculado desde encuestas).
+- Referencias a evidencias documentales, observación y justificación de ajustes.
+- Revisión y fecha del último guardado, con historial mínimo en
+  `community_pgce_followup_audit_2027`.
+
+**Reglas técnicas:** solo por establecimiento de la sesión autorizada,
+año 2027, siete letras del artículo 16 D, cortes M1/M2/M3 por separado.
+Es necesario haber guardado una acción con nombre en el borrador anual.
+No se admiten aprobaciones automáticas; solo se admiten referencias agregadas.
+El control sintáctico de RUN no equivale a una prevención total de datos
+personales en textos libres.
+
+`GET /api/community-surveys/pgce-followup?school_year=2027`
+devuelve únicamente los avances del establecimiento de la sesión.
+`PUT /api/community-surveys/pgce-followup?school_year=2027` guarda
+`{ "expected_revision": 0, "followup": { "clause": "c",
+"measurement_code": "M1", "status": "in_progress", "progress_percent": 25,
+"evidence_refs": ["ACTA-2027-01"], "professional_note": "",
+"adjustment_note": "" } }`.
+
+La revisión cero corresponde al primer guardado; posteriormente se requiere
+la revisión informada por el servidor. Si el registro fue actualizado por otra
+persona, se devuelve 409 sin sobrescribir. Un seguimiento nunca genera una
+aprobación del plan.
+
+### Pruebas de esta etapa
+`test-pgce-follow-up-2027.cjs` verifica entradas, separación de períodos,
+versiones y conflicto, aislamiento entre colegios, control de profesional
+autorizado, evidencias referenciales y ausencia de aprobación automática.
+`test-community-surveys-2027.cjs` comprueba el mismo recorrido en las rutas
+HTTP de prueba. `test-pgce-screen-2027.cjs` inspecciona el formulario.
+
+**Estado:** cambios guardados solo en GitHub, con sintaxis JavaScript verificada
+a nivel estático. Las pruebas de PostgreSQL, HTTP extremo a extremo, revisiones
+de seguridad, validación pedagógica y GitHub Actions deben completarse y
+confirmarse antes de cualquier fusión, activación de la bandera o publicación.

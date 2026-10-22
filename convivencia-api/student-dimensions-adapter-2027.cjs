@@ -63,7 +63,10 @@ function studentDimensionAggregate(rows,{schoolYear,measurementCode}){
    evidence_ref:'PGCE-EST-'+schoolYear+'-'+measurementCode+'-'+level+'-'+dimension
   });
  }
- return verifiedStudentAggregate(candidates);
+ // Conservamos conteos solo dentro del proceso servidor para que la capa
+ // de informes vuelva a verificar el umbral. Nunca se exponen por HTTP.
+ const checked=new Set(verifiedStudentAggregate(candidates).map(x=>x.evidence_ref));
+ return candidates.filter(x=>checked.has(x.evidence_ref));
 }
 async function loadStudentDimensionAggregates(pool,{establishmentId,schoolYear,measurementCode}){
  if(!Number.isSafeInteger(Number(establishmentId))||Number(establishmentId)<=0||

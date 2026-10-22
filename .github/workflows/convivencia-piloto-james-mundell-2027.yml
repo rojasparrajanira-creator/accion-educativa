@@ -27,3 +27,67 @@ jobs:
       - name: Ensayar matrícula 2027 y PostgreSQL aislado con datos ficticios
         working-directory: convivencia-api
         run: node --test test-piloto-james-mundell-2027.cjs
+
+  recorrido-http-integral:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: piloto_aislado
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: solo_ci_ficticio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d piloto_aislado"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias solo en entorno temporal
+        working-directory: convivencia-api
+        run: npm install --no-audit --no-fund
+      - name: Probar rutas API y PostgreSQL temporal con estudiantes simulados
+        working-directory: convivencia-api
+        env:
+          DATABASE_URL: postgresql://postgres:solo_ci_ficticio@127.0.0.1:5432/piloto_aislado
+          PORT: '3456'
+          MEC_ENABLE_PILOT: 'true'
+          RUN_PILOT_SELFTEST: '1'
+          MEC_STORE_PAYMENT_PROVIDER: 'mercadopago'
+          MEC_SUBSCRIPTION_PAYMENT_PROVIDER: 'mercadopago'
+          MEC_SUBSCRIPTION_MP_CHECKOUT_ENABLED: '0'
+        run: |
+          set -Eeuo pipefail
+          node server.js > piloto-api-test.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          health=0
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:3456/health >/dev/null 2>&1; then health=1; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then cat piloto-api-test.log; exit 1; fi
+            sleep 1
+          done
+          if [ "$health" -ne 1 ]; then cat piloto-api-test.log; exit 1; fi
+          for i in $(seq 1 90); do
+            if grep -q 'PILOT_SELFTEST PASSED' piloto-api-test.log; then
+              grep 'PILOT_SELFTEST PASSED' piloto-api-test.log
+              echo 'HTTP PILOT PASSED (solo base temporal; cero credenciales productivas)'
+              exit 0
+            fi
+            if grep -q 'PILOT_SELFTEST FAILED' piloto-api-test.log; then
+              tail -n 65 piloto-api-test.log
+              exit 1
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then tail -n 65 piloto-api-test.log; exit 1; fi
+            sleep 2
+          done
+          echo 'Timeout esperando la autoprueba integral'
+          tail -n 65 piloto-api-test.log
+          exit 1

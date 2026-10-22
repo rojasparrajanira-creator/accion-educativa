@@ -8,13 +8,37 @@ const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
 const goodCode=v=>/^[a-zA-Z0-9_-]{32}$/.test(v);
 const goodPin=v=>/^\d{8}$/.test(v);
-function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus}){
+function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,allowedOrigins}){
  if(process.env.MEC_COMMUNITY_SURVEYS_ENABLED!=='1')return false;
  const admin=requireRole('coordinador_convivencia','dupla_psicosocial','director','directora');
  const publicRate=rateLimit({windowMs:60000,max:8});
  const adminRate=rateLimit({windowMs:60000,max:25});
  const active=async inv=>!accessStatus||await accessStatus(inv.establishment_id);
- app.post('/api/community-surveys/invitations',...admin,adminRate,noStore,async(req,res)=>{
+ // Evitar cambios desde sitios ajenos mediante cookies de sesión del profesional.
+ const trustedOrigin=(req,res,next)=>{
+  const origin=String(req.headers.origin||'');
+  if(origin && !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
+   return sendError(res,403,'origin_forbidden');
+  next();
+ };
+
+
+ // Consulta exclusiva del equipo responsable. Nunca expone RUN ni claves.
+ app.get('/api/community-surveys/targets',...admin,adminRate,noStore,async(req,res)=>{
+  const establishmentId=C.safePositiveInt(req.auth.establishment_id);
+  const audience=String(req.query.audience||'');
+  if(!establishmentId||!C.audienceKeys.has(audience))return sendError(res,400,'invalid_audience');
+  try{
+   if(audience==='familia'){
+    const q=await pool.query("select s.id,s.name,c.name as course from students s left join courses c on c.id=s.course_id and c.establishment_id=s.establishment_id where s.establishment_id=$1 and s.active=true order by s.name limit 1000",[establishmentId]);
+    return res.json({ok:true,audience,targets:q.rows.map(x=>({id:x.id,name:x.name,extra:x.course||''}))});
+   }
+   const q=await pool.query('select id,name,role from users where establishment_id=$1 and active=true order by name limit 1000',[establishmentId]);
+   return res.json({ok:true,audience,targets:q.rows.filter(x=>C.assignedRole(x.role,audience)).map(x=>({id:x.id,name:x.name,extra:x.role}))});
+  }catch(e){return sendError(res,503,'targets_unavailable')}
+ });
+
+ app.post('/api/community-surveys/invitations',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
   const b=req.body||{},est=C.safePositiveInt(req.auth.establishment_id),audience=String(b.audience||'');
   const studentId=audience==='familia'?C.safePositiveInt(b.student_id):null;
   const staffId=audience!=='familia'?C.safePositiveInt(b.staff_user_id):null;
@@ -48,7 +72,7 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus})
   }catch(e){return sendError(res,503,'invitation_unavailable')}
  });
 
- app.post('/api/community-surveys/invitations/:id/revoke',...admin,adminRate,noStore,async(req,res)=>{
+ app.post('/api/community-surveys/invitations/:id/revoke',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
   const id=C.safePositiveInt(req.params.id),est=C.safePositiveInt(req.auth.establishment_id);
   if(!id||!est)return sendError(res,400,'invalid_invitation');
   const client=await pool.connect();

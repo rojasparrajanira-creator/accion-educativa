@@ -195,6 +195,8 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   }];
   draft.actions.find(x=>x.clause==='c').finding_ids=['H-SEG-2027'];
   draft.actions.find(x=>x.clause==='c').title='Revisión preventiva de la convivencia';
+  draft.actions.push({...draft.actions.find(x=>x.clause==='c'),
+   action_id:'ACT-c-002',title:'Segunda acción del mismo apartado',finding_ids:['H-SEG-2027']});
   let saved=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
    {expected_revision:0,draft});
   assert.equal(saved.code,200);
@@ -222,7 +224,7 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   // Seguimiento manual M1/M2/M3: un plan común con registros independientes.
   let progress=await call('GET','/api/community-surveys/pgce-followup?school_year=2027');
   assert.equal(progress.code,200);assert.equal(progress.data.records.length,0);
-  const input={clause:'c',measurement_code:'M1',status:'in_progress',progress_percent:25,
+  const input={action_id:'ACT-c-001',clause:'c',measurement_code:'M1',status:'in_progress',progress_percent:25,
    professional_note:'Equipo revisa acciones preventivas',adjustment_note:'',
    evidence_refs:['ACTA-PRUEBA-2027']};
   progress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
@@ -243,9 +245,13 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
      status:final?'completed':'in_progress',progress_percent:final?100:70}});
    assert.equal(progress.code,200);
   }
+  const independent=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:0,followup:{...input,action_id:'ACT-c-002',progress_percent:10}});
+  assert.equal(independent.code,200);assert.equal(independent.data.revision,1);
   progress=await call('GET','/api/community-surveys/pgce-followup?school_year=2027');
   assert.equal(progress.code,200);
-  assert.deepEqual(progress.data.records.map(x=>x.measurement_code),['M1','M2','M3']);
+  assert.deepEqual(progress.data.records.filter(x=>x.action_id==='ACT-c-001').map(x=>x.measurement_code),['M1','M2','M3']);
+  assert.equal(progress.data.records.find(x=>x.action_id==='ACT-c-002').progress_percent,10);
   assert.equal(progress.data.records.find(x=>x.measurement_code==='M1').progress_percent,45);
   assert.ok(!JSON.stringify(progress.data).includes('MENOR FICTICIO'));
   const outsideProgress=await call('GET','/api/community-surveys/pgce-followup?school_year=2027',
@@ -267,8 +273,8 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
    {expected_revision:0,followup:input},
    {est,role:'coordinador_convivencia',origin:'https://sitio-ajeno.example'});
   assert.equal(invalidOriginProgress.code,403);
-  const progressAudits=await insert('SELECT count(*)::integer n FROM community_pgce_followup_audit_2027 WHERE establishment_id=$1',[est]);
-  assert.equal(Number(progressAudits.n),4);
+  const progressAudits=await insert('SELECT count(*)::integer n FROM community_pgce_followup_audit_v2_2027 WHERE establishment_id=$1',[est]);
+  assert.equal(Number(progressAudits.n),5);
   const revisions=await insert('SELECT count(*)::integer n FROM community_pgce_draft_audit_2027 WHERE establishment_id=$1',[est]);
   assert.equal(Number(revisions.n),2);
   const otherPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1',

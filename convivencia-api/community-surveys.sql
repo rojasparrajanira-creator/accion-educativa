@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS community_survey_invitations (
   school_year INT NOT NULL CHECK(school_year BETWEEN 2027 AND 2100),
   audience TEXT NOT NULL CHECK(audience IN ('familia','docente','asistente','directivo')),
   student_id BIGINT REFERENCES students(id) ON DELETE CASCADE,
+  guardian_slot SMALLINT CHECK(guardian_slot BETWEEN 1 AND 2),
   staff_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
   link_verified_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
   link_evidence_ref TEXT,
@@ -20,8 +21,8 @@ CREATE TABLE IF NOT EXISTS community_survey_invitations (
   issued_by BIGINT NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT family_requires_verified_link CHECK(
-    (audience='familia' AND student_id IS NOT NULL AND link_verified_by IS NOT NULL AND length(trim(link_evidence_ref))>=6 AND staff_user_id IS NULL)
-    OR (audience<>'familia' AND student_id IS NULL AND staff_user_id IS NOT NULL)
+    (audience='familia' AND student_id IS NOT NULL AND guardian_slot IS NOT NULL AND link_verified_by IS NOT NULL AND length(trim(link_evidence_ref))>=6 AND staff_user_id IS NULL)
+    OR (audience<>'familia' AND student_id IS NULL AND guardian_slot IS NULL AND staff_user_id IS NOT NULL)
   )
 );
 CREATE INDEX IF NOT EXISTS idx_community_invites_est_audience
@@ -32,7 +33,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_community_one_staff_invite
  ON community_survey_invitations(establishment_id,school_year,audience,staff_user_id)
  WHERE staff_user_id IS NOT NULL AND revoked_at IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_one_family_invite
- ON community_survey_invitations(establishment_id,school_year,audience,student_id)
+ ON community_survey_invitations(establishment_id,school_year,audience,student_id,guardian_slot)
  WHERE student_id IS NOT NULL AND revoked_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS community_survey_sessions (

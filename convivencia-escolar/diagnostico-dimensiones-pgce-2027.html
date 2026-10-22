@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Diagnóstico y Plan 2027 | Convivencia Educativa</title>
+<style>
+:root{--navy:#123c75;--blue:#1157ce;--turq:#11b9c6;--paper:#fff;--muted:#4e6673;--line:#d4e9ef}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(130deg,#edf7ff 0%,#fff 82%);font:15px/1.52 Inter,system-ui,-apple-system,sans-serif;color:#213a46}
+button{font:inherit;cursor:pointer}button:focus-visible{outline:3px solid var(--turq);outline-offset:3px}
+.container{max-width:1120px;margin:26px auto 55px;padding:0 18px}.hero,.panel{padding:clamp(20px,3.2vw,34px);background:var(--paper);border:1px solid var(--line);border-radius:23px;box-shadow:0 14px 35px rgba(20,60,100,.06)}
+.brand{font-size:12px;letter-spacing:.08em;font-weight:900;text-transform:uppercase;color:var(--blue)}
+h1{font-size:clamp(26px,5vw,39px);line-height:1.22;margin:10px 0;color:var(--navy)}h2{font-size:22px;margin:2px 0 16px;color:var(--navy)}h3{font-size:17px;margin:0 0 8px;color:var(--navy)}p{color:var(--muted);margin:8px 0 12px}
+.note{padding:14px 17px;background:#eff9fc;border-left:4px solid var(--turq);border-radius:12px;font-size:13px;color:#325666;margin:15px 0}
+.action{border:0;border-radius:12px;min-height:47px;padding:11px 21px;background:var(--blue);color:white;font-weight:800}.action:disabled{opacity:.6;cursor:not-allowed}
+.error{color:#9a3232;font-weight:750;min-height:20px}.layout{display:grid;grid-template-columns:1fr;gap:18px;margin-top:18px}
+.cardgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dim{border:1px solid var(--line);background:#fff;border-radius:16px;padding:18px}
+.small{font-size:12px;font-weight:750;letter-spacing:.04em;color:var(--blue)}.muted{font-size:13px;color:var(--muted)}.pill{display:inline-block;font-size:11px;background:#eff8ff;color:var(--navy);padding:5px 9px;border-radius:99px;margin:2px 5px 2px 0}
+.missing{color:#7a5b24;background:#fff5dd}.supported{background:#e9f8f5;color:#126961}
+table{width:100%;border-collapse:collapse}th,td{padding:13px 9px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{font-size:12px;color:var(--muted)}td:first-child{font-weight:750;color:var(--blue);width:90px}
+footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
+[hidden]{display:none!important}
+@media(max-width:650px){.cardgrid{grid-template-columns:1fr}.container{margin:10px auto 30px;padding:0 11px}.hero,.panel{padding:21px}table{font-size:12px}th,td{padding:9px 5px}td:first-child{width:57px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="hero">
+ <span class="brand">Material Educativo Chile · Convivencia Educativa</span>
+ <h1>Diagnóstico y Plan de Gestión 2027</h1>
+ <p>Vista de revisión para profesionales: dimensiones del diagnóstico de convivencia, antecedentes que faltan y estructura para planificar acciones pertinentes a cada colegio.</p>
+ <div class="note"><strong>Importante:</strong> esta pantalla está en desarrollo y no es una certificación de cumplimiento. Aún no están integrados los resultados estudiantiles. Solo presenta resultados adultos agregados cuando existe un grupo suficientemente grande. El Plan siempre requiere revisión y aprobación institucional.</div>
+ <button id="load" class="action" type="button">Cargar diagnóstico institucional</button>
+ <p id="status" class="error" role="alert" aria-live="polite"></p>
+</header>
+<div id="body" class="layout" hidden>
+ <section class="panel">
+  <h2>Fuentes de información</h2>
+  <div id="sources"></div>
+  <p class="muted" id="pending"></p>
+ </section>
+ <section class="panel">
+  <h2>Diez dimensiones del diagnóstico</h2>
+  <p class="muted">Estas áreas ordenan la información. Las bandas son indicativas y no equivalen a un diagnóstico clínico ni a una medición oficial.</p>
+  <div id="dimensions" class="cardgrid"></div>
+ </section>
+ <section class="panel">
+  <h2>Plan de Gestión: siete componentes obligatorios</h2>
+  <p>Se presenta una estructura vacía, no un Plan aprobado. Cada apartado debe completarse con objetivos, metas, actividades, personas responsables, plazos y evidencia documental.</p>
+  <table><thead><tr><th>Artículo</th><th>Área que debe planificarse</th><th>Estado</th></tr></thead><tbody id="plan-sections"></tbody></table>
+  <div class="note" id="plan-warning"></div>
+ </section>
+</div>
+<footer>Material Educativo Chile · Documento de trabajo institucional 2027. Resultados agregados y revisión profesional.</footer>
+</div>
+<script>
+(()=>{'use strict';
+ const API='https://convivencia-escolar-api.onrender.com';
+ const el=id=>document.getElementById(id);
+ const texts={familia:'Familias',docente:'Docentes',asistente:'Asistentes',directivo:'Directivos/UTP',estudiantes:'Estudiantes'};
+ const humanStatus=s=>({
+  insufficient_group_size:'Sin información suficiente',
+  insufficient_item_responses:'Preguntas sin muestra suficiente',
+  aggregate_available:'Informe agregado disponible'
+ })[s]||'Requiere revisión';
+ const pill=(text,cls)=>{
+  const node=document.createElement('span');
+  node.className='pill '+(cls||'');node.textContent=text;return node;
+ };
+ function draw(result){
+  const {dimensions,plan}=result;const report=dimensions;
+  el('sources').replaceChildren();
+  for(const a of report.audience_availability){
+   const box=document.createElement('div');
+   box.style.marginBottom='8px';
+   box.append(pill(texts[a.audience]||a.audience),
+    pill(a.available?'Información agregada disponible':'Falta información suficiente',a.available?'supported':'missing'));
+   el('sources').appendChild(box);
+  }
+  const pending=report.student_levels_pending||[];
+  el('pending').textContent='Estudiantes: integración pendiente ('+pending.length+' niveles previstos, desde NT1 y NT2 hasta IV medio). Faltan además actas, observación, registros institucionales y participación del Consejo Escolar.';
+  const wrap=el('dimensions');wrap.replaceChildren();
+  for(const d of report.dimensions){
+   const card=document.createElement('article');card.className='dim';
+   const h=document.createElement('h3');h.textContent=d.label;
+   const key=document.createElement('div');key.className='small';key.textContent='Dimensión '+d.id;
+   const summary=document.createElement('p');summary.className='muted';
+   summary.textContent=d.status==='review_with_professionals'
+     ?'Hay información agregada que requiere análisis con otras fuentes.'
+     :'Aún no hay información agregada suficiente.';
+   const extras=document.createElement('div');
+   extras.append(pill(d.legal_links.join(' · ')),
+    pill(d.status==='review_with_professionals'?'Revisar evidencias':'Pendiente de datos',
+      d.status==='review_with_professionals'?'supported':'missing'));
+   card.append(key,h,summary,extras);
+   wrap.appendChild(card);
+  }
+  const tbody=el('plan-sections');tbody.replaceChildren();
+  for(const x of plan.sections){
+   const tr=document.createElement('tr');
+   for(const val of [x.clause,x.title,x.evidence_review_status==='needs_professional_review'
+    ?'Preparar acciones con evidencia':'Falta completar diagnóstico y acciones']){
+    const td=document.createElement('td');td.textContent=val;tr.appendChild(td);
+   }
+   tbody.appendChild(tr);
+  }
+  el('plan-warning').textContent='Estado del borrador: '+plan.preflight.status
+   +'. Componentes pendientes: '+plan.preflight.missing.length
+   +'. El establecimiento debe documentar participación, revisión del Consejo Escolar, metas, calendario, evidencia, seguimiento y acto de aprobación de Dirección.';
+  el('body').hidden=false;
+ }
+ el('load').onclick=async()=>{
+  const btn=el('load');btn.disabled=true;el('status').textContent='Consultando información autorizada…';
+  try{
+   const r=await fetch(API+'/api/community-surveys/pgce-scaffold?school_year=2027',
+    {credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'});
+   const d=await r.json();
+   if(!r.ok||!d.ok||!d.dimensions||!d.plan)throw Error('Debes ingresar con un perfil autorizado; el módulo aún podría no estar habilitado.');
+   draw(d);el('status').textContent='';
+  }catch(e){el('body').hidden=true;el('status').textContent=e.message||'No fue posible cargar el informe.'}
+  finally{btn.disabled=false}
+ };
+})();
+</script>
+</body>
+</html>

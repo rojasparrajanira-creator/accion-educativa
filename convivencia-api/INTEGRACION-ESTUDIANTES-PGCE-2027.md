@@ -158,3 +158,23 @@ HTTP de prueba. `test-pgce-screen-2027.cjs` inspecciona el formulario.
 a nivel estático. Las pruebas de PostgreSQL, HTTP extremo a extremo, revisiones
 de seguridad, validación pedagógica y GitHub Actions deben completarse y
 confirmarse antes de cualquier fusión, activación de la bandera o publicación.
+
+## Integración de múltiples acciones por apartado 16D — versión de pruebas
+
+**Problema corregido en código:** el seguimiento dependía solo de la letra a–g del artículo 16 D, de modo que dos intervenciones en un mismo apartado no podían mantener historiales distintos. Ahora se utiliza un identificador interno estable, por ejemplo ACT-c-001 y ACT-c-002. La clave de seguimiento es **establecimiento + año 2027 + identificador de acción + medición M1/M2/M3**.
+
+Los siete apartados iniciales reciben identificadores fijos. El editor admite nuevas acciones dentro de cualquier apartado. La validación exige IDs únicos y acordes a su apartado; también impide la eliminación o sustitución de un ID guardado para no desasociar un historial. Todavía no hay una función de archivo o retiro de acciones, que requerirá reglas propias de trazabilidad.
+
+### Compatibilidad y persistencia
+
+- Los borradores antiguos sin IDs se normalizan en memoria, asignando identificadores determinísticos a las siete acciones de partida, sin cambiar sus textos ni respaldos.
+- Se incorporaron las tablas aditivas community_pgce_action_followups_v2_2027 y community_pgce_followup_audit_v2_2027, conservando intactas las tablas previas.
+- La migración opt-in copia los seguimientos anteriores al identificador 001 de su letra. Es repetible y no sobrescribe registros nuevos gracias a ON CONFLICT DO NOTHING.
+- La API valida el identificador contra el borrador del establecimiento y la interfaz permite escoger acciones individuales, incluso dos del mismo apartado.
+- No hay certificación ni aprobación automática: el contenido sigue siendo borrador y seguimiento profesional.
+
+### Pruebas y limitaciones actuales
+
+Se ampliaron los tests de validación, API y PostgreSQL aislado para distinguir dos acciones en el mismo apartado. Se añadió test-pgce-v2-migration-2027.cjs para verificar migración aditiva e idempotencia.
+
+Las comprobaciones aisladas de lógica JS pasaron, incluyendo concurrencia simulada y separación de registros. **La ejecución real con PostgreSQL/PGlite, toda la batería de GitHub Actions, seguridad y pruebas móviles siguen pendientes de confirmación.** No fusionar, activar en producción ni desplegar en Render sin validarlas.

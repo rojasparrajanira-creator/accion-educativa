@@ -11,7 +11,7 @@ const ROOT_FIELDS=new Set([
 ]);
 const FINDING_FIELDS=new Set(['id','dimension_id','need','evidence_refs','priority','professional_validation_note']);
 const ACTION_FIELDS=new Set([
- 'clause','title','objective','strategy','responsible','indicator','baseline',
+ 'action_id','clause','title','objective','strategy','responsible','indicator','baseline',
  'target','place','resources','expected_evidence','start_date','end_date',
  'finding_ids','target_courses','evaluation_method'
 ]);
@@ -42,7 +42,24 @@ function deepCheck(obj,depth=0){
   for(const [k,v] of Object.entries(obj)){if(bannedKey.test(k))invalid();deepCheck(v,depth+1)}
  }else if(obj!==null&&typeof obj!=='boolean'&&!(typeof obj==='number'&&Number.isFinite(obj)))invalid();
 }
+// Map the seven legacy one-action-per-clause records to deterministic stable IDs.
+// Retains existing references and never renumbers an already identified action.
+function normalizeLegacyActionIds(raw){
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))return raw;
+ const clean=JSON.parse(JSON.stringify(raw));
+ if(!Array.isArray(clean.actions))return clean;
+ const seen=Object.create(null);
+ for(const action of clean.actions){
+  if(!action||typeof action!=='object'||Array.isArray(action))continue;
+  const clause=action.clause;
+  if(!'abcdefg'.includes(clause)||typeof clause!=='string'||clause.length!==1)continue;
+  seen[clause]=(seen[clause]||0)+1;
+  if(action.action_id===undefined)action.action_id='ACT-'+clause+'-'+String(seen[clause]).padStart(3,'0');
+ }
+ return clean;
+}
 function validatePgceDraft(raw){
+ raw=normalizeLegacyActionIds(raw);
  if(!raw||typeof raw!=='object'||Array.isArray(raw))invalid();
  if(Buffer.byteLength(JSON.stringify(raw),'utf8')>65536)invalid();
  if(Object.keys(raw).some(k=>!ROOT_FIELDS.has(k)))invalid();
@@ -73,14 +90,16 @@ function validatePgceDraft(raw){
    (f.priority!==undefined&&!['','low','medium','high'].includes(f.priority)))invalid();
   ids.add(f.id);
  }
- const seenClauses=new Set();
+ const seenActionIds=new Set();
  for(const a of raw.actions){
   if(!a||typeof a!=='object'||Array.isArray(a)||Object.keys(a).some(k=>!ACTION_FIELDS.has(k))||
-   (typeof a.clause!=='string'||a.clause.length!==1||!'abcdefg'.includes(a.clause)||seenClauses.has(a.clause))||
+   (typeof a.clause!=='string'||a.clause.length!==1||!'abcdefg'.includes(a.clause))||
+   typeof a.action_id!=='string'||!/^ACT-[a-g]-[0-9]{3,5}$/.test(a.action_id)||
+   a.action_id.split('-')[1]!==a.clause||seenActionIds.has(a.action_id)||
    !Array.isArray(a.finding_ids)||a.finding_ids.some(x=>!ids.has(x))||
    (a.target_courses!==undefined&&(!Array.isArray(a.target_courses)||
     a.target_courses.length>40||a.target_courses.some(x=>typeof x!=='string'||x.length>80))))invalid();
-  seenClauses.add(a.clause);
+  seenActionIds.add(a.action_id);
  }
  // Esta función solo valida la estructura de un BORRADOR; la aprobación es externa.
  return JSON.parse(JSON.stringify(raw));
@@ -90,7 +109,7 @@ async function loadPgceDraft(pool,establishmentId){
   'SELECT draft,revision,updated_at FROM community_pgce_drafts_2027 WHERE establishment_id=$1 AND school_year=2027',
   [establishmentId]);
  const row=q.rows[0];
- return row?{draft:row.draft,revision:Number(row.revision),updated_at:row.updated_at}:null;
+ return row?{draft:normalizeLegacyActionIds(row.draft),revision:Number(row.revision),updated_at:row.updated_at}:null;
 }
 async function savePgceDraft(pool,{establishmentId,actorId,expectedRevision,draft}){
  if(!Number.isSafeInteger(establishmentId)||establishmentId<=0||
@@ -102,6 +121,20 @@ async function savePgceDraft(pool,{establishmentId,actorId,expectedRevision,draf
   await client.query('BEGIN');
   const actor=await client.query('SELECT 1 FROM users WHERE id=$1 AND establishment_id=$2 AND active=true',[actorId,establishmentId]);
   if(!actor.rowCount)throw Error('invalid_pgce_actor');
+  // Existing saved IDs remain immutable, so follow-up history never moves to another action.
+  const previous=await client.query(
+   'SELECT draft,revision FROM community_pgce_drafts_2027 WHERE establishment_id=$1 AND school_year=2027 FOR UPDATE',
+   [establishmentId]);
+  if(previous.rowCount){
+   if(expectedRevision!==Number(previous.rows[0].revision)){
+    await client.query('ROLLBACK');return {conflict:true};
+   }
+   const oldActions=normalizeLegacyActionIds(previous.rows[0].draft).actions||[];
+   for(const a of oldActions){
+    const matching=clean.actions.find(x=>x.action_id===a.action_id);
+    if(!matching||matching.clause!==a.clause)throw Error('invalid_pgce_action_identity');
+   }
+  }else if(expectedRevision!==0){await client.query('ROLLBACK');return {conflict:true}}
   let q;
   if(expectedRevision===0){
    q=await client.query(
@@ -128,4 +161,4 @@ async function savePgceDraft(pool,{establishmentId,actorId,expectedRevision,draf
   throw e;
  }finally{client.release()}
 }
-module.exports={validatePgceDraft,loadPgceDraft,savePgceDraft};
+module.exports={validatePgceDraft,normalizeLegacyActionIds,loadPgceDraft,savePgceDraft};

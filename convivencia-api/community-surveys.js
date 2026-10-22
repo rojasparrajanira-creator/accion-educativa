@@ -6,6 +6,8 @@ const crypto=require('node:crypto');
 const C=require('./community-surveys-core.cjs');
 const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const studentDimensions=require('./student-dimensions-adapter-2027.cjs');
+const pgceDrafts=require('./pgce-planning-drafts-2027.cjs');
+const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
 const goodCode=v=>/^[a-zA-Z0-9_-]{32}$/.test(v);
@@ -194,9 +196,37 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
   if(Number(req.query.school_year)!==2027||!studentDimensions.PERIODS.includes(String(req.query.measurement_code||'')))return sendError(res,400,'invalid_reporting_window');
   try{
    const report=await getInstitutionDimensionReport(req);
-   return res.json({ok:true,dimensions:report,
-    plan:PGCE.buildPgceScaffold(report)});
+   const plan=PGCE.buildPgceScaffold(report);
+   const saved=await pgceDrafts.loadPgceDraft(pool,C.safePositiveInt(req.auth.establishment_id));
+   if(saved){
+    plan.draft=saved.draft;
+    plan.preflight=inspectPgceDraft(saved.draft);
+    plan.saved_revision=saved.revision;
+    plan.saved_at=saved.updated_at;
+   }else{plan.saved_revision=0;plan.saved_at=null}
+   // Aun si el editor está completo, esta ruta no aprueba planes.
+   return res.json({ok:true,dimensions:report,plan});
   }catch(e){return sendError(res,503,'pgce_scaffold_unavailable')}
+ });
+ // Edición profesional del único borrador anual por establecimiento.
+ // Sin aceptar establecimiento, RUN o respuestas individuales desde el navegador.
+ app.put('/api/community-surveys/pgce-draft',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const actor=C.safePositiveInt(req.auth.id);
+  if(!est||!actor||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_pgce_scope');
+  try{
+   const saved=await pgceDrafts.savePgceDraft(pool,{
+    establishmentId:est,actorId:actor,
+    expectedRevision:req.body?.expected_revision,draft:req.body?.draft
+   });
+   if(saved.conflict)return sendError(res,409,'pgce_draft_revision_conflict');
+   return res.json({ok:true,saved_revision:saved.revision,saved_at:saved.updated_at,
+    preflight:saved.preflight,can_publish:false,can_certify_compliance:false});
+  }catch(e){
+   if(e.message==='invalid_pgce_draft')return sendError(res,400,'invalid_pgce_draft');
+   return sendError(res,503,'pgce_draft_unavailable');
+  }
  });
  return true;
 }

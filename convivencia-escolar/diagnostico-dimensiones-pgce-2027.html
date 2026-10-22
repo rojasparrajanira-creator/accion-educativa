@@ -50,6 +50,11 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <div id="dimensions" class="cardgrid"></div>
  </section>
  <section class="panel">
+  <h2>Posibles acciones para revisión profesional</h2>
+  <p>Estas son ideas iniciales asociadas a dimensiones con resultados agregados suficientes. El equipo de convivencia debe corroborarlas con otras fuentes y completar su planificación. No son intervenciones aprobadas ni se incorporan automáticamente al Plan.</p>
+  <div id="suggestions" class="cardgrid"></div>
+ </section>
+ <section class="panel">
   <h2>Plan de Gestión: siete componentes obligatorios</h2>
   <p>Se presenta una estructura vacía, no un Plan aprobado. Cada apartado debe completarse con objetivos, metas, actividades, personas responsables, plazos y evidencia documental.</p>
   <table><thead><tr><th>Artículo</th><th>Área que debe planificarse</th><th>Estado</th></tr></thead><tbody id="plan-sections"></tbody></table>
@@ -99,6 +104,23 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
       d.status==='review_with_professionals'?'supported':'missing'));
    card.append(key,h,summary,extras);
    wrap.appendChild(card);
+  }
+  const suggestions=el('suggestions');suggestions.replaceChildren();
+  const actions=result.suggested_actions?.actions||[];
+  if(!actions.length){
+   const p=document.createElement('p');p.textContent='Aún no hay suficiente información agregada para sugerir actividades. Completa primero el diagnóstico participativo.';
+   suggestions.appendChild(p);
+  }
+  for(const a of actions){
+   const card=document.createElement('article');card.className='dim';
+   const code=document.createElement('div');code.className='small';
+   code.textContent=(a.dimension||'')+' · '+(a.related_clauses||[]).join(', ');
+   const title=document.createElement('h3');title.textContent=a.proposed_title||'Acción pendiente de revisión';
+   const purpose=document.createElement('p');purpose.textContent=a.purpose_for_discussion||'';
+   const activity=document.createElement('p');activity.textContent='Idea de actividad: '+(a.possible_activity||'');
+   const status=pill('No aprobada · revisión profesional', 'missing');
+   card.append(code,title,purpose,activity,status);
+   suggestions.appendChild(card);
   }
   const tbody=el('plan-sections');tbody.replaceChildren();
   for(const x of plan.sections){

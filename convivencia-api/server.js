@@ -68,7 +68,7 @@ app.use((req,res,next)=>{
     res.setHeader('Access-Control-Allow-Origin',origin);
     res.setHeader('Vary','Origin');
     res.setHeader('Access-Control-Allow-Credentials','true');
-    res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Student-Access');
+    res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Student-Access, X-Community-Access');
     res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');
   }
   if(req.method==='OPTIONS'){
@@ -2251,7 +2251,7 @@ app.get('/api/site/admin/contacts',...requireRole('platform_admin'),async(req,re
 if(process.env.MEC_COMMUNITY_SURVEYS_ENABLED==='1'){
   const {registerCommunitySurveys}=require('./community-surveys');
   registerCommunitySurveys({app,pool,requireRole,rateLimit:publicRateLimit,
-    accessStatus:id=>subscriptions.accessStatus(id)});
+    accessStatus:id=>subscriptions.accessStatus(id),allowedOrigins});
 }
 
 const port=process.env.PORT||3000;

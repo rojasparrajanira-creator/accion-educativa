@@ -135,6 +135,21 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   assert.equal(one.favorable_band,'75–100 %');
   assert.equal(staffReport.data.items.find(x=>x.id===bank.audiences.docente.items[1].id).available,false);
   assert.ok(!JSON.stringify(staffReport.data).includes('Docente Ficticio'));
+  const diagnostic=await call('GET','/api/community-surveys/diagnostic-draft?school_year=2027');
+  assert.equal(diagnostic.code,200);
+  assert.equal(diagnostic.data.diagnostic.status,'preliminary_adult_diagnostic_only');
+  assert.equal(diagnostic.data.diagnostic.can_approve_pgce,false);
+  assert.ok(diagnostic.data.diagnostic.insufficient_or_missing_sources.some(x=>x.audience==='familia'));
+  assert.ok(diagnostic.data.diagnostic.sources_used.some(x=>x.audience==='docente'));
+  assert.ok(diagnostic.data.diagnostic.legal_links.some(x=>x.audiences_with_aggregated_items.includes('docente')));
+  assert.ok(!JSON.stringify(diagnostic.data).includes('90000001'));
+  assert.ok(!JSON.stringify(diagnostic.data).includes('Docente Ficticio'));
+  const unauthorizedDiagnostic=await call('GET','/api/community-surveys/diagnostic-draft?school_year=2027',undefined,{est,role:'profesor'});
+  assert.equal(unauthorizedDiagnostic.code,403);
+  const isolatedDiagnostic=await call('GET','/api/community-surveys/diagnostic-draft?school_year=2027',undefined,{est:estB,role:'coordinador_convivencia'});
+  assert.equal(isolatedDiagnostic.code,200);
+  assert.equal(isolatedDiagnostic.data.diagnostic.sources_used.length,0);
+  assert.equal(isolatedDiagnostic.data.diagnostic.review_topics.length,0);
   const otherReport=await call('GET','/api/community-surveys/report?school_year=2027&audience=docente',undefined,{est:estB,role:'coordinador_convivencia'});
   assert.equal(otherReport.data.available,false);
   assert.ok(!('participant_band' in otherReport.data));
@@ -157,4 +172,15 @@ test('El banco y validador impiden envíos que no sean opciones legales del inst
  assert.throws(()=>validateAnswers('familia',{[bank.audiences.familia.items[0].id]:0}));
  const a=makeAggregate([{answers:{[bank.audiences.docente.items[0].id]:4}}],'docente');
  assert.equal(a.available,false);
+});
+
+test('preinforme institucional nunca transforma respuestas aisladas en plan aprobado',()=>{
+ const {makeDiagnosticDraft}=require('./community-surveys-core.cjs');
+ const report=makeDiagnosticDraft({});
+ assert.equal(report.can_approve_pgce,false);
+ assert.equal(report.status,'preliminary_adult_diagnostic_only');
+ assert.equal(report.sources_used.length,0);
+ assert.equal(report.insufficient_or_missing_sources.length,4);
+ assert.equal(report.legal_links.length,7);
+ assert.equal(report.review_topics.length,0);
 });

@@ -225,6 +225,7 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
     preflight:saved.preflight,can_publish:false,can_certify_compliance:false});
   }catch(e){
    if(e.message==='invalid_pgce_draft')return sendError(res,400,'invalid_pgce_draft');
+   if(e.message==='invalid_pgce_actor')return sendError(res,403,'pgce_actor_forbidden');
    return sendError(res,503,'pgce_draft_unavailable');
   }
  });

@@ -67,3 +67,28 @@ CREATE TABLE IF NOT EXISTS community_survey_audit_events (
 );
 CREATE INDEX IF NOT EXISTS idx_community_audit_est_created
  ON community_survey_audit_events(establishment_id,created_at DESC);
+
+-- Borradores institucionales del PGCE 2027: habilitados solo en el piloto.
+-- Un plan anual por establecimiento; revisión optimista para evitar sobrescrituras.
+-- Nunca guardar respuestas individuales, RUN ni datos de estudiantes en el plan.
+CREATE TABLE IF NOT EXISTS community_pgce_drafts_2027 (
+  establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+  school_year INT NOT NULL DEFAULT 2027 CHECK(school_year=2027),
+  revision INT NOT NULL DEFAULT 1 CHECK(revision>=1),
+  draft JSONB NOT NULL CHECK(jsonb_typeof(draft)='object'),
+  updated_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY(establishment_id,school_year)
+);
+CREATE TABLE IF NOT EXISTS community_pgce_draft_audit_2027 (
+  id BIGSERIAL PRIMARY KEY,
+  establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+  school_year INT NOT NULL CHECK(school_year=2027),
+  revision INT NOT NULL CHECK(revision>=1),
+  performed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL DEFAULT 'draft_saved' CHECK(action='draft_saved'),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(establishment_id,school_year,revision)
+);
+CREATE INDEX IF NOT EXISTS idx_community_pgce_draft_audit_est
+ ON community_pgce_draft_audit_2027(establishment_id,created_at DESC);

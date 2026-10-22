@@ -36,7 +36,7 @@ function registerPgcePlanEditor({app,pool,requireRole,allowedOrigins}){
  const editor=requireRole(...roles),director=requireRole('director','directora');
  const trustedOrigin=(req,res,next)=>{
   const origin=String(req.headers.origin||'');
-  if(origin&&!allowedOrigins?.has(origin))return send(res,403,'origin_forbidden');
+  if(!origin||!allowedOrigins?.has(origin))return send(res,403,'origin_forbidden');
   next();
  };
  const year=req=>Number(req.query.school_year||req.body?.school_year)===2027;
@@ -58,6 +58,14 @@ function registerPgcePlanEditor({app,pool,requireRole,allowedOrigins}){
   let document;
   try{document=validateDocument(req.body.document)}catch(e){return send(res,400,e.message)}
   const expected=Number(req.body.expected_revision),establishment=est(req),actor=Number(req.auth.id);
+  // No permitir que un editor cambie el RBD/nombre de otro establecimiento
+  // en el expediente oficial, aunque conozca su identificador.
+  try{
+   const school=await pool.query('select name,rbd from establishments where id=$1',[establishment]);
+   if(!school.rowCount)return send(res,404,'establishment_not_found');
+   document.establishment_name=school.rows[0].name;
+   document.rbd=school.rows[0].rbd||'SIN-RBD-VERIFICAR';
+  }catch(e){return send(res,503,'establishment_unavailable')}
   const review=inspectPgceDraft(document),status=review.status==='ready_for_human_review'?'ready_for_review':'draft';
   const client=await pool.connect();
   try{

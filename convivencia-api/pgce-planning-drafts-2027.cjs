@@ -15,6 +15,18 @@ const ACTION_FIELDS=new Set([
  'target','place','resources','expected_evidence','start_date','end_date',
  'finding_ids','target_courses','evaluation_method'
 ]);
+const OBJECT_FIELDS=Object.freeze({
+ council_school:new Set(['report_ref','feedback_or_justification']),
+ diffusion:new Set(['channels','calendar','delivery_record_plan']),
+ follow_up:new Set(['frequency','responsible','evaluation_method'])
+});
+const SOURCE_FIELDS=new Set(['audience','method','evidence_ref']);
+const PARTICIPATION_FIELDS=new Set(['audience','summary','evidence_ref','date']);
+const SOURCE_AUDIENCES=new Set(['estudiantes','familia','docente','asistente','directivo','institutional_records']);
+const PARTICIPATION_AUDIENCES=new Set(['estudiantes','familia','docente','asistente','directivo']);
+function validObjectShape(v,allowed){
+ return !!v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).every(k=>allowed.has(k));
+}
 const bannedKey=/^(?:__proto__|constructor|prototype|rut|run|student_id|student_name|answers|individual_responses)$/i;
 const apparentRut=/(?:^|[^0-9])\d{1,2}\.?\d{3}\.?\d{3}-[\dkK](?:$|[^a-z0-9])/i;
 function invalid(){throw Error('invalid_pgce_draft')}
@@ -38,6 +50,19 @@ function validatePgceDraft(raw){
  if(!Array.isArray(raw.findings)||raw.findings.length>40||!Array.isArray(raw.actions)||
   raw.actions.length>70)invalid();
  deepCheck(raw);
+ for(const [name,allowed] of Object.entries(OBJECT_FIELDS)){
+  if(raw[name]!==undefined&&!validObjectShape(raw[name],allowed))invalid();
+ }
+ for(const [key,allowed,audiences] of [
+  ['diagnostic_sources',SOURCE_FIELDS,SOURCE_AUDIENCES],
+  ['participation',PARTICIPATION_FIELDS,PARTICIPATION_AUDIENCES]
+ ]){
+  if(raw[key]===undefined)continue;
+  if(!Array.isArray(raw[key])||raw[key].length>30)invalid();
+  for(const entry of raw[key]){
+   if(!validObjectShape(entry,allowed)||!audiences.has(entry.audience))invalid();
+  }
+ }
  const ids=new Set();
  for(const f of raw.findings){
   if(!f||typeof f!=='object'||Array.isArray(f)||Object.keys(f).some(k=>!FINDING_FIELDS.has(k))||
@@ -48,12 +73,14 @@ function validatePgceDraft(raw){
    (f.priority!==undefined&&!['','low','medium','high'].includes(f.priority)))invalid();
   ids.add(f.id);
  }
+ const seenClauses=new Set();
  for(const a of raw.actions){
   if(!a||typeof a!=='object'||Array.isArray(a)||Object.keys(a).some(k=>!ACTION_FIELDS.has(k))||
-   (typeof a.clause!=='string'||a.clause.length!==1||!'abcdefg'.includes(a.clause))||
+   (typeof a.clause!=='string'||a.clause.length!==1||!'abcdefg'.includes(a.clause)||seenClauses.has(a.clause))||
    !Array.isArray(a.finding_ids)||a.finding_ids.some(x=>!ids.has(x))||
    (a.target_courses!==undefined&&(!Array.isArray(a.target_courses)||
     a.target_courses.length>40||a.target_courses.some(x=>typeof x!=='string'||x.length>80))))invalid();
+  seenClauses.add(a.clause);
  }
  // Esta función solo valida la estructura de un BORRADOR; la aprobación es externa.
  return JSON.parse(JSON.stringify(raw));

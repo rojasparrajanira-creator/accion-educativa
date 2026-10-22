@@ -19,7 +19,7 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
  // Evitar cambios desde sitios ajenos mediante cookies de sesión del profesional.
  const trustedOrigin=(req,res,next)=>{
   const origin=String(req.headers.origin||'');
-  if(origin && !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
+  if(!origin || !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
    return sendError(res,403,'origin_forbidden');
   next();
  };

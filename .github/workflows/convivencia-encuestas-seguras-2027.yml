@@ -33,7 +33,9 @@ jobs:
           node --check test-pgce-screen-2027.cjs
           node --check student-dimensions-adapter-2027.cjs
           node --check pgce-planning-drafts-2027.cjs
-          node --check test-pgce-planning-drafts-2027.cjs
+          node --check pgce-follow-up-2027.cjs
+          node --check test-pgce-follow-up-2027.cjs
+          node --check test-pgce-planning-drafts-2027.cjs test-pgce-follow-up-2027.cjs
           node --check test-student-dimensions-adapter-2027.cjs
       - name: Recorrido HTTP con datos sintéticos y PostgreSQL en memoria
         working-directory: convivencia-api

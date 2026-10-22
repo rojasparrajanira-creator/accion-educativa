@@ -353,8 +353,19 @@ function firstValue(m,aliases){
 }
 function courseKey(v){
   const n=plain(v).replace(/º/g,'°').replace(/[._-]+/g,' ').replace(/\s+/g,' ').trim();
-  let m=n.match(/^(i|ii|iii|iv)\s*°?\s*(?:medio|media)?\s*([a-z])?\b/);
-  if(m){const num={i:1,ii:2,iii:3,iv:4}[m[1]];return 'm'+num+(m[2]||'')}
+  let m=n.match(/^(iv|iii|ii|i)(?=\s|°|$)\s*°?\s*(?:medio|media)?\s*(?:([a-z])\b)?/);
+  if(m){
+    const num={i:1,ii:2,iii:3,iv:4}[m[1]];
+    // Los terceros y cuartos medios TP/HC NO son el mismo curso.
+    // Sin esta distinción, la importación SIGE agrupaba Adm., Turismo y HC.
+    let speciality='';
+    if(num>=3){
+      if(/\b(administracion|adm)\b/.test(n))speciality='-adm';
+      else if(/\b(turismo|tur)\b/.test(n))speciality='-tur';
+      else if(/\b(hc|h c|humanista cientifico)\b/.test(n))speciality='-hc';
+    }
+    return 'm'+num+speciality+(m[2]||'');
+  }
   const compact=n.replace(/\s+/g,'');
   m=compact.match(/^([1-4])°?(m|em)([a-z])?/);
   if(m)return 'm'+Number(m[1])+(m[3]||'');

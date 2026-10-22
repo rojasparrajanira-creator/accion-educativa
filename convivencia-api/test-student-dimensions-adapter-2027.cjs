@@ -44,25 +44,18 @@ test('adaptador SQL calcula dimensiones por colegio, nivel y M1/M2/M3 sin divulg
   assert.equal(get('3-4').favorable_band,'75–100 %');
   assert.equal(get('7-8').favorable_band,'0–24 %');
   assert.ok(!get('5-6'),'no exponer grupos menores a 10');
-  assert.ok(aggregated.every(x=>!Object.hasOwn(x,'participant_count')&&!Object.hasOwn(x,'valid_response_count')));
+  assert.ok(aggregated.every(x=>x.aggregation_verified===true&&x.participant_count>=10&&x.valid_response_count>=10));
   assert.ok(!JSON.stringify(aggregated).includes('ESTUDIANTE FICTICIO'));
   assert.ok(!JSON.stringify(aggregated).includes('A-1'));
-  const report=P.buildDimensionReport([],aggregated.map(x=>({
-   ...x,participant_count:10,valid_response_count:10,aggregation_verified:true
-  })));
-  // El adaptador debe entregar datos que el puente consume sin fabricar recuentos.
-  // Esta prueba puntual solo valida la proyección de dimensión.
+  const report=P.buildDimensionReport([],aggregated);
+  // El adaptador entrega conteos solo al módulo servidor; la respuesta final los suprime.
   assert.equal(report.student_source_status,'verified_aggregates_received');
   assert.equal(report.student_levels_present.length,3);
   const second=await A.loadStudentDimensionAggregates(db,{establishmentId:est,schoolYear:2027,measurementCode:'M2'});
   assert.equal(second.length,1);assert.equal(second[0].favorable_band,'0–24 %');
   const foreign=await A.loadStudentDimensionAggregates(db,{establishmentId:estOther,schoolYear:2027,measurementCode:'M1'});
   assert.equal(foreign.length,1);assert.equal(foreign[0].favorable_band,'75–100 %');
-  const oldYear=await A.loadStudentDimensionAggregates(db,{establishmentId:est,schoolYear:2026,measurementCode:'M1'});
-  assert.fail('El adaptador debe rechazar año fuera del piloto'); // no reachable
- }catch(e){
-  // Assertions y errores de ejecución no se deben absorber.
-  if(e.message!=='invalid_reporting_scope')throw e;
+  await assert.rejects(A.loadStudentDimensionAggregates(db,{establishmentId:est,schoolYear:2026,measurementCode:'M1'}),/invalid_reporting_scope/);
  }finally{await db.close();}
 });
 test('parámetros y conteos internos deben ser confiables antes de mostrar bandas',()=>{

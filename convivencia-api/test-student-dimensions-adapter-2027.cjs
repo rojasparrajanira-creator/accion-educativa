@@ -30,6 +30,9 @@ test('adaptador SQL calcula dimensiones por colegio, nivel y M1/M2/M3 sin divulg
    }
   }
   await makeCohort({name:'A',establishmentId:est,measurementId:m1,level:'1-2',count:10,value:'3'});
+  // Los mismos diez estudiantes contestan dos preguntas de SEG:
+  // diez participantes, veinte respuestas válidas (no veinte participantes).
+  await db.query("INSERT INTO responses(application_id,item_code,value) SELECT a.id,'D04_01','1' FROM survey_applications a WHERE a.measurement_id=$1 AND a.survey_level='1-2'",[m1]);
   await makeCohort({name:'B',establishmentId:est,measurementId:m1,level:'3-4',count:10,value:'3'});
   await makeCohort({name:'C',establishmentId:est,measurementId:m1,level:'7-8',count:10,value:'2'});
   await makeCohort({name:'SMALL',establishmentId:est,measurementId:m1,level:'5-6',count:9,value:'5'});
@@ -40,7 +43,9 @@ test('adaptador SQL calcula dimensiones por colegio, nivel y M1/M2/M3 sin divulg
   const aggregated=await A.loadStudentDimensionAggregates(db,{establishmentId:est,schoolYear:2027,measurementCode:'M1'});
   assert.equal(aggregated.length,3);
   const get=(level)=>aggregated.find(x=>x.level===level&&x.dimension==='SEG');
-  assert.equal(get('1-2').favorable_band,'75–100 %');
+  assert.equal(get('1-2').participant_count,10);
+  assert.equal(get('1-2').valid_response_count,20);
+  assert.equal(get('1-2').favorable_band,'50–74 %');
   assert.equal(get('3-4').favorable_band,'75–100 %');
   assert.equal(get('7-8').favorable_band,'0–24 %');
   assert.ok(!get('5-6'),'no exponer grupos menores a 10');

@@ -41,11 +41,16 @@ function valueBand(favorable,valid){
  const percent=favorable*100/valid;
  return percent<25?'0–24 %':percent<50?'25–49 %':percent<75?'50–74 %':'75–100 %';
 }
-function numericSafe(v){return Number.isSafeInteger(Number(v))&&Number(v)>=0?Number(v):null}
+function numericSafe(v){
+ if(v===null||v===undefined||typeof v==='boolean'||String(v).trim()==='')return null;
+ const n=Number(v);
+ return Number.isSafeInteger(n)&&n>=0?n:null;
+}
 function studentDimensionAggregate(rows,{schoolYear,measurementCode}){
  if(schoolYear!==2027||!PERIODS.includes(measurementCode))throw Error('invalid_reporting_window');
  if(!Array.isArray(rows))throw Error('invalid_aggregates');
  const candidates=[];
+ const seen=new Set();
  for(const row of rows){
   const level=String(row.level||'');
   const dimension=String(row.dimension||'');
@@ -54,9 +59,11 @@ function studentDimensionAggregate(rows,{schoolYear,measurementCode}){
   const favorable=numericSafe(row.favorable_count);
   if(!LEVELS.includes(level)||!Object.hasOwn(DIMENSIONS,dimension)
    ||!DIMENSIONS[dimension].student.length||count===null||count<10||
-   valid===null||valid<10||valid<count||favorable===null||favorable>valid){
+   valid===null||valid<10||valid<count||valid>count*12||
+   favorable===null||favorable>valid||seen.has(level+'|'+dimension)){
    continue;
   }
+  seen.add(level+'|'+dimension);
   candidates.push({level,dimension,participant_count:count,valid_response_count:valid,
    favorable_band:valueBand(favorable,valid),
    aggregation_verified:true,

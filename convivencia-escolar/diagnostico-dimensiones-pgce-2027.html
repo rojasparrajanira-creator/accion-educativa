@@ -82,6 +82,41 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <button class="action" type="button" id="save-draft">Guardar borrador institucional</button>
   <p id="save-status" class="muted" role="status" aria-live="polite"></p>
  </section>
+ <section class="panel">
+  <h2>Antecedentes y participación institucional</h2>
+  <p class="muted">Registra referencias colectivas de actas y documentos autorizados. Estos campos no acreditan por sí mismos el cumplimiento de obligaciones ni reemplazan la aprobación de Dirección.</p>
+  <div class="form-grid" id="institution-fields"></div>
+  <h3>Fuentes complementarias del diagnóstico</h3>
+  <div id="diagnostic-sources-editor"></div>
+  <button id="add-source" class="muted-action" type="button">Agregar fuente</button>
+  <h3 style="margin-top:20px">Participación por estamento</h3>
+  <div id="participation-editor"></div>
+  <button id="add-participation" class="muted-action" type="button">Agregar participación</button>
+  <h3 style="margin-top:20px">Consejo Escolar, difusión y seguimiento</h3>
+  <div class="form-grid" id="institution-subfields"></div>
+  <button type="button" id="save-institution" class="action">Guardar antecedentes junto al plan</button>
+ </section>
+ <section class="panel">
+  <h2>Seguimiento manual M1–M2–M3 de acciones</h2>
+  <p class="muted">Registra avances respaldados por el equipo responsable. Los cortes no calculan ni comparan puntajes de encuestas y no aprueban el plan.</p>
+  <div class="form-grid">
+   <div class="field"><label for="followup-clause">Acción del Plan de Gestión</label><select id="followup-clause"></select></div>
+   <div class="field"><label for="followup-period">Período de seguimiento</label><select id="followup-period">
+    <option value="M1">M1 · Inicial</option><option value="M2">M2 · Intermedio</option><option value="M3">M3 · Final</option>
+   </select></div>
+   <div class="field"><label for="followup-status">Estado de la acción</label><select id="followup-status">
+    <option value="pending">Pendiente</option><option value="in_progress">En ejecución</option>
+    <option value="completed">Completada</option><option value="reprogrammed">Reprogramada</option>
+    <option value="suspended">Suspendida</option>
+   </select></div>
+   <div class="field"><label for="followup-percent">Porcentaje de avance verificado por el profesional</label><input type="number" min="0" max="100" step="1" id="followup-percent" value="0"></div>
+  </div>
+  <div class="field"><label for="followup-evidence">Referencias documentales (separadas por coma)</label><input id="followup-evidence" maxlength="1300"></div>
+  <div class="field"><label for="followup-note">Observaciones del seguimiento</label><textarea id="followup-note" maxlength="1500"></textarea></div>
+  <div class="field"><label for="followup-adjustment">Ajustes acordados / justificación</label><textarea id="followup-adjustment" maxlength="1500"></textarea></div>
+  <button type="button" class="action" id="save-followup">Guardar avance del período</button>
+  <p class="muted" id="followup-state" role="status" aria-live="polite"></p>
+ </section>
 </div>
 <footer>Material Educativo Chile · Documento de trabajo institucional 2027. Resultados agregados y revisión profesional.</footer>
 </div>
@@ -91,6 +126,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  const el=id=>document.getElementById(id);
  const texts={familia:'Familias',docente:'Docentes',asistente:'Asistentes',directivo:'Directivos/UTP',estudiantes:'Estudiantes'};
  let currentDraft=null,savedRevision=0;
+ let followupRecords=[];
  const actionFieldLabels=[
   ['title','Nombre de la acción'],['objective','Objetivo específico'],
   ['strategy','Estrategia de intervención'],['responsible','Responsable institucional'],
@@ -109,6 +145,96 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   input.value=value||'';
   wrap.append(label,input);return {wrap,input};
  };
+ const institutionLabels=[
+  ['establishment_name','Nombre del establecimiento'],['rbd','RBD institucional'],
+  ['director','Dirección responsable'],['responsible','Responsable del PGCE'],
+  ['version','Versión del documento'],['policy_alignment','Vinculación con política nacional'],
+  ['pei_alignment','Articulación con PEI'],['rie_alignment','Articulación con reglamento interno'],
+  ['pme_alignment','Articulación con PME (cuando corresponda)']
+ ];
+ const sectionFields=[
+  ['council_school','report_ref','Referencia del informe al Consejo Escolar'],
+  ['council_school','feedback_or_justification','Observaciones y respuesta fundada'],
+  ['diffusion','channels','Canales de difusión'],
+  ['diffusion','calendar','Calendario de difusión'],
+  ['diffusion','delivery_record_plan','Constancia de entrega prevista'],
+  ['follow_up','frequency','Periodicidad del seguimiento'],
+  ['follow_up','responsible','Responsable del seguimiento'],
+  ['follow_up','evaluation_method','Método de evaluación institucional']
+ ];
+ const audiences=[
+  ['estudiantes','Estudiantes'],['familia','Familias'],['docente','Docentes'],
+  ['asistente','Asistentes de la educación'],['directivo','Directivos/UTP'],
+  ['institutional_records','Registros institucionales']
+ ];
+ function institutionEditor(){
+  if(!currentDraft)return;
+  const main=el('institution-fields');main.replaceChildren();
+  for(const [key,title] of institutionLabels){
+   const {wrap,input}=field('institution-'+key,title,currentDraft[key]||'',
+    ['policy_alignment','pei_alignment','rie_alignment','pme_alignment'].includes(key)?'textarea':'text');
+   input.oninput=()=>{currentDraft[key]=input.value};main.append(wrap);
+  }
+  const details=el('institution-subfields');details.replaceChildren();
+  for(const [group,key,title] of sectionFields){
+   currentDraft[group]??={};
+   const {wrap,input}=field(group+'-'+key,title,currentDraft[group][key]||'',
+    ['feedback_or_justification','evaluation_method'].includes(key)?'textarea':'text');
+   input.oninput=()=>{currentDraft[group][key]=input.value};details.append(wrap);
+  }
+  renderInstitutionRows('diagnostic_sources');
+  renderInstitutionRows('participation');
+ }
+ function renderInstitutionRows(section){
+  const container=el(section==='participation'?'participation-editor':'diagnostic-sources-editor');
+  container.replaceChildren();currentDraft[section]??=[];
+  currentDraft[section].forEach((entry,i)=>{
+   const wrap=document.createElement('div');wrap.className='review-row';
+   const selectWrap=document.createElement('div');selectWrap.className='field';
+   const label=document.createElement('label');label.textContent='Estamento o fuente';
+   const sel=document.createElement('select');sel.setAttribute('aria-label','Estamento o fuente');
+   for(const [key,title] of audiences){
+    if(section==='participation'&&key==='institutional_records')continue;
+    const opt=document.createElement('option');opt.value=key;opt.textContent=title;sel.append(opt);
+   }
+   sel.value=entry.audience||'estudiantes';entry.audience=sel.value;
+   sel.onchange=()=>{entry.audience=sel.value};
+   selectWrap.append(label,sel);wrap.append(selectWrap);
+   const defs=section==='participation'?
+    [['summary','Síntesis de participación','textarea'],['evidence_ref','Referencia de acta','text'],['date','Fecha de participación','date']]:
+    [['method','Método / fuente','text'],['evidence_ref','Referencia documental','text']];
+   for(const [k,title,type] of defs){
+    const {wrap:box,input}=field(section+'-'+i+'-'+k,title,entry[k]||'',type);
+    input.oninput=()=>{entry[k]=input.value};wrap.append(box);
+   }
+   const remove=document.createElement('button');remove.type='button';remove.className='muted-action';remove.textContent='Quitar';
+   remove.onclick=()=>{currentDraft[section].splice(i,1);renderInstitutionRows(section)};
+   wrap.append(remove);container.append(wrap);
+  });
+ }
+ function selectedFollowup(){
+  const clause=el('followup-clause').value,measurement_code=el('followup-period').value;
+  return followupRecords.find(x=>x.clause===clause&&x.measurement_code===measurement_code);
+ }
+ function renderFollowup(){
+  const record=selectedFollowup();
+  el('followup-status').value=record?.status||'pending';
+  el('followup-percent').value=record?.progress_percent??0;
+  el('followup-evidence').value=(record?.evidence_refs||[]).join(', ');
+  el('followup-note').value=record?.professional_note||'';
+  el('followup-adjustment').value=record?.adjustment_note||'';
+  el('followup-state').textContent=record?
+   'Registro guardado: revisión '+record.revision+'. No constituye aprobación.':
+   'Todavía no existe un avance guardado para esta acción y período.';
+ }
+ async function loadFollowups(){
+  const r=await fetch(API+'/api/community-surveys/pgce-followup?school_year=2027',
+   {credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'});
+  const data=await r.json();
+  if(!r.ok||!data.ok)throw Error('No se pudo recuperar el seguimiento de las acciones.');
+  followupRecords=data.records||[];
+  renderFollowup();
+ }
  function renderQueue(queue){
   const node=el('review-queue');node.replaceChildren();
   if(!queue.length){const p=document.createElement('p');p.textContent='Sin agregados suficientes para proponer temas de revisión.';node.append(p);return;}
@@ -225,12 +351,64 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   }
   actionSelect.onchange=renderActionEditor;
   renderActionEditor();
+  institutionEditor();
+  const followSelect=el('followup-clause');followSelect.replaceChildren();
+  for(const section of plan.sections){
+   const option=document.createElement('option');option.value=section.clause.replace('16D-','');
+   option.textContent=section.title;followSelect.append(option);
+  }
+  followSelect.onchange=renderFollowup;
+  el('followup-period').onchange=renderFollowup;
+  followupRecords=[];renderFollowup();
   el('save-status').textContent=savedRevision?'Borrador recuperado, revisión '+savedRevision+'.':'Sin borrador guardado todavía.';
   el('plan-warning').textContent='Estado del borrador: '+plan.preflight.status
    +'. Componentes pendientes: '+plan.preflight.missing.length
    +'. El establecimiento debe documentar participación, revisión del Consejo Escolar, metas, calendario, evidencia, seguimiento y acto de aprobación de Dirección.';
   el('body').hidden=false;
  }
+ el('add-source').onclick=()=>{
+  if(!currentDraft)return;
+  currentDraft.diagnostic_sources??=[];
+  if(currentDraft.diagnostic_sources.length>=30)return;
+  currentDraft.diagnostic_sources.push({audience:'institutional_records',method:'',evidence_ref:''});
+  renderInstitutionRows('diagnostic_sources');
+ };
+ el('add-participation').onclick=()=>{
+  if(!currentDraft)return;
+  currentDraft.participation??=[];
+  if(currentDraft.participation.length>=30)return;
+  currentDraft.participation.push({audience:'estudiantes',summary:'',evidence_ref:'',date:''});
+  renderInstitutionRows('participation');
+ };
+ el('save-institution').onclick=()=>el('save-draft').click();
+ el('save-followup').onclick=async()=>{
+  if(!currentDraft)return;
+  const button=el('save-followup');button.disabled=true;
+  try{
+   const old=selectedFollowup();
+   const input={
+    clause:el('followup-clause').value,measurement_code:el('followup-period').value,
+    status:el('followup-status').value,progress_percent:Number(el('followup-percent').value),
+    evidence_refs:el('followup-evidence').value.split(',').map(x=>x.trim()).filter(Boolean),
+    professional_note:el('followup-note').value,
+    adjustment_note:el('followup-adjustment').value
+   };
+   if(el('followup-percent').value.trim()==='')throw Error('Indica un porcentaje válido.');
+   const r=await fetch(API+'/api/community-surveys/pgce-followup?school_year=2027',{
+    method:'PUT',credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({expected_revision:old?.revision||0,followup:input})
+   });
+   const data=await r.json();
+   if(r.status===409)throw Error('El registro cambió. Recarga para revisar antes de guardar.');
+   if(r.status===404)throw Error('Guarda primero el plan con una acción y su nombre.');
+   if(!r.ok||!data.ok)throw Error('No fue posible guardar. Verifica los datos y permisos.');
+   await loadFollowups();
+   el('followup-state').textContent='Avance guardado, revisión '+data.revision+
+    '. Pendiente de evaluación y aprobación institucional.';
+  }catch(e){el('followup-state').textContent=e.message||'Error al guardar avance.'}
+  finally{button.disabled=false}
+ };
  el('add-finding').onclick=()=>{
   if(!currentDraft)return;
   const dimension=el('finding-dimension').value;
@@ -272,6 +450,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    const d=await r.json();
    if(!r.ok||!d.ok||!d.dimensions||!d.plan)throw Error('Debes ingresar con un perfil autorizado; el módulo aún podría no estar habilitado.');
    draw(d);el('status').textContent='';
+   try{await loadFollowups()}catch(e){el('followup-state').textContent=e.message}
   }catch(e){el('body').hidden=true;el('status').textContent=e.message||'No fue posible cargar el informe.'}
   finally{btn.disabled=false}
  };

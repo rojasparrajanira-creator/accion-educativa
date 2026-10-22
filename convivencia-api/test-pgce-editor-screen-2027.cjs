@@ -15,7 +15,7 @@ test('editor visual 2027: sintaxis, campos y llamadas protegidas',()=>{
  assert.match(h,/\/api\/community-surveys\/pgce-plan\/approve/);
  assert.match(h,/\/api\/community-surveys\/pgce-plan\/history/);
  assert.match(h,/expected_revision:revision/);
- assert.match(h,/role==='director'/);
+ assert.match(h,/includes\(role\)/);
  assert.match(h,/credentials:'include'/);
  assert.match(h,/referrerPolicy:'no-referrer'/);
  assert.ok(!/innerHTML\s*=/.test(h),'No colocar datos en HTML sin escapar');

@@ -183,6 +183,67 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   assert.equal(planStruct.data.plan.can_publish,false);
   assert.equal(planStruct.data.plan.draft.director_approval,null);
   assert.ok(!JSON.stringify(planStruct.data).includes('90000001'));
+  // Paso integrado: datos agregados -> revisión profesional -> borrador anual
+  // editable con aislamiento por establecimiento, trazabilidad y concurrencia.
+  assert.ok(planStruct.data.dimensions.review_queue.some(x=>x.dimension_id==='SEG'));
+  assert.equal(planStruct.data.plan.saved_revision,0);
+  const draft=planStruct.data.plan.draft;
+  draft.findings=[{
+   id:'H-SEG-2027',dimension_id:'SEG',
+   need:'Revisar condiciones institucionales de seguridad y protección',
+   evidence_refs:['ACTA-CONSEJO-PRUEBA-2027'],priority:'medium'
+  }];
+  draft.actions.find(x=>x.clause==='c').finding_ids=['H-SEG-2027'];
+  draft.actions.find(x=>x.clause==='c').title='Revisión preventiva de la convivencia';
+  let saved=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:0,draft});
+  assert.equal(saved.code,200);
+  assert.equal(saved.data.saved_revision,1);
+  assert.equal(saved.data.can_publish,false);
+  assert.equal(saved.data.preflight.status,'draft_incomplete');
+  let reloaded=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1');
+  assert.equal(reloaded.code,200);
+  assert.equal(reloaded.data.plan.saved_revision,1);
+  assert.equal(reloaded.data.plan.draft.findings[0].id,'H-SEG-2027');
+  assert.equal(reloaded.data.plan.draft.actions.find(x=>x.clause==='c').finding_ids[0],'H-SEG-2027');
+  // Un mismo plan anual sin mezclar respuestas M1/M2.
+  const fromM2=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M2');
+  assert.equal(fromM2.data.plan.saved_revision,1);
+  assert.equal(fromM2.data.dimensions.student_measurement_code,'M2');
+  assert.equal(fromM2.data.plan.draft.findings[0].id,'H-SEG-2027');
+  saved=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:0,draft});
+  assert.equal(saved.code,409);
+  draft.actions.find(x=>x.clause==='c').objective='Fortalecer prácticas preventivas con seguimiento profesional';
+  saved=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:1,draft});
+  assert.equal(saved.code,200);
+  assert.equal(saved.data.saved_revision,2);
+  const revisions=await insert('SELECT count(*)::integer n FROM community_pgce_draft_audit_2027 WHERE establishment_id=$1',[est]);
+  assert.equal(Number(revisions.n),2);
+  const otherPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1',
+   undefined,{est:estB,role:'coordinador_convivencia'});
+  assert.equal(otherPlan.code,200);
+  assert.equal(otherPlan.data.plan.saved_revision,0);
+  assert.equal(otherPlan.data.plan.draft.findings.length,0);
+  assert.ok(!JSON.stringify(otherPlan.data).includes('ACTA-CONSEJO-PRUEBA'));
+  const otherWrite=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:0,draft},{est:estB,role:'coordinador_convivencia'});
+  assert.equal(otherWrite.code,403);assert.equal(otherWrite.data.error,'pgce_actor_forbidden');
+  const studentWrite=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:2,draft},{est,role:'profesor'});
+  assert.equal(studentWrite.code,403);
+  const forgedOrigin=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:2,draft},{est,role:'coordinador_convivencia',origin:'https://externo.example'});
+  assert.equal(forgedOrigin.code,403);
+  const forcedApproval=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:2,draft:{...draft,director_approval:{approval_document_ref:'NO-AUTORIZADO',date:'2027-12-31'}}});
+  assert.equal(forcedApproval.code,400);
+  const identifiable=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:2,draft:{...draft,findings:[{...draft.findings[0],need:'RUN 12.345.678-9'}]}});
+  assert.equal(identifiable.code,400);
+  const afterInvalid=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1');
+  assert.equal(afterInvalid.data.plan.saved_revision,2);
   const forbiddenPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1',undefined,{est,role:'profesor'});
   assert.equal(forbiddenPlan.code,403);
   const otherDimensions=await call('GET','/api/community-surveys/dimensions?school_year=2027&measurement_code=M1',undefined,{est:estB,role:'coordinador_convivencia'});

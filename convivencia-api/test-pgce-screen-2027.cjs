@@ -17,6 +17,11 @@ test('panel de 10 dimensiones exige ingreso profesional y no publica respuestas 
  assert.match(page,/plan\.preflight\.status/);
  assert.match(page,/id="finding-need"/);
  assert.match(page,/id="action-fields"/);
+ assert.match(page,/id="add-action"/);
+ assert.match(page,/id="new-action-clause"/);
+ assert.match(page,/action_id:actionId/);
+ assert.match(page,/x\.action_id===actionId/);
+ assert.match(page,/refreshActionChoices/);
  assert.match(page,/id="save-draft"/);
  assert.match(page,/id="institution-fields"/);
  assert.match(page,/id="participation-editor"/);

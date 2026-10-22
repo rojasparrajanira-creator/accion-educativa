@@ -1,0 +1,19 @@
+name: Vista previa convivencia NT1-NT2
+on:
+  push:
+    branches:
+      - feature/convivencia-prototipo-nt1-nt2
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validar-prototipo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pruebas de preguntas, privacidad, audio y accesibilidad
+        run: node --test convivencia-api/test-encuesta-parvulos-preview.cjs

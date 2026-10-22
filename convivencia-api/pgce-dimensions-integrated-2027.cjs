@@ -121,7 +121,7 @@ function buildPgceScaffold(report,school={}){
   };
  });
  const actions=CLAUSES.map(e=>({
-  clause:e.clause,title:'',objective:'',strategy:'',responsible:'',indicator:'',
+  action_id:'ACT-'+e.clause+'-001',clause:e.clause,title:'',objective:'',strategy:'',responsible:'',indicator:'',
   baseline:'',target:'',place:'',resources:'',expected_evidence:'',
   start_date:'',end_date:'',finding_ids:[]
  }));

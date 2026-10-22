@@ -88,7 +88,16 @@ function buildDimensionReport(adultRows=[],studentIndicators=[]){
    legal_links:def.clauses.map(x=>'16D-'+x),status:topics.length?'review_with_professionals':'missing_sufficient_evidence',
    coverage,review_topics:topics};
  });
- return {status:'preliminary_dimensions_only',year:2027,dimensions,
+ // Señales agregadas que el equipo puede revisar; NO crean hallazgos ni acciones.
+ const review_queue=dimensions.filter(d=>d.review_topics.length).map(d=>({
+  dimension_id:d.id,dimension_label:d.label,legal_links:d.legal_links.slice(),
+  source_groups:[...new Set(d.review_topics.map(t=>t.audience))],
+  evidence_refs:[...new Set(d.review_topics.map(t=>t.evidence_ref||
+   ('ENC-2027-'+t.audience+'-'+t.question_id)))],
+  status:'pending_professional_review',
+  suggested_need:'',priority:null,professional_decision:null
+ }));
+ return {status:'preliminary_dimensions_only',year:2027,dimensions,review_queue,
   audience_availability:ROLES.map(x=>({audience:x,available:reports[x].available,
    participant_band:reports[x].available?reports[x].participant_band:null})),
   student_source_status:student.length?'verified_aggregates_received':'not_integrated_yet',

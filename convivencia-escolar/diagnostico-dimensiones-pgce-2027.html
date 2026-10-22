@@ -18,6 +18,12 @@ h1{font-size:clamp(26px,5vw,39px);line-height:1.22;margin:10px 0;color:var(--nav
 .missing{color:#7a5b24;background:#fff5dd}.supported{background:#e9f8f5;color:#126961}
 table{width:100%;border-collapse:collapse}th,td{padding:13px 9px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{font-size:12px;color:var(--muted)}td:first-child{font-weight:750;color:var(--blue);width:90px}
 footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
+.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:750;color:var(--navy);margin-bottom:5px}
+.field input,.field textarea,.field select{display:block;width:100%;font:inherit;padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#223b47}
+.field textarea{min-height:70px;resize:vertical}.muted-action{background:#eaf5f7;border:1px solid var(--line);color:var(--navy);border-radius:9px;padding:8px 11px;cursor:pointer}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}.review-row{padding:12px 0;border-bottom:1px solid var(--line)}
+@media(max-width:650px){.form-grid{grid-template-columns:1fr}}
+
 [hidden]{display:none!important}
 @media(max-width:650px){.cardgrid{grid-template-columns:1fr}.container{margin:10px auto 30px;padding:0 11px}.hero,.panel{padding:21px}table{font-size:12px}th,td{padding:9px 5px}td:first-child{width:57px}}
 </style>
@@ -50,10 +56,31 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <div id="dimensions" class="cardgrid"></div>
  </section>
  <section class="panel">
+  <h2>Hallazgos para revisión profesional</h2>
+  <p class="muted">Las señales de las encuestas son orientativas. Un profesional debe contrastarlas con antecedentes institucionales antes de registrar una necesidad. No incluir nombres, RUN ni respuestas individuales de estudiantes.</p>
+  <div id="review-queue"></div>
+  <h3 style="margin-top:19px">Registrar hallazgo fundamentado</h3>
+  <div class="field"><label for="finding-dimension">Dimensión institucional</label><select id="finding-dimension"></select></div>
+  <div class="field"><label for="finding-need">Necesidad identificada tras revisión profesional</label><textarea id="finding-need" maxlength="1200" placeholder="Describe una necesidad colectiva basada en evidencias"></textarea></div>
+  <div class="field"><label for="finding-evidence">Referencia de respaldo (acta, informe institucional o registro autorizado)</label><input id="finding-evidence" maxlength="120" placeholder="Ej.: ACTA-CONVIVENCIA-2027-01"></div>
+  <button class="action" type="button" id="add-finding">Agregar hallazgo al borrador</button>
+  <div id="findings-list" style="margin-top:18px"></div>
+ </section>
+ <section class="panel">
   <h2>Plan de Gestión: siete componentes obligatorios</h2>
   <p>Se presenta una estructura vacía, no un Plan aprobado. Cada apartado debe completarse con objetivos, metas, actividades, personas responsables, plazos y evidencia documental.</p>
   <table><thead><tr><th>Artículo</th><th>Área que debe planificarse</th><th>Estado</th></tr></thead><tbody id="plan-sections"></tbody></table>
   <div class="note" id="plan-warning"></div>
+ </section>
+ <section class="panel">
+  <h2>Editor de acciones institucionales 2027</h2>
+  <p class="muted">Selecciona uno de los siete apartados, completa los campos y vincúlalo con un hallazgo revisado. Los cambios solo se guardan cuando utilizas el botón Guardar borrador.</p>
+  <div class="field"><label for="action-clause">Componente del artículo 16 D</label><select id="action-clause"></select></div>
+  <div class="form-grid" id="action-fields"></div>
+  <div class="field"><label for="action-finding">Hallazgo relacionado con esta acción</label><select id="action-finding"></select></div>
+  <div class="note">Este documento es un borrador editable. Guardarlo no significa que el Consejo Escolar lo haya revisado ni que Dirección lo haya aprobado.</div>
+  <button class="action" type="button" id="save-draft">Guardar borrador institucional</button>
+  <p id="save-status" class="muted" role="status" aria-live="polite"></p>
  </section>
 </div>
 <footer>Material Educativo Chile · Documento de trabajo institucional 2027. Resultados agregados y revisión profesional.</footer>
@@ -63,6 +90,78 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  const API='https://convivencia-escolar-api.onrender.com';
  const el=id=>document.getElementById(id);
  const texts={familia:'Familias',docente:'Docentes',asistente:'Asistentes',directivo:'Directivos/UTP',estudiantes:'Estudiantes'};
+ let currentDraft=null,savedRevision=0;
+ const actionFieldLabels=[
+  ['title','Nombre de la acción'],['objective','Objetivo específico'],
+  ['strategy','Estrategia de intervención'],['responsible','Responsable institucional'],
+  ['indicator','Indicador de evaluación'],['baseline','Línea base'],
+  ['target','Meta'],['place','Lugar de ejecución'],['resources','Recursos'],
+  ['expected_evidence','Medios de verificación'],['start_date','Fecha de inicio'],
+  ['end_date','Fecha de término'],['target_courses','Cursos destinatarios (separados por coma)'],
+  ['evaluation_method','Método de evaluación']
+ ];
+ const field=(id,title,value,type='text')=>{
+  const wrap=document.createElement('div');wrap.className='field';
+  const label=document.createElement('label');label.htmlFor=id;label.textContent=title;
+  const input=(type==='textarea'?document.createElement('textarea'):document.createElement('input'));
+  input.id=id;
+  if(type!=='textarea')input.type=type;
+  input.value=value||'';
+  wrap.append(label,input);return {wrap,input};
+ };
+ function renderQueue(queue){
+  const node=el('review-queue');node.replaceChildren();
+  if(!queue.length){const p=document.createElement('p');p.textContent='Sin agregados suficientes para proponer temas de revisión.';node.append(p);return;}
+  for(const x of queue){
+   const row=document.createElement('div');row.className='review-row';
+   const title=document.createElement('strong');title.textContent=x.dimension_label;
+   const source=document.createElement('p');source.className='muted';
+   source.textContent='Fuentes agrupadas: '+x.source_groups.map(v=>texts[v]||v).join(', ')+'. Revisión profesional pendiente.';
+   row.append(title,source);node.append(row);
+  }
+ }
+ function renderFindings(){
+  const wrap=el('findings-list');wrap.replaceChildren();
+  if(!currentDraft)return;
+  for(const item of currentDraft.findings){
+   const row=document.createElement('div');row.className='review-row';
+   const title=document.createElement('strong');title.textContent=item.id+' · '+item.dimension_id;
+   const body=document.createElement('p');body.textContent=item.need;
+   const ref=document.createElement('p');ref.className='muted';ref.textContent='Respaldo: '+(item.evidence_refs||[]).join(', ');
+   const remove=document.createElement('button');remove.type='button';remove.className='muted-action';remove.textContent='Quitar hallazgo';
+   remove.onclick=()=>{
+    currentDraft.findings=currentDraft.findings.filter(x=>x.id!==item.id);
+    for(const a of currentDraft.actions)a.finding_ids=(a.finding_ids||[]).filter(id=>id!==item.id);
+    renderFindings();renderActionEditor();
+   };
+   row.append(title,body,ref,remove);wrap.append(row);
+  }
+ }
+ function renderActionEditor(){
+  const wrap=el('action-fields');wrap.replaceChildren();
+  if(!currentDraft)return;
+  const code=el('action-clause').value;
+  const action=currentDraft.actions.find(x=>x.clause===code);
+  if(!action)return;
+  for(const [key,title] of actionFieldLabels){
+   const value=key==='target_courses'?(action.target_courses||[]).join(', '):action[key]||'';
+   const type=key==='start_date'||key==='end_date'?'date':
+    ['objective','strategy','indicator','baseline','target','resources','expected_evidence','evaluation_method'].includes(key)?'textarea':'text';
+   const {wrap:box,input}=field('edit-'+key,title,value,type);
+   input.oninput=()=>{
+    if(key==='target_courses')action.target_courses=input.value.split(',').map(x=>x.trim()).filter(Boolean);
+    else action[key]=input.value;
+   };
+   wrap.append(box);
+  }
+  const select=el('action-finding');select.replaceChildren();
+  const empty=document.createElement('option');empty.value='';empty.textContent='Seleccionar hallazgo revisado';select.append(empty);
+  for(const h of currentDraft.findings){
+   const option=document.createElement('option');option.value=h.id;option.textContent=h.id+' · '+h.dimension_id;select.append(option);
+  }
+  select.value=action.finding_ids?.[0]||'';
+  select.onchange=()=>{action.finding_ids=select.value?[select.value]:[]};
+ }
  const humanStatus=s=>({
   insufficient_group_size:'Sin información suficiente',
   insufficient_item_responses:'Preguntas sin muestra suficiente',
@@ -109,11 +208,57 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    }
    tbody.appendChild(tr);
   }
+  currentDraft=plan.draft;savedRevision=plan.saved_revision||0;
+  renderQueue(report.review_queue||[]);
+  const findingSelect=el('finding-dimension');findingSelect.replaceChildren();
+  for(const d of report.dimensions){
+   const option=document.createElement('option');option.value=d.id;option.textContent=d.label;findingSelect.append(option);
+  }
+  renderFindings();
+  const actionSelect=el('action-clause');actionSelect.replaceChildren();
+  for(const section of plan.sections){
+   const option=document.createElement('option');
+   option.value=section.clause.replace('16D-','');option.textContent=section.title;actionSelect.append(option);
+  }
+  actionSelect.onchange=renderActionEditor;
+  renderActionEditor();
+  el('save-status').textContent=savedRevision?'Borrador recuperado, revisión '+savedRevision+'.':'Sin borrador guardado todavía.';
   el('plan-warning').textContent='Estado del borrador: '+plan.preflight.status
    +'. Componentes pendientes: '+plan.preflight.missing.length
    +'. El establecimiento debe documentar participación, revisión del Consejo Escolar, metas, calendario, evidencia, seguimiento y acto de aprobación de Dirección.';
   el('body').hidden=false;
  }
+ el('add-finding').onclick=()=>{
+  if(!currentDraft)return;
+  const dimension=el('finding-dimension').value;
+  const need=el('finding-need').value.trim(),evidence=el('finding-evidence').value.trim();
+  if(!need||!evidence){el('save-status').textContent='Describe una necesidad y registra su respaldo antes de agregarla.';return;}
+  if(currentDraft.findings.length>=40){el('save-status').textContent='Límite de hallazgos del borrador alcanzado.';return;}
+  const id='H-'+dimension+'-'+Date.now()+'-'+(currentDraft.findings.length+1);
+  currentDraft.findings.push({id,dimension_id:dimension,need,evidence_refs:[evidence]});
+  el('finding-need').value='';el('finding-evidence').value='';
+  renderFindings();renderActionEditor();
+  el('save-status').textContent='Hallazgo incorporado localmente. Guarda el borrador para conservarlo.';
+ };
+ el('save-draft').onclick=async()=>{
+  if(!currentDraft)return;
+  const button=el('save-draft');button.disabled=true;
+  el('save-status').textContent='Guardando borrador institucional…';
+  try{
+   const r=await fetch(API+'/api/community-surveys/pgce-draft?school_year=2027',{
+    method:'PUT',credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({expected_revision:savedRevision,draft:currentDraft})
+   });
+   const data=await r.json();
+   if(r.status===409)throw Error('Otro profesional guardó cambios. Recarga el borrador para revisar la versión actual.');
+   if(!r.ok||!data.ok)throw Error('No se guardó. Verifica permisos, referencias y que no existan datos personales.');
+   savedRevision=data.saved_revision;
+   el('save-status').textContent='Borrador guardado: revisión '+savedRevision+
+    '. Pendientes editoriales: '+data.preflight.missing.length+'. No está aprobado.';
+  }catch(err){el('save-status').textContent=err.message||'Error al guardar borrador.'}
+  finally{button.disabled=false}
+ };
  el('load').onclick=async()=>{
   const btn=el('load');btn.disabled=true;el('status').textContent='Consultando información autorizada…';
   try{

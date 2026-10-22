@@ -25,6 +25,7 @@ jobs:
           node --check community-surveys.js
           node --check community-surveys-core.cjs
           node --check test-community-surveys-2027.cjs
+          node --check test-community-front-2027.cjs
       - name: Recorrido HTTP con datos sintéticos y PostgreSQL en memoria
         working-directory: convivencia-api
-        run: node --test test-community-surveys-2027.cjs
+        run: node --test test-community-surveys-2027.cjs test-community-front-2027.cjs

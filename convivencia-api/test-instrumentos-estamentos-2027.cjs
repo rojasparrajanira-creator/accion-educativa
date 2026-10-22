@@ -46,7 +46,7 @@ test('hay cobertura temática de las siete cláusulas de artículo 16 D, sin equ
  assert.ok(bank.audiences.directivo.items.some(x=>x.legal_clause==='16D-e'));
  assert.ok(bank.audiences.docente.items.some(x=>x.legal_clause==='16D-a'));
  for(const c of clauses)assert.ok(all.filter(x=>x.legal_clause===c).length>=2,'Sin triangulación diagnóstica de '+c);
- assert.match(bank.directions,/no reemplazan procesos participativos/);
+ assert.match(bank.directions,/no reemplazan procesos participativos/i);
 });
 
 test('No tengo información y No corresponde no son valores numéricos ni se confunden con omitido',()=>{

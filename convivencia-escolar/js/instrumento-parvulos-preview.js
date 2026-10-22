@@ -21,7 +21,7 @@
     {code:'D02_NT2_01',text:'¿Los otros niños y niñas te tratan bien?'},
     {code:'D03_NT2_01',text:'¿Tienes niños o niñas con quienes jugar?'},
     {code:'D07_NT2_01',text:'¿Te dejan jugar con los demás?'},
-    {code:'D06_NT2_01',text:'Si tienes un problema con alguien, ¿hay un adulto que te ayude?'},
+    {code:'D06_NT2_01',text:'¿Hay un adulto que te ayude si tienes un problema con alguien?'},
     {code:'D09_NT2_01',text:'¿Te preguntan qué quieres jugar?'},
     {code:'D10_NT2_01',text:'¿Te sientes tranquilo o tranquila en tu escuela?'},
     {code:'D13_NT2_01',text:'¿Sabes a qué persona adulta pedir ayuda cuando la necesitas?'},

@@ -219,6 +219,56 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
    {expected_revision:1,draft});
   assert.equal(saved.code,200);
   assert.equal(saved.data.saved_revision,2);
+  // Seguimiento manual M1/M2/M3: un plan común con registros independientes.
+  let progress=await call('GET','/api/community-surveys/pgce-followup?school_year=2027');
+  assert.equal(progress.code,200);assert.equal(progress.data.records.length,0);
+  const input={clause:'c',measurement_code:'M1',status:'in_progress',progress_percent:25,
+   professional_note:'Equipo revisa acciones preventivas',adjustment_note:'',
+   evidence_refs:['ACTA-PRUEBA-2027']};
+  progress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:0,followup:input});
+  assert.equal(progress.code,200);
+  assert.equal(progress.data.revision,1);
+  assert.equal(progress.data.can_approve_pgce,false);
+  progress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:0,followup:input});
+  assert.equal(progress.code,409);
+  progress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:1,followup:{...input,progress_percent:45}});
+  assert.equal(progress.code,200);assert.equal(progress.data.revision,2);
+  for(const period of ['M2','M3']){
+   const final=period==='M3';
+   progress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+    {expected_revision:0,followup:{...input,measurement_code:period,
+     status:final?'completed':'in_progress',progress_percent:final?100:70}});
+   assert.equal(progress.code,200);
+  }
+  progress=await call('GET','/api/community-surveys/pgce-followup?school_year=2027');
+  assert.equal(progress.code,200);
+  assert.deepEqual(progress.data.records.map(x=>x.measurement_code),['M1','M2','M3']);
+  assert.equal(progress.data.records.find(x=>x.measurement_code==='M1').progress_percent,45);
+  assert.ok(!JSON.stringify(progress.data).includes('MENOR FICTICIO'));
+  const outsideProgress=await call('GET','/api/community-surveys/pgce-followup?school_year=2027',
+   undefined,{est:estB,role:'coordinador_convivencia'});
+  assert.equal(outsideProgress.code,200);assert.equal(outsideProgress.data.records.length,0);
+  const unauthorizedProgress=await call('GET','/api/community-surveys/pgce-followup?school_year=2027',
+   undefined,{est,role:'profesor'});
+  assert.equal(unauthorizedProgress.code,403);
+  const foreignWrite=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:0,followup:input},{est:estB,role:'coordinador_convivencia'});
+  assert.equal(foreignWrite.code,404);
+  const rejectedProgress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:0,followup:{...input,professional_note:'12.345.678-9'}});
+  assert.equal(rejectedProgress.code,400);
+  const approvalProgress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:0,followup:{...input,director_approval:true}});
+  assert.equal(approvalProgress.code,400);
+  const invalidOriginProgress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:0,followup:input},
+   {est,role:'coordinador_convivencia',origin:'https://sitio-ajeno.example'});
+  assert.equal(invalidOriginProgress.code,403);
+  const progressAudits=await insert('SELECT count(*)::integer n FROM community_pgce_followup_audit_2027 WHERE establishment_id=$1',[est]);
+  assert.equal(Number(progressAudits.n),4);
   const revisions=await insert('SELECT count(*)::integer n FROM community_pgce_draft_audit_2027 WHERE establishment_id=$1',[est]);
   assert.equal(Number(revisions.n),2);
   const otherPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1',

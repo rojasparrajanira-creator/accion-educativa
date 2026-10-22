@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Editor del Plan de Convivencia 2027 | Material Educativo Chile</title>
+<style>
+:root{--navy:#173e75;--turquoise:#079aab;--ink:#243c48;--muted:#4a6873;--line:#cce0e9;--bg:#f0f7fb}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#e8f7fb,#fcfdff);font:15px/1.55 Inter,system-ui,-apple-system,sans-serif;color:var(--ink)}
+main{max-width:1000px;margin:24px auto 56px;padding:0 18px}header,.sheet{background:white;border:1px solid var(--line);border-radius:22px;padding:clamp(19px,4vw,31px);margin-bottom:15px;box-shadow:0 14px 32px rgba(23,61,101,.06)}
+h1{font-size:clamp(25px,4vw,35px);line-height:1.2;color:var(--navy);margin:8px 0}h2{font-size:21px;color:var(--navy);margin:0 0 13px}h3{font-size:16px;color:var(--navy);margin:0 0 12px}p{color:var(--muted)}
+.eyebrow{color:var(--turquoise);text-transform:uppercase;font-size:12px;font-weight:850;letter-spacing:.08em}
+.notice{background:#eef8fb;border-left:4px solid var(--turquoise);border-radius:11px;padding:13px 16px;font-size:13px;margin-top:16px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{margin:11px 0}.field label{display:block;font-size:13px;color:#24495a;font-weight:750;margin-bottom:5px}
+input,textarea,select{width:100%;background:white;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font:inherit;color:var(--ink)}
+textarea{resize:vertical;min-height:76px}.field input:focus-visible,.field textarea:focus-visible,.field select:focus-visible,button:focus-visible{outline:3px solid var(--turquoise);outline-offset:3px}
+button{background:var(--navy);border:0;color:white;border-radius:11px;min-height:43px;padding:10px 16px;font:inherit;font-weight:760;cursor:pointer}
+button.secondary{background:#e1f3f7;color:var(--navy)}button.danger{color:#9d3943;background:#fff0f2}button:disabled{opacity:.5;cursor:not-allowed}
+.group{padding:19px 0;border-top:1px solid var(--line)}.group:first-child{border-top:0}.flex{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}.record{border:1px solid var(--line);border-radius:15px;padding:15px;margin:12px 0;background:#fafcfe}
+details{margin:12px 0}summary{cursor:pointer;font-weight:820;color:var(--navy);padding:8px 0}
+.status{font-size:13px;font-weight:750;min-height:18px}.warn{color:#9e3636}.ok{color:#117769}
+.missing{margin-top:12px;font-size:13px;border-radius:9px;padding:11px;background:#fff7e7;color:#6e521d}
+#main-editor[hidden]{display:none}footer{text-align:center;font-size:12px;color:#70818b;margin:15px auto}
+@media(max-width:630px){.grid{grid-template-columns:1fr}main{margin:10px auto 30px;padding:0 10px}.record{padding:12px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+ <div class="eyebrow">Material Educativo Chile · Convivencia Educativa</div>
+ <h1>Editor del Plan de Gestión 2027</h1>
+ <p>Completa un plan pertinente a tu establecimiento y conserva versiones de trabajo. Las encuestas y el diagnóstico orientan las decisiones, pero no sustituyen la participación de la comunidad ni la revisión profesional.</p>
+ <div class="notice"><strong>Borrador en revisión.</strong> No ingreses nombres, RUN, diagnósticos ni información identificable de estudiantes. Esta pantalla no aprueba ni publica el Plan. La aprobación formal corresponde a Dirección después del procedimiento institucional.</div>
+ <div class="flex">
+  <button id="load" type="button">Abrir borrador institucional</button>
+  <span id="revision" class="status"></span>
+ </div>
+ <p id="status" class="status warn" role="alert" aria-live="polite"></p>
+</header>
+<div id="main-editor" hidden>
+ <section class="sheet">
+  <h2>1. Identificación y articulación</h2>
+  <p id="school"></p>
+  <div class="grid" id="identity-fields"></div>
+  <div id="alignment-fields"></div>
+ </section>
+ <section class="sheet">
+  <div class="flex"><h2>2. Hallazgos diagnósticos</h2><button id="add-finding" class="secondary" type="button">+ Agregar hallazgo</button></div>
+  <p>Relaciona cada necesidad con evidencias documentales verificables y fuentes agregadas, sin mencionar casos individuales.</p>
+  <div id="findings"></div>
+ </section>
+ <section class="sheet">
+  <div class="flex"><h2>3. Acciones y calendarización</h2><button id="add-action" class="secondary" type="button">+ Agregar acción</button></div>
+  <p>Completa la relación entre hallazgo, objetivo, estrategia, indicadores, línea base, meta, responsable, fecha y evidencia para cada acción.</p>
+  <div id="actions"></div>
+ </section>
+ <section class="sheet">
+  <div class="flex"><h2>4. Fuentes del diagnóstico</h2><button id="add-source" class="secondary" type="button">+ Agregar fuente</button></div>
+  <div id="sources"></div>
+ </section>
+ <section class="sheet">
+  <div class="flex"><h2>5. Participación de la comunidad</h2><button id="add-participation" class="secondary" type="button">+ Registrar instancia</button></div>
+  <p>Las encuestas no reemplazan reuniones, consultas participativas ni otras instancias de deliberación.</p>
+  <div id="participation"></div>
+ </section>
+ <section class="sheet">
+  <h2>6. Consejo Escolar, difusión y seguimiento</h2>
+  <div id="governance"></div>
+ </section>
+ <section class="sheet">
+  <h2>Guardar nueva versión de trabajo</h2>
+  <p>Se conservará el historial de modificaciones. Si otra persona guardó una versión más reciente, deberás revisarla antes de volver a guardar.</p>
+  <div class="flex">
+   <button id="save" type="button">Guardar borrador</button>
+   <button id="refresh" class="secondary" type="button">Recargar versión</button>
+  </div>
+  <p id="save-status" class="status" role="status" aria-live="polite"></p>
+  <div id="checklist" class="missing" hidden></div>
+ </section>
+</div>
+<footer>Plan 2027 · Instrumento de trabajo interno. No equivale a certificación normativa ni constituye aprobación de Dirección.</footer>
+</main>
+<script>
+(()=>{'use strict';
+const API='https://convivencia-escolar-api.onrender.com';
+const el=id=>document.getElementById(id);
+let draft=null,revision=0;
+const audienceOptions=['estudiantes','familia','docente','asistente','directivo','institutional_records'];
+const clauses=[['a','a) Coordinación pedagógica y administrativa'],['b','b) Difusión y formación'],['c','c) Bienestar y prevención'],['d','d) Gestión de conflictos'],['e','e) Calendarización'],['f','f) Participación estudiantil'],['g','g) Formación de familias']];
+function node(tag,props={},value){
+ const x=document.createElement(tag);
+ for(const [k,v] of Object.entries(props)){if(k==='className')x.className=v;else if(k==='type')x.type=v;else x.setAttribute(k,v)}
+ if(value!==undefined)x.textContent=value;
+ return x;
+}
+function field(where,obj,key,label,{multiline=false,date=false,options=null}={}){
+ const row=node('div',{className:'field'});
+ const id='field-'+Math.random().toString(36).slice(2);
+ const lab=node('label',{for:id},label);row.appendChild(lab);
+ let input;
+ if(options){input=node('select',{id});for(const o of options){const opt=node('option',{value:typeof o==='string'?o:o[0]},typeof o==='string'?o:o[1]);input.appendChild(opt)}}
+ else if(multiline)input=node('textarea',{id,rows:'3'});
+ else input=node('input',{id,type:date?'date':'text',maxlength:multiline?'1200':'1200'});
+ input.value=obj[key]||'';
+ input.addEventListener('input',()=>{obj[key]=input.value});
+ input.addEventListener('change',()=>{obj[key]=input.value});
+ row.appendChild(input);where.appendChild(row);return input;
+}
+function refs(where,obj,key,label){
+ const adapter={value:(obj[key]||[]).join(', ')};
+ const input=field(where,adapter,'value',label);
+ input.placeholder='ACTA-DIAG-2027, REPORTE-M1-2027';
+ input.addEventListener('input',()=>{obj[key]=input.value.split(',').map(x=>x.trim()).filter(Boolean)});
+}
+function title(text){return node('h3',{},text)}
+function emptyMessage(container,msg){
+ const p=node('p',{},msg);p.style.fontStyle='italic';container.appendChild(p);
+}
+function renderArray(key,holder,make){
+ const box=el(holder);box.replaceChildren();
+ if(!draft[key].length)emptyMessage(box,'Aún no hay registros en esta sección.');
+ draft[key].forEach((item,i)=>{
+  const rec=node('div',{className:'record'});
+  const heading=node('div',{className:'flex'});
+  heading.append(title((i+1)+'. '+key.replaceAll('_',' ')));
+  const del=node('button',{type:'button',className:'danger'},'Eliminar');
+  del.onclick=()=>{draft[key].splice(i,1);renderArray(key,holder,make)};
+  heading.append(del);rec.appendChild(heading);
+  make(rec,item,i);box.appendChild(rec);
+ });
+}
+function render(){
+ el('school').textContent='Establecimiento: '+draft.establishment_name+' · RBD: '+draft.rbd+' · Año '+draft.school_year;
+ const ident=el('identity-fields');ident.replaceChildren();
+ field(ident,draft,'director','Dirección / responsable de aprobación');
+ field(ident,draft,'responsible','Encargado/a de convivencia responsable del Plan');
+ const align=el('alignment-fields');align.replaceChildren();
+ for(const [k,label] of [
+  ['policy_alignment','Articulación con Política Nacional de Convivencia'],
+  ['pei_alignment','Articulación con PEI'],['pme_alignment','Articulación con PME'],
+  ['rie_alignment','Articulación con RIE y protocolos']
+ ])field(align,draft,k,label,{multiline:true});
+ renderArray('findings','findings',(box,f)=>{
+  field(box,f,'id','Código único de hallazgo (ej. H-001)');
+  field(box,f,'need','Necesidad diagnosticada',{multiline:true});
+  refs(box,f,'evidence_refs','Referencias de evidencia, separadas por comas');
+ });
+ renderArray('actions','actions',(box,a,i)=>{
+  const details=node('details');
+  if(i===0)details.open=true;
+  const summary=node('summary',{},'Editar objetivos, plazos y evidencias');details.append(summary);
+  field(details,a,'clause','Apartado legal del Plan',{options:clauses});
+  const fields=[
+   ['title','Nombre de la acción'],['objective','Objetivo'],['strategy','Estrategia'],
+   ['responsible','Responsable'],['place','Lugar de ejecución'],
+   ['resources','Recursos disponibles'],['indicator','Indicador de logro'],
+   ['baseline','Línea base'],['target','Meta'],
+   ['expected_evidence','Medios de verificación y evidencia']
+  ];
+  for(const [key,label] of fields)field(details,a,key,label,{multiline:['objective','strategy','baseline','target','expected_evidence'].includes(key)});
+  const dates=node('div',{className:'grid'});
+  field(dates,a,'start_date','Inicio',{date:true});
+  field(dates,a,'end_date','Término',{date:true});
+  details.appendChild(dates);
+  refs(details,a,'finding_ids','Códigos de hallazgos asociados');
+  box.appendChild(details);
+ });
+ renderArray('diagnostic_sources','sources',(box,s)=>{
+  field(box,s,'audience','Fuente / estamento',{options:audienceOptions});
+  field(box,s,'method','Método (encuesta, reunión, observación, etc.)');
+  field(box,s,'evidence_ref','Referencia documental');
+ });
+ renderArray('participation','participation',(box,p)=>{
+  field(box,p,'audience','Estamento',{options:audienceOptions.filter(x=>x!=='institutional_records')});
+  field(box,p,'date','Fecha',{date:true});
+  field(box,p,'summary','Síntesis de participación',{multiline:true});
+  field(box,p,'evidence_ref','Código de acta o respaldo');
+ });
+ const governance=el('governance');governance.replaceChildren();
+ const groups=[
+  ['Consejo Escolar','council_school',[['report_ref','Referencia de informe al Consejo Escolar'],['feedback_or_justification','Observaciones y respuesta fundada']]],
+  ['Difusión','diffusion',[['channels','Medios de difusión'],['calendar','Calendario de difusión'],['delivery_record_plan','Cómo conservar constancias de entrega']]],
+  ['Seguimiento y evaluación','follow_up',[['frequency','Periodicidad de seguimiento'],['responsible','Responsable de monitoreo'],['evaluation_method','Método de evaluación']]]
+ ];
+ for(const [label,key,fields] of groups){
+  const sec=node('div',{className:'group'});sec.append(title(label));
+  for(const [k,titleText] of fields)field(sec,draft[key],k,titleText,{multiline:true});
+  governance.appendChild(sec);
+ }
+ el('revision').textContent='Revisión '+revision+' · No aprobado';
+ el('main-editor').hidden=false;
+}
+function add(key,obj,holder,cb){draft[key].push(obj);renderArray(key,holder,cb)}
+el('add-finding').onclick=()=>{draft.findings.push({id:'',need:'',evidence_refs:[]});render()};
+el('add-action').onclick=()=>{
+ draft.actions.push({clause:'a',title:'',objective:'',strategy:'',responsible:'',indicator:'',baseline:'',
+  target:'',place:'',resources:'',expected_evidence:'',start_date:'',end_date:'',finding_ids:[]});render();
+};
+el('add-source').onclick=()=>{draft.diagnostic_sources.push({audience:'familia',method:'',evidence_ref:''});render()};
+el('add-participation').onclick=()=>{draft.participation.push({audience:'estudiantes',date:'',summary:'',evidence_ref:''});render()};
+async function endpoint(url,options={}){
+ const r=await fetch(API+url,{credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',...options});
+ const d=await r.json();
+ if(!r.ok||!d.ok){const x=new Error(d.error||'no_disponible');x.code=r.status;throw x}
+ return d;
+}
+function preflight(data){
+ const block=el('checklist');
+ const missing=data?.missing||[];
+ block.hidden=false;
+ block.textContent=missing.length
+  ?'Borrador guardado con '+missing.length+' campos o componentes pendientes. Ejemplos: '+missing.slice(0,10).join(' · ')+(missing.length>10?'…':'')
+  :'Campos de estructura completos. Aún requiere revisión y aprobación institucional.';
+}
+async function load(){
+ const button=el('load');button.disabled=true;el('status').textContent='Cargando borrador de trabajo…';
+ try{
+  const data=await endpoint('/api/community-surveys/pgce-draft?school_year=2027');
+  draft=data.draft;revision=data.revision;render();preflight(data.preflight);
+  el('status').textContent='';el('save-status').textContent='';
+ }catch(e){el('status').textContent='No fue posible cargar el borrador. Ingresa con un perfil profesional autorizado y verifica que el piloto esté habilitado.'}
+ finally{button.disabled=false}
+}
+el('load').onclick=load;el('refresh').onclick=load;
+el('save').onclick=async()=>{
+ if(!draft)return;
+ const button=el('save');button.disabled=true;
+ el('save-status').textContent='Guardando nueva revisión…';
+ try{
+  const data=await endpoint('/api/community-surveys/pgce-draft',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({school_year:2027,expected_revision:revision,draft})
+  });
+  revision=data.revision;
+  el('revision').textContent='Revisión '+revision+' · No aprobado';
+  el('save-status').className='status ok';
+  el('save-status').textContent='Borrador guardado. Revisión '+revision+'. Ninguna acción fue aprobada automáticamente.';
+  preflight(data.preflight);
+ }catch(e){
+  el('save-status').className='status warn';
+  el('save-status').textContent=e.code===409
+   ?'Existe una versión más reciente. Revisa la versión actual antes de continuar; tus cambios no se han guardado.'
+   :'No se pudo guardar. Revisa que los códigos de respaldo sean válidos y que no hayas incluido datos personales.';
+ }finally{button.disabled=false}
+};
+})();
+</script>
+</body></html>

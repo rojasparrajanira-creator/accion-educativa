@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Vista previa NT1 y NT2 | Convivencia Educativa</title>
+  <style>
+    :root{color-scheme:light;--deep:#165a57;--turq:#149b98;--paper:#fff;--soft:#eaf8f5;--line:#c9e4de;--ink:#173c3a;--muted:#526d69;--yellow:#f8d96a}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:linear-gradient(145deg,#e9faf7,#f7fcff 55%,#fff6db);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink)}
+    button{font:inherit;cursor:pointer}
+    button:focus-visible,summary:focus-visible{outline:4px solid #007fb5;outline-offset:3px}
+    .shell{max-width:820px;margin:0 auto;padding:22px 16px 56px}
+    .top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:19px}
+    .brand{font-size:13px;font-weight:850;color:var(--deep)}
+    .tag{padding:7px 11px;border:1px solid #e2cb7d;background:#fff8db;border-radius:999px;font-size:12px;font-weight:800;color:#68501e}
+    .card{background:var(--paper);border-radius:26px;box-shadow:0 14px 40px rgba(18,90,86,.11);border:1px solid #dceeea;padding:clamp(22px,4vw,38px)}
+    .eyebrow{color:var(--turq);font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+    h1{font-size:clamp(26px,5vw,36px);margin:9px 0;color:var(--deep);line-height:1.22}
+    h2{font-size:clamp(22px,4.5vw,31px);color:var(--deep);line-height:1.4;margin:18px 0 14px}
+    p{line-height:1.6;color:var(--muted)}
+    .levels{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
+    .level{padding:18px 12px;border:2px solid var(--line);background:#fff;border-radius:18px;min-height:108px;text-align:center;color:var(--ink)}
+    .level strong{display:block;font-size:20px;margin-bottom:5px}
+    .level span{display:block;font-size:13px}
+    .level[aria-pressed="true"]{border-color:var(--turq);background:var(--soft);box-shadow:inset 0 0 0 1px var(--turq)}
+    .action{min-height:52px;border:0;border-radius:15px;padding:12px 22px;font-weight:850;background:var(--deep);color:#fff}
+    .action.secondary{background:#e7f4f1;color:var(--deep)}
+    .action:disabled{opacity:.45;cursor:not-allowed}
+    .notice{padding:14px 16px;margin:18px 0;background:#f3fbf9;border-radius:15px;border-left:4px solid var(--turq);font-size:13px;line-height:1.65;color:#425f58}
+    details{font-size:13px;color:var(--muted);margin-top:20px}
+    details summary{cursor:pointer;font-weight:800;color:var(--deep)}
+    .bar{height:14px;border-radius:999px;background:#dfeee9;overflow:hidden;margin-top:8px}
+    .bar span{display:block;height:100%;width:0;background:var(--turq);transition:width .2s}
+    .progress{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:750;color:var(--muted);margin-top:10px}
+    .listen-main{display:inline-flex;gap:9px;align-items:center;border:2px solid #a7e1d3;background:#f0fcf8;padding:13px 18px;border-radius:18px;color:var(--deep);font-weight:800;min-height:55px}
+    .choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:24px 0}
+    .choice-wrap{border:2px solid var(--line);border-radius:22px;padding:8px 8px 11px;background:#fff;text-align:center}
+    .choice-wrap.selected{border-color:var(--turq);background:var(--soft);box-shadow:inset 0 0 0 1px var(--turq)}
+    .choice{width:100%;min-height:128px;display:flex;align-items:center;justify-content:center;gap:10px;flex-direction:column;border:0;border-radius:15px;background:transparent;color:var(--deep);font-size:18px;font-weight:850}
+    .face{font-size:clamp(45px,8vw,73px);line-height:1.1;display:block}
+    .hear-choice{border:1px solid #cceae2;border-radius:11px;padding:10px 9px;background:#f2faf8;color:var(--deep);font-weight:750;font-size:13px;min-height:44px;width:100%}
+    .skip{background:transparent;border:0;text-decoration:underline;text-underline-offset:3px;color:#536862;min-height:44px;padding:8px;font-weight:700}
+    .nav{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:17px}
+    .foot{font-size:12px;color:#526d69;text-align:center;padding-top:22px}
+    [hidden]{display:none!important}
+    @media(max-width:470px){.choices{gap:7px}.choice-wrap{padding:5px}.choice{min-height:110px;font-size:15px}.hear-choice{font-size:11px;padding:7px 3px}.levels{gap:8px}.level strong{font-size:18px}.nav .action{padding:12px 16px}}
+    @media(prefers-reduced-motion:reduce){.bar span{transition:none}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand">Material Educativo Chile <span aria-hidden="true">·</span> Convivencia Educativa</div>
+    <span class="tag">Vista previa · No guarda datos</span>
+  </header>
+
+  <main class="card">
+    <section id="intro">
+      <span class="eyebrow">Educación parvularia</span>
+      <h1>¡Queremos saber cómo te sientes en tu escuela!</h1>
+      <p>Vamos a escuchar algunas preguntas. Puedes tocar una carita para responder. No hay respuestas buenas ni malas.</p>
+      <div class="levels" aria-label="Selecciona el nivel para la demostración">
+        <button class="level" type="button" data-level="nt1" aria-pressed="true"><strong>Prekínder</strong><span>NT1 · preguntas cortitas</span></button>
+        <button class="level" type="button" data-level="nt2" aria-pressed="false"><strong>Kínder</strong><span>NT2 · preguntas sencillas</span></button>
+      </div>
+      <button class="action" id="start" type="button">Comenzar demostración →</button>
+      <div class="notice"><strong>Prototipo interno para profesionales.</strong> No solicita nombres ni RUN, no utiliza una base de datos y no transmite, conserva ni analiza respuestas. Las preguntas son propuestas originales y todavía requieren revisión pedagógica y metodológica.</div>
+      <details>
+        <summary>Indicaciones para la persona adulta que acompaña</summary>
+        <p>Aplicar de manera individual y voluntaria, en un ambiente tranquilo. Ofrecer escuchar la pregunta y cada opción tantas veces como sea necesario. Leer literalmente y mantener un tono neutral; no sugerir respuestas. Permitir detenerse o no responder. Si surge una preocupación por maltrato o seguridad, seguir los canales de protección del establecimiento, sin usar esta encuesta como reemplazo.</p>
+      </details>
+    </section>
+
+    <section id="quiz" hidden>
+      <span id="level-label" class="eyebrow"></span>
+      <div class="progress"><span id="counter">Pregunta 1</span><span id="progress-text">0 %</span></div>
+      <div class="bar"><span id="progress-fill" role="progressbar" aria-label="Avance de la encuesta" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span></div>
+      <h2 id="question" tabindex="-1"></h2>
+      <button class="listen-main" id="listen-question" type="button">🔊 Escuchar pregunta</button>
+      <p style="font-size:14px;margin-top:16px">Toca una carita. También puedes escuchar cada respuesta.</p>
+      <div class="choices" id="choices" aria-label="Opciones de respuesta"></div>
+      <p id="feedback" role="status" aria-live="polite" style="min-height:24px;font-weight:750;color:var(--deep)"></p>
+      <div class="nav">
+        <button class="action secondary" id="back" type="button">← Anterior</button>
+        <button class="skip" id="skip" type="button">Prefiero no responder</button>
+        <button class="action" id="next" type="button" disabled>Siguiente →</button>
+      </div>
+      <p id="audio-warning" role="status" aria-live="polite" style="font-size:12px"></p>
+    </section>
+
+    <section id="finish" hidden>
+      <div role="img" aria-label="Tres estrellas" style="font-size:70px">🌟</div>
+      <h1>¡Muchas gracias por participar!</h1>
+      <p>Tu opinión es importante. Si algo te preocupa en la escuela, puedes pedir ayuda a una persona adulta de confianza.</p>
+      <div class="notice">Demostración finalizada. Ninguna respuesta fue guardada o enviada a un servidor.</div>
+      <button class="action" id="restart" type="button">Volver a comenzar</button>
+    </section>
+  </main>
+  <footer class="foot">Prototipo independiente NT1–NT2 · No es una encuesta oficial del MINEDUC ni de la Agencia de Calidad.</footer>
+</div>
+
+<script src="js/voz-cl.js"></script>
+<script src="js/instrumento-parvulos-preview.js"></script>
+<script>
+(() => {
+  'use strict';
+  const instruments=window.MECParvulosPreview;
+  if(!instruments) return;
+  const byId=id=>document.getElementById(id);
+  const screens=['intro','quiz','finish'];
+  let level='nt1',index=0,answers=[];
+  function screen(name){
+    for(const s of screens)byId(s).hidden=s!==name;
+    try{window.speechSynthesis?.cancel()}catch(e){}
+  }
+  function speak(text){
+    if(window.MECVoice?.speak(text))return;
+    byId('audio-warning').textContent='No hay audio disponible en este dispositivo. Una persona adulta puede leer la pregunta sin sugerir la respuesta.';
+  }
+  function questions(){return instruments[level]}
+  function paint(){
+    screen('quiz');
+    const list=questions(),item=list[index],prior=answers[index];
+    const percent=Math.round((index/list.length)*100);
+    byId('level-label').textContent=level==='nt1'?'Prekínder · NT1':'Kínder · NT2';
+    byId('counter').textContent='Pregunta '+(index+1)+' de '+list.length;
+    byId('progress-text').textContent=percent+' %';
+    byId('progress-fill').style.width=percent+'%';
+    byId('progress-fill').setAttribute('aria-valuenow',String(percent));
+    byId('question').textContent=item.text;
+    byId('choices').replaceChildren();
+    for(const option of instruments.scale){
+      const wrap=document.createElement('div');
+      wrap.className='choice-wrap'+(prior===option.value?' selected':'');
+      const choose=document.createElement('button');
+      choose.type='button';choose.className='choice';choose.setAttribute('aria-pressed',String(prior===option.value));
+      choose.setAttribute('aria-label','Elegir '+option.label);
+      const face=document.createElement('span');face.className='face';face.setAttribute('aria-hidden','true');face.textContent=option.face;
+      const label=document.createElement('span');label.textContent=option.label;
+      choose.append(face,label);
+      choose.onclick=()=>{answers[index]=option.value;paint()};
+      const hear=document.createElement('button');hear.type='button';hear.className='hear-choice';hear.textContent='🔊 Escuchar';
+      hear.setAttribute('aria-label','Escuchar la opción '+option.label);
+      hear.onclick=()=>speak(option.spoken);
+      wrap.append(choose,hear);byId('choices').appendChild(wrap);
+    }
+    byId('feedback').textContent=prior==='skip'?'Decidiste no responder. Puedes elegir una carita si cambias de opinión.':(instruments.scale.find(x=>x.value===prior)?.label?('Elegiste: '+instruments.scale.find(x=>x.value===prior).label):'');
+    byId('next').disabled=prior===undefined;
+    byId('next').textContent=index===list.length-1?'Terminar →':'Siguiente →';
+    byId('back').disabled=index===0;
+    byId('audio-warning').textContent='';
+    byId('question').focus({preventScroll:true});
+  }
+  document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{
+    level=b.dataset.level;
+    document.querySelectorAll('[data-level]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.level===level)));
+  });
+  byId('start').onclick=()=>{index=0;answers=[];paint()};
+  byId('listen-question').onclick=()=>speak(questions()[index].text);
+  byId('back').onclick=()=>{if(index>0){index--;paint()}};
+  byId('skip').onclick=()=>{answers[index]='skip';advance()};
+  byId('next').onclick=()=>{if(answers[index]!==undefined)advance()};
+  function advance(){
+    if(index+1===questions().length){
+      screen('finish');
+      answers=[]; // No retener respuestas una vez cerrada la demostración.
+      byId('finish').querySelector('h1').focus?.();
+    }else{index++;paint()}
+  }
+  byId('restart').onclick=()=>{answers=[];index=0;screen('intro')};
+})();
+</script>
+</body>
+</html>

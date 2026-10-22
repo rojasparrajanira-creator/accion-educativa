@@ -44,12 +44,12 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
    }
   ];
   const rateLimit=()=>((req,res,next)=>next()); // la limitación pública real vive en server.js
-  assert.equal(registerCommunitySurveys({app,pool,requireRole:roleMiddleware,rateLimit,accessStatus:async()=>true}),true);
+  assert.equal(registerCommunitySurveys({app,pool,requireRole:roleMiddleware,rateLimit,accessStatus:async()=>true,allowedOrigins:new Set(['https://materialeducativochile.cl'])}),true);
   server=app.listen(0,'127.0.0.1');
   await new Promise(resolve=>server.once('listening',resolve));
   const url='http://127.0.0.1:'+server.address().port;
   const call=async(method,route,body,who={est,role:'coordinador_convivencia'},token)=>{
-   const headers={'Content-Type':'application/json','x-test-establishment':String(who.est),'x-test-role':who.role};
+   const headers={'Content-Type':'application/json','Origin':who.origin||'https://materialeducativochile.cl','x-test-establishment':String(who.est),'x-test-role':who.role};
    if(token)headers['X-Community-Access']=token;
    const r=await fetch(url+route,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
    const data=await r.json();return {code:r.status,data,headers:r.headers};
@@ -57,6 +57,23 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   const issue=(audience,opts={},who)=>call('POST','/api/community-surveys/invitations',{school_year:2027,audience,...opts},who);
   const familyPayload={student_id:Number(student.id),guardian_slot:1,verification_reference:'ACTA-ENSAYO-2027-01',relation_verified:true};
   let r=await issue('familia',familyPayload,{est,role:'profesor'});assert.equal(r.code,403);
+  // Ninguna llamada profesional puede modificar invitaciones desde orígenes ajenos.
+  r=await issue('familia',familyPayload,{est,role:'coordinador_convivencia',origin:'https://sitio-ajeno.example'});
+  assert.equal(r.code,403);assert.equal(r.data.error,'origin_forbidden');
+  // El listado institucional está disponible solo para el equipo y nunca revela RUN.
+  r=await call('GET','/api/community-surveys/targets?audience=familia',undefined,{est,role:'profesor'});
+  assert.equal(r.code,403);
+  r=await call('GET','/api/community-surveys/targets?audience=familia');
+  assert.equal(r.code,200);assert.equal(r.data.targets.length,1);
+  assert.equal(Number(r.data.targets[0].id),Number(student.id));
+  assert.ok(!JSON.stringify(r.data).includes('90000001'));
+  r=await call('GET','/api/community-surveys/targets?audience=docente');
+  assert.equal(r.code,200);assert.equal(r.data.targets.length,10);
+  r=await call('GET','/api/community-surveys/targets?audience=familia',undefined,{est:estB,role:'coordinador_convivencia'});
+  assert.equal(r.code,200);assert.equal(r.data.targets.length,1);
+  assert.equal(Number(r.data.targets[0].id),Number(otherStudent.id));
+  assert.ok(!JSON.stringify(r.data).includes('ESTUDIANTE DE PRUEBA'));
+
   r=await issue('familia',{...familyPayload,relation_verified:false});assert.equal(r.code,400);
   r=await issue('familia',{...familyPayload,student_id:Number(otherStudent.id)});assert.equal(r.code,404);
   r=await issue('docente',{staff_user_id:Number(otherStaff.id)});assert.equal(r.code,404);

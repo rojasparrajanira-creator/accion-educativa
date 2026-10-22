@@ -39,4 +39,59 @@ const roles={
  directivo:new Set(['director','directora','jefe_utp','utp','equipo_directivo','coordinador_convivencia'])
 };
 const assignedRole=(role,audience)=>audience==='familia'||!!roles[audience]?.has(String(role||'').toLowerCase());
-module.exports={bank,audienceKeys,MIN_GROUP,sha,randomCode,randomPin,hashPin,safePositiveInt,validateAnswers,makeAggregate,assignedRole};
+
+/**
+ * Pre-borrador DIAGNÓSTICO: no genera acciones automáticas ni certifica un PGCE.
+ * El universo se limita a las cuatro encuestas de adultos del banco propio.
+ * Sólo recibe salidas agregadas, nunca filas individuales.
+ */
+function makeDiagnosticDraft(groupReports){
+ const names={familia:'Familias',docente:'Docentes',asistente:'Asistentes de la educación',directivo:'Equipo directivo/UTP'};
+ const audiences=Array.from(audienceKeys);
+ const included=[],pending=[],topics=[],clauseCoverage=Object.create(null);
+ for(const k of 'abcdefg')clauseCoverage['16D-'+k]=new Set();
+ for(const audience of audiences){
+  const r=groupReports?.[audience];
+  if(!r?.available){pending.push({audience,label:names[audience],reason:'insufficient_group_size_or_no_data'});continue}
+  included.push({audience,label:names[audience],participant_band:r.participant_band});
+  const questions=new Map(bank.audiences[audience].items.map(x=>[x.id,x]));
+  for(const item of r.items||[]){
+   if(!item.available)continue;
+   const q=questions.get(item.id);
+   if(!q)continue;
+   clauseCoverage[q.legal_clause]?.add(audience);
+   const possible={
+    '0–24 %':'needs_professional_review',
+    '25–49 %':'needs_professional_review',
+    '50–74 %':'monitor_with_more_evidence',
+    '75–100 %':'potential_strength'
+   }[item.favorable_band];
+   if(!possible)continue;
+   topics.push({
+    item_id:q.id,audience,dimension:q.dimension,clause:q.legal_clause,
+    indicator_band:item.favorable_band,
+    review_category:possible,
+    interpretation:'Orientativa. Contrastar con otras fuentes, contexto, participación y datos del establecimiento.'
+   });
+  }
+ }
+ return {
+  status:'preliminary_adult_diagnostic_only',
+  year:2027,bank_version:bank.version,
+  sources_used:included,insufficient_or_missing_sources:pending,
+  pending_other_sources:[
+   'Encuestas estudiantiles por nivel y NT1/NT2 cuando se valide su comprensión',
+   'Consejo Escolar y procesos participativos con todos los estamentos',
+   'Observación pedagógica, actas, protocolos, registros agregados y contexto PEI/PME'
+  ],
+  legal_links:Object.keys(clauseCoverage).map(clause=>({
+   clause,audiences_with_aggregated_items:[...clauseCoverage[clause]].sort(),
+   supports_diagnostic_only:true
+  })),
+  review_topics:topics,
+  can_approve_pgce:false,
+  warning:'Preinforme de encuestas propias de adultos, sin validez oficial o clínica; no determina incumplimientos legales, no es el PGCE ni puede reemplazar diagnóstico participativo, Consejo Escolar, Dirección o revisión profesional. No contiene respuestas individuales.'
+ };
+}
+
+module.exports={bank,audienceKeys,MIN_GROUP,sha,randomCode,randomPin,hashPin,safePositiveInt,validateAnswers,makeAggregate,makeDiagnosticDraft,assignedRole};

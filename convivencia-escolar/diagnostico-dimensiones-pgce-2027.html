@@ -51,6 +51,11 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <div id="dimensions" class="cardgrid"></div>
  </section>
  <section class="panel">
+  <h2>Propuestas de acciones para revisión profesional</h2>
+  <p>Cuando los resultados agregados muestran señales que requieren análisis, se presentan estrategias sugeridas. Deben contrastarse con otras fuentes y acordarse con la comunidad antes de incorporarlas al Plan.</p>
+  <div id="proposals" class="cardgrid"></div>
+ </section>
+ <section class="panel">
   <h2>Plan de Gestión: siete componentes obligatorios</h2>
   <p>Se presenta una estructura vacía, no un Plan aprobado. Cada apartado debe completarse con objetivos, metas, actividades, personas responsables, plazos y evidencia documental.</p>
   <table><thead><tr><th>Artículo</th><th>Área que debe planificarse</th><th>Estado</th></tr></thead><tbody id="plan-sections"></tbody></table>
@@ -100,6 +105,23 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
       d.status==='review_with_professionals'?'supported':'missing'));
    card.append(key,h,summary,extras);
    wrap.appendChild(card);
+  }
+  const suggestions=el('proposals');suggestions.replaceChildren();
+  const templates=result.suggested_actions?.proposals||[];
+  if(!templates.length){
+   const empty=document.createElement('p');
+   empty.textContent='Todavía no hay información agregada suficiente para formular propuestas basadas en encuestas. Completa las fuentes de diagnóstico.';
+   suggestions.appendChild(empty);
+  }
+  for(const x of templates){
+   const card=document.createElement('article');card.className='dim';
+   const h=document.createElement('h3');h.textContent=x.title;
+   const t=document.createElement('p');t.textContent=x.objective;
+   const str=document.createElement('p');str.className='muted';str.textContent=x.strategy;
+   const ind=document.createElement('p');ind.className='small';ind.textContent='Indicador sugerido: '+x.indicator;
+   const caption=document.createElement('p');caption.className='muted';
+   caption.textContent='Revisión profesional pendiente · '+x.related_legal_clauses.join(', ');
+   card.append(h,t,str,ind,caption);suggestions.appendChild(card);
   }
   const tbody=el('plan-sections');tbody.replaceChildren();
   for(const x of plan.sections){

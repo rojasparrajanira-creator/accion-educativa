@@ -1,0 +1,45 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {validatePgceDraft}=require('./pgce-planning-drafts-2027.cjs');
+const {buildPgceScaffold,buildDimensionReport}=require('./pgce-dimensions-integrated-2027.cjs');
+const initial=()=>buildPgceScaffold(buildDimensionReport()).draft;
+test('el editor conserva borradores incompletos sin elevarlos a aprobados',()=>{
+ const draft=initial();
+ const result=validatePgceDraft(draft);
+ assert.equal(result.school_year,2027);
+ assert.equal(result.director_approval,null);
+ assert.equal(result.actions.length,7);
+});
+test('el editor admite hallazgos documentados vinculados a acciones y cursos',()=>{
+ const d=initial();
+ d.findings=[{id:'H-SEG-01',dimension_id:'SEG',
+  need:'Necesidad colectiva a revisar',evidence_refs:['ACTA-2027-01']}];
+ const a=d.actions.find(x=>x.clause==='c');
+ a.finding_ids=['H-SEG-01'];a.target_courses=['7° A','8° B'];
+ a.evaluation_method='Revisión de evidencias y seguimiento en M1/M2/M3';
+ const clean=validatePgceDraft(d);
+ assert.equal(clean.actions.find(x=>x.clause==='c').target_courses.length,2);
+ assert.deepEqual(clean.findings[0].evidence_refs,['ACTA-2027-01']);
+});
+test('nunca acepta aprobaciones automáticas ni identificadores de estudiantes',()=>{
+ const d=initial();
+ assert.throws(()=>validatePgceDraft({...d,director_approval:{approval_document_ref:'NO',date:'2027-12-01'}}),/invalid_pgce_draft/);
+ assert.throws(()=>validatePgceDraft({...d,student_id:1001}),/invalid_pgce_draft/);
+ const copy=initial();
+ copy.findings=[{id:'H-SEG-02',dimension_id:'SEG',
+  need:'Dato protegido 12.345.678-9',evidence_refs:['ACTA-2027-02']}];
+ assert.throws(()=>validatePgceDraft(copy),/invalid_pgce_draft/);
+});
+test('no admite hallazgos repetidos, dimensiones ajenas ni referencias inexistentes',()=>{
+ const d=initial();
+ const f={id:'H-SEG-03',dimension_id:'SEG',need:'Necesidad colectiva',evidence_refs:['ACTA-2027-03']};
+ d.findings=[f,{...f}];
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+ d.findings=[{...f,dimension_id:'OTRA'}];
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+ d.findings=[f];d.actions[0].finding_ids=['H-NO-EXISTE'];
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+ d.actions[0].finding_ids=[];d.actions[0].clause='';
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+});

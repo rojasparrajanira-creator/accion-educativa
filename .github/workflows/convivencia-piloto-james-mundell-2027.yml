@@ -24,9 +24,10 @@ jobs:
           node --check server.js
           node --check piloto-james-mundell-2027.cjs
           node --check test-piloto-james-mundell-2027.cjs
+          node --check test-acceso-estudiante-2027.cjs
       - name: Ensayar matrícula 2027 y PostgreSQL aislado con datos ficticios
         working-directory: convivencia-api
-        run: node --test test-piloto-james-mundell-2027.cjs
+        run: node --test test-piloto-james-mundell-2027.cjs test-acceso-estudiante-2027.cjs
 
   recorrido-http-integral:
     runs-on: ubuntu-latest

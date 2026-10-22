@@ -59,8 +59,26 @@ function humanError(error){
  })[error]||'No fue posible validar el acceso.';
 }
 function goWelcome(data){
- const url='encuesta-bienvenida.html?application_id='+encodeURIComponent(data.application.id)+'&access='+encodeURIComponent(data.access_token);
- location.href=url;
+ const id=Number(data?.application?.id),token=data?.access_token;
+ const pinStatus=document.getElementById('pin-status');
+ const statusEl=document.getElementById('pin-step').classList.contains('hidden')?loginStatus:pinStatus;
+ if(!Number.isSafeInteger(id)||id<=0||!token){
+   statusEl.textContent='No fue posible preparar el acceso seguro. Intenta nuevamente.';
+   loginBtn.disabled=false;
+   document.getElementById('save-pin').disabled=false;
+   return;
+ }
+ try{
+   // Nunca enviar el acceso temporal como parámetro de una URL.
+   // La pantalla de bienvenida y la encuesta ya lo leen desde sessionStorage.
+   sessionStorage.setItem('mec_student_access_'+id,String(token));
+ }catch(e){
+   statusEl.textContent='No se pudo mantener el acceso seguro en este navegador. Solicita apoyo al equipo responsable.';
+   loginBtn.disabled=false;
+   document.getElementById('save-pin').disabled=false;
+   return;
+ }
+ location.href='encuesta-bienvenida.html?application_id='+encodeURIComponent(String(id));
 }
 async function login(measurementId=0){
  if(!eid){loginStatus.textContent='Este enlace de ingreso no identifica al establecimiento. Solicita el enlace correcto al equipo responsable.';return}

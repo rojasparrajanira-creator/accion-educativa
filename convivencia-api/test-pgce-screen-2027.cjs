@@ -15,6 +15,10 @@ test('panel de 10 dimensiones exige ingreso profesional y no publica respuestas 
  assert.match(page,/textContent=val/);
  assert.match(page,/textContent=d\.label/);
  assert.match(page,/plan\.preflight\.status/);
+ assert.match(page,/id="suggestions"/);
+ assert.match(page,/result\.suggested_actions/);
+ assert.match(page,/textContent=a\.proposed_title/);
+ assert.ok(!/innerHTML\s*=/.test(page));
  assert.ok(!/\blocalStorage\b|\bsessionStorage\b/.test(page));
  assert.ok(!/\bwindow\.print\s*\(/.test(page));
  assert.ok(!/\binnerHTML\s*=/.test(page));

@@ -72,3 +72,17 @@ test('parámetros y conteos internos deben ser confiables antes de mostrar banda
  assert.equal(A.PERIODS.length,3);
  assert.equal(new Set(Object.keys(A.ITEM_MAP)).size,16);
 });
+
+test('rechaza duplicados, números vacíos y agregados imposibles',()=>{
+ const base={level:'7-8',dimension:'SEG',participant_count:10,valid_response_count:20,favorable_count:8};
+ const invalid=[
+  {...base,participant_count:null},
+  {...base,participant_count:''},
+  {...base,valid_response_count:121},
+  {...base,favorable_count:-1},
+  {...base,favorable_count:21}
+ ];
+ for(const item of invalid)assert.equal(A.studentDimensionAggregate([item],{schoolYear:2027,measurementCode:'M1'}).length,0);
+ const same=[base,{...base,favorable_count:14}];
+ assert.equal(A.studentDimensionAggregate(same,{schoolYear:2027,measurementCode:'M1'}).length,1);
+});

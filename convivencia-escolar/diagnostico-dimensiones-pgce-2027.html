@@ -126,15 +126,18 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   for(const item of currentDraft.findings){
    const row=document.createElement('div');row.className='review-row';
    const title=document.createElement('strong');title.textContent=item.id+' · '+item.dimension_id;
-   const body=document.createElement('p');body.textContent=item.need;
-   const ref=document.createElement('p');ref.className='muted';ref.textContent='Respaldo: '+(item.evidence_refs||[]).join(', ');
+   const need=field('need-'+item.id,'Necesidad institucional',item.need,'textarea');
+   need.input.maxLength=1200;
+   need.input.oninput=()=>{item.need=need.input.value};
+   const evidence=field('evidence-'+item.id,'Referencias documentales (separadas por coma)',(item.evidence_refs||[]).join(', '));
+   evidence.input.oninput=()=>{item.evidence_refs=evidence.input.value.split(',').map(x=>x.trim()).filter(Boolean)};
    const remove=document.createElement('button');remove.type='button';remove.className='muted-action';remove.textContent='Quitar hallazgo';
    remove.onclick=()=>{
     currentDraft.findings=currentDraft.findings.filter(x=>x.id!==item.id);
     for(const a of currentDraft.actions)a.finding_ids=(a.finding_ids||[]).filter(id=>id!==item.id);
     renderFindings();renderActionEditor();
    };
-   row.append(title,body,ref,remove);wrap.append(row);
+   row.append(title,need.wrap,evidence.wrap,remove);wrap.append(row);
   }
  }
  function renderActionEditor(){

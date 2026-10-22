@@ -50,7 +50,7 @@ function validatePgceDraft(raw){
  }
  for(const a of raw.actions){
   if(!a||typeof a!=='object'||Array.isArray(a)||Object.keys(a).some(k=>!ACTION_FIELDS.has(k))||
-   !'abcdefg'.includes(a.clause)||typeof a.clause!=='string'||
+   (typeof a.clause!=='string'||a.clause.length!==1||!'abcdefg'.includes(a.clause))||
    !Array.isArray(a.finding_ids)||a.finding_ids.some(x=>!ids.has(x))||
    (a.target_courses!==undefined&&(!Array.isArray(a.target_courses)||
     a.target_courses.length>40||a.target_courses.some(x=>typeof x!=='string'||x.length>80))))invalid();
@@ -73,6 +73,8 @@ async function savePgceDraft(pool,{establishmentId,actorId,expectedRevision,draf
  const client=await pool.connect();
  try{
   await client.query('BEGIN');
+  const actor=await client.query('SELECT 1 FROM users WHERE id=$1 AND establishment_id=$2 AND active=true',[actorId,establishmentId]);
+  if(!actor.rowCount)throw Error('invalid_pgce_actor');
   let q;
   if(expectedRevision===0){
    q=await client.query(

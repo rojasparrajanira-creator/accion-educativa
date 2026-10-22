@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Editar Plan de Gestión 2027 | Convivencia Educativa</title>
+<style>
+:root{--blue:#1b58d3;--deep:#17396f;--turq:#0faabd;--line:#d7e6ef;--ink:#234052;--muted:#506675}
+*{box-sizing:border-box}body{background:linear-gradient(120deg,#e7f3ff,#fff);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,Arial,sans-serif;margin:0}
+main{width:min(1040px,100%);padding:24px 16px 70px;margin:auto}
+header,section{background:white;border:1px solid var(--line);border-radius:20px;padding:clamp(19px,3vw,31px);margin-bottom:17px;box-shadow:0 8px 26px rgba(31,75,116,.05)}
+h1{font-size:clamp(24px,4vw,37px);line-height:1.2;color:var(--deep);margin:8px 0}h2{font-size:21px;color:var(--deep);margin:0 0 12px}h3{font-size:17px;color:var(--blue);margin:12px 0}
+p{color:var(--muted)}.eyebrow{font-size:12px;color:var(--blue);letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+.note{background:#eaf8fb;border-left:4px solid var(--turq);border-radius:9px;padding:12px 15px;font-size:13px;margin:12px 0}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.full{grid-column:1/-1}
+label{display:block;font-size:13px;font-weight:740;margin-bottom:5px}input,textarea,select{font:inherit;padding:11px 13px;border:1px solid #bdd3df;border-radius:10px;color:var(--ink);width:100%;background:#fff}
+textarea{min-height:86px;resize:vertical}input:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--turq);outline-offset:2px}
+button{background:var(--blue);color:white;border:none;border-radius:11px;min-height:45px;padding:11px 15px;font:inherit;font-weight:800;cursor:pointer}
+button.secondary{background:#e8f3f9;color:var(--deep)}button:disabled{opacity:.56;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:17px}
+.detail{padding:15px;margin-top:12px;border:1px solid var(--line);border-radius:13px}
+details{margin-top:13px;border:1px solid var(--line);border-radius:14px;padding:13px}summary{cursor:pointer;font-weight:760;color:var(--deep);padding:4px}
+.field{min-width:0}.status{color:#8a3030;min-height:18px;font-weight:680}.success{color:#14684b}
+small{color:var(--muted)}.separator{border-top:1px solid var(--line);margin-top:15px;padding-top:15px}
+footer{font-size:12px;color:var(--muted);text-align:center}
+[hidden]{display:none!important}
+@media(max-width:640px){.form-grid{grid-template-columns:1fr}main{padding:11px 10px 35px}header,section{padding:19px}}
+</style></head>
+<body><main>
+<header>
+ <div class="eyebrow">Material Educativo Chile · Convivencia Educativa</div>
+ <h1>Plan de Gestión de Convivencia Educativa 2027</h1>
+ <p>Edición institucional con control de versiones, diagnóstico participativo y respaldo de evidencias.</p>
+ <div class="note"><strong>Versión de desarrollo:</strong> no es una certificación de cumplimiento. No escribas nombres, RUN, diagnósticos ni datos de casos individuales en los campos. Las acciones deben justificarse con evidencias institucionales.</div>
+ <div id="meta-status">Inicia sesión como profesional habilitado para continuar.</div>
+ <div class="actions"><button type="button" id="open">Abrir mi plan</button>
+ <button type="button" id="save" disabled>Guardar revisión</button>
+ <button type="button" id="history" class="secondary" disabled>Ver historial</button></div>
+ <p id="message" class="status" role="alert" aria-live="polite"></p>
+</header>
+<div id="editor" hidden>
+<section>
+<h2>Identificación y articulación institucional</h2>
+<div class="form-grid" id="identification"></div>
+</section>
+<section>
+<h2>Diagnóstico y fuentes de información</h2>
+<p>Registra necesidades sustentadas en encuestas, actas, registros y observaciones. No basta con un puntaje aislado para definir intervenciones.</p>
+<div id="findings"></div><button type="button" class="secondary" id="add-finding">Añadir hallazgo</button>
+<h3>Fuentes del diagnóstico</h3><div id="sources"></div>
+</section>
+<section>
+<h2>Participación y Consejo Escolar</h2>
+<p>Registrar la consulta por estamento, las observaciones del Consejo Escolar y las respuestas a esas observaciones.</p>
+<div id="participation"></div><h3>Consejo Escolar</h3><div class="form-grid" id="council"></div>
+</section>
+<section>
+<h2>Las siete líneas de acción del Plan</h2>
+<p>Completa objetivos, estrategias, personas responsables, metas, fechas, recursos y fuentes de verificación. La estructura no se aprueba por sí sola.</p>
+<div id="plan-actions"></div>
+</section>
+<section><h2>Difusión, entrega y seguimiento</h2>
+<div id="closure" class="form-grid"></div></section>
+<section id="approve-panel" hidden>
+<h2>Registro de aprobación por Dirección</h2>
+<p>Solo Dirección puede registrar la aprobación, una vez que el Plan esté completo y exista el respaldo institucional correspondiente. El acto documental debe haberse efectuado efectivamente.</p>
+<div class="form-grid"><div class="field"><label for="approval-ref">Referencia del acto de aprobación</label><input id="approval-ref" autocomplete="off" maxlength="120" placeholder="Ej.: RES-DIR-2027-001"></div></div>
+<div class="actions"><button id="approve" type="button">Registrar aprobación documental</button></div>
+</section>
+</div>
+<footer>Documento editable por establecimiento · Los procesos participativos y la aprobación corresponden a la comunidad y su Dirección.</footer>
+</main>
+<script>
+(()=>{'use strict';
+const API='https://convivencia-escolar-api.onrender.com',el=id=>document.getElementById(id);
+const audits=['estudiantes','familia','docente','asistente','directivo','institutional_records'];
+const participants=audits.filter(x=>x!=='institutional_records');
+const clauseNames={
+ a:'Coordinación técnico-pedagógica y administrativa',
+ b:'Información, formación y buen trato',
+ c:'Bienestar y prevención de riesgos',
+ d:'Gestión colaborativa de conflictos',
+ e:'Calendarización y responsabilidades',
+ f:'Participación de estudiantes',
+ g:'Formación de las familias'
+};
+let doc=null,revision=0,role='',approved=false;
+const clear=node=>{node.replaceChildren()};
+function message(v,error=false){el('message').textContent=v;el('message').className=error?'status':'status success'}
+async function api(path,opts={}){
+ const r=await fetch(API+path,{credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',...opts});
+ let d;try{d=await r.json()}catch(e){d={ok:false}};
+ if(!r.ok||!d.ok)throw Error(d.error||'Servicio no disponible');
+ return d;
+}
+function entry(container,obj,key,label,{type='text',wide=false,max=900}={}){
+ const box=document.createElement('div');box.className='field'+(wide?' full':'');
+ const l=document.createElement('label');l.textContent=label;
+ const id='f-'+String(Math.random()).slice(2);
+ l.htmlFor=id;
+ const input=type==='textarea'?document.createElement('textarea'):document.createElement('input');
+ input.id=id;
+ if(type!=='textarea')input.type=type;
+ input.maxLength=max;input.value=String(obj[key]??'');
+ input.addEventListener('input',()=>{obj[key]=input.value});
+ box.append(l,input);container.appendChild(box);
+}
+function grid(container,obj,fields){
+ const g=document.createElement('div');g.className='form-grid';
+ for(const [key,label,type,wide] of fields)entry(g,obj,key,label,{type:type||'text',wide:!!wide,max:wide?1800:600});
+ container.appendChild(g);
+}
+function render(){
+ if(!doc)return;
+ const identification=el('identification');clear(identification);
+ grid(identification,doc,[
+ ['establishment_name','Nombre del establecimiento'],['rbd','RBD'],
+ ['version','Versión interna del Plan'],['director','Director o directora responsable'],
+ ['responsible','Equipo o profesional responsable'],['policy_alignment','Articulación con la Política Nacional','textarea',true],
+ ['pei_alignment','Vinculación con el PEI','textarea',true],
+ ['rie_alignment','Vinculación con el Reglamento Interno','textarea',true],
+ ['pme_alignment','Vinculación con el PME cuando corresponda','textarea',true]
+ ]);
+ const findings=el('findings');clear(findings);
+ for(const f of doc.findings){
+  const part=document.createElement('div');part.className='detail';
+  grid(part,f,[['id','Código de hallazgo'],['need','Necesidad detectada','textarea',true]]);
+  const refs={value:(f.evidence_refs||[]).join(', ')};
+  entry(part,refs,'value','Referencias de evidencias (separadas por coma)',{wide:true});
+  part.querySelector('input:last-child')?.addEventListener('input',()=>{f.evidence_refs=refs.value.split(',').map(x=>x.trim()).filter(Boolean)});
+  findings.appendChild(part);
+ }
+ const sources=el('sources');clear(sources);
+ for(const a of audits){
+  let item=doc.diagnostic_sources.find(x=>x.audience===a);
+  if(!item){item={audience:a,method:'',evidence_ref:''};doc.diagnostic_sources.push(item)}
+  const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Fuente: '+a;
+  details.appendChild(summary);grid(details,item,[['method','Método de levantamiento'],['evidence_ref','Referencia documental']]);sources.appendChild(details);
+ }
+ const participation=el('participation');clear(participation);
+ for(const a of participants){
+  let item=doc.participation.find(x=>x.audience===a);
+  if(!item){item={audience:a,summary:'',date:'',evidence_ref:''};doc.participation.push(item)}
+  const details=document.createElement('details');const heading=document.createElement('summary');heading.textContent='Participación: '+a;
+  details.appendChild(heading);grid(details,item,[['date','Fecha de participación','date'],['evidence_ref','Referencia de acta'],
+   ['summary','Síntesis de participación y propuestas','textarea',true]]);participation.appendChild(details);
+ }
+ const council=el('council');clear(council);
+ doc.council_school=doc.council_school||{report_ref:'',feedback_or_justification:''};
+ grid(council,doc.council_school,[['report_ref','Referencia de informe o acta al Consejo Escolar'],
+ ['feedback_or_justification','Observaciones y respuesta fundada','textarea',true]]);
+ const actions=el('plan-actions');clear(actions);
+ for(const clause of Object.keys(clauseNames)){
+  let a=doc.actions.find(x=>x.clause===clause);
+  if(!a){a={clause,title:'',objective:'',strategy:'',responsible:'',indicator:'',baseline:'',
+   target:'',place:'',resources:'',expected_evidence:'',start_date:'',end_date:'',finding_ids:[]};doc.actions.push(a)}
+  const details=document.createElement('details'),summary=document.createElement('summary');
+  summary.textContent='16 D ('+clause+') · '+clauseNames[clause];details.appendChild(summary);
+  grid(details,a,[
+   ['title','Nombre de la acción'],['responsible','Responsable'],
+   ['objective','Objetivo','textarea',true],['strategy','Estrategia de implementación','textarea',true],
+   ['indicator','Indicador'],['baseline','Línea base'],['target','Meta'],
+   ['place','Lugar'],['resources','Recursos','textarea',true],
+   ['start_date','Fecha de inicio','date'],['end_date','Fecha de término','date'],
+   ['expected_evidence','Medios de verificación','textarea',true]]);
+  const relation={value:(a.finding_ids||[]).join(', ')};
+  const relationBox=document.createElement('div');relationBox.className='separator';
+  entry(relationBox,relation,'value','Códigos de hallazgos vinculados (separados por coma)');
+  const input=relationBox.querySelector('input');
+  if(input)input.addEventListener('input',()=>{a.finding_ids=relation.value.split(',').map(x=>x.trim()).filter(Boolean)});
+  details.appendChild(relationBox);actions.appendChild(details);
+ }
+ const closure=el('closure');clear(closure);
+ doc.diffusion=doc.diffusion||{channels:'',calendar:'',delivery_record_plan:''};
+ doc.follow_up=doc.follow_up||{frequency:'',responsible:'',evaluation_method:''};
+ const g=document.createElement('div');g.className='full';
+ const hh=document.createElement('h3');hh.textContent='Difusión y entrega';g.appendChild(hh);
+ grid(g,doc.diffusion,[['channels','Canales de difusión'],['calendar','Calendario de difusión'],
+ ['delivery_record_plan','Plan de registro de entregas','textarea',true]]);closure.appendChild(g);
+ const g2=document.createElement('div');g2.className='full';
+ const h2=document.createElement('h3');h2.textContent='Seguimiento, monitoreo y evaluación';g2.appendChild(h2);
+ grid(g2,doc.follow_up,[['frequency','Frecuencia de seguimiento'],['responsible','Responsable de seguimiento'],
+ ['evaluation_method','Método de evaluación','textarea',true]]);closure.appendChild(g2);
+ el('approve-panel').hidden=!['director','directora'].includes(role)||approved;
+ el('editor').hidden=false;el('save').disabled=approved;el('history').disabled=false;
+}
+async function load(){
+ el('open').disabled=true;message('Consultando expediente…');
+ try{
+  const auth=await api('/api/auth/me');role=auth.user?.role||'';
+  if(!['coordinador_convivencia','dupla_psicosocial','director','directora'].includes(role))throw Error('Perfil sin autorización');
+  const data=await api('/api/community-surveys/pgce-plan?school_year=2027');
+  if(data.exists){doc=data.document;revision=Number(data.revision);approved=data.status==='approved'}
+  else{
+   const p=await api('/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1');
+   doc=p.plan.draft;revision=0;approved=false;
+  }
+  el('meta-status').textContent=(approved?'Plan aprobado documentalmente':'Borrador en edición')
+    +' · Revisión '+revision+' · Año 2027';
+  render();message('Expediente cargado. Revisa los campos antes de guardar.');
+ }catch(e){message('No se pudo abrir el Plan: '+e.message,true)}
+ finally{el('open').disabled=false}
+}
+el('open').onclick=load;
+el('add-finding').onclick=()=>{
+ if(!doc||doc.findings.length>=60)return;
+ doc.findings.push({id:'H-'+String(doc.findings.length+1).padStart(2,'0'),need:'',evidence_refs:[]});
+ render();
+};
+el('save').onclick=async()=>{
+ if(!doc||approved)return;
+ el('save').disabled=true;message('Guardando…');
+ try{
+  const data=await api('/api/community-surveys/pgce-plan',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({school_year:2027,expected_revision:revision,document:doc})
+  });
+  revision=Number(data.revision);
+  el('meta-status').textContent='Borrador '+data.status+' · Revisión '+revision;
+  message('Revisión guardada. Campos pendientes: '+data.preflight.missing.length+'.');
+ }catch(e){message('No se pudo guardar: '+e.message+'. Recarga si otro profesional editó el plan.',true)}
+ finally{el('save').disabled=approved}
+};
+el('history').onclick=async()=>{
+ try{
+  const h=await api('/api/community-surveys/pgce-plan/history?school_year=2027');
+  message('Historial: '+h.history.map(x=>'revisión '+x.revision+' ('+x.action+')').join(', '));
+ }catch(e){message('No se pudo revisar el historial.',true)}
+};
+el('approve').onclick=async()=>{
+ if(approved||!doc)return;
+ const ref=el('approval-ref').value.trim();
+ if(!/^[A-Za-z0-9_./-]{6,120}$/.test(ref)){message('Ingresa la referencia del acto de aprobación firmado.',true);return}
+ if(!window.confirm('¿Confirmas que Dirección aprobó efectivamente este Plan y que el respaldo existe?'))return;
+ try{
+  const r=await api('/api/community-surveys/pgce-plan/approve',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({school_year:2027,expected_revision:revision,approval_document_ref:ref})
+  });
+  approved=true;revision=Number(r.revision);render();
+  el('meta-status').textContent='Aprobación documental registrada · Revisión '+revision;
+  message('Aprobación registrada. Conserva el expediente firmado y las evidencias institucionales.');
+ }catch(e){message('No se pudo aprobar: '+e.message+'. Verifica campos y antecedentes.',true)}
+};
+})();
+</script></body></html>

@@ -5,6 +5,7 @@ on:
       - feature/convivencia-encuestas-seguras-2027
       - feature/convivencia-dimensiones-pgce-integrado-2027
       - feature/convivencia-agregados-estudiantiles-pgce-2027
+      - feature/convivencia-pgce-edicion-versiones-2027
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,6 +34,11 @@ jobs:
           node --check test-pgce-screen-2027.cjs
           node --check student-dimensions-adapter-2027.cjs
           node --check test-student-dimensions-adapter-2027.cjs
+          node --check pgce-plan-editor-2027.cjs
+          node --check test-pgce-plan-editor-2027.cjs
+          node --check test-pgce-editor-screen-2027.cjs
+          node --check pgce-action-proposals-2027.cjs
+          node --check test-pgce-action-proposals-2027.cjs
       - name: Recorrido HTTP con datos sintéticos y PostgreSQL en memoria
         working-directory: convivencia-api
-        run: node --test test-community-surveys-2027.cjs test-community-front-2027.cjs test-pgce-dimensions-integrated-2027.cjs test-pgce-screen-2027.cjs test-student-dimensions-adapter-2027.cjs
+        run: node --test test-community-surveys-2027.cjs test-community-front-2027.cjs test-pgce-dimensions-integrated-2027.cjs test-pgce-screen-2027.cjs test-student-dimensions-adapter-2027.cjs test-pgce-plan-editor-2027.cjs test-pgce-editor-screen-2027.cjs test-pgce-action-proposals-2027.cjs

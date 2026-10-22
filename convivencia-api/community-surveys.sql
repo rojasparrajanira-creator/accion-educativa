@@ -67,3 +67,38 @@ CREATE TABLE IF NOT EXISTS community_survey_audit_events (
 );
 CREATE INDEX IF NOT EXISTS idx_community_audit_est_created
  ON community_survey_audit_events(establishment_id,created_at DESC);
+
+-- PGCE 2027: borradores institucionales versionados y aprobados solo por Dirección.
+-- El expediente nunca queda "aprobado" por generación automática de diagnóstico.
+CREATE TABLE IF NOT EXISTS community_pgce_plans_2027 (
+  id BIGSERIAL PRIMARY KEY,
+  establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+  school_year INT NOT NULL CHECK(school_year=2027),
+  revision INT NOT NULL DEFAULT 1 CHECK(revision>=1),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','ready_for_review','approved')),
+  document JSONB NOT NULL CHECK(jsonb_typeof(document)='object'),
+  created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  updated_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  approved_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  approval_ref TEXT,
+  approved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(establishment_id,school_year),
+  CHECK((status='approved' AND approved_by IS NOT NULL AND approved_at IS NOT NULL AND length(trim(approval_ref))>=6)
+    OR (status<>'approved' AND approved_by IS NULL AND approved_at IS NULL AND approval_ref IS NULL))
+);
+CREATE TABLE IF NOT EXISTS community_pgce_plan_revisions_2027 (
+  id BIGSERIAL PRIMARY KEY,
+  plan_id BIGINT NOT NULL REFERENCES community_pgce_plans_2027(id) ON DELETE CASCADE,
+  establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+  revision INT NOT NULL CHECK(revision>=1),
+  status TEXT NOT NULL CHECK(status IN ('draft','ready_for_review','approved')),
+  document JSONB NOT NULL CHECK(jsonb_typeof(document)='object'),
+  performed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL CHECK(action IN ('created','edited','approved')),
+  happened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(plan_id,revision)
+);
+CREATE INDEX IF NOT EXISTS idx_community_pgce_audit_establishment
+  ON community_pgce_plan_revisions_2027(establishment_id,happened_at DESC);

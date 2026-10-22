@@ -36,6 +36,8 @@ footer{text-align:center;margin-top:18px;font-size:12px;color:var(--muted)}
       <form id="login">
         <div class="field"><label for="code">Código de invitación</label><input id="code" required maxlength="32" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="Código entregado por el establecimiento"></div>
         <div class="field"><label for="pin">PIN de 8 dígitos</label><input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" required placeholder="••••••••"></div>
+        <p class="notice"><strong>Información de privacidad:</strong> el acceso mediante código y PIN se vincula a una invitación del establecimiento, por lo que no debe presentarse como una encuesta anónima. Las respuestas se guardan para diagnóstico institucional; los informes profesionales se muestran de manera agregada y ocultan grupos pequeños. Para conocer el responsable del tratamiento, plazos de conservación y solicitar acceso o corrección, consulta al establecimiento antes de responder. Este texto no sustituye la política de privacidad que debe aprobarse antes de habilitar el servicio real.</p>
+        <label style="display:flex;gap:12px;align-items:flex-start;margin:17px 0"><input type="checkbox" id="privacy-read" required style="width:21px;height:21px;margin-top:3px;flex:none"><span>He leído cómo se utilizarán mis respuestas y sé dónde solicitar más información antes de participar.</span></label>
         <button id="login-btn" type="submit" class="action">Ingresar a la encuesta</button>
       </form>
       <p id="login-error" class="status" role="alert" aria-live="polite"></p>
@@ -80,6 +82,7 @@ el('pin').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D
 el('login').addEventListener('submit',async ev=>{
  ev.preventDefault();
  const code=el('code').value.trim(),pin=el('pin').value.trim();
+ if(!el('privacy-read').checked){el('login-error').textContent='Revisa la información de privacidad antes de ingresar.';return}
  if(!/^[a-zA-Z0-9_-]{32}$/.test(code)||!/^\d{8}$/.test(pin)){el('login-error').textContent='Revisa el código y el PIN recibidos.';return}
  const btn=el('login-btn');btn.disabled=true;el('login-error').textContent='';
  try{

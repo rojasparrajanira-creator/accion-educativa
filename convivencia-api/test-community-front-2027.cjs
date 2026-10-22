@@ -24,6 +24,9 @@ test('pantalla de comunidad es responsive, no envía códigos en URL y no retien
  assert.match(h,/token='';answers=Object\.create\(null\)/);
  assert.match(h,/id="skip"/);
  assert.match(h,/role="radiogroup"/);
+ assert.match(h,/el\('privacy-read'\)\.checked/);
+ assert.match(h,/acceso es confidencial|el acceso mediante código y PIN se vincula/i);
+ assert.match(h,/id="privacy-read" required/);
  assert.match(h,/role="progressbar"/);
 });
 test('API de adultos sigue desactivada salvo autorización opt-in explícita',()=>{

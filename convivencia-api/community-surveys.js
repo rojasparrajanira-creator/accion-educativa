@@ -6,6 +6,7 @@ const crypto=require('node:crypto');
 const C=require('./community-surveys-core.cjs');
 const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const studentDimensions=require('./student-dimensions-adapter-2027.cjs');
+const suggestedActions=require('./pgce-action-proposals-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
 const goodCode=v=>/^[a-zA-Z0-9_-]{32}$/.test(v);
@@ -19,7 +20,7 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
  // Evitar cambios desde sitios ajenos mediante cookies de sesión del profesional.
  const trustedOrigin=(req,res,next)=>{
   const origin=String(req.headers.origin||'');
-  if(origin && !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
+  if(!origin || !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
    return sendError(res,403,'origin_forbidden');
   next();
  };
@@ -195,7 +196,8 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
   try{
    const report=await getInstitutionDimensionReport(req);
    return res.json({ok:true,dimensions:report,
-    plan:PGCE.buildPgceScaffold(report)});
+    plan:PGCE.buildPgceScaffold(report),
+    suggested_actions:suggestedActions.proposeEvidenceBasedActions(report)});
   }catch(e){return sendError(res,503,'pgce_scaffold_unavailable')}
  });
  return true;

@@ -2252,6 +2252,9 @@ if(process.env.MEC_COMMUNITY_SURVEYS_ENABLED==='1'){
   const {registerCommunitySurveys}=require('./community-surveys');
   registerCommunitySurveys({app,pool,requireRole,rateLimit:publicRateLimit,
     accessStatus:id=>subscriptions.accessStatus(id),allowedOrigins});
+  // Registro de Plan de Gestión con versiones, sin aprobar documentos automáticamente.
+  const {registerPgcePlanEditor}=require('./pgce-plan-editor-2027.cjs');
+  registerPgcePlanEditor({app,pool,requireRole,allowedOrigins});
 }
 
 const port=process.env.PORT||3000;

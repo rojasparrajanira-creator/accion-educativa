@@ -1,0 +1,31 @@
+name: Encuestas seguras 2027 - piloto aislado
+on:
+  push:
+    branches:
+      - feature/convivencia-encuestas-seguras-2027
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validar-api-adultos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependencias en runner sin credenciales ni base real
+        working-directory: convivencia-api
+        run: npm install --no-audit --no-fund
+      - name: Sintaxis de API, banco y pruebas
+        working-directory: convivencia-api
+        run: |
+          node --check server.js
+          node --check community-surveys.js
+          node --check community-surveys-core.cjs
+          node --check test-community-surveys-2027.cjs
+          node --check test-community-front-2027.cjs
+      - name: Recorrido HTTP con datos sintéticos y PostgreSQL en memoria
+        working-directory: convivencia-api
+        run: node --test test-community-surveys-2027.cjs test-community-front-2027.cjs

@@ -1,0 +1,614 @@
+{
+  "version": "2027-preview-1",
+  "status": "prototype_unvalidated",
+  "schoolYear": 2027,
+  "directions": "Cuestionarios originales para diagnóstico participativo. No reemplazan procesos participativos, instrumentos oficiales, aprobación directiva ni evidencia de fiscalización.",
+  "dimensions": {
+    "SEG": "Seguridad y protección",
+    "RESP": "Buen trato e inclusión",
+    "ORG": "Organización y conocimiento de normas",
+    "CONF": "Gestión de conflictos y denuncias",
+    "PAR": "Participación y voz de la comunidad",
+    "BIE": "Bienestar, salud mental y redes",
+    "DIG": "Convivencia digital y prevención",
+    "FORM": "Difusión y formación",
+    "GEST": "Coordinación y gestión institucional",
+    "FAM": "Relación escuela-familia"
+  },
+  "scale": [
+    {
+      "value": 1,
+      "label": "Muy en desacuerdo"
+    },
+    {
+      "value": 2,
+      "label": "En desacuerdo"
+    },
+    {
+      "value": 3,
+      "label": "Ni de acuerdo ni en desacuerdo"
+    },
+    {
+      "value": 4,
+      "label": "De acuerdo"
+    },
+    {
+      "value": 5,
+      "label": "Muy de acuerdo"
+    },
+    {
+      "value": "unknown",
+      "label": "No tengo información para responder"
+    },
+    {
+      "value": "not_applicable",
+      "label": "No corresponde a mi experiencia"
+    }
+  ],
+  "audiences": {
+    "familia": {
+      "label": "Madres, padres y apoderados",
+      "intro": "Piensa en tu experiencia durante este año escolar. Responde solo lo que conoces; puedes elegir «No tengo información» o no responder.",
+      "items": [
+        {
+          "id": "FAMILIA_01",
+          "dimension": "SEG",
+          "legal_clause": "16D-d",
+          "wording": "Mi hijo, hija o estudiante a mi cargo cuenta con espacios escolares donde se siente protegido o protegida.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_02",
+          "dimension": "SEG",
+          "legal_clause": "16D-d",
+          "wording": "Conozco los canales del establecimiento para comunicar una situación que afecte la seguridad de un estudiante.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_03",
+          "dimension": "RESP",
+          "legal_clause": "16D-b",
+          "wording": "El establecimiento promueve el respeto entre niños, niñas, adolescentes y personas adultas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_04",
+          "dimension": "RESP",
+          "legal_clause": "16D-b",
+          "wording": "Considero que el establecimiento reconoce y respeta distintas necesidades y características de sus estudiantes.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_05",
+          "dimension": "ORG",
+          "legal_clause": "16D-b",
+          "wording": "Conozco las principales normas de convivencia aplicables a estudiantes y apoderados.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_06",
+          "dimension": "ORG",
+          "legal_clause": "16D-b",
+          "wording": "La información que recibo sobre convivencia es clara y comprensible.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_07",
+          "dimension": "CONF",
+          "legal_clause": "16D-d",
+          "wording": "Sé cómo solicitar una reunión o informar una situación de convivencia que me preocupa.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_08",
+          "dimension": "CONF",
+          "legal_clause": "16D-d",
+          "wording": "Conozco qué resguardos de confidencialidad ofrece el establecimiento al recibir una denuncia.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_09",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "He tenido oportunidades para expresar mi opinión sobre la convivencia de la comunidad educativa.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_10",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "El establecimiento comunica cómo se consideran las sugerencias presentadas por las familias.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_11",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "Sé a quién acudir si mi hijo, hija o estudiante a mi cargo necesita apoyo socioemocional en la escuela.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_12",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "El establecimiento informa sobre apoyos y redes disponibles para el bienestar de estudiantes y familias.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_13",
+          "dimension": "DIG",
+          "legal_clause": "16D-c",
+          "wording": "He recibido información sobre prevención del acoso y situaciones de riesgo en espacios digitales.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_14",
+          "dimension": "DIG",
+          "legal_clause": "16D-d",
+          "wording": "Conozco dónde pedir apoyo ante conflictos que afectan a estudiantes mediante redes sociales o mensajería.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_15",
+          "dimension": "FORM",
+          "legal_clause": "16D-g",
+          "wording": "El establecimiento ofrece instancias para familias sobre buen trato, resolución de conflictos y prevención del acoso.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_16",
+          "dimension": "FORM",
+          "legal_clause": "16D-g",
+          "wording": "Las actividades formativas ofrecidas a las familias responden a preocupaciones que tenemos como apoderados.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_17",
+          "dimension": "FAM",
+          "legal_clause": "16D-g",
+          "wording": "Existen horarios o modalidades accesibles para participar en actividades de formación para familias.",
+          "kind": "agreement"
+        },
+        {
+          "id": "FAMILIA_18",
+          "dimension": "FAM",
+          "legal_clause": "16D-b",
+          "wording": "Las comunicaciones del establecimiento permiten conocer cambios relevantes en las normas de convivencia.",
+          "kind": "agreement"
+        }
+      ]
+    },
+    "docente": {
+      "label": "Docentes y educadoras",
+      "intro": "Responde considerando tu experiencia laboral en este establecimiento durante el año escolar. No identifiques estudiantes ni colegas en respuestas abiertas.",
+      "items": [
+        {
+          "id": "DOCENTE_01",
+          "dimension": "SEG",
+          "legal_clause": "16D-d",
+          "wording": "Cuento con orientaciones claras para resguardar la seguridad del estudiantado en los espacios donde trabajo.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_02",
+          "dimension": "SEG",
+          "legal_clause": "16D-d",
+          "wording": "Sé cómo activar canales institucionales ante situaciones de violencia, discriminación o acoso.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_03",
+          "dimension": "RESP",
+          "legal_clause": "16D-b",
+          "wording": "Promovemos el buen trato y la inclusión en las actividades pedagógicas cotidianas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_04",
+          "dimension": "RESP",
+          "legal_clause": "16D-b",
+          "wording": "Existen apoyos para adecuar la gestión de convivencia a distintas necesidades de aprendizaje y participación.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_05",
+          "dimension": "ORG",
+          "legal_clause": "16D-a",
+          "wording": "La coordinación entre UTP y el equipo de convivencia facilita incorporar objetivos de convivencia en la enseñanza.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_06",
+          "dimension": "ORG",
+          "legal_clause": "16D-a",
+          "wording": "Las normas institucionales de convivencia se articulan con la práctica pedagógica.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_07",
+          "dimension": "CONF",
+          "legal_clause": "16D-d",
+          "wording": "El establecimiento dispone de rutas claras para resolver conflictos y derivar situaciones que requieren protección.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_08",
+          "dimension": "CONF",
+          "legal_clause": "16D-d",
+          "wording": "Se desarrollan estrategias formativas o restaurativas compatibles con los protocolos institucionales.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_09",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "El estudiantado participa en decisiones adecuadas a su edad sobre clima de aula y convivencia.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_10",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "Las propuestas de estudiantes y docentes son recogidas en espacios institucionales de mejora.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_11",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "Conozco apoyos institucionales para promover el bienestar socioemocional de los estudiantes.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_12",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "Dispongo de información sobre redes o procedimientos de apoyo ante factores de riesgo, sin asumir tareas clínicas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_13",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "El establecimiento implementa acciones para favorecer el bienestar de sus trabajadores y trabajadoras.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_14",
+          "dimension": "DIG",
+          "legal_clause": "16D-c",
+          "wording": "La comunidad recibe orientaciones sobre ciudadanía digital, ciberacoso y uso responsable de tecnologías.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_15",
+          "dimension": "FORM",
+          "legal_clause": "16D-b",
+          "wording": "Las capacitaciones institucionales sobre convivencia responden a necesidades detectadas en el aula.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_16",
+          "dimension": "FORM",
+          "legal_clause": "16D-g",
+          "wording": "Cuento con canales para coordinar acciones de convivencia con familias y apoderados.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_17",
+          "dimension": "GEST",
+          "legal_clause": "16D-a",
+          "wording": "Los recursos y tiempos asignados permiten implementar las acciones de convivencia planificadas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_18",
+          "dimension": "GEST",
+          "legal_clause": "16D-e",
+          "wording": "Las actividades de convivencia tienen objetivos, fechas, responsables y medios de evaluación claros.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DOCENTE_19",
+          "dimension": "GEST",
+          "legal_clause": "16D-a",
+          "wording": "El equipo directivo revisa con docentes los avances del Plan de Gestión de Convivencia.",
+          "kind": "agreement"
+        }
+      ]
+    },
+    "asistente": {
+      "label": "Asistentes de la educación",
+      "intro": "Responde considerando los espacios y tareas que efectivamente conoces. Si una afirmación no corresponde a tus funciones, puedes marcar «No corresponde».",
+      "items": [
+        {
+          "id": "ASISTENTE_01",
+          "dimension": "SEG",
+          "legal_clause": "16D-d",
+          "wording": "Conozco los procedimientos para prevenir situaciones de riesgo durante recreos, entradas y salidas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_02",
+          "dimension": "SEG",
+          "legal_clause": "16D-d",
+          "wording": "Sé cómo informar oportunamente situaciones de posible vulneración de derechos o agresiones.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_03",
+          "dimension": "RESP",
+          "legal_clause": "16D-b",
+          "wording": "En los espacios donde desempeño mis funciones se promueve el trato respetuoso.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_04",
+          "dimension": "RESP",
+          "legal_clause": "16D-b",
+          "wording": "El establecimiento cuenta con orientaciones para atender con respeto distintas características y necesidades.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_05",
+          "dimension": "ORG",
+          "legal_clause": "16D-a",
+          "wording": "Mi función y responsabilidades están consideradas en la organización de la convivencia escolar.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_06",
+          "dimension": "ORG",
+          "legal_clause": "16D-b",
+          "wording": "Conozco las normas de convivencia que corresponden a mi función.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_07",
+          "dimension": "CONF",
+          "legal_clause": "16D-d",
+          "wording": "Sé qué debo hacer y a quién informar cuando observo un conflicto entre integrantes de la comunidad.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_08",
+          "dimension": "CONF",
+          "legal_clause": "16D-d",
+          "wording": "Las rutas de derivación protegen la confidencialidad y evitan exponer innecesariamente a las personas involucradas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_09",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "Puedo aportar observaciones y propuestas para mejorar los espacios comunes del establecimiento.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_10",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "Las opiniones del personal asistente son recogidas al planificar acciones de convivencia.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_11",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "Conozco redes y personas responsables para solicitar ayuda ante necesidades socioemocionales observadas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_12",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "El establecimiento promueve acciones de bienestar también para asistentes de la educación.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_13",
+          "dimension": "DIG",
+          "legal_clause": "16D-c",
+          "wording": "He recibido orientaciones sobre cómo actuar ante situaciones de acoso o difusión dañina de contenido digital.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_14",
+          "dimension": "FORM",
+          "legal_clause": "16D-b",
+          "wording": "Tengo oportunidades de recibir formación pertinente en buen trato y prevención de violencia.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_15",
+          "dimension": "FORM",
+          "legal_clause": "16D-g",
+          "wording": "Sé cómo orientar a una familia hacia los canales formales del establecimiento.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_16",
+          "dimension": "GEST",
+          "legal_clause": "16D-e",
+          "wording": "Las actividades de convivencia que involucran a mi equipo tienen fechas y responsabilidades claras.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_17",
+          "dimension": "GEST",
+          "legal_clause": "16D-a",
+          "wording": "Cuento con tiempos e información suficientes para desempeñar el rol asignado en convivencia.",
+          "kind": "agreement"
+        },
+        {
+          "id": "ASISTENTE_18",
+          "dimension": "ORG",
+          "legal_clause": "16D-b",
+          "wording": "El establecimiento informa oportunamente los cambios en normas y procedimientos relevantes.",
+          "kind": "agreement"
+        }
+      ]
+    },
+    "directivo": {
+      "label": "Dirección, UTP y equipos de gestión",
+      "intro": "Instrumento de autodiagnóstico de gestión. Responde sobre evidencia institucional conocida y no sobre casos individuales.",
+      "items": [
+        {
+          "id": "DIRECTIVO_01",
+          "dimension": "GEST",
+          "legal_clause": "16D-a",
+          "wording": "El Plan de Convivencia incluye coordinación registrada entre convivencia, UTP y equipos pedagógicos.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_02",
+          "dimension": "GEST",
+          "legal_clause": "16D-a",
+          "wording": "Se asignan recursos y responsabilidades administrativas a las estrategias de convivencia.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_03",
+          "dimension": "GEST",
+          "legal_clause": "16D-a",
+          "wording": "El PEI, PME, RIE y PGCE se revisan de manera articulada.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_04",
+          "dimension": "FORM",
+          "legal_clause": "16D-b",
+          "wording": "Hay estrategias documentadas de difusión y formación para todos los estamentos.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_05",
+          "dimension": "RESP",
+          "legal_clause": "16D-b",
+          "wording": "Las acciones de formación abordan buen trato, no discriminación e inclusión.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_06",
+          "dimension": "ORG",
+          "legal_clause": "16D-b",
+          "wording": "La comunidad dispone de información comprensible y accesible sobre las normas internas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_07",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "El Plan contempla promoción del bienestar y salud mental para estudiantes y personas adultas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_08",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "Están definidos responsables y redes de apoyo frente a factores de riesgo, sin reemplazar atención especializada.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_09",
+          "dimension": "BIE",
+          "legal_clause": "16D-c",
+          "wording": "Se coordinan acciones preventivas sobre consumo de sustancias y otros factores de riesgo relevantes.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_10",
+          "dimension": "CONF",
+          "legal_clause": "16D-d",
+          "wording": "La gestión de conflictos incluye alternativas colaborativas, medidas de protección y protocolos apropiados.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_11",
+          "dimension": "CONF",
+          "legal_clause": "16D-d",
+          "wording": "Existen registros protegidos sobre seguimiento de situaciones de convivencia y evaluación de las medidas adoptadas.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_12",
+          "dimension": "SEG",
+          "legal_clause": "16D-d",
+          "wording": "Hay procedimientos conocidos para recibir reclamos y denuncias protegiendo la identidad y evitando revictimización.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_13",
+          "dimension": "GEST",
+          "legal_clause": "16D-e",
+          "wording": "El Plan incluye calendarización anual con objetivo, contribución al PGCE, lugar, fecha y responsable.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_14",
+          "dimension": "GEST",
+          "legal_clause": "16D-e",
+          "wording": "Las acciones tienen indicadores de logro, línea base cuando corresponde y metas verificables.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_15",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "El estudiantado participa mediante espacios adecuados a su edad y modalidad educativa.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_16",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "Las propuestas de estudiantes y familias se sistematizan y reciben respuesta fundada.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_17",
+          "dimension": "FORM",
+          "legal_clause": "16D-g",
+          "wording": "El Plan contempla acciones de formación para familias sobre conflictos, acoso y buen trato.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_18",
+          "dimension": "FORM",
+          "legal_clause": "16D-g",
+          "wording": "La participación de las familias en actividades se registra y se revisa para mejorar su cobertura.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_19",
+          "dimension": "PAR",
+          "legal_clause": "16D-f",
+          "wording": "Los procesos de actualización del Plan contemplan participación de todos los estamentos por curso, nivel o ciclo.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_20",
+          "dimension": "GEST",
+          "legal_clause": "16D-a",
+          "wording": "El establecimiento conserva actas y versiones del proceso de actualización y revisión del Plan.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_21",
+          "dimension": "GEST",
+          "legal_clause": "16D-a",
+          "wording": "La aprobación por Dirección y la comunicación de la versión vigente cuentan con respaldo documental.",
+          "kind": "agreement"
+        },
+        {
+          "id": "DIRECTIVO_22",
+          "dimension": "ORG",
+          "legal_clause": "16D-b",
+          "wording": "Se realiza difusión continua y se deja constancia de entrega o acceso al Plan y reglamento según corresponda.",
+          "kind": "agreement"
+        }
+      ]
+    }
+  },
+  "closingPrompt": "¿Qué acción concreta ayudaría a mejorar la convivencia en tu establecimiento? No incluyas nombres ni datos identificables de personas."
+}

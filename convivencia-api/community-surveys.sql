@@ -173,6 +173,7 @@ SELECT establishment_id,school_year,'ACT-'||clause||'-001',clause,
  measurement_code,revision,status,progress_percent,evidence_refs,
  professional_note,adjustment_note,updated_by,updated_at
 FROM community_pgce_action_followups_2027
+WHERE true
 ON CONFLICT(establishment_id,school_year,action_id,measurement_code) DO NOTHING;
 INSERT INTO community_pgce_followup_audit_v2_2027
 (establishment_id,school_year,action_id,clause,measurement_code,
@@ -180,4 +181,5 @@ INSERT INTO community_pgce_followup_audit_v2_2027
 SELECT establishment_id,school_year,'ACT-'||clause||'-001',clause,
  measurement_code,revision,performed_by,created_at
 FROM community_pgce_followup_audit_2027
+WHERE true
 ON CONFLICT(establishment_id,school_year,action_id,measurement_code,revision) DO NOTHING;

@@ -7,6 +7,7 @@ const C=require('./community-surveys-core.cjs');
 const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const studentDimensions=require('./student-dimensions-adapter-2027.cjs');
 const actionCandidates=require('./pgce-action-candidates-2027.cjs');
+const {registerPgceDraftEditor}=require('./pgce-draft-editor-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
 const goodCode=v=>/^[a-zA-Z0-9_-]{32}$/.test(v);
@@ -200,6 +201,7 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
     suggested_actions:actionCandidates.createActionCandidates(report)});
   }catch(e){return sendError(res,503,'pgce_scaffold_unavailable')}
  });
+ registerPgceDraftEditor({app,pool,requireRole,rateLimit,allowedOrigins});
  return true;
 }
 module.exports={registerCommunitySurveys};

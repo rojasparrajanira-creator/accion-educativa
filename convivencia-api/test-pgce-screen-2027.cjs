@@ -1,0 +1,24 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const vm=require('node:vm');
+test('panel de 10 dimensiones exige ingreso profesional y no publica respuestas individuales',()=>{
+ const page=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/diagnostico-dimensiones-pgce-2027.html'),'utf8');
+ assert.match(page,/lang="es-CL"/);
+ assert.match(page,/name="viewport"/);
+ assert.match(page,/role="alert"/);
+ assert.match(page,/\/api\/community-surveys\/pgce-scaffold\?school_year=2027/);
+ assert.match(page,/credentials:'include'/);
+ assert.match(page,/referrerPolicy:'no-referrer'/);
+ assert.match(page,/textContent=val/);
+ assert.match(page,/textContent=d\.label/);
+ assert.match(page,/plan\.preflight\.status/);
+ assert.ok(!/\blocalStorage\b|\bsessionStorage\b/.test(page));
+ assert.ok(!/\bwindow\.print\s*\(/.test(page));
+ assert.ok(!/\binnerHTML\s*=/.test(page));
+ const m=page.match(/<script>\s*([\s\S]*?)\s*<\/script>/);
+ assert.ok(m);
+ new vm.Script(m[1]);
+});

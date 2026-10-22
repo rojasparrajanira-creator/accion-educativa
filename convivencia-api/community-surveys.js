@@ -148,6 +148,21 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
    return res.json({ok:true,school_year:2027,...C.makeAggregate(q.rows,audience)});
   }catch(e){return sendError(res,503,'report_unavailable')}
  });
+
+ // Preinforme estrictamente agregado; no contiene respuestas por persona.
+ app.get('/api/community-surveys/diagnostic-draft',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)return sendError(res,400,'invalid_diagnostic_request');
+  try{
+   const q=await pool.query(
+    'select audience,answers from community_survey_submissions where establishment_id=$1 and school_year=2027 and bank_version=$2',
+    [est,C.bank.version]);
+   const reports=Object.create(null);
+   for(const audience of C.audienceKeys)
+    reports[audience]=C.makeAggregate(q.rows.filter(x=>x.audience===audience),audience);
+   return res.json({ok:true,diagnostic:C.makeDiagnosticDraft(reports)});
+  }catch(e){return sendError(res,503,'diagnostic_unavailable')}
+ });
  return true;
 }
 module.exports={registerCommunitySurveys};

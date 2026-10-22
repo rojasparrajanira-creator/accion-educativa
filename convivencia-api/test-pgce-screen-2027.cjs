@@ -32,6 +32,7 @@ test('editor de Plan 2027 muestra todos los apartados, guarda versión con prote
  assert.match(page,/lang="es-CL"/);
  assert.match(page,/name="viewport"/);
  assert.match(page,/id="main-editor" hidden/);
+ assert.match(page,/Plan de Gestión 2027/);
  assert.match(page,/id="actions"/);
  assert.match(page,/id="findings"/);
  assert.match(page,/id="participation"/);
@@ -46,4 +47,10 @@ test('editor de Plan 2027 muestra todos los apartados, guarda versión con prote
  const js=page.match(/<script>\s*([\s\S]*?)\s*<\/script>/);
  assert.ok(js);
  new vm.Script(js[1]);
+});
+
+test('panel de diagnóstico ofrece enlace al editor sin aplicar sugerencias automáticamente',()=>{
+ const page=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/diagnostico-dimensiones-pgce-2027.html'),'utf8');
+ assert.match(page,/href="editar-plan-pgce-2027.html"/);
+ assert.match(page,/Las propuestas anteriores no se incorporan sin revisión/);
 });

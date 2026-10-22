@@ -18,19 +18,20 @@
   const nt2=[
     {code:'D08_NT2_01',text:'¿Te gusta estar con tu curso en la escuela?'},
     {code:'D01_NT2_01',text:'¿Te sientes seguro o segura cuando juegas en el patio?'},
-    {code:'D02_NT2_01',text:'¿Tus compañeros y compañeras te tratan con respeto?'},
+    {code:'D02_NT2_01',text:'¿Los otros niños y niñas te tratan bien?'},
     {code:'D03_NT2_01',text:'¿Tienes niños o niñas con quienes jugar?'},
-    {code:'D07_NT2_01',text:'¿Te incluyen en los juegos y actividades?'},
-    {code:'D06_NT2_01',text:'¿Cuando hay un problema, te ayudan a solucionarlo conversando?'},
-    {code:'D09_NT2_01',text:'¿Puedes dar tu opinión sobre los juegos y actividades?'},
-    {code:'D10_NT2_01',text:'¿Te sientes bien durante la mayor parte del día en la escuela?'},
+    {code:'D07_NT2_01',text:'¿Te dejan jugar con los demás?'},
+    {code:'D06_NT2_01',text:'Si tienes un problema con alguien, ¿hay un adulto que te ayude?'},
+    {code:'D09_NT2_01',text:'¿Te preguntan qué quieres jugar?'},
+    {code:'D10_NT2_01',text:'¿Te sientes tranquilo o tranquila en tu escuela?'},
     {code:'D13_NT2_01',text:'¿Sabes a qué persona adulta pedir ayuda cuando la necesitas?'},
-    {code:'D14_NT2_01',text:'¿Te escuchan cuando cuentas algo que te preocupa?'}
+    {code:'D14_NT2_01',text:'¿Los adultos te escuchan cuando algo te molesta?'}
   ];
   const scale=[
     {value:'yes',label:'Sí',face:'😊',spoken:'Sí'},
-    {value:'sometimes',label:'A veces',face:'😐',spoken:'A veces'},
-    {value:'no',label:'No',face:'🙁',spoken:'No'}
+    {value:'no',label:'No',face:'🙁',spoken:'No'},
+    // Respuesta de incertidumbre, NO punto medio de frecuencia ni puntaje.
+    {value:'dont_know',label:'No sé',face:'🤔',spoken:'No sé'}
   ];
   window.MECParvulosPreview=Object.freeze({
     nt1:Object.freeze(nt1.map(Object.freeze)),

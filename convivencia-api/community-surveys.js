@@ -7,6 +7,7 @@ const C=require('./community-surveys-core.cjs');
 const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const studentDimensions=require('./student-dimensions-adapter-2027.cjs');
 const pgceDrafts=require('./pgce-planning-drafts-2027.cjs');
+const pgceFollowup=require('./pgce-follow-up-2027.cjs');
 const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
@@ -227,6 +228,36 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
    if(e.message==='invalid_pgce_draft')return sendError(res,400,'invalid_pgce_draft');
    if(e.message==='invalid_pgce_actor')return sendError(res,403,'pgce_actor_forbidden');
    return sendError(res,503,'pgce_draft_unavailable');
+  }
+ });
+ // Seguimiento manual: resultados históricos por acción y período, sin mezclar
+ // automáticamente encuestas M1, M2 y M3 ni publicar datos individuales.
+ app.get('/api/community-surveys/pgce-followup',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_pgce_scope');
+  try{
+   const records=await pgceFollowup.listFollowups(pool,est);
+   return res.json({ok:true,school_year:2027,records,can_approve_pgce:false});
+  }catch(e){return sendError(res,503,'pgce_followup_unavailable')}
+ });
+ app.put('/api/community-surveys/pgce-followup',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const actor=C.safePositiveInt(req.auth.id);
+  if(!est||!actor||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_pgce_scope');
+  try{
+   const saved=await pgceFollowup.saveFollowup(pool,{
+    establishmentId:est,actorId:actor,
+    expectedRevision:req.body?.expected_revision,input:req.body?.followup
+   });
+   if(saved.notFound)return sendError(res,404,'pgce_action_not_planned');
+   if(saved.conflict)return sendError(res,409,'pgce_followup_revision_conflict');
+   return res.json({ok:true,...saved});
+  }catch(e){
+   if(e.message==='invalid_pgce_followup')return sendError(res,400,'invalid_pgce_followup');
+   if(e.message==='invalid_pgce_actor')return sendError(res,403,'pgce_actor_forbidden');
+   return sendError(res,503,'pgce_followup_unavailable');
   }
  });
  return true;

@@ -31,6 +31,8 @@ test('API de adultos sigue desactivada salvo autorización opt-in explícita',()
  assert.match(s,/if\(process\.env\.MEC_COMMUNITY_SURVEYS_ENABLED==='1'\)/);
  assert.match(s,/community-surveys\.sql/);
  assert.match(s,/registerCommunitySurveys\(/);
+ assert.match(s,/X-Student-Access, X-Community-Access/);
+ assert.match(s,/accessStatus:id=>subscriptions\.accessStatus\(id\),allowedOrigins/);
  const m=fs.readFileSync(path.join(__dirname,'community-surveys.js'),'utf8');
  assert.match(m,/if\(process\.env\.MEC_COMMUNITY_SURVEYS_ENABLED!=='1'\)return false/);
 });
@@ -41,4 +43,17 @@ test('banco backend coincide íntegramente con preguntas visibles en vista previ
  const original=data.window.MECEncuestasEstamentos2027;
  const backend=require('./community-surveys-bank-2027.json');
  assert.equal(JSON.stringify(original),JSON.stringify(backend));
+});
+
+test('panel profesional solo consulta listado segregado y no filtra RUN al público',()=>{
+ const page=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/gestionar-encuestas-estamentos-2027.html'),'utf8');
+ const script=page.match(/<script>\s*([\s\S]*?)\s*<\/script>/);
+ assert.ok(script);
+ new vm.Script(script[1]);
+ assert.match(page,/\/api\/community-surveys\/targets\?audience=/);
+ assert.ok(!page.includes('/api/students?'));
+ assert.ok(!page.includes("api('/api/users"));
+ assert.match(page,/relation_verified:true/);
+ assert.match(page,/verification_reference:reference/);
+ assert.match(page,/currentCode='';currentPin=''/);
 });

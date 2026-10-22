@@ -4,6 +4,7 @@
 // La relación apoderado/estudiante se acredita previamente por el equipo autorizado.
 const crypto=require('node:crypto');
 const C=require('./community-surveys-core.cjs');
+const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
 const goodCode=v=>/^[a-zA-Z0-9_-]{32}$/.test(v);
@@ -162,6 +163,30 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
     reports[audience]=C.makeAggregate(q.rows.filter(x=>x.audience===audience),audience);
    return res.json({ok:true,diagnostic:C.makeDiagnosticDraft(reports)});
   }catch(e){return sendError(res,503,'diagnostic_unavailable')}
+ });
+
+ // Dimensiones y plan 2027 exclusivamente desde agregados del mismo establecimiento.
+ // Nunca aceptar filas, recuentos o resultados estudiantiles desde parámetros del cliente.
+ async function getInstitutionDimensionReport(req){
+   const establishmentId=C.safePositiveInt(req.auth.establishment_id);
+   if(!establishmentId||Number(req.query.school_year)!==2027)throw Error('invalid_year');
+   const rows=await pool.query(
+    'select audience,answers from community_survey_submissions where establishment_id=$1 and school_year=2027 and bank_version=$2',
+    [establishmentId,C.bank.version]);
+   return PGCE.buildDimensionReport(rows.rows,[]);
+ }
+ app.get('/api/community-surveys/dimensions',...admin,noStore,async(req,res)=>{
+  if(Number(req.query.school_year)!==2027)return sendError(res,400,'invalid_year');
+  try{return res.json({ok:true,report:await getInstitutionDimensionReport(req)})}
+  catch(e){return sendError(res,503,'dimensions_unavailable')}
+ });
+ app.get('/api/community-surveys/pgce-scaffold',...admin,noStore,async(req,res)=>{
+  if(Number(req.query.school_year)!==2027)return sendError(res,400,'invalid_year');
+  try{
+   const report=await getInstitutionDimensionReport(req);
+   return res.json({ok:true,dimensions:report,
+    plan:PGCE.buildPgceScaffold(report)});
+  }catch(e){return sendError(res,503,'pgce_scaffold_unavailable')}
  });
  return true;
 }

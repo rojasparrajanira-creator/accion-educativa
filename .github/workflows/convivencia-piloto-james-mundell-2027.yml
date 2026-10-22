@@ -1,0 +1,29 @@
+name: Piloto 2027 James Mundell - datos ficticios
+on:
+  push:
+    branches:
+      - 'feature/convivencia-piloto-2027-james-mundell'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar-piloto:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias de ensayo sin credenciales productivas
+        working-directory: convivencia-api
+        run: npm install --no-audit --no-fund
+      - name: Revisar sintaxis del servidor y las pruebas
+        working-directory: convivencia-api
+        run: |
+          node --check server.js
+          node --check piloto-james-mundell-2027.cjs
+          node --check test-piloto-james-mundell-2027.cjs
+      - name: Ensayar matrícula 2027 y PostgreSQL aislado con datos ficticios
+        working-directory: convivencia-api
+        run: node --test test-piloto-james-mundell-2027.cjs

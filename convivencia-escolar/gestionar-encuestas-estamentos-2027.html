@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Habilitar encuestas de estamentos | Convivencia Educativa</title>
+<style>
+:root{--green:#176c63;--ink:#163d39;--border:#c9e5dc;--muted:#526d65}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(140deg,#e6f8f2,#fafdfc);color:var(--ink);font:15px/1.6 Inter,system-ui,sans-serif}
+.shell{max-width:800px;margin:26px auto;padding:0 16px 55px}main{background:white;border-radius:23px;border:1px solid var(--border);padding:clamp(20px,4vw,35px)}
+h1{font-size:clamp(24px,4vw,34px);color:var(--green);margin:5px 0 10px}h2{font-size:21px}
+p{color:var(--muted)}.tag{color:#84570d;background:#fff6d5;border-radius:50px;padding:5px 12px;font-weight:750;font-size:12px;display:inline-block}
+.field{margin:16px 0}.field label{display:block;font-weight:780;margin-bottom:6px}
+.field input,.field select{width:100%;min-height:47px;padding:10px 13px;border:1px solid var(--border);border-radius:11px;font:inherit;color:var(--ink)}
+.field small{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.confirm{display:flex;gap:9px;align-items:flex-start;background:#eaf8f3;padding:14px;border-radius:14px}
+.confirm input{width:20px;height:20px;flex:none;margin-top:3px}
+button{border:0;background:var(--green);color:white;padding:12px 19px;border-radius:12px;font:inherit;font-weight:800;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #127ba9;outline-offset:3px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.copy{background:#e0f3ec;color:var(--green);margin-top:7px;margin-right:9px}
+.notice{padding:13px;border-left:4px solid #20a88e;background:#f0faf7;border-radius:12px;font-size:13px;margin:17px 0}
+.issued{background:#f1f9f5;border:1px solid var(--border);border-radius:18px;padding:20px;margin-top:20px}
+.secret{font-size:17px;word-break:break-all;font-family:ui-monospace,SFMono-Regular,monospace;font-weight:780;background:#fff;padding:12px;border-radius:10px;border:1px solid var(--border)}
+.status{color:#9a3333;font-weight:750;min-height:18px;font-size:13px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="shell"><main>
+<span class="tag">Piloto 2027 · Activación autorizada</span>
+<h1>Habilitar encuestas para la comunidad</h1>
+<p>Solo coordinación u otro perfil habilitado puede generar una invitación. Cada persona recibe un código aleatorio y un PIN personal por canales separados.</p>
+<div id="not-available" class="notice">Comprobando sesión profesional…</div>
+<section id="form-area" hidden>
+<p id="school" style="font-weight:800;color:var(--green)"></p>
+<div class="field"><label for="audience">Estamento</label><select id="audience">
+  <option value="familia">Madre, padre o apoderado</option>
+  <option value="docente">Docente</option>
+  <option value="asistente">Asistente de la educación</option>
+  <option value="directivo">Dirección y UTP</option>
+</select></div>
+<div class="field"><label for="filter">Buscar por nombre o curso</label>
+<input id="filter" type="search" placeholder="Escribe para filtrar el listado" autocomplete="off">
+<small>El listado es institucional y únicamente visible para personal autorizado.</small></div>
+<div class="field"><label for="target" id="target-label">Estudiante vinculado a la familia</label>
+<select id="target" required><option value="">Selecciona una persona</option></select></div>
+<div id="family-fields">
+<div class="field"><label for="slot">Apoderado registrado</label><select id="slot">
+<option value="1">Primera persona adulta verificada</option>
+<option value="2">Segunda persona adulta verificada</option>
+</select></div>
+<div class="field"><label for="reference">Referencia de verificación institucional</label>
+<input id="reference" maxlength="150" autocomplete="off" placeholder="Ej.: ACTA-APO-2027-001">
+<small>Usar un identificador documental, no escribir RUT, nombre, diagnósticos ni información sensible.</small></div>
+<label class="confirm"><input type="checkbox" id="verified">
+<span>Confirmo que el vínculo entre la persona adulta y el estudiante fue verificado mediante antecedentes del establecimiento. No estoy generando acceso a un tercero sin autorización.</span></label>
+</div>
+<p class="notice">Las encuestas aún son instrumentos exploratorios propios. No permitir que responda alguien distinto a la persona verificada. El acceso se entrega por canales institucionales separados, no por grupos de mensajería.</p>
+<button type="button" id="issue">Generar una invitación individual</button>
+<p class="status" id="status" role="alert" aria-live="polite"></p>
+</section>
+<section id="issued" class="issued" hidden>
+<h2>Credenciales generadas</h2>
+<p><strong>Entrega el código de invitación y el PIN por medios diferentes.</strong> No almacenes capturas ni los envíes juntos.</p>
+<p><strong>Código de invitación</strong></p><div id="code" class="secret"></div>
+<button class="copy" id="copy-code" type="button">Copiar código</button>
+<p><strong>PIN personal</strong></p><div id="pin" class="secret"></div>
+<button class="copy" id="copy-pin" type="button">Copiar PIN</button>
+<p id="expires" style="font-size:13px"></p>
+<p class="notice">La persona ingresará sus credenciales en la pantalla de la encuesta. No aparecerán en un enlace web. Por seguridad, después de cerrar este panel no podrás consultar los secretos nuevamente.</p>
+<button type="button" id="clear">Borrar credenciales de esta pantalla</button>
+</section>
+</main></div>
+<script>
+(()=>{'use strict';
+const API='https://convivencia-escolar-api.onrender.com',el=id=>document.getElementById(id);
+let establishmentId=0,role='',targets=[],currentCode='',currentPin='';
+const validStaff={
+ docente:['profesor','docente','educadora','educador'],
+ asistente:['asistente_educacion','asistente','auxiliar','paradocente','psicologo','trabajador_social'],
+ directivo:['director','directora','jefe_utp','utp','equipo_directivo','coordinador_convivencia']
+};
+async function api(url,options={}){
+ const res=await fetch(API+url,{credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',...options});
+ let d;try{d=await res.json()}catch(e){d={ok:false}};
+ if(!res.ok||!d.ok)throw Error(d.error||'service_unavailable');return d;
+}
+async function init(){
+ try{
+  const me=await api('/api/auth/me');const user=me.user;
+  if(!user?.establishment_id||!['coordinador_convivencia','dupla_psicosocial','director','directora'].includes(user.role))throw Error('permission_denied');
+  establishmentId=user.establishment_id;role=user.role;
+  el('school').textContent='Establecimiento: '+(user.establishment||'identificado')+' · año 2027';
+  el('form-area').hidden=false;el('not-available').hidden=true;
+  await loadTargets();
+ }catch(e){
+  el('not-available').textContent='No fue posible habilitar este módulo. Inicia sesión con un perfil profesional autorizado. Si todavía no está activado el piloto, solicita apoyo a la administración.';
+ }
+}
+async function loadTargets(){
+ el('status').textContent='Cargando lista institucional…';
+ const audience=el('audience').value;
+ el('family-fields').hidden=audience!=='familia';
+ el('target-label').textContent=audience==='familia'?'Estudiante vinculado a la persona adulta':'Funcionario/a que recibirá la invitación';
+ try{
+  if(audience==='familia'){
+   const data=await api('/api/students?establishment_id='+encodeURIComponent(establishmentId)+'&active=true');
+   targets=(data.students||[]).map(x=>({id:x.id,name:x.name,extra:x.course||''}));
+  }else{
+   const data=await api('/api/users');
+   targets=(data.users||[]).filter(x=>x.active&&validStaff[audience]?.includes(x.role))
+     .map(x=>({id:x.id,name:x.name,extra:x.role}));
+  }
+  filter();el('status').textContent='';
+ }catch(e){targets=[];filter();el('status').textContent='No se pudo cargar el listado con este perfil. Coordina la emisión con la persona encargada de convivencia.'}
+}
+function filter(){
+ const t=el('target');t.replaceChildren();
+ const blank=document.createElement('option');blank.value='';blank.textContent='Selecciona una persona';t.appendChild(blank);
+ const needle=el('filter').value.toLocaleLowerCase('es-CL');
+ for(const person of targets.filter(x=>(x.name+' '+x.extra).toLocaleLowerCase('es-CL').includes(needle)).slice(0,700)){
+  const o=document.createElement('option');o.value=String(person.id);o.textContent=person.name+' · '+person.extra;t.appendChild(o);
+ }
+}
+el('audience').onchange=()=>{el('filter').value='';loadTargets()};
+el('filter').oninput=filter;
+el('issue').onclick=async()=>{
+ const audience=el('audience').value,id=Number(el('target').value),button=el('issue');
+ if(!id){el('status').textContent='Selecciona la persona correspondiente.';return}
+ const body={school_year:2027,audience};
+ if(audience==='familia'){
+  const reference=el('reference').value.trim();
+  if(!el('verified').checked||reference.length<6||!/^[-A-Za-z0-9_./]+$/.test(reference)){
+   el('status').textContent='Debes verificar el vínculo y registrar solo el código de referencia documental.';return;
+  }
+  Object.assign(body,{student_id:id,guardian_slot:Number(el('slot').value),relation_verified:true,verification_reference:reference});
+ }else body.staff_user_id=id;
+ button.disabled=true;el('status').textContent='';
+ try{
+  const d=await api('/api/community-surveys/invitations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  currentCode=d.invite_code;currentPin=d.pin;
+  el('code').textContent=currentCode;el('pin').textContent=currentPin;
+  el('expires').textContent='Vigente hasta: '+new Date(d.expires_at).toLocaleDateString('es-CL');
+  el('issued').hidden=false;el('form-area').hidden=true;el('verified').checked=false;
+ }catch(e){el('status').textContent=e.message==='existing_active_invitation'?'Ya existe una invitación vigente para esta persona y año. Revisa revocación y reemisión autorizada.':'No se pudo emitir la invitación.'}
+ finally{button.disabled=false}
+};
+async function copy(text){
+ if(!text)return;
+ try{await navigator.clipboard.writeText(text)}catch(e){alert('No fue posible copiar automáticamente. Selecciona el texto para copiarlo manualmente.')}
+}
+el('copy-code').onclick=()=>copy(currentCode);
+el('copy-pin').onclick=()=>copy(currentPin);
+el('clear').onclick=()=>{
+ currentCode='';currentPin='';el('code').textContent='';el('pin').textContent='';
+ el('reference').value='';el('issued').hidden=true;el('form-area').hidden=false;
+};
+window.addEventListener('pagehide',()=>{currentCode='';currentPin=''});
+init();
+})();
+</script>
+</body></html>

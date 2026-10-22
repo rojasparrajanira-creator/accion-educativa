@@ -43,3 +43,32 @@ test('no admite hallazgos repetidos, dimensiones ajenas ni referencias inexisten
  d.actions[0].finding_ids=[];d.actions[0].clause='';
  assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
 });
+
+test('el borrador rechaza dos acciones con la misma cláusula hasta disponer de ID único por acción',()=>{
+ const d=initial();
+ d.actions.push({...d.actions[0]});
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+});
+test('no es posible introducir estructuras de identidad dentro de las fuentes documentales',()=>{
+ const d=initial();
+ d.diagnostic_sources=[{audience:'docente',method:'encuesta',
+  evidence_ref:'ACTA-2027-A',studentName:'Nombre oculto'}];
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+ d.diagnostic_sources=[];
+ d.participation=[{audience:'estudiantes',summary:'Revisión colectiva',
+  evidence_ref:'ACTA-2027',date:'2027-08-10',individual_responses:['dato privado']}];
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+ d.participation=[];
+ d.council_school={report_ref:'ACTA-2027',feedback_or_justification:'',
+  privateStudentData:'Dato'};
+ assert.throws(()=>validatePgceDraft(d),/invalid_pgce_draft/);
+});
+test('admite participación y documentos institucionales agregados de estructura conocida',()=>{
+ const d=initial();
+ d.diagnostic_sources=[{audience:'institutional_records',method:'Acta de Consejo',
+  evidence_ref:'ACTA-TEST-2027'}];
+ d.participation=[{audience:'estudiantes',summary:'Participación por ciclo',
+  evidence_ref:'ACTA-EST-2027',date:'2027-08-10'}];
+ const clean=validatePgceDraft(d);
+ assert.equal(clean.participation[0].audience,'estudiantes');
+});

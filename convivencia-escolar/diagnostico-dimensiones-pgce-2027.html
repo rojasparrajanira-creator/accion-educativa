@@ -26,6 +26,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
 .privacy-confirm input{width:22px;height:22px;flex:0 0 auto;accent-color:var(--blue)}
 #review-export,#download-csv{min-height:44px;margin:4px 8px 8px 0}
 .table-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+.pilot-list{list-style:none;padding:0;margin:8px 0 12px}.pilot-list li{padding:9px 0;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:10px;overflow-wrap:anywhere}.pilot-dot{font-weight:800;color:#755a13;flex:0 0 auto}.pilot-dot.done{color:#136353}
 @media(max-width:650px){#review-export,#download-csv,.action{width:100%;min-height:48px}.hero,.panel{max-width:100%;min-width:0}.dim{min-width:0}h2{font-size:19px}.note{overflow-wrap:anywhere}}
 .review-row{padding:12px 0;border-bottom:1px solid var(--line)}
 @media(max-width:650px){.form-grid{grid-template-columns:1fr}}
@@ -51,6 +52,13 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  <p id="status" class="error" role="alert" aria-live="polite"></p>
 </header>
 <div id="body" class="layout" hidden>
+ <section class="panel" aria-labelledby="pilot-title">
+  <h2 id="pilot-title">Lista de verificación del piloto institucional</h2>
+  <p class="muted">Consulta los registros vigentes del establecimiento. Es una guía administrativa para la revisión profesional; no equivale a validación legal, certificación ni autorización de publicación.</p>
+  <ul id="pilot-checks" class="pilot-list" aria-label="Controles del piloto"></ul>
+  <p id="pilot-summary" class="muted" role="status" aria-live="polite">Sin comprobar.</p>
+  <button type="button" id="refresh-pilot" class="muted-action">Actualizar comprobaciones</button>
+ </section>
  <section class="panel">
   <h2>Fuentes de información</h2>
   <div id="sources"></div>
@@ -418,6 +426,31 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    +'. El establecimiento debe documentar participación, revisión del Consejo Escolar, metas, calendario, evidencia, seguimiento y acto de aprobación de Dirección.';
   el('body').hidden=false;
  }
+ async function refreshPilotChecklist(){
+  const res=await fetch(API+'/api/community-surveys/pgce-pilot-checklist?school_year=2027',{
+   credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
+  });
+  const d=await res.json();
+  if(!res.ok||!d.ok||!Array.isArray(d.checks))
+   throw Error('No se pudo consultar la lista del piloto.');
+  const list=el('pilot-checks');list.replaceChildren();
+  for(const check of d.checks){
+   const item=document.createElement('li');
+   const mark=document.createElement('span');
+   mark.className='pilot-dot'+(check.complete?' done':'');
+   mark.textContent=check.complete?'✓':'○';
+   mark.setAttribute('aria-hidden','true');
+   const content=document.createElement('span');
+   content.textContent=(check.complete?'Registrado: ':'Pendiente: ')+check.label;
+   item.append(mark,content);list.append(item);
+  }
+  el('pilot-summary').textContent=d.completed_checks+' de '+d.total_checks+
+   ' antecedentes registrados. Esta lista no habilita publicación ni certifica cumplimiento.';
+  return d;
+ }
+ el('refresh-pilot').onclick=async()=>{
+  try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
+ };
  async function refreshGovernance(){
   const r=await fetch(API+'/api/community-surveys/pgce-governance?school_year=2027',{
    credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
@@ -457,6 +490,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    if(!r.ok||!d.ok)throw Error('No se registró. Verifica la fecha y la referencia documental.');
    el('governance-confirm').checked=false;
    await refreshGovernance();
+   await refreshPilotChecklist();
    el('governance-status').textContent='Referencia registrada para el borrador vigente; la autenticidad del documento no fue verificada por la plataforma.';
   }catch(e){el('governance-status').textContent=e.message||'Error al registrar documento.'}
   finally{button.disabled=false}
@@ -502,6 +536,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    if(r.status===404)throw Error('Guarda primero el plan con una acción y su nombre.');
    if(!r.ok||!data.ok)throw Error('No fue posible guardar. Verifica los datos y permisos.');
    await loadFollowups();
+   try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
    el('privacy-review-status').textContent='Seguimiento modificado. Debes renovar la revisión de privacidad.';
    el('privacy-confirm').checked=false;
    el('followup-state').textContent='Avance guardado, revisión '+data.revision+
@@ -555,6 +590,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    if(r.status===409)throw Error('Otro profesional guardó cambios. Recarga el borrador para revisar la versión actual.');
    if(!r.ok||!data.ok)throw Error('No se guardó. Verifica permisos, referencias y que no existan datos personales.');
    savedRevision=data.saved_revision;
+   try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
    el('governance-status').textContent='Borrador modificado. Las referencias institucionales anteriores deberán volver a revisarse.';
    el('governance-confirm').checked=false;
    el('privacy-review-status').textContent='Borrador modificado. Revisa nuevamente la privacidad del contenido guardado.';
@@ -631,6 +667,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    try{await loadFollowups()}catch(e){el('followup-state').textContent=e.message}
    try{await refreshPrivacyReview()}catch(e){el('privacy-review-status').textContent=e.message}
    try{await refreshGovernance()}catch(e){el('governance-status').textContent=e.message}
+   try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
   }catch(e){el('body').hidden=true;el('status').textContent=e.message||'No fue posible cargar el informe.'}
   finally{btn.disabled=false}
  };

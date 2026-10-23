@@ -11,6 +11,7 @@ const pgceFollowup=require('./pgce-follow-up-2027.cjs');
 const {buildPgceExportCsv}=require('./pgce-export-2027.cjs');
 const exportReview=require('./pgce-export-review-2027.cjs');
 const governance=require('./pgce-governance-2027.cjs');
+const pilotReadiness=require('./pgce-pilot-readiness-2027.cjs');
 const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
@@ -275,6 +276,17 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
    res.setHeader('X-Content-Type-Options','nosniff');
    return res.status(200).send(csv);
   }catch(e){return sendError(res,503,'pgce_export_unavailable')}
+ });
+ // Lista administrativa de pilotaje, derivada únicamente de registros
+ // del establecimiento de la sesión; nunca habilita producción.
+ app.get('/api/community-surveys/pgce-pilot-checklist',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_pilot_scope');
+  try{
+   const state=await pilotReadiness.assessPilotReadiness(pool,est);
+   return res.json({ok:true,...state});
+  }catch(e){return sendError(res,503,'pgce_pilot_checklist_unavailable')}
  });
  // Evidencias documentales por personal de la misma institución.
  // No se confunden con privacidad ni son aprobación automática del Plan.

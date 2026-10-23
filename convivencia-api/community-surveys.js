@@ -10,6 +10,7 @@ const pgceDrafts=require('./pgce-planning-drafts-2027.cjs');
 const pgceFollowup=require('./pgce-follow-up-2027.cjs');
 const {buildPgceExportCsv}=require('./pgce-export-2027.cjs');
 const exportReview=require('./pgce-export-review-2027.cjs');
+const governance=require('./pgce-governance-2027.cjs');
 const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
@@ -274,6 +275,37 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
    res.setHeader('X-Content-Type-Options','nosniff');
    return res.status(200).send(csv);
   }catch(e){return sendError(res,503,'pgce_export_unavailable')}
+ });
+ // Evidencias documentales por personal de la misma institución.
+ // No se confunden con privacidad ni son aprobación automática del Plan.
+ app.get('/api/community-surveys/pgce-governance',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_governance_scope');
+  try{return res.json({ok:true,...await governance.governanceStatus(pool,est)})}
+  catch(e){return sendError(res,503,'pgce_governance_unavailable')}
+ });
+ app.put('/api/community-surveys/pgce-governance',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const actor=C.safePositiveInt(req.auth.id);
+  if(!est||!actor||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_governance_scope');
+  try{
+   const out=await governance.recordGovernance(pool,{
+    establishmentId:est,actorId:actor,expectedRevision:req.body?.expected_revision,
+    input:req.body?.record
+   });
+   if(out.conflict)return sendError(res,409,'pgce_governance_stale_or_duplicate');
+   if(out.notReady)return res.status(422).json({ok:false,error:'pgce_governance_not_ready',
+    missing:out.missing,council_recorded:out.council_recorded});
+   return res.json({ok:true,...out,can_certify_compliance:false});
+  }catch(e){
+   if(e.message==='invalid_pgce_governance')
+    return sendError(res,400,'invalid_pgce_governance');
+   if(e.message==='pgce_governance_forbidden')
+    return sendError(res,403,'pgce_governance_forbidden');
+   return sendError(res,503,'pgce_governance_unavailable');
+  }
  });
  // Edición profesional del único borrador anual por establecimiento.
  // Sin aceptar establecimiento, RUN o respuestas individuales desde el navegador.

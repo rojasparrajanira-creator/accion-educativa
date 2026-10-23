@@ -5,6 +5,10 @@ on:
       - feature/convivencia-encuestas-seguras-2027
       - feature/convivencia-dimensiones-pgce-integrado-2027
       - feature/convivencia-agregados-estudiantiles-pgce-2027
+  pull_request:
+    branches:
+      - feature/convivencia-dimensiones-pgce-integrado-2027
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
   contents: read

@@ -292,7 +292,10 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   assert.match(csvResponse.headers.get('content-type')||'',/text\/csv/);
   assert.match(csvResponse.headers.get('content-disposition')||'',/attachment; filename="convivencia-pgce-2027-M1-borrador\.csv"/);
   assert.match(csvResponse.headers.get('cache-control')||'',/no-store/);
-  const csv=await csvResponse.text();
+  // Response.text() removes a leading UTF-8 BOM by design; inspect raw bytes.
+  const csvBytes=Buffer.from(await csvResponse.arrayBuffer());
+  assert.deepEqual([...csvBytes.subarray(0,3)],[0xEF,0xBB,0xBF]);
+  const csv=csvBytes.toString('utf8');
   assert.ok(csv.startsWith('\ufeff'));
   assert.ok(csv.includes('Revisión preventiva de la convivencia'));
   assert.ok(csv.includes('ACT-c-002'));

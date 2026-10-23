@@ -178,3 +178,49 @@ Los siete apartados iniciales reciben identificadores fijos. El editor admite nu
 Se ampliaron los tests de validación, API y PostgreSQL aislado para distinguir dos acciones en el mismo apartado. Se añadió test-pgce-v2-migration-2027.cjs para verificar migración aditiva e idempotencia.
 
 Las comprobaciones aisladas de lógica JS pasaron, incluyendo concurrencia simulada y separación de registros. **La ejecución real con PostgreSQL/PGlite, toda la batería de GitHub Actions, seguridad y pruebas móviles siguen pendientes de confirmación.** No fusionar, activar en producción ni desplegar en Render sin validarlas.
+
+## Reporte descargable preliminar (CSV compatible con Excel)
+
+En la rama de desarrollo se incorporó una exportación en formato CSV (UTF-8
+con BOM, separado por punto y coma) para los perfiles profesionales autorizados.
+
+- Ruta de descarga: GET /api/community-surveys/pgce-export?school_year=2027&measurement_code=M1
+  (también permite M2 y M3). La institución se deriva únicamente de la sesión:
+  el cliente no envía RBD ni identificador del establecimiento.
+- La descarga combina SOLO: diagnóstico agregado del período solicitado (las
+  diez dimensiones y sus bandas válidas), hallazgos y acciones guardados en el
+  borrador institucional, y registros de seguimiento M1, M2 y M3 diferenciados
+  por período y por identificador de acción.
+- No se exportan tablas de respuestas estudiantiles, registros por persona,
+  RUN, nombres del alumnado, IDs de estudiante ni conteos exactos de muestras.
+  Se utilizan campos explícitamente permitidos y se evita serializar objetos
+  completos de respuestas o de usuario.
+- Las celdas se entrecomillan y se protegen contra inicio con caracteres de
+  fórmula (=, +, -, @), para mitigar la inyección de fórmulas de hojas de cálculo.
+- El servidor devuelve Cache-Control: no-store y archivo adjunto con un nombre
+  fijo por período. La interfaz lo obtiene usando la sesión autorizada, sin
+  añadir credenciales a la URL; el archivo solo contiene lo guardado en el
+  servidor, NO cambios locales sin guardar.
+- El archivo marca expresamente BORRADOR / INFORME PRELIMINAR: no certifica
+  cumplimiento, no refleja aprobación institucional y no debe interpretarse
+  como puntaje oficial SIMCE/DIA.
+
+**Limitación sobre privacidad:** los campos de texto libre que redacta el equipo
+profesional pueden contener información no adecuada si se introduce allí. Los
+controles estructurales y de patrones de RUN reducen riesgos, pero no
+garantizan anonimización completa. Es imprescindible revisión humana y política
+de tratamiento de datos antes de exportar/compartir fuera de la institución.
+
+**Pruebas añadidas:** test-pgce-export-2027.cjs verifica aislamiento por
+período, bandas agregadas, formato, escape CSV e inyección de fórmulas, y
+exclusión de propiedades privadas simuladas. La suite HTTP comprueba
+autorización, formato de descarga y aislamiento entre dos establecimientos.
+El panel verifica la existencia del control de descarga y la limpieza de
+objetos de descarga en el navegador.
+
+**Validación comprobada en esta sesión:** se ejecutaron siete comprobaciones
+aisladas de la función de exportación y revisión sintáctica de módulos y script
+del editor; todas pasaron. No fue posible ejecutar la suite completa HTTP,
+PGlite/PostgreSQL ni el navegador móvil real. GitHub Actions no informó
+ejecuciones de PR ni estados asociados al último commit consultado; el
+resultado de ejecuciones tipo push sigue sin confirmarse. No publicar en LIVE.

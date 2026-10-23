@@ -18,6 +18,7 @@ function validateRecord(value){
   !STAGES.includes(value.stage)||value.confirmation!==true||
   typeof value.document_ref!=='string'||
   !/^[A-Za-z0-9_./-]{6,120}$/.test(value.document_ref)||
+  /(?:^|[^\d])\d{1,2}\.?\d{3}\.?\d{3}-[\dkK](?:$|[^a-z0-9])/i.test(value.document_ref)||
   !dateValid(value.document_date))invalid();
  return {stage:value.stage,document_ref:value.document_ref,document_date:value.document_date};
 }

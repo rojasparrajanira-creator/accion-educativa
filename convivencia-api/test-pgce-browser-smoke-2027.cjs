@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const http=require('node:http');
 const fs=require('node:fs');
 const path=require('node:path');
-const {chromium}=require('playwright');
+const {chromium,firefox,webkit}=require('playwright');
 const AxeBuilder=require('@axe-core/playwright').default;
 const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const html=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/diagnostico-dimensiones-pgce-2027.html'),'utf8')
@@ -91,8 +91,10 @@ async function run(){
  const port=server.address().port;
  let browser;
  try{
-  browser=await chromium.launch({headless:true,args:['--no-sandbox']});
-  for(const viewport of [{width:390,height:844},{width:768,height:1024}]){
+  for(const [browserName,engine] of Object.entries({chromium,firefox,webkit})){
+   browser=await engine.launch(browserName==='chromium'
+    ?{headless:true,args:['--no-sandbox']}:{headless:true});
+   for(const viewport of [{width:390,height:844},{width:768,height:1024}]){
    // Each viewport uses its own synthetic empty establishment state.
    currentDraft=null;revision=0;privacyReviewed=false;governanceRecords=[];
    const context=await browser.newContext({viewport,acceptDownloads:true});
@@ -162,9 +164,12 @@ async function run(){
    assert.notEqual(focus.outlineWidth,'0px');
    assert.deepEqual(errors,[],'Browser JavaScript errors: '+errors.join(', '));
    await context.close();
+   }
+   await browser.close();
+   browser=null;
   }
-  assert.equal(saveCalls,2);
-  console.log('PGCE 2027 browser smoke OK: mobile 390px, tablet 768px, edit/save, Council record, privacy gate, CSV download.');
+  assert.equal(saveCalls,6);
+  console.log('PGCE 2027 browser smoke OK: Chromium, Firefox and WebKit; 390px and 768px; keyboard focus, axe WCAG A/AA, pilot, edit/save, Council, privacy and CSV.');
  }finally{
   if(browser)await browser.close();
   await new Promise(resolve=>server.close(resolve));

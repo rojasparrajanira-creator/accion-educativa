@@ -21,7 +21,13 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
 .field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:750;color:var(--navy);margin-bottom:5px}
 .field input,.field textarea,.field select{display:block;width:100%;font:inherit;padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#223b47}
 .field textarea{min-height:70px;resize:vertical}.muted-action{background:#eaf5f7;border:1px solid var(--line);color:var(--navy);border-radius:9px;padding:8px 11px;cursor:pointer}
-.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}.review-row{padding:12px 0;border-bottom:1px solid var(--line)}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
+.privacy-confirm{display:flex;align-items:flex-start;gap:12px;font-weight:650;line-height:1.5;margin:15px 0}
+.privacy-confirm input{width:22px;height:22px;flex:0 0 auto;accent-color:var(--blue)}
+#review-export,#download-csv{min-height:44px;margin:4px 8px 8px 0}
+.table-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+@media(max-width:650px){#review-export,#download-csv,.action{width:100%;min-height:48px}.hero,.panel{max-width:100%;min-width:0}.dim{min-width:0}h2{font-size:19px}.note{overflow-wrap:anywhere}}
+.review-row{padding:12px 0;border-bottom:1px solid var(--line)}
 @media(max-width:650px){.form-grid{grid-template-columns:1fr}}
 
 [hidden]{display:none!important}
@@ -69,7 +75,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  <section class="panel">
   <h2>Plan de Gestión: siete componentes obligatorios</h2>
   <p>Se presenta una estructura vacía, no un Plan aprobado. Cada apartado debe completarse con objetivos, metas, actividades, personas responsables, plazos y evidencia documental.</p>
-  <table><thead><tr><th>Artículo</th><th>Área que debe planificarse</th><th>Estado</th></tr></thead><tbody id="plan-sections"></tbody></table>
+  <div class="table-scroll" role="region" aria-label="Resumen de componentes del Plan" tabindex="0"><table><thead><tr><th>Artículo</th><th>Área que debe planificarse</th><th>Estado</th></tr></thead><tbody id="plan-sections"></tbody></table></div>
   <div class="note" id="plan-warning"></div>
  </section>
  <section class="panel">
@@ -85,6 +91,10 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <div class="note">Este documento es un borrador editable. Guardarlo no significa que el Consejo Escolar lo haya revisado ni que Dirección lo haya aprobado.</div>
   <button class="action" type="button" id="save-draft">Guardar borrador institucional</button>
   <p id="save-status" class="muted" role="status" aria-live="polite"></p>
+  <div class="note" id="privacy-review-note"><strong>Antes de descargar:</strong> revisa los hallazgos, nombres, observaciones, referencias y seguimientos guardados. Confirma que contienen exclusivamente información institucional autorizada, sin nombres, RUN, relatos de casos ni datos identificables de estudiantes. Esta revisión no aprueba el Plan de Gestión.</div>
+  <label class="privacy-confirm"><input id="privacy-confirm" type="checkbox"> He revisado personalmente el contenido guardado y confirmo que es apropiado para exportación institucional.</label>
+  <button class="muted-action" type="button" id="review-export">Registrar revisión de privacidad</button>
+  <p class="muted" id="privacy-review-status" role="status" aria-live="polite">Guarda el borrador y registra la revisión antes de descargar.</p>
   <button class="muted-action" type="button" id="download-csv">Descargar reporte preliminar CSV (Excel)</button>
   <p class="muted" id="download-status" role="status" aria-live="polite">El archivo incluirá exclusivamente la información guardada y los agregados del período seleccionado.</p>
  </section>
@@ -431,6 +441,8 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    if(r.status===404)throw Error('Guarda primero el plan con una acción y su nombre.');
    if(!r.ok||!data.ok)throw Error('No fue posible guardar. Verifica los datos y permisos.');
    await loadFollowups();
+   el('privacy-review-status').textContent='Seguimiento modificado. Debes renovar la revisión de privacidad.';
+   el('privacy-confirm').checked=false;
    el('followup-state').textContent='Avance guardado, revisión '+data.revision+
     '. Pendiente de evaluación y aprobación institucional.';
   }catch(e){el('followup-state').textContent=e.message||'Error al guardar avance.'}
@@ -482,9 +494,42 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    if(r.status===409)throw Error('Otro profesional guardó cambios. Recarga el borrador para revisar la versión actual.');
    if(!r.ok||!data.ok)throw Error('No se guardó. Verifica permisos, referencias y que no existan datos personales.');
    savedRevision=data.saved_revision;
+   el('privacy-review-status').textContent='Borrador modificado. Revisa nuevamente la privacidad del contenido guardado.';
+   el('privacy-confirm').checked=false;
    el('save-status').textContent='Borrador guardado: revisión '+savedRevision+
     '. Pendientes editoriales: '+data.preflight.missing.length+'. No está aprobado.';
   }catch(err){el('save-status').textContent=err.message||'Error al guardar borrador.'}
+  finally{button.disabled=false}
+ };
+ async function refreshPrivacyReview(){
+  const r=await fetch(API+'/api/community-surveys/pgce-export-review?school_year=2027',{
+   credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
+  });
+  const data=await r.json();
+  if(!r.ok||!data.ok)throw Error('No se pudo consultar la revisión de privacidad.');
+  el('privacy-review-status').textContent=data.can_export?
+   'Revisión de privacidad vigente para el borrador y seguimiento guardados. No equivale a aprobación institucional.':
+   'El borrador o su seguimiento requieren revisión de privacidad antes de exportar.';
+  return data;
+ }
+ el('review-export').onclick=async()=>{
+  const button=el('review-export');button.disabled=true;
+  try{
+   if(!el('privacy-confirm').checked)throw Error('Marca la confirmación solo después de revisar todo el contenido guardado.');
+   const state=await refreshPrivacyReview();
+   if(state.status==='save_draft_first')throw Error('Primero debes guardar el borrador institucional.');
+   const r=await fetch(API+'/api/community-surveys/pgce-export-review?school_year=2027',{
+    method:'PUT',credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({confirmation:true,draft_revision:state.draft_revision,
+     followup_fingerprint:state.followup_fingerprint})
+   });
+   const data=await r.json();
+   if(r.status===409)throw Error('El borrador o seguimiento cambió. Recarga y revisa su versión actual.');
+   if(!r.ok||!data.ok)throw Error('La revisión no pudo registrarse. Comprueba tu sesión y permisos.');
+   el('privacy-confirm').checked=false;
+   el('privacy-review-status').textContent='Revisión registrada. Puedes descargar el contenido guardado hasta su próxima modificación.';
+  }catch(err){el('privacy-review-status').textContent=err.message||'Error en la revisión'}
   finally{button.disabled=false}
  };
  el('download-csv').onclick=async()=>{
@@ -496,6 +541,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    const r=await fetch(API+'/api/community-surveys/pgce-export?school_year=2027&measurement_code='+encodeURIComponent(period),{
     credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
    });
+   if(r.status===409)throw Error('Debes registrar una revisión vigente de privacidad sobre el contenido guardado antes de descargar.');
    if(!r.ok)throw Error('No fue posible preparar el reporte. Revisa la sesión y los permisos.');
    const contentType=r.headers.get('content-type')||'';
    if(!contentType.includes('text/csv'))throw Error('El servidor no devolvió un archivo CSV.');
@@ -520,6 +566,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    if(!r.ok||!d.ok||!d.dimensions||!d.plan)throw Error('Debes ingresar con un perfil autorizado; el módulo aún podría no estar habilitado.');
    draw(d);el('status').textContent='';
    try{await loadFollowups()}catch(e){el('followup-state').textContent=e.message}
+   try{await refreshPrivacyReview()}catch(e){el('privacy-review-status').textContent=e.message}
   }catch(e){el('body').hidden=true;el('status').textContent=e.message||'No fue posible cargar el informe.'}
   finally{btn.disabled=false}
  };

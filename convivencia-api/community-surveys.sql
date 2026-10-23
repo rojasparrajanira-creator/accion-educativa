@@ -183,3 +183,28 @@ SELECT establishment_id,school_year,'ACT-'||clause||'-001',clause,
 FROM community_pgce_followup_audit_2027
 WHERE true
 ON CONFLICT(establishment_id,school_year,action_id,measurement_code,revision) DO NOTHING;
+
+
+-- Revisión de privacidad PREVIA a descargar textos libres del borrador PGCE.
+-- No equivale a una aprobación legal del plan ni garantiza anonimización.
+CREATE TABLE IF NOT EXISTS community_pgce_export_reviews_2027 (
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+ school_year INT NOT NULL DEFAULT 2027 CHECK(school_year=2027),
+ draft_revision INT NOT NULL CHECK(draft_revision>=1),
+ followup_fingerprint TEXT NOT NULL CHECK(followup_fingerprint ~ '^[0-9a-f]{64}$'),
+ reviewed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+ reviewed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ PRIMARY KEY(establishment_id,school_year)
+);
+CREATE TABLE IF NOT EXISTS community_pgce_export_audit_2027 (
+ id BIGSERIAL PRIMARY KEY,
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+ school_year INT NOT NULL DEFAULT 2027 CHECK(school_year=2027),
+ action TEXT NOT NULL CHECK(action IN ('privacy_reviewed','csv_downloaded')),
+ draft_revision INT NOT NULL CHECK(draft_revision>=1),
+ followup_fingerprint TEXT NOT NULL CHECK(followup_fingerprint ~ '^[0-9a-f]{64}$'),
+ performed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_community_pgce_export_audit_est
+ ON community_pgce_export_audit_2027(establishment_id,created_at DESC);

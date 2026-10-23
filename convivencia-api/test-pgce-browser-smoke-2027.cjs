@@ -63,6 +63,8 @@ async function run(){
  try{
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   for(const viewport of [{width:390,height:844},{width:768,height:1024}]){
+   // Each viewport uses its own synthetic empty establishment state.
+   currentDraft=null;revision=0;privacyReviewed=false;
    const context=await browser.newContext({viewport,acceptDownloads:true});
    const page=await context.newPage();
    const errors=[];

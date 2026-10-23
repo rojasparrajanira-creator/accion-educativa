@@ -22,7 +22,9 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
  // Evitar cambios desde sitios ajenos mediante cookies de sesión del profesional.
  const trustedOrigin=(req,res,next)=>{
   const origin=String(req.headers.origin||'');
-  if(origin && !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
+  // Las rutas de escritura con sesión requieren siempre un Origin explícito.
+  // Un Origin ausente también se rechaza: evita aceptar solicitudes ambiguas.
+  if(!origin || !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
    return sendError(res,403,'origin_forbidden');
   next();
  };

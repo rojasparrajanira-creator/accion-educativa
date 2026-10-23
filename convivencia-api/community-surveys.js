@@ -9,6 +9,7 @@ const studentDimensions=require('./student-dimensions-adapter-2027.cjs');
 const pgceDrafts=require('./pgce-planning-drafts-2027.cjs');
 const pgceFollowup=require('./pgce-follow-up-2027.cjs');
 const {buildPgceExportCsv}=require('./pgce-export-2027.cjs');
+const exportReview=require('./pgce-export-review-2027.cjs');
 const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
@@ -212,6 +213,35 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
    return res.json({ok:true,dimensions:report,plan});
   }catch(e){return sendError(res,503,'pgce_scaffold_unavailable')}
  });
+ // La revisión de privacidad se limita a un borrador guardado y sus revisiones.
+ // No equivale a aprobación institucional del Plan.
+ app.get('/api/community-surveys/pgce-export-review',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_export_scope');
+  try{return res.json({ok:true,...await exportReview.reviewStatus(pool,est),
+    institutional_approval:false})}
+  catch(e){return sendError(res,503,'pgce_export_review_unavailable')}
+ });
+ app.put('/api/community-surveys/pgce-export-review',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const actor=C.safePositiveInt(req.auth.id);
+  if(!est||!actor||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_export_scope');
+  try{
+   const result=await exportReview.recordReview(pool,{
+    establishmentId:est,actorId:actor,confirmation:req.body?.confirmation,
+    draftRevision:req.body?.draft_revision,
+    followupFingerprint:req.body?.followup_fingerprint
+   });
+   if(result.conflict)return sendError(res,409,'pgce_export_review_stale');
+   return res.json({ok:true,...result,institutional_approval:false});
+  }catch(e){
+   if(e.message==='invalid_export_review')return sendError(res,400,'invalid_export_review');
+   if(e.message==='invalid_export_reviewer')return sendError(res,403,'export_reviewer_forbidden');
+   return sendError(res,503,'pgce_export_review_unavailable');
+  }
+ });
  // Exportación bajo sesión institucional. Solo bandas agregadas por dimensión
  // y contenidos que el profesional guardó en el borrador anual.
  app.get('/api/community-surveys/pgce-export',...admin,noStore,async(req,res)=>{
@@ -221,12 +251,23 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
    !studentDimensions.PERIODS.includes(measurementCode))
    return sendError(res,400,'invalid_export_scope');
   try{
+   const review=await exportReview.reviewStatus(pool,est);
+   if(!review.can_export)return sendError(res,409,'pgce_export_review_required');
    const report=await getInstitutionDimensionReport(req);
    const saved=await pgceDrafts.loadPgceDraft(pool,est);
-   const draft=saved?.draft||PGCE.buildPgceScaffold(report).draft;
+   if(!saved||saved.revision!==review.draft_revision)
+    return sendError(res,409,'pgce_export_review_stale');
+   const draft=saved.draft;
    const preflight=inspectPgceDraft(draft);
    const followups=await pgceFollowup.listFollowups(pool,est);
+   const fresh=await exportReview.reviewStatus(pool,est);
+   if(!fresh.can_export||fresh.draft_revision!==review.draft_revision||
+    fresh.followup_fingerprint!==review.followup_fingerprint)
+    return sendError(res,409,'pgce_export_review_stale');
    const csv=buildPgceExportCsv({report,draft,followups,preflight,measurementCode});
+   await exportReview.recordDownload(pool,{
+    establishmentId:est,actorId:C.safePositiveInt(req.auth.id),snapshot:review
+   });
    res.setHeader('Content-Type','text/csv; charset=utf-8');
    res.setHeader('Content-Disposition',
     'attachment; filename="convivencia-pgce-2027-'+measurementCode+'-borrador.csv"');

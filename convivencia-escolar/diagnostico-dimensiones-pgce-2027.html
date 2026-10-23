@@ -85,6 +85,8 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <div class="note">Este documento es un borrador editable. Guardarlo no significa que el Consejo Escolar lo haya revisado ni que Dirección lo haya aprobado.</div>
   <button class="action" type="button" id="save-draft">Guardar borrador institucional</button>
   <p id="save-status" class="muted" role="status" aria-live="polite"></p>
+  <button class="muted-action" type="button" id="download-csv">Descargar reporte preliminar CSV (Excel)</button>
+  <p class="muted" id="download-status" role="status" aria-live="polite">El archivo incluirá exclusivamente la información guardada y los agregados del período seleccionado.</p>
  </section>
  <section class="panel">
   <h2>Antecedentes y participación institucional</h2>
@@ -483,6 +485,28 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    el('save-status').textContent='Borrador guardado: revisión '+savedRevision+
     '. Pendientes editoriales: '+data.preflight.missing.length+'. No está aprobado.';
   }catch(err){el('save-status').textContent=err.message||'Error al guardar borrador.'}
+  finally{button.disabled=false}
+ };
+ el('download-csv').onclick=async()=>{
+  const button=el('download-csv');button.disabled=true;
+  el('download-status').textContent='Generando reporte desde los registros guardados…';
+  try{
+   const period=el('measurement').value;
+   if(!['M1','M2','M3'].includes(period))throw Error('Medición inválida.');
+   const r=await fetch(API+'/api/community-surveys/pgce-export?school_year=2027&measurement_code='+encodeURIComponent(period),{
+    credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
+   });
+   if(!r.ok)throw Error('No fue posible preparar el reporte. Revisa la sesión y los permisos.');
+   const contentType=r.headers.get('content-type')||'';
+   if(!contentType.includes('text/csv'))throw Error('El servidor no devolvió un archivo CSV.');
+   const file=await r.blob();
+   const objectUrl=URL.createObjectURL(file);
+   const link=document.createElement('a');
+   link.href=objectUrl;link.download='convivencia-pgce-2027-'+period+'-borrador.csv';
+   document.body.append(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(objectUrl),5000);
+   el('download-status').textContent='Reporte preliminar generado. Los cambios no guardados no se incluyen.';
+  }catch(e){el('download-status').textContent=e.message||'No se pudo descargar el reporte.'}
   finally{button.disabled=false}
  };
  el('load').onclick=async()=>{

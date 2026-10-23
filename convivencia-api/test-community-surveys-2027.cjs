@@ -283,6 +283,38 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   assert.equal(invalidOriginProgress.code,403);
   const progressAudits=await insert('SELECT count(*)::integer n FROM community_pgce_followup_audit_v2_2027 WHERE establishment_id=$1',[est]);
   assert.equal(Number(progressAudits.n),5);
+  // Descarga CSV solo por sesión profesional y establecimiento actual.
+  const csvUrl=url+'/api/community-surveys/pgce-export?school_year=2027&measurement_code=M1';
+  let csvResponse=await fetch(csvUrl,{headers:{
+   'x-test-establishment':String(est),'x-test-role':'coordinador_convivencia'
+  }});
+  assert.equal(csvResponse.status,200);
+  assert.match(csvResponse.headers.get('content-type')||'',/text\/csv/);
+  assert.match(csvResponse.headers.get('content-disposition')||'',/attachment; filename="convivencia-pgce-2027-M1-borrador\.csv"/);
+  assert.match(csvResponse.headers.get('cache-control')||'',/no-store/);
+  const csv=await csvResponse.text();
+  assert.ok(csv.startsWith('\ufeff'));
+  assert.ok(csv.includes('Revisión preventiva de la convivencia'));
+  assert.ok(csv.includes('ACT-c-002'));
+  assert.ok(csv.includes('SEGUIMIENTO'));
+  assert.ok(csv.includes('M3'));
+  for(const privateVal of ['MENOR FICTICIO','PILOT-27-','90000001','Docente Ficticio']){
+   assert.ok(!csv.includes(privateVal),'La exportación no debe incluir '+privateVal);
+  }
+  csvResponse=await fetch(csvUrl,{headers:{
+   'x-test-establishment':String(est),'x-test-role':'profesor'
+  }});
+  assert.equal(csvResponse.status,403);
+  csvResponse=await fetch(url+'/api/community-surveys/pgce-export?school_year=2027&measurement_code=M4',
+   {headers:{'x-test-establishment':String(est),'x-test-role':'coordinador_convivencia'}});
+  assert.equal(csvResponse.status,400);
+  csvResponse=await fetch(csvUrl,{headers:{
+   'x-test-establishment':String(estB),'x-test-role':'coordinador_convivencia'
+  }});
+  assert.equal(csvResponse.status,200);
+  const isolatedCsv=await csvResponse.text();
+  assert.ok(!isolatedCsv.includes('Revisión preventiva de la convivencia'));
+  assert.ok(!isolatedCsv.includes('ACTA-PRUEBA-2027'));
   const revisions=await insert('SELECT count(*)::integer n FROM community_pgce_draft_audit_2027 WHERE establishment_id=$1',[est]);
   assert.equal(Number(revisions.n),2);
   const otherPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1',

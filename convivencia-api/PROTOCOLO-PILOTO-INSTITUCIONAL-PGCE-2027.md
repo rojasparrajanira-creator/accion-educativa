@@ -81,3 +81,41 @@ Anotar para cada caso: fecha, ID ficticio del establecimiento, perfil usado,
 módulo, acción ejecutada, resultado esperado, resultado observado, evidencia
 técnica sin datos personales, nivel de severidad, corrección aplicada y nueva
 comprobación. No adjuntar capturas con identidades o credenciales reales.
+
+
+## 8. Revisión jurídica-documental previa al uso con establecimientos
+
+La Ley 21.809 de 2026, que modificó la Ley General de Educación, establece
+funciones diferenciadas. El art. 16 D atribuye elaboración e implementación del
+PGCE al equipo/coordinación de convivencia y su aprobación y dictación a
+Dirección. El proceso participativo de actualización descrito en la misma reforma
+prevé que Dirección presente un **informe** al Consejo Escolar, tramite sus
+observaciones mediante acogida o rechazo fundado y, según corresponda, que el
+Consejo apruebe el **informe**, seguido de la sanción del Plan por Dirección.
+También contempla disposición del Plan a la comunidad en el plazo del
+reglamento interno. El art. 16 G contempla información, difusión y constancia
+de entrega de los instrumentos.
+
+**Fuente jurídica para cotejo humano, versión normativa consultada:**
+https://www.leychile.cl/navegar?idNorma=1222799
+
+### Información que NO comprueba esta plataforma
+
+- Que efectivamente se haya realizado la participación exigible en el tipo de
+  actualización de que se trate (revisión participativa, adecuación anual u
+  otra actualización).
+- Que se presentara el informe pertinente, se formularan o contestaran
+  observaciones y que el Consejo aprobara el informe cuando corresponda.
+- Que el acto de Dirección haya sancionado válidamente el Plan.
+- Que haya ocurrido la puesta a disposición, la difusión o entrega material
+  con el plazo, canales y constancias requeridos.
+- Que las referencias y fechas declaradas correspondan a documentos auténticos.
+
+La sección `council_review` almacena **solo una referencia documental a la
+revisión**, NO una declaración de aprobación del informe por el Consejo.
+La sección `direction_act` almacena **solo la referencia a un acto declarado**,
+NO una validación jurídica de sanción. No sustituir estos datos por indicadores
+de cumplimiento legal. Antes del lanzamiento, el establecimiento y un
+revisor competente deben decidir si el formulario requiere capturar las etapas
+y evidencias adicionales de su procedimiento real. La lista automática del
+piloto permanece informativa con `can_publish=false`.

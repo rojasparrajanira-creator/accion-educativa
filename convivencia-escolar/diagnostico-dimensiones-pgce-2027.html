@@ -113,6 +113,24 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <button type="button" id="save-institution" class="action">Guardar antecedentes junto al plan</button>
  </section>
  <section class="panel">
+  <h2>Revisión del Consejo Escolar y constancia documental de Dirección</h2>
+  <p class="muted">Solo se registran referencias a documentos institucionales ya emitidos. La plataforma no verifica firmas, no firma documentos ni declara el Plan aprobado. La constancia de Dirección requiere perfil directivo autorizado y un borrador completo.</p>
+  <div class="field"><label for="governance-stage">Tipo de antecedente</label>
+   <select id="governance-stage">
+    <option value="council_review">Informe y revisión del Consejo Escolar</option>
+    <option value="direction_act">Acto formal de Dirección (solo directora/director)</option>
+   </select>
+  </div>
+  <div class="form-grid">
+   <div class="field"><label for="governance-ref">Referencia del documento institucional</label><input id="governance-ref" maxlength="120" placeholder="ACTA-CE-2027-01"></div>
+   <div class="field"><label for="governance-date">Fecha que figura en el documento</label><input id="governance-date" type="date"></div>
+  </div>
+  <label class="privacy-confirm"><input id="governance-confirm" type="checkbox"> Confirmo que existe un documento institucional emitido y revisé su referencia y fecha. No adjunto datos personales ni afirmo que el sistema haya verificado su autenticidad.</label>
+  <button id="save-governance" class="action" type="button">Registrar referencia documental</button>
+  <p id="governance-status" class="muted" role="status" aria-live="polite">Registros pendientes de consultar.</p>
+  <div class="note" id="governance-list">No se han consultado antecedentes documentales.</div>
+ </section>
+ <section class="panel">
   <h2>Seguimiento manual M1–M2–M3 de acciones</h2>
   <p class="muted">Registra avances respaldados por el equipo responsable. Los cortes no calculan ni comparan puntajes de encuestas y no aprueban el plan.</p>
   <div class="form-grid">
@@ -400,6 +418,49 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    +'. El establecimiento debe documentar participación, revisión del Consejo Escolar, metas, calendario, evidencia, seguimiento y acto de aprobación de Dirección.';
   el('body').hidden=false;
  }
+ async function refreshGovernance(){
+  const r=await fetch(API+'/api/community-surveys/pgce-governance?school_year=2027',{
+   credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
+  });
+  const d=await r.json();
+  if(!r.ok||!d.ok)throw Error('No se pudieron consultar los antecedentes documentales.');
+  const names={council_review:'Consejo Escolar',direction_act:'Dirección'};
+  const summary=Object.entries(d.stages||{}).map(([key,value])=>
+   (names[key]||key)+': '+(value.current?
+    'referencia vigente '+(value.document_ref||''):
+    value.status==='document_reference_stale'?'referencia antigua; requiere nueva revisión':'sin registro documental'));
+  el('governance-list').textContent=summary.join(' · ');
+  el('governance-status').textContent=d.draft_revision?
+   'Versión actual del borrador: '+d.draft_revision+'. El registro no acredita aprobación legal.':
+   'Debes guardar primero el borrador institucional.';
+  return d;
+ }
+ el('save-governance').onclick=async()=>{
+  const button=el('save-governance');button.disabled=true;
+  try{
+   if(!el('governance-confirm').checked)throw Error('Revisa y confirma primero la existencia del documento.');
+   const state=await refreshGovernance();
+   if(!state.draft_revision)throw Error('Guarda el borrador antes de registrar el documento.');
+   const r=await fetch(API+'/api/community-surveys/pgce-governance?school_year=2027',{
+    method:'PUT',credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({expected_revision:state.draft_revision,record:{
+     stage:el('governance-stage').value,
+     document_ref:el('governance-ref').value.trim(),
+     document_date:el('governance-date').value,confirmation:true
+    }})
+   });
+   const d=await r.json();
+   if(r.status===409)throw Error('El borrador cambió o ya se registró un documento para esta versión.');
+   if(r.status===422)throw Error('No se puede registrar el acto de Dirección: falta la revisión del Consejo Escolar o completar el borrador.');
+   if(r.status===403)throw Error('Esta acción requiere un perfil institucional autorizado; la constancia de Dirección exige perfil directivo.');
+   if(!r.ok||!d.ok)throw Error('No se registró. Verifica la fecha y la referencia documental.');
+   el('governance-confirm').checked=false;
+   await refreshGovernance();
+   el('governance-status').textContent='Referencia registrada para el borrador vigente; la autenticidad del documento no fue verificada por la plataforma.';
+  }catch(e){el('governance-status').textContent=e.message||'Error al registrar documento.'}
+  finally{button.disabled=false}
+ };
  el('add-source').onclick=()=>{
   if(!currentDraft)return;
   currentDraft.diagnostic_sources??=[];
@@ -494,6 +555,8 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    if(r.status===409)throw Error('Otro profesional guardó cambios. Recarga el borrador para revisar la versión actual.');
    if(!r.ok||!data.ok)throw Error('No se guardó. Verifica permisos, referencias y que no existan datos personales.');
    savedRevision=data.saved_revision;
+   el('governance-status').textContent='Borrador modificado. Las referencias institucionales anteriores deberán volver a revisarse.';
+   el('governance-confirm').checked=false;
    el('privacy-review-status').textContent='Borrador modificado. Revisa nuevamente la privacidad del contenido guardado.';
    el('privacy-confirm').checked=false;
    el('save-status').textContent='Borrador guardado: revisión '+savedRevision+
@@ -567,6 +630,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    draw(d);el('status').textContent='';
    try{await loadFollowups()}catch(e){el('followup-state').textContent=e.message}
    try{await refreshPrivacyReview()}catch(e){el('privacy-review-status').textContent=e.message}
+   try{await refreshGovernance()}catch(e){el('governance-status').textContent=e.message}
   }catch(e){el('body').hidden=true;el('status').textContent=e.message||'No fue posible cargar el informe.'}
   finally{btn.disabled=false}
  };

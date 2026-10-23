@@ -27,6 +27,18 @@ function mockHandler(req,res){
   return reply(res,200,{ok:true,dimensions,plan});
  }
  if(pathname==='/api/community-surveys/pgce-followup')return reply(res,200,{ok:true,records:[]});
+ if(pathname==='/api/community-surveys/pgce-pilot-checklist'&&req.method==='GET'){
+  const checks=[
+   {code:'draft_saved',label:'Borrador institucional guardado',complete:revision>0},
+   {code:'editorial_complete',label:'Campos completos para revisión',complete:false},
+   {code:'council_reference',label:'Referencia de Consejo Escolar',complete:governanceRecords.some(x=>x.stage==='council_review'&&x.revision===revision)},
+   {code:'direction_reference',label:'Referencia de Dirección',complete:false},
+   {code:'privacy_review',label:'Revisión vigente de privacidad',complete:privacyReviewed}
+  ];
+  return reply(res,200,{ok:true,school_year:2027,status:'manual_review_pending',
+   checks,completed_checks:checks.filter(x=>x.complete).length,total_checks:5,
+   can_publish:false,can_certify_compliance:false});
+ }
  if(pathname==='/api/community-surveys/pgce-governance'&&req.method==='GET'){
   const stages={};
   for(const stage of ['council_review','direction_act']){
@@ -90,6 +102,8 @@ async function run(){
    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'load'});
    await page.locator('#load').click();
    await page.locator('#body').waitFor({state:'visible'});
+   assert.match(await page.locator('#pilot-summary').innerText(),/0 de 5/);
+   assert.equal(await page.locator('#pilot-checks li').count(),5);
    // Automated WCAG A/AA checks on the loaded pilot editor. The axe rules
    // supplement, rather than replace, keyboard and assistive-device reviews.
    const accessibility=await new AxeBuilder({page})
@@ -115,6 +129,8 @@ async function run(){
    assert.ok(await page.locator('#findings-list').getByText('Necesidad institucional').count());
    await page.locator('#save-draft').click();
    await page.getByText(/Borrador guardado: revisión/).waitFor();
+   await page.locator('#refresh-pilot').click();
+   assert.match(await page.locator('#pilot-summary').innerText(),/1 de 5/);
    await page.locator('#governance-stage').selectOption('council_review');
    await page.locator('#governance-ref').fill('ACTA-CE-2027-01');
    await page.locator('#governance-date').fill('2027-05-01');

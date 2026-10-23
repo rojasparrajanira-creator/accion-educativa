@@ -627,6 +627,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    if(r.status===409)throw Error('El borrador o seguimiento cambió. Recarga y revisa su versión actual.');
    if(!r.ok||!data.ok)throw Error('La revisión no pudo registrarse. Comprueba tu sesión y permisos.');
    el('privacy-confirm').checked=false;
+   try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
    el('privacy-review-status').textContent='Revisión registrada. Puedes descargar el contenido guardado hasta su próxima modificación.';
   }catch(err){el('privacy-review-status').textContent=err.message||'Error en la revisión'}
   finally{button.disabled=false}

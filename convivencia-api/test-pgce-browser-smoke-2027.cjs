@@ -10,7 +10,7 @@ const html=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/diagnosti
  .replace("const API='https://convivencia-escolar-api.onrender.com'","const API=''");
 if(!html.includes("const API=''"))throw Error('smoke_must_not_contact_production');
 const makeReport=()=>{const r=PGCE.buildDimensionReport();r.student_measurement_code='M1';return r};
-let currentDraft=null,revision=0,privacyReviewed=false,saveCalls=0;
+let currentDraft=null,revision=0,privacyReviewed=false,saveCalls=0,governanceRecords=[];
 function reply(res,status,data,contentType='application/json'){
  res.writeHead(status,{'Content-Type':contentType,'Cache-Control':'no-store'});
  res.end(contentType==='application/json'?JSON.stringify(data):data);
@@ -26,6 +26,15 @@ function mockHandler(req,res){
   return reply(res,200,{ok:true,dimensions,plan});
  }
  if(pathname==='/api/community-surveys/pgce-followup')return reply(res,200,{ok:true,records:[]});
+ if(pathname==='/api/community-surveys/pgce-governance'&&req.method==='GET'){
+  const stages={};
+  for(const stage of ['council_review','direction_act']){
+   const entry=governanceRecords.find(x=>x.stage===stage&&x.revision===revision);
+   stages[stage]={current:!!entry,status:entry?'document_reference_current':'not_recorded',
+    document_ref:entry?.document_ref||null};
+  }
+  return reply(res,200,{ok:true,draft_revision:revision,stages,can_publish:false});
+ }
  if(pathname==='/api/community-surveys/pgce-export-review'&&req.method==='GET'){
   return reply(res,200,{ok:true,can_export:privacyReviewed,initialized:revision>0,
    status:revision?'privacy_review_required':'save_draft_first',
@@ -37,7 +46,8 @@ function mockHandler(req,res){
    'text/csv; charset=utf-8');
  }
  if(req.method==='PUT'&&(pathname==='/api/community-surveys/pgce-draft'||
-  pathname==='/api/community-surveys/pgce-export-review')){
+  pathname==='/api/community-surveys/pgce-export-review'||
+  pathname==='/api/community-surveys/pgce-governance')){
   const chunks=[];
   req.on('data',x=>chunks.push(x));
   req.on('end',()=>{
@@ -46,6 +56,13 @@ function mockHandler(req,res){
     if(body.expected_revision!==revision)return reply(res,409,{ok:false});
     revision++;currentDraft=body.draft;privacyReviewed=false;saveCalls++;
     return reply(res,200,{ok:true,saved_revision:revision,preflight:{missing:[]}});
+   }
+   if(pathname.endsWith('pgce-governance')){
+    if(body.expected_revision!==revision||!revision||
+     body.record?.confirmation!==true||body.record?.stage!=='council_review')
+     return reply(res,409,{ok:false});
+    governanceRecords.push({...body.record,revision});
+    return reply(res,200,{ok:true,recorded:true,status:'document_reference_recorded_unverified'});
    }
    if(body.confirmation!==true||body.draft_revision!==revision||!revision)
     return reply(res,409,{ok:false});
@@ -64,7 +81,7 @@ async function run(){
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
   for(const viewport of [{width:390,height:844},{width:768,height:1024}]){
    // Each viewport uses its own synthetic empty establishment state.
-   currentDraft=null;revision=0;privacyReviewed=false;
+   currentDraft=null;revision=0;privacyReviewed=false;governanceRecords=[];
    const context=await browser.newContext({viewport,acceptDownloads:true});
    const page=await context.newPage();
    const errors=[];
@@ -89,6 +106,13 @@ async function run(){
    assert.ok(await page.locator('#findings-list').getByText('Necesidad institucional').count());
    await page.locator('#save-draft').click();
    await page.getByText(/Borrador guardado: revisión/).waitFor();
+   await page.locator('#governance-stage').selectOption('council_review');
+   await page.locator('#governance-ref').fill('ACTA-CE-2027-01');
+   await page.locator('#governance-date').fill('2027-05-01');
+   await page.locator('#governance-confirm').check();
+   await page.locator('#save-governance').click();
+   await page.getByText(/Referencia registrada para el borrador/).waitFor();
+   assert.match(await page.locator('#governance-list').innerText(),/ACTA-CE-2027-01/);
    assert.equal(await page.locator('#privacy-confirm').isChecked(),false);
    await page.locator('#download-csv').click();
    await page.getByText(/Debes registrar una revisión vigente de privacidad/).waitFor();
@@ -103,7 +127,7 @@ async function run(){
    await context.close();
   }
   assert.equal(saveCalls,2);
-  console.log('PGCE 2027 browser smoke OK: mobile 390px, tablet 768px, edit/save, privacy gate, CSV download.');
+  console.log('PGCE 2027 browser smoke OK: mobile 390px, tablet 768px, edit/save, Council record, privacy gate, CSV download.');
  }finally{
   if(browser)await browser.close();
   await new Promise(resolve=>server.close(resolve));

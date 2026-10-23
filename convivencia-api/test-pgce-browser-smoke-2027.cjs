@@ -102,6 +102,7 @@ async function run(){
    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'load'});
    await page.locator('#load').click();
    await page.locator('#body').waitFor({state:'visible'});
+   await page.getByText(/0 de 5 antecedentes registrados/).waitFor();
    assert.match(await page.locator('#pilot-summary').innerText(),/0 de 5/);
    assert.equal(await page.locator('#pilot-checks li').count(),5);
    // Automated WCAG A/AA checks on the loaded pilot editor. The axe rules
@@ -130,6 +131,7 @@ async function run(){
    await page.locator('#save-draft').click();
    await page.getByText(/Borrador guardado: revisión/).waitFor();
    await page.locator('#refresh-pilot').click();
+   await page.getByText(/1 de 5 antecedentes registrados/).waitFor();
    assert.match(await page.locator('#pilot-summary').innerText(),/1 de 5/);
    await page.locator('#governance-stage').selectOption('council_review');
    await page.locator('#governance-ref').fill('ACTA-CE-2027-01');

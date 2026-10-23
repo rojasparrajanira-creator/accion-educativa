@@ -117,10 +117,15 @@ async function run(){
     'Accessibility issues detected at '+viewport.width+'px');
    const measures=await page.evaluate(()=>({
     contentWidth:document.documentElement.scrollWidth,
-    viewportWidth:document.documentElement.clientWidth
+    viewportWidth:document.documentElement.clientWidth,
+    culprits:[...document.querySelectorAll('body *')].filter(e=>{
+     const r=e.getBoundingClientRect();
+     return r.right>document.documentElement.clientWidth+3||r.left< -3;
+    }).slice(0,8).map(e=>({tag:e.tagName,id:e.id,
+     cls:String(e.className).slice(0,80),right:Math.round(e.getBoundingClientRect().right)}))
    }));
    assert.ok(measures.contentWidth<=measures.viewportWidth+2,
-    'Horizontal overflow '+JSON.stringify({viewport,measures}));
+    'Horizontal overflow '+JSON.stringify({browserName,viewport,measures}));
    await page.locator('#new-action-clause').selectOption('c');
    await page.locator('#add-action').click();
    assert.equal(await page.locator('#action-clause').inputValue(),'ACT-c-002');

@@ -49,7 +49,9 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   await new Promise(resolve=>server.once('listening',resolve));
   const url='http://127.0.0.1:'+server.address().port;
   const call=async(method,route,body,who={est,role:'coordinador_convivencia'},token)=>{
-   const headers={'Content-Type':'application/json','Origin':who.origin||'https://materialeducativochile.cl','x-test-establishment':String(who.est),'x-test-role':who.role};
+   const headers={'Content-Type':'application/json','x-test-establishment':String(who.est),'x-test-role':who.role};
+   if(!Object.hasOwn(who,'origin'))headers.Origin='https://materialeducativochile.cl';
+   else if(who.origin)headers.Origin=who.origin;
    if(token)headers['X-Community-Access']=token;
    const r=await fetch(url+route,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
    const data=await r.json();return {code:r.status,data,headers:r.headers};
@@ -60,6 +62,9 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   // Ninguna llamada profesional puede modificar invitaciones desde orígenes ajenos.
   r=await issue('familia',familyPayload,{est,role:'coordinador_convivencia',origin:'https://sitio-ajeno.example'});
   assert.equal(r.code,403);assert.equal(r.data.error,'origin_forbidden');
+  const missingOrigin=await issue('familia',familyPayload,{est,role:'coordinador_convivencia',origin:''});
+  assert.equal(missingOrigin.code,403);
+  assert.equal(missingOrigin.data.error,'origin_forbidden');
   // El listado institucional está disponible solo para el equipo y nunca revela RUN.
   r=await call('GET','/api/community-surveys/targets?audience=familia',undefined,{est,role:'profesor'});
   assert.equal(r.code,403);
@@ -269,6 +274,9 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   const approvalProgress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
    {expected_revision:0,followup:{...input,director_approval:true}});
   assert.equal(approvalProgress.code,400);
+  const noOriginProgress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
+   {expected_revision:0,followup:input},{est,role:'coordinador_convivencia',origin:''});
+  assert.equal(noOriginProgress.code,403);
   const invalidOriginProgress=await call('PUT','/api/community-surveys/pgce-followup?school_year=2027',
    {expected_revision:0,followup:input},
    {est,role:'coordinador_convivencia',origin:'https://sitio-ajeno.example'});
@@ -286,6 +294,9 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   const otherWrite=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
    {expected_revision:0,draft},{est:estB,role:'coordinador_convivencia'});
   assert.equal(otherWrite.code,403);assert.equal(otherWrite.data.error,'pgce_actor_forbidden');
+  const noOriginDraft=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
+   {expected_revision:2,draft},{est,role:'coordinador_convivencia',origin:''});
+  assert.equal(noOriginDraft.code,403);
   const studentWrite=await call('PUT','/api/community-surveys/pgce-draft?school_year=2027',
    {expected_revision:2,draft},{est,role:'profesor'});
   assert.equal(studentWrite.code,403);

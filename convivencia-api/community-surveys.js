@@ -8,6 +8,7 @@ const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const studentDimensions=require('./student-dimensions-adapter-2027.cjs');
 const pgceDrafts=require('./pgce-planning-drafts-2027.cjs');
 const pgceFollowup=require('./pgce-follow-up-2027.cjs');
+const {buildPgceExportCsv}=require('./pgce-export-2027.cjs');
 const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
@@ -210,6 +211,28 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
    // Aun si el editor está completo, esta ruta no aprueba planes.
    return res.json({ok:true,dimensions:report,plan});
   }catch(e){return sendError(res,503,'pgce_scaffold_unavailable')}
+ });
+ // Exportación bajo sesión institucional. Solo bandas agregadas por dimensión
+ // y contenidos que el profesional guardó en el borrador anual.
+ app.get('/api/community-surveys/pgce-export',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const measurementCode=String(req.query.measurement_code||'');
+  if(!est||Number(req.query.school_year)!==2027||
+   !studentDimensions.PERIODS.includes(measurementCode))
+   return sendError(res,400,'invalid_export_scope');
+  try{
+   const report=await getInstitutionDimensionReport(req);
+   const saved=await pgceDrafts.loadPgceDraft(pool,est);
+   const draft=saved?.draft||PGCE.buildPgceScaffold(report).draft;
+   const preflight=inspectPgceDraft(draft);
+   const followups=await pgceFollowup.listFollowups(pool,est);
+   const csv=buildPgceExportCsv({report,draft,followups,preflight,measurementCode});
+   res.setHeader('Content-Type','text/csv; charset=utf-8');
+   res.setHeader('Content-Disposition',
+    'attachment; filename="convivencia-pgce-2027-'+measurementCode+'-borrador.csv"');
+   res.setHeader('X-Content-Type-Options','nosniff');
+   return res.status(200).send(csv);
+  }catch(e){return sendError(res,503,'pgce_export_unavailable')}
  });
  // Edición profesional del único borrador anual por establecimiento.
  // Sin aceptar establecimiento, RUN o respuestas individuales desde el navegador.

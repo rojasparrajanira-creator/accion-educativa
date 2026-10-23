@@ -130,3 +130,23 @@ test('guardado PostgreSQL conserva IDs anteriores y evita borrados con historial
   assert.equal(audits.rows[0].n,2);
  }finally{await db.close()}
 });
+
+test('migración parcial nunca reutiliza IDs explícitos ni reordena acciones',()=>{
+ const d=initial();
+ const existing=d.actions.find(a=>a.clause==='c');
+ existing.action_id='ACT-c-002';
+ d.actions.push({action_id:undefined,clause:'c',title:'Acción anterior sin ID',finding_ids:[]});
+ const migrated=normalizeLegacyActionIds(d);
+ assert.equal(migrated.actions.find(a=>a.title==='Acción anterior sin ID').action_id,'ACT-c-001');
+ assert.equal(migrated.actions.find(a=>a.clause==='c'&&a.title!==
+  'Acción anterior sin ID').action_id,'ACT-c-002');
+ assert.equal(new Set(migrated.actions.map(a=>a.action_id)).size,migrated.actions.length);
+ assert.equal(validatePgceDraft(migrated).actions.length,8);
+ const reversed=initial();
+ reversed.actions.find(a=>a.clause==='c').action_id='ACT-c-001';
+ reversed.actions.push({clause:'c',title:'Otra acción sin ID',finding_ids:[]});
+ assert.equal(normalizeLegacyActionIds(reversed).actions.at(-1).action_id,'ACT-c-002');
+ const legacy=initial();
+ legacy.actions.push({clause:'c',title:'Segundo antecedente antiguo',finding_ids:[]});
+ assert.equal(normalizeLegacyActionIds(legacy).actions.at(-1).action_id,'ACT-c-002');
+});

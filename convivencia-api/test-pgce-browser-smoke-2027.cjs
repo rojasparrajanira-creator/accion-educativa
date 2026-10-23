@@ -5,6 +5,7 @@ const http=require('node:http');
 const fs=require('node:fs');
 const path=require('node:path');
 const {chromium}=require('playwright');
+const AxeBuilder=require('@axe-core/playwright').default;
 const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const html=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/diagnostico-dimensiones-pgce-2027.html'),'utf8')
  .replace("const API='https://convivencia-escolar-api.onrender.com'","const API=''");
@@ -89,6 +90,14 @@ async function run(){
    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'load'});
    await page.locator('#load').click();
    await page.locator('#body').waitFor({state:'visible'});
+   // Automated WCAG A/AA checks on the loaded pilot editor. The axe rules
+   // supplement, rather than replace, keyboard and assistive-device reviews.
+   const accessibility=await new AxeBuilder({page})
+    .withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa'])
+    .analyze();
+   assert.deepEqual(accessibility.violations.map(v=>({id:v.id,impact:v.impact,
+    nodes:v.nodes.map(n=>n.target)})),[],
+    'Accessibility issues detected at '+viewport.width+'px');
    const measures=await page.evaluate(()=>({
     contentWidth:document.documentElement.scrollWidth,
     viewportWidth:document.documentElement.clientWidth
@@ -123,6 +132,16 @@ async function run(){
    await page.locator('#download-csv').click();
    const download=await downloadPromise;
    assert.match(download.suggestedFilename(),/convivencia-pgce-2027-M1-borrador\.csv/);
+   // Keyboard focus must be visible on institutional controls.
+   await page.locator('#governance-ref').focus();
+   const focus=await page.evaluate(()=>{
+    const node=document.activeElement;
+    const style=getComputedStyle(node);
+    return {id:node.id,outlineStyle:style.outlineStyle,outlineWidth:style.outlineWidth};
+   });
+   assert.equal(focus.id,'governance-ref');
+   assert.notEqual(focus.outlineStyle,'none');
+   assert.notEqual(focus.outlineWidth,'0px');
    assert.deepEqual(errors,[],'Browser JavaScript errors: '+errors.join(', '));
    await context.close();
   }

@@ -48,13 +48,20 @@ function normalizeLegacyActionIds(raw){
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return raw;
  const clean=JSON.parse(JSON.stringify(raw));
  if(!Array.isArray(clean.actions))return clean;
- const seen=Object.create(null);
+ // Reserve explicit IDs first, then fill only missing IDs. This handles
+ // partially migrated drafts without ever reusing a sibling action's identity.
+ const reserved=new Set(clean.actions.filter(a=>a&&typeof a==='object'&&
+  !Array.isArray(a)&&typeof a.action_id==='string').map(a=>a.action_id));
  for(const action of clean.actions){
   if(!action||typeof action!=='object'||Array.isArray(action))continue;
   const clause=action.clause;
-  if(!'abcdefg'.includes(clause)||typeof clause!=='string'||clause.length!==1)continue;
-  seen[clause]=(seen[clause]||0)+1;
-  if(action.action_id===undefined)action.action_id='ACT-'+clause+'-'+String(seen[clause]).padStart(3,'0');
+  if(typeof clause!=='string'||clause.length!==1||!'abcdefg'.includes(clause))continue;
+  if(action.action_id!==undefined)continue;
+  let seq=1;
+  while(seq<=99999 && reserved.has('ACT-'+clause+'-'+String(seq).padStart(3,'0')))seq++;
+  if(seq>99999)invalid();
+  action.action_id='ACT-'+clause+'-'+String(seq).padStart(3,'0');
+  reserved.add(action.action_id);
  }
  return clean;
 }

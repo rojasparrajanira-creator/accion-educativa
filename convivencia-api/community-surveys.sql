@@ -208,3 +208,21 @@ CREATE TABLE IF NOT EXISTS community_pgce_export_audit_2027 (
 );
 CREATE INDEX IF NOT EXISTS idx_community_pgce_export_audit_est
  ON community_pgce_export_audit_2027(establishment_id,created_at DESC);
+
+
+-- Registro de referencias documentales de gobernanza; separado de borradores.
+-- Jamás acredita autenticidad del documento o aprobación legal por sí solo.
+CREATE TABLE IF NOT EXISTS community_pgce_governance_2027 (
+ id BIGSERIAL PRIMARY KEY,
+ establishment_id BIGINT NOT NULL REFERENCES establishments(id) ON DELETE CASCADE,
+ school_year INT NOT NULL DEFAULT 2027 CHECK(school_year=2027),
+ stage TEXT NOT NULL CHECK(stage IN ('council_review','direction_act')),
+ draft_revision INT NOT NULL CHECK(draft_revision>=1),
+ document_ref TEXT NOT NULL CHECK(length(document_ref) BETWEEN 6 AND 120),
+ document_date DATE NOT NULL,
+ recorded_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+ recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ UNIQUE(establishment_id,school_year,stage,draft_revision)
+);
+CREATE INDEX IF NOT EXISTS idx_community_pgce_governance_est_2027
+ ON community_pgce_governance_2027(establishment_id,stage,draft_revision DESC);

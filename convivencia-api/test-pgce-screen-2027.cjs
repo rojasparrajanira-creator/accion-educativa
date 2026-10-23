@@ -23,6 +23,11 @@ test('panel de 10 dimensiones exige ingreso profesional y no publica respuestas 
  assert.match(page,/x\.action_id===actionId/);
  assert.match(page,/refreshActionChoices/);
  assert.match(page,/id="save-draft"/);
+ assert.match(page,/id="download-csv"/);
+ assert.match(page,/id="download-status"/);
+ assert.match(page,/\/api\/community-surveys\/pgce-export\?school_year=2027/);
+ assert.match(page,/createObjectURL/);
+ assert.match(page,/URL\.revokeObjectURL/);
  assert.match(page,/id="institution-fields"/);
  assert.match(page,/id="participation-editor"/);
  assert.match(page,/id="diagnostic-sources-editor"/);

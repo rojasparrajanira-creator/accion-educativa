@@ -288,6 +288,31 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   let csvResponse=await fetch(csvUrl,{headers:{
    'x-test-establishment':String(est),'x-test-role':'coordinador_convivencia'
   }});
+  assert.equal(csvResponse.status,409);
+  assert.equal((await csvResponse.json()).error,'pgce_export_review_required');
+  const reviewState=await call('GET','/api/community-surveys/pgce-export-review?school_year=2027');
+  assert.equal(reviewState.code,200);
+  assert.equal(reviewState.data.can_export,false);
+  assert.equal(reviewState.data.draft_revision,2);
+  const reviewPayload={confirmation:true,draft_revision:reviewState.data.draft_revision,
+   followup_fingerprint:reviewState.data.followup_fingerprint};
+  const noOriginReview=await call('PUT','/api/community-surveys/pgce-export-review?school_year=2027',
+   reviewPayload,{est,role:'coordinador_convivencia',origin:''});
+  assert.equal(noOriginReview.code,403);
+  const forbiddenReview=await call('PUT','/api/community-surveys/pgce-export-review?school_year=2027',
+   reviewPayload,{est,role:'profesor'});
+  assert.equal(forbiddenReview.code,403);
+  const missingAttestation=await call('PUT','/api/community-surveys/pgce-export-review?school_year=2027',
+   {...reviewPayload,confirmation:false});
+  assert.equal(missingAttestation.code,400);
+  const reviewSaved=await call('PUT','/api/community-surveys/pgce-export-review?school_year=2027',
+   reviewPayload);
+  assert.equal(reviewSaved.code,200);
+  assert.equal(reviewSaved.data.institutional_approval,false);
+  assert.equal(reviewSaved.data.can_export,true);
+  csvResponse=await fetch(csvUrl,{headers:{
+   'x-test-establishment':String(est),'x-test-role':'coordinador_convivencia'
+  }});
   assert.equal(csvResponse.status,200);
   assert.match(csvResponse.headers.get('content-type')||'',/text\/csv/);
   assert.match(csvResponse.headers.get('content-disposition')||'',/attachment; filename="convivencia-pgce-2027-M1-borrador\.csv"/);
@@ -314,10 +339,11 @@ test('Flujo adulto HTTP en PostgreSQL en memoria: acceso, confidencialidad y sep
   csvResponse=await fetch(csvUrl,{headers:{
    'x-test-establishment':String(estB),'x-test-role':'coordinador_convivencia'
   }});
-  assert.equal(csvResponse.status,200);
-  const isolatedCsv=await csvResponse.text();
-  assert.ok(!isolatedCsv.includes('Revisión preventiva de la convivencia'));
-  assert.ok(!isolatedCsv.includes('ACTA-PRUEBA-2027'));
+  assert.equal(csvResponse.status,409);
+  assert.equal((await csvResponse.json()).error,'pgce_export_review_required');
+  const reviewEvents=await pool.query(
+   'SELECT action FROM community_pgce_export_audit_2027 WHERE establishment_id=$1 ORDER BY id',[est]);
+  assert.deepEqual(reviewEvents.rows.map(x=>x.action),['privacy_reviewed','csv_downloaded']);
   const revisions=await insert('SELECT count(*)::integer n FROM community_pgce_draft_audit_2027 WHERE establishment_id=$1',[est]);
   assert.equal(Number(revisions.n),2);
   const otherPlan=await call('GET','/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code=M1',

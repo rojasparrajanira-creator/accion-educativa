@@ -1,0 +1,22 @@
+name: Auditoria publica tienda 2027 sin cobros
+on:
+  push:
+    branches:
+      - audit/tienda-2027-solo-lectura-20261024
+  pull_request:
+    branches:
+      - convivencia-escolar
+    types: [synchronize]
+permissions:
+  contents: read
+jobs:
+  verificar-tienda-solo-lectura:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Consultar catalogo checkout y pagina via GET sin pagar
+        run: node convivencia-api/audit-tienda-2027-solo-lectura.cjs

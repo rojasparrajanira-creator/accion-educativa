@@ -52,7 +52,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  <button id="load" class="action" type="button">Cargar diagnóstico institucional</button>
  <p id="status" class="error" role="alert" aria-live="polite"></p>
 </header>
-<div id="body" class="layout" hidden>
+<main id="body" class="layout" hidden>
  <section class="panel" aria-labelledby="pilot-title">
   <h2 id="pilot-title">Lista de verificación del piloto institucional</h2>
   <p class="muted">Consulta los registros vigentes del establecimiento. Es una guía administrativa para la revisión profesional; no equivale a validación legal, certificación ni autorización de publicación.</p>
@@ -160,7 +160,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <button type="button" class="action" id="save-followup">Guardar avance del período</button>
   <p class="muted" id="followup-state" role="status" aria-live="polite"></p>
  </section>
-</div>
+</main>
 <footer>Material Educativo Chile · Documento de trabajo institucional 2027. Resultados agregados y revisión profesional.</footer>
 </div>
 <script>
@@ -235,7 +235,8 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    const wrap=document.createElement('div');wrap.className='review-row';
    const selectWrap=document.createElement('div');selectWrap.className='field';
    const label=document.createElement('label');label.textContent='Estamento o fuente';
-   const sel=document.createElement('select');sel.setAttribute('aria-label','Estamento o fuente');
+   const sel=document.createElement('select');
+   sel.id=section+'-'+i+'-audience';label.htmlFor=sel.id;
    for(const [key,title] of audiences){
     if(section==='participation'&&key==='institutional_records')continue;
     const opt=document.createElement('option');opt.value=key;opt.textContent=title;sel.append(opt);
@@ -251,6 +252,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
     input.oninput=()=>{entry[k]=input.value};wrap.append(box);
    }
    const remove=document.createElement('button');remove.type='button';remove.className='muted-action';remove.textContent='Quitar';
+   remove.setAttribute('aria-label','Quitar '+(section==='participation'?'participación':'fuente')+' '+(i+1));
    remove.onclick=()=>{currentDraft[section].splice(i,1);renderInstitutionRows(section)};
    wrap.append(remove);container.append(wrap);
   });

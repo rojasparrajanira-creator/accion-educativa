@@ -47,6 +47,7 @@ jobs:
           node --check test-pgce-governance-2027.cjs
           node --check test-pgce-export-review-2027.cjs
           node --check test-pgce-browser-smoke-2027.cjs
+          node --check test-pgce-browser-real-api-2027.cjs
           node --check test-pgce-export-2027.cjs
           node --check test-pgce-follow-up-2027.cjs
           node --check test-pgce-v2-migration-2027.cjs
@@ -76,6 +77,9 @@ jobs:
         env:
           PGCE_PILOT_SCREENSHOTS_DIR: pilot-evidence
         run: node test-pgce-browser-smoke-2027.cjs
+      - name: Verificar navegador contra API real del piloto y PostgreSQL temporal
+        working-directory: convivencia-api
+        run: node test-pgce-browser-real-api-2027.cjs
       - name: Guardar imágenes sintéticas del piloto para revisión humana
         if: always()
         uses: actions/upload-artifact@v4

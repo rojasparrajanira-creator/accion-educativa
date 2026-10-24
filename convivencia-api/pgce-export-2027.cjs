@@ -8,7 +8,9 @@ const HEADERS=Object.freeze([
  'Observaciones'
 ]);
 function cell(value){
- const clean=String(value??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,1800);
+ // Quitar caracteres invisibles de control/bidireccionalidad antes de analizar
+ // prefijos de fórmula: algunos pegados desde editores externos los anteponen.
+ const clean=String(value??'').replace(/[\u0000-\u001f\u007f\u00ad\u200b-\u200f\u2028\u2029\u2060-\u2069\ufeff]/gu,' ').trim().slice(0,1800);
  // Los campos editados por profesionales nunca deben convertirse en fórmulas de Excel.
  const safe=/^[\s\u200b\ufeff]*[=+\-@]/u.test(clean)?"'"+clean:clean;
  return '"'+safe.replace(/"/g,'""')+'"';

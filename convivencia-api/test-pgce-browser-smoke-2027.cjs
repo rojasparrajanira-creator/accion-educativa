@@ -10,6 +10,17 @@ const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
 const html=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/diagnostico-dimensiones-pgce-2027.html'),'utf8')
  .replace("const API='https://convivencia-escolar-api.onrender.com'","const API=''");
 if(!html.includes("const API=''"))throw Error('smoke_must_not_contact_production');
+// Capturas solo del servidor local sintético, nunca de Render ni datos reales.
+// Se guardan como artefacto privado de GitHub Actions para revisión humana.
+const evidenceDir=process.env.PGCE_PILOT_SCREENSHOTS_DIR?
+ path.resolve(process.env.PGCE_PILOT_SCREENSHOTS_DIR):null;
+async function capture(page,browserName,viewport,step){
+ if(!evidenceDir)return;
+ fs.mkdirSync(evidenceDir,{recursive:true});
+ const filename=[browserName,String(viewport.width)+'px',step].join('-')+'.png';
+ await page.screenshot({path:path.join(evidenceDir,filename),fullPage:true,
+  animations:'disabled'});
+}
 const makeReport=()=>{const r=PGCE.buildDimensionReport();r.student_measurement_code='M1';return r};
 let currentDraft=null,revision=0,privacyReviewed=false,saveCalls=0,governanceRecords=[];
 function reply(res,status,data,contentType='application/json'){
@@ -107,6 +118,7 @@ async function run(){
    await page.getByText(/0 de 5 antecedentes registrados/).waitFor();
    assert.match(await page.locator('#pilot-summary').innerText(),/0 de 5/);
    assert.equal(await page.locator('#pilot-checks li').count(),5);
+   await capture(page,browserName,viewport,'01-diagnostico-y-checklist');
    // Automated WCAG A/AA checks on the loaded pilot editor. The axe rules
    // supplement, rather than replace, keyboard and assistive-device reviews.
    const accessibility=await new AxeBuilder({page})
@@ -153,6 +165,7 @@ async function run(){
    await page.locator('#privacy-confirm').check();
    await page.locator('#review-export').click();
    await page.getByText(/Revisión registrada/).waitFor();
+   await capture(page,browserName,viewport,'02-plan-consejo-y-privacidad');
    const downloadPromise=page.waitForEvent('download');
    await page.locator('#download-csv').click();
    const download=await downloadPromise;
@@ -174,6 +187,14 @@ async function run(){
    browser=null;
   }
   assert.equal(saveCalls,9);
+  if(evidenceDir){
+   fs.writeFileSync(path.join(evidenceDir,'LEEME.txt'),
+    'Convivencia Educativa 2027 — imágenes de prueba de los motores Chromium, Firefox y WebKit.\n'+
+    'Las capturas se generaron solo con establecimientos y acciones ficticias en localhost.\n'+
+    'Sirven para revisar diseño, claridad y navegación. NO prueban identidad de funcionarios,\n'+
+    'documentos auténticos, cumplimiento de Ley 21.809 ni despliegue en Render.\n'+
+    'No se han usado datos personales, cuentas reales ni respuestas individuales.\n');
+  }
   console.log('PGCE 2027 browser smoke OK: Chromium, Firefox and WebKit; 320px 390px and 768px; keyboard focus, axe WCAG A/AA, pilot, edit/save, Council, privacy and CSV.');
  }finally{
   if(browser)await browser.close();

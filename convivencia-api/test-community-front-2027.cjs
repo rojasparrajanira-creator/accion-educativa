@@ -57,3 +57,13 @@ test('panel profesional solo consulta listado segregado y no filtra RUN al públ
  assert.match(page,/verification_reference:reference/);
  assert.match(page,/currentCode='';currentPin=''/);
 });
+
+test('CORS permite PUT de editores profesionales y rechaza Origin ausente en operaciones sensibles',()=>{
+ const server=fs.readFileSync(path.join(__dirname,'server.js'),'utf8');
+ const api=fs.readFileSync(path.join(__dirname,'community-surveys.js'),'utf8');
+ assert.match(server,/Access-Control-Allow-Methods','GET,POST,PUT,OPTIONS'/);
+ assert.match(server,/if\(origin&&allowedOrigins.has\(origin\)\)/);
+ assert.match(api,/if\(!origin \|\| !\(allowedOrigins instanceof Set && allowedOrigins\.has\(origin\)\)\)/);
+ assert.match(api,/app\.put\('\/api\/community-surveys\/pgce-draft'/);
+ assert.match(api,/app\.put\('\/api\/community-surveys\/pgce-followup'/);
+});

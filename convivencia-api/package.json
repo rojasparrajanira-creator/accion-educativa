@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test-*.cjs"
+    "test": "node --test test-*.cjs",
+    "pilot:pgce:local": "node piloto-local-pgce-2027.cjs"
   },
   "dependencies": {
     "express": "^4.21.2",

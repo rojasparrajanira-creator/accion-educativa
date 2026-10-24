@@ -59,12 +59,15 @@ test('la dimensión recibe solo resultados suficientes de adultos, sin respuesta
 });
 test('datos de estudiante sin auditoría del agregado o con menos de 10 no se integran',()=>{
  const valid={dimension:'SEG',level:'7-8',favorable_band:'50–74 %',aggregation_verified:true,
-  participant_count:12,valid_response_count:11,evidence_ref:'REPORTE-TEST-2027-001',
+  participant_count:12,valid_response_count:12,evidence_ref:'REPORTE-TEST-2027-001',
   rut:'12.345.678-9',student_name:'Dato que jamás debe salir'};
  const result=P.verifiedStudentAggregate([
   {...valid,participant_count:9},
   {...valid,aggregation_verified:false},
   {...valid,valid_response_count:8},
+  {...valid,valid_response_count:11},
+  {...valid,level:'nt1'},
+  {...valid,level:'nt2'},
   {...valid,level:'inexistente'},
   {...valid,evidence_ref:'RUT 12345678'},
   valid,

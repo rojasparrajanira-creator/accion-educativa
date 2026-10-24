@@ -36,9 +36,13 @@ function verifiedStudentAggregate(items){
  return items.filter(x=>{
   if(!x||!Object.hasOwn(DIMENSIONS,x.dimension)||!LEVELS.includes(x.level)||
    !BANDS.includes(x.favorable_band)||x.aggregation_verified!==true||
+   // NT1 y NT2 continúan como prototipos sin metodología de integración.
+   x.level==='nt1'||x.level==='nt2'||
    !Number.isInteger(x.participant_count)||x.participant_count<10||
    !Number.isInteger(x.valid_response_count)||x.valid_response_count<10||
-   x.valid_response_count>x.participant_count||
+   x.valid_response_count<x.participant_count||
+   // Una persona puede responder varios ítems de la misma dimensión.
+   x.valid_response_count>x.participant_count*12||
    typeof x.evidence_ref!=='string'||!/^[-a-zA-Z0-9_./]{6,80}$/.test(x.evidence_ref)||
    seen.has(x.level+'|'+x.dimension))return false;
   seen.add(x.level+'|'+x.dimension);return true;
@@ -84,7 +88,16 @@ function buildDimensionReport(adultRows=[],studentIndicators=[]){
    legal_links:def.clauses.map(x=>'16D-'+x),status:topics.length?'review_with_professionals':'missing_sufficient_evidence',
    coverage,review_topics:topics};
  });
- return {status:'preliminary_dimensions_only',year:2027,dimensions,
+ // Señales agregadas que el equipo puede revisar; NO crean hallazgos ni acciones.
+ const review_queue=dimensions.filter(d=>d.review_topics.length).map(d=>({
+  dimension_id:d.id,dimension_label:d.label,legal_links:d.legal_links.slice(),
+  source_groups:[...new Set(d.review_topics.map(t=>t.audience))],
+  evidence_refs:[...new Set(d.review_topics.map(t=>t.evidence_ref||
+   ('ENC-2027-'+t.audience+'-'+t.question_id)))],
+  status:'pending_professional_review',
+  suggested_need:'',priority:null,professional_decision:null
+ }));
+ return {status:'preliminary_dimensions_only',year:2027,dimensions,review_queue,
   audience_availability:ROLES.map(x=>({audience:x,available:reports[x].available,
    participant_band:reports[x].available?reports[x].participant_band:null})),
   student_source_status:student.length?'verified_aggregates_received':'not_integrated_yet',
@@ -108,7 +121,7 @@ function buildPgceScaffold(report,school={}){
   };
  });
  const actions=CLAUSES.map(e=>({
-  clause:e.clause,title:'',objective:'',strategy:'',responsible:'',indicator:'',
+  action_id:'ACT-'+e.clause+'-001',clause:e.clause,title:'',objective:'',strategy:'',responsible:'',indicator:'',
   baseline:'',target:'',place:'',resources:'',expected_evidence:'',
   start_date:'',end_date:'',finding_ids:[]
  }));

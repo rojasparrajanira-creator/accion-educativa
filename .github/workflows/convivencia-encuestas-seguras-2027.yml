@@ -51,6 +51,7 @@ jobs:
           node --check piloto-local-pgce-2027.cjs
           node --check test-pgce-local-pilot-2027.cjs
           node --check test-pgce-local-pilot-browser-2027.cjs
+          node --check test-pgce-uat-accessibility-2027.cjs
           node --check uat-trazabilidad-pgce-2027.cjs
           node --check test-uat-trazabilidad-pgce-2027.cjs
           node --check test-pgce-export-2027.cjs
@@ -88,6 +89,9 @@ jobs:
       - name: Ejecutar piloto local real con política de red bloqueada
         working-directory: convivencia-api
         run: node test-pgce-local-pilot-browser-2027.cjs
+      - name: Validar teclado, etiquetas y ampliación 200% sin datos reales
+        working-directory: convivencia-api
+        run: node test-pgce-uat-accessibility-2027.cjs
       - name: Generar matriz de trazabilidad para revisión profesional
         working-directory: convivencia-api
         run: node uat-trazabilidad-pgce-2027.cjs

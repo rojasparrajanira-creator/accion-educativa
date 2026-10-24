@@ -94,7 +94,7 @@ async function run(){
   for(const [browserName,engine] of Object.entries({chromium,firefox,webkit})){
    browser=await engine.launch(browserName==='chromium'
     ?{headless:true,args:['--no-sandbox']}:{headless:true});
-   for(const viewport of [{width:390,height:844},{width:768,height:1024}]){
+   for(const viewport of [{width:320,height:768},{width:390,height:844},{width:768,height:1024}]){
    // Each viewport uses its own synthetic empty establishment state.
    currentDraft=null;revision=0;privacyReviewed=false;governanceRecords=[];
    const context=await browser.newContext({viewport,acceptDownloads:true});
@@ -173,8 +173,8 @@ async function run(){
    await browser.close();
    browser=null;
   }
-  assert.equal(saveCalls,6);
-  console.log('PGCE 2027 browser smoke OK: Chromium, Firefox and WebKit; 390px and 768px; keyboard focus, axe WCAG A/AA, pilot, edit/save, Council, privacy and CSV.');
+  assert.equal(saveCalls,9);
+  console.log('PGCE 2027 browser smoke OK: Chromium, Firefox and WebKit; 320px 390px and 768px; keyboard focus, axe WCAG A/AA, pilot, edit/save, Council, privacy and CSV.');
  }finally{
   if(browser)await browser.close();
   await new Promise(resolve=>server.close(resolve));

@@ -20,9 +20,9 @@ const EVIDENCE=Object.freeze({
  'UAT-13':{kind:'automatizada',files:['test-pgce-browser-real-api-2027.cjs','test-pgce-export-review-2027.cjs'],note:'CSV bloqueado hasta revisión de privacidad'},
  'UAT-14':{kind:'automatizada',files:['test-pgce-export-review-2027.cjs','test-pgce-http-security-2027.cjs'],note:'Revisión de privacidad enlazada a versión vigente'},
  'UAT-15':{kind:'parcial',files:['test-pgce-export-2027.cjs','test-pgce-browser-real-api-2027.cjs'],note:'Filtrado y neutralización de fórmulas; lectura humana del CSV pendiente'},
- 'UAT-16':{kind:'parcial',files:['test-pgce-browser-smoke-2027.cjs'],note:'Foco visible y axe automáticos; recorrido completo por teclado pendiente'},
+ 'UAT-16':{kind:'parcial',files:['test-pgce-browser-smoke-2027.cjs','test-pgce-uat-accessibility-2027.cjs'],note:'Recorrido parcial solo con teclado, etiquetas accesibles y axe; revisión humana completa pendiente'},
  'UAT-17':{kind:'manual',files:[],note:'Requiere evaluación real con lector de pantalla y profesional de accesibilidad'},
- 'UAT-18':{kind:'parcial',files:['test-pgce-browser-smoke-2027.cjs','test-pgce-local-pilot-browser-2027.cjs'],note:'Tamaños emulados correctos; dispositivo físico y ampliación de texto pendientes'},
+ 'UAT-18':{kind:'parcial',files:['test-pgce-browser-smoke-2027.cjs','test-pgce-local-pilot-browser-2027.cjs','test-pgce-uat-accessibility-2027.cjs'],note:'Anchos 320/390 y zoom de navegador al 200 %; móvil físico y lectura humana pendientes'},
  'UAT-19':{kind:'automatizada',files:['test-pgce-pilot-readiness-2027.cjs','test-pgce-http-security-2027.cjs'],note:'Checklist no concede aprobación ni habilita producción'},
  'UAT-20':{kind:'manual',files:[],note:'Requiere revisión jurídica y de gestión institucional externa al sistema'}
 });

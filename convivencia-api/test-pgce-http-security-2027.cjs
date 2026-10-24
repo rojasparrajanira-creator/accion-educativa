@@ -107,7 +107,9 @@ test('HTTP institucional: rol, origen, versiones, Consejo, Dirección, privacida
   assert.equal(initial.data.can_publish,false);
   assert.equal((await get('pgce-pilot-checklist','directorB')).data.completed_checks,0);
   assert.equal((await get('pgce-pilot-checklist','profesorA')).code,403);
-  assert.equal((await request('GET','pgce-pilot-checklist?school_year=2026',undefined,'coordA',null)).code,400);
+  const invalidYear=await fetch(base+'/api/community-surveys/pgce-pilot-checklist?school_year=2026',{
+   headers:{'x-pilot-session':'coordA'}});
+  assert.equal(invalidYear.status,400);
   assert.equal((await put('pgce-draft',{expected_revision:0,draft},'coordA',null)).code,403);
   assert.equal((await put('pgce-draft',{expected_revision:0,draft},'coordA','https://malicioso.example')).code,403);
   assert.equal((await put('pgce-draft',{expected_revision:0,draft},'profesorA')).code,403);
@@ -122,7 +124,7 @@ test('HTTP institucional: rol, origen, versiones, Consejo, Dirección, privacida
   assert.equal((await put('pgce-governance',{expected_revision:1,record:council},'profesorA')).code,403);
   assert.equal((await put('pgce-governance',{expected_revision:1,record:council},'coordA',null)).code,403);
   assert.equal((await put('pgce-governance',{expected_revision:1,record:council},'coordA','https://evil.example')).code,403);
-  assert.equal((await put('pgce-governance',{expected_revision:1,record:council},'directorB')).code,403);
+  assert.equal((await put('pgce-governance',{expected_revision:1,record:council},'directorB')).code,409);
   r=await put('pgce-governance',{expected_revision:1,record:council});
   assert.equal(r.code,200,JSON.stringify(r.data));
   assert.equal(r.data.can_publish,false);

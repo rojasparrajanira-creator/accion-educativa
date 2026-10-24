@@ -49,6 +49,16 @@ test('CSV protege celdas de fórmulas y separa columnas de Excel',()=>{
  assert.equal(cell('texto;"entre comillas"'),'"texto;""entre comillas"""');
  assert.ok(!cell('texto\n=INJECT').includes('\n'));
 });
+test('CSV no ejecuta fórmulas ocultas tras prefijos Unicode invisibles',()=>{
+ for(const input of [
+  '\u2060=1+1','\u200e+HYPERLINK("https://invalid.example")',
+  '\ufeff@cmd','\u00ad-1+2','\u2028=SUM(A1:A2)','\u200b\u200f=1'
+ ]){
+  const normalized=cell(input);
+  assert.ok(normalized.startsWith('"\''),'prefijo potencialmente ejecutable sin neutralizar');
+  assert.ok(!/[\u200b-\u200f\u2060-\u2069\ufeff]/u.test(normalized));
+ }
+});
 test('el reporte rechaza cortes cruzados o estructuras inexistentes',()=>{
  assert.throws(()=>buildPgceExportCsv({report:report('M2'),draft:draft(),
   followups:[],preflight,measurementCode:'M1'}),/invalid_pgce_export/);

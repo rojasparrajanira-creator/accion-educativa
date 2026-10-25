@@ -36,6 +36,28 @@ function validateReview(doc){
   results:entries
  };
 }
+function summarizeReview(doc){
+ const safe=validateReview(doc);
+ const counts={pasa:0,falla:0,no_probado:0};
+ const bloqueos=[],pendientes=[];
+ for(const item of safe.results){
+  if(item.estado==='Pasa')counts.pasa++;
+  else if(item.estado==='Falla'){
+   counts.falla++;
+   bloqueos.push({id:item.id,evidencia:item.evidencia,
+    observacion:item.observacion,fecha:item.fecha,
+    accion_recomendada:'Registrar incidencia, severidad, responsable y una nueva comprobación.'});
+  }else{
+   counts.no_probado++;
+   pendientes.push({id:item.id,accion_recomendada:'Ejecutar el caso con el perfil y las condiciones indicadas.'});
+  }
+ }
+ const estado=counts.falla?'REQUIERE CORRECCIONES':
+  counts.no_probado?'EVALUACION INCOMPLETA':'PENDIENTE DE DICTAMEN HUMANO';
+ return {school_year:2027,estado,counts,bloqueos,pendientes,
+  human_approval_verified:false,authorized_to_deploy:false,
+  aviso:'Resumen informativo de los resultados consignados. No verifica autenticidad, firmas ni aprobaciones institucionales.'};
+}
 function renderPage(){
  const items=catalog();
  const json=JSON.stringify(items).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026');
@@ -60,6 +82,12 @@ button.secondary{color:#124c70;background:#dbf0f8}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #087f94;outline-offset:2px}
 article{padding:16px 0;border-top:1px solid #e1eaf0}
 article h3{font-size:16px;margin:4px 0;color:#13539d}
+#review-summary{background:#f5fbfd;border:1px solid #a8d8e8}
+#review-summary ul{padding-left:22px}
+#review-summary li{margin:5px 0;overflow-wrap:anywhere}
+#review-summary a{color:#1459bd}
+#review-summary strong{color:#173d62}
+
 .actions{display:flex;gap:10px;flex-wrap:wrap}
 .stat{font-weight:650}#message{min-height:28px;color:#6d2a2a;font-weight:700}
 small{color:#4a6273}
@@ -83,6 +111,16 @@ small{color:#4a6273}
  <input id="import-file" type="file" accept="application/json,.json">
  <p id="message" role="alert" aria-live="assertive"></p>
 </header>
+<section id="review-summary" aria-labelledby="summary-title">
+ <h2 id="summary-title">Resumen de evaluación y pendientes</h2>
+ <p class="note">Los resultados que se muestran aquí son únicamente los registrados por la persona evaluadora.
+ No constituyen aprobación del piloto ni autorización para publicar la plataforma.</p>
+ <p id="summary-status" role="status" aria-live="polite">20 casos sin evaluar.</p>
+ <ul id="summary-pending" aria-label="Casos pendientes y fallidos"></ul>
+ <div class="actions">
+  <button id="summary-print" type="button" class="secondary">Imprimir resumen y pauta</button>
+ </div>
+</section>
 <section aria-labelledby="cases-heading">
  <h2 id="cases-heading">Verificaciones individuales</h2>
  <p class="note">Para registrar Pasa o Falla, indica fecha y una referencia <strong>ficticia</strong> de evidencia.
@@ -97,6 +135,7 @@ const CASES=${json};
 const DEFAULT='No probado';
 const items=Object.fromEntries(CASES.map(x=>[x.id,{id:x.id,estado:DEFAULT,evidencia:'',observacion:'',fecha:''}]));
 const root=document.getElementById('cases'),msg=document.getElementById('message');
+const humanStatus='SIN APROBACIÓN INSTITUCIONAL · NO AUTORIZA PUBLICACIÓN';
 const make=(tag,attributes,text)=>{const e=document.createElement(tag);
  for(const [k,v] of Object.entries(attributes||{}))e.setAttribute(k,v);
  if(text!==undefined)e.textContent=text;
@@ -145,6 +184,24 @@ function updateCounter(){
        n=values.filter(v=>v.estado===DEFAULT).length;
  document.getElementById('counter').textContent=
   'Registrados: '+p+' Pasa, '+f+' Falla y '+n+' No probado. Registro manual, sin certificación.';
+ const title=f?'REQUIERE CORRECCIONES':n?'EVALUACIÓN INCOMPLETA':'PENDIENTE DE DICTAMEN HUMANO';
+ document.getElementById('summary-status').textContent=
+  title+' · '+f+' casos fallidos; '+n+' sin probar. '+humanStatus;
+ const list=document.getElementById('summary-pending');
+ list.replaceChildren();
+ for(const c of CASES){
+  const item=items[c.id];
+  if(item.estado==='Pasa')continue;
+  const li=make('li',{});
+  const link=make('a',{href:'#heading-'+c.id},c.id);
+  li.append(link,document.createTextNode(
+   ': '+(item.estado==='Falla'
+     ?'Falla — documentar incidencia, severidad y nueva comprobación'
+     :'No probado — ejecutar y registrar evidencia ficticia')));
+  list.append(li);
+ }
+ if(!list.children.length)list.append(make('li',{},
+  'Los 20 casos están registrados como Pasa; falta verificar autenticidad de evidencias, dictamen humano y autorización separada.'));
 }
 function documentData(){
  const entries=CASES.map(c=>items[c.id]);
@@ -174,6 +231,7 @@ document.getElementById('download').addEventListener('click',()=>{
  }catch(e){msg.style.color='#922d2d';msg.textContent=e.message;}
 });
 document.getElementById('print').addEventListener('click',()=>window.print());
+document.getElementById('summary-print').addEventListener('click',()=>window.print());
 document.getElementById('reset').addEventListener('click',()=>{
  if(!window.confirm('¿Limpiar todas las respuestas de esta pestaña? Descarga antes si deseas conservarlas.'))return;
  for(const item of Object.values(items))Object.assign(item,{estado:DEFAULT,evidencia:'',observacion:'',fecha:''});
@@ -207,4 +265,4 @@ document.getElementById('import-file').addEventListener('change',async ev=>{
 draw();
 </script></body></html>`;
 }
-module.exports={catalog,renderPage,validateReview};
+module.exports={catalog,renderPage,validateReview,summarizeReview};

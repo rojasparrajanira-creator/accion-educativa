@@ -35,6 +35,8 @@ Al terminar, presionar **Ctrl+C** y cerrar la terminal. Los datos de prueba desa
 1. Inicia el piloto local y entra en `http://127.0.0.1:4173/?perfil=coordinacion` para seleccionar un perfil sintético.
 2. En el **mismo navegador y computador**, abre `http://127.0.0.1:4173/piloto/uat`.
 3. Evalúa uno a uno los 20 casos de la pauta. Cada resultado puede quedar como **No probado**, **Pasa** o **Falla**. Para Pasa o Falla se requiere fecha y referencia ficticia, como `ACTA-ENSAYO-01`.
+   - El **Resumen de evaluación y pendientes** mostrará las fallas y los casos sin comprobar, con enlaces a cada caso. Cuando haya una falla, registra su criticidad, la corrección y una nueva comprobación fuera de esta pauta, en el registro de incidencias del acta.
+   - Incluso si todos los casos quedan como **Pasa**, el resumen seguirá indicando **Pendiente de dictamen humano**: nunca genera una certificación automática.
 4. Descarga **PGCE-2027-Evaluacion-UAT-SIN-CERTIFICACION.json** antes de cerrar la pestaña. Sin descarga, los datos de la pauta se pierden.
 5. Puedes volver a abrir la pauta en otra sesión local y usar **Recuperar evaluación JSON** para continuar. El navegador lee el archivo, pero no lo envía a un servidor.
 6. Imprime la pauta para revisión presencial si se requiere. Nunca incluyas nombres, RUN, expedientes, diagnósticos ni observaciones de estudiantes o funcionarios reales.

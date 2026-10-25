@@ -27,6 +27,9 @@ async function run(){
   await page.goto(origin+'/?perfil=coordinacion');
   await page.goto(origin+'/piloto/uat');
   assert.equal(await page.locator('article').count(),20);
+  assert.match(await page.locator('#summary-status').innerText(),/EVALUACIÓN INCOMPLETA/);
+  assert.equal(await page.locator('#summary-pending li').count(),20);
+
   assert.equal(await page.locator('#counter').innerText(),'Registrados: 0 Pasa, 0 Falla y 20 No probado. Registro manual, sin certificación.');
   await page.locator('#UAT-01-estado').selectOption('Pasa');
   await page.locator('#download').click();
@@ -35,6 +38,11 @@ async function run(){
   await page.locator('#UAT-01-evidencia').fill('ACTA-FICTICIA-01');
   await page.locator('#UAT-01-observacion').fill('Solo una verificación humana sintética');
   await page.locator('#UAT-02-estado').selectOption('Falla');
+  await page.getByText(/REQUIERE CORRECCIONES/).waitFor();
+  assert.equal(await page.locator('#summary-pending li').count(),19);
+  assert.match(await page.locator('#summary-pending li').nth(1).innerText(),/Falla/);
+  assert.equal(await page.locator('#summary-print').count(),1);
+
   await page.locator('#UAT-02-fecha').fill('2027-04-02');
   await page.locator('#UAT-02-evidencia').fill('INC-PRUEBA-02');
   const d=page.waitForEvent('download');
@@ -58,6 +66,9 @@ async function run(){
    assert.equal(await page.locator('#UAT-01-estado').inputValue(),'Pasa');
    assert.equal(await page.locator('#UAT-02-estado').inputValue(),'Falla');
    assert.match(await page.locator('#counter').innerText(),/1 Pasa, 1 Falla y 18 No probado/);
+   assert.match(await page.locator('#summary-status').innerText(),/SIN APROBACIÓN INSTITUCIONAL/);
+   assert.equal(await page.locator('#summary-pending li').count(),19);
+
    const bad={...json,results:json.results.map(x=>({...x}))};
    bad.results[2].estado='Pasa';
    bad.results[2].fecha='';

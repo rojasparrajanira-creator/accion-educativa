@@ -15,6 +15,16 @@ test('piloto local sirve el editor real aislado sin acceso a producción y disti
   assert.equal(init.status,200);
   const html=await init.text();
   assert.match(html,/PILOTO LOCAL/);
+  assert.match(html,/Abrir pauta UAT \(20 casos\)/);
+  const forbiddenForm=await fetch(base+'/piloto/uat');
+  assert.equal(forbiddenForm.status,403);
+  const formResponse=await fetch(base+'/piloto/uat',{
+   headers:{Cookie:'pgce_piloto_ficticio=coordinacion'}});
+  assert.equal(formResponse.status,200);
+  const formHtml=await formResponse.text();
+  assert.match(formHtml,/Evaluación profesional del piloto 2027/);
+  assert.match(formHtml,/const CASES=/);
+
   assert.match(html,/const API=''/);
   assert.ok(!html.includes('https://convivencia-escolar-api.onrender.com'));
   assert.match(init.headers.get('content-security-policy'),/connect-src 'self'/);

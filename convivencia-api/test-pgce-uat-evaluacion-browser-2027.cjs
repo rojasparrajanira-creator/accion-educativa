@@ -63,7 +63,7 @@ async function run(){
    bad.results[2].fecha='';
    await page.locator('#import-file').setInputFiles({name:'invalido.json',
     mimeType:'application/json',buffer:Buffer.from(JSON.stringify(bad))});
-   assert.match(await page.locator('#message').innerText(),/información incompleta o inválida/);
+   await page.getByText(/información incompleta o inválida/).waitFor();
    assert.equal(await page.locator('#UAT-01-estado').inputValue(),'Pasa');
   }finally{if(fs.existsSync(tmp))fs.unlinkSync(tmp);}
   assert.equal(outgoing,0);

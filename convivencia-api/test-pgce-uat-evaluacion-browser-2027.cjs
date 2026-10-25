@@ -40,7 +40,7 @@ async function run(){
   await page.locator('#UAT-02-estado').selectOption('Falla');
   await page.getByText(/REQUIERE CORRECCIONES/).waitFor();
   assert.equal(await page.locator('#summary-pending li').count(),19);
-  assert.match(await page.locator('#summary-pending li').nth(1).innerText(),/Falla/);
+  assert.match(await page.locator('#summary-pending li').first().innerText(),/Falla/);
   assert.equal(await page.locator('#summary-print').count(),1);
 
   await page.locator('#UAT-02-fecha').fill('2027-04-02');

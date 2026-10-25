@@ -30,6 +30,19 @@ Abrir en **el mismo computador**:
 
 Al terminar, presionar **Ctrl+C** y cerrar la terminal. Los datos de prueba desaparecen.
 
+## Pauta digital UAT para profesionales (20 casos)
+
+1. Inicia el piloto local y entra en `http://127.0.0.1:4173/?perfil=coordinacion` para seleccionar un perfil sintético.
+2. En el **mismo navegador y computador**, abre `http://127.0.0.1:4173/piloto/uat`.
+3. Evalúa uno a uno los 20 casos de la pauta. Cada resultado puede quedar como **No probado**, **Pasa** o **Falla**. Para Pasa o Falla se requiere fecha y referencia ficticia, como `ACTA-ENSAYO-01`.
+4. Descarga **PGCE-2027-Evaluacion-UAT-SIN-CERTIFICACION.json** antes de cerrar la pestaña. Sin descarga, los datos de la pauta se pierden.
+5. Puedes volver a abrir la pauta en otra sesión local y usar **Recuperar evaluación JSON** para continuar. El navegador lee el archivo, pero no lo envía a un servidor.
+6. Imprime la pauta para revisión presencial si se requiere. Nunca incluyas nombres, RUN, expedientes, diagnósticos ni observaciones de estudiantes o funcionarios reales.
+
+El registro **no valida por sí solo identidades, actas ni el dictamen de aprobación**. Aunque los 20 casos estén marcados como Pasa, la plataforma no se autoriza a publicar. Es indispensable la revisión independiente prevista en `ACTA-ACEPTACION-PILOTO-PGCE-2027.md`.
+
+**Protección:** el formulario no utiliza cookies de producción, base de datos, almacenamiento local persistente ni servicios externos. Solo se habilita en `localhost` una vez seleccionado un perfil ficticio.
+
 ## Protecciones incorporadas
 
 - Escucha exclusivamente en `127.0.0.1`, sin URL pública ni túneles.

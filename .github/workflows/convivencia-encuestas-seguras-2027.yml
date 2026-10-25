@@ -53,6 +53,9 @@ jobs:
           node --check test-pgce-local-pilot-browser-2027.cjs
           node --check test-pgce-uat-accessibility-2027.cjs
           node --check uat-trazabilidad-pgce-2027.cjs
+          node --check pgce-uat-evaluacion-local-2027.cjs
+          node --check test-pgce-uat-evaluacion-local-2027.cjs
+          node --check test-pgce-uat-evaluacion-browser-2027.cjs
           node --check test-uat-trazabilidad-pgce-2027.cjs
           node --check test-pgce-export-2027.cjs
           node --check test-pgce-follow-up-2027.cjs
@@ -61,7 +64,7 @@ jobs:
           node --check test-student-dimensions-adapter-2027.cjs
       - name: Recorrido HTTP con datos sintéticos y PostgreSQL en memoria
         working-directory: convivencia-api
-        run: node --test test-community-surveys-2027.cjs test-community-front-2027.cjs test-pgce-dimensions-integrated-2027.cjs test-pgce-screen-2027.cjs test-student-dimensions-adapter-2027.cjs test-pgce-planning-drafts-2027.cjs test-pgce-follow-up-2027.cjs test-pgce-v2-migration-2027.cjs test-pgce-export-2027.cjs test-pgce-export-review-2027.cjs test-pgce-governance-2027.cjs test-pgce-pilot-readiness-2027.cjs test-pgce-http-security-2027.cjs test-pgce-local-pilot-2027.cjs test-uat-trazabilidad-pgce-2027.cjs
+        run: node --test test-community-surveys-2027.cjs test-community-front-2027.cjs test-pgce-dimensions-integrated-2027.cjs test-pgce-screen-2027.cjs test-student-dimensions-adapter-2027.cjs test-pgce-planning-drafts-2027.cjs test-pgce-follow-up-2027.cjs test-pgce-v2-migration-2027.cjs test-pgce-export-2027.cjs test-pgce-export-review-2027.cjs test-pgce-governance-2027.cjs test-pgce-pilot-readiness-2027.cjs test-pgce-http-security-2027.cjs test-pgce-local-pilot-2027.cjs test-uat-trazabilidad-pgce-2027.cjs test-pgce-uat-evaluacion-local-2027.cjs
 
   validar-editor-movil:
     needs: validar-api-adultos
@@ -92,6 +95,9 @@ jobs:
       - name: Validar teclado, etiquetas y ampliación 200% sin datos reales
         working-directory: convivencia-api
         run: node test-pgce-uat-accessibility-2027.cjs
+      - name: Evaluar pauta humana sin certificación con navegador y exportación JSON local
+        working-directory: convivencia-api
+        run: node test-pgce-uat-evaluacion-browser-2027.cjs
       - name: Generar matriz de trazabilidad para revisión profesional
         working-directory: convivencia-api
         run: node uat-trazabilidad-pgce-2027.cjs

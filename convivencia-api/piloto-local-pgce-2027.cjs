@@ -21,7 +21,7 @@ const profiles=[
 ];
 const banner='<aside role="note" style="position:sticky;top:0;z-index:999999;padding:12px 18px;'+
  'background:#0b3664;color:#fff;font:600 14px Arial;text-align:center">'+
- 'PILOTO LOCAL · DATOS FICTICIOS · SIN CONEXIÓN A PRODUCCIÓN · NO USAR DATOS REALES</aside>';
+ 'PILOTO LOCAL · DATOS FICTICIOS · SIN CONEXIÓN A PRODUCCIÓN · NO USAR DATOS REALES '+'<a href="/piloto/uat" style="color:#fff;text-decoration:underline;margin-left:12px">Abrir pauta UAT (20 casos)</a></aside>';
 
 async function createLocalPilot(){
  if(process.env.NODE_ENV==='production'||process.env.DATABASE_URL||

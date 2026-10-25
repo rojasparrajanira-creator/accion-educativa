@@ -9,6 +9,7 @@ const path=require('node:path');
 const express=require('express');
 const {PGlite}=require('@electric-sql/pglite');
 const {registerCommunitySurveys}=require('./community-surveys');
+const {renderPage:renderUatReview}=require('./pgce-uat-evaluacion-local-2027.cjs');
 
 const SOURCE=path.join(__dirname,'../convivencia-escolar/diagnostico-dimensiones-pgce-2027.html');
 const REMOTE="const API='https://convivencia-escolar-api.onrender.com'";
@@ -106,6 +107,13 @@ async function createLocalPilot(){
    res.setHeader('Set-Cookie','pgce_piloto_ficticio='+profile+
     '; Path=/; HttpOnly; SameSite=Strict');
    res.type('html').send(safeHtml);
+  });
+  app.get('/piloto/uat',(req,res)=>{
+   // El panel nunca almacena evaluaciones en el servidor. Cada persona puede
+   // descargar y reimportar su propio JSON para continuar posteriormente.
+   if(!cookieFor(req))return res.status(403).type('text')
+    .send('Selecciona antes un perfil ficticio desde la página principal.');
+   res.type('html').send(renderUatReview());
   });
   app.get('/piloto/salud',(req,res)=>res.json({ok:true,mode:'local_synthetic_only',
    production_connected:false,school_count:2}));

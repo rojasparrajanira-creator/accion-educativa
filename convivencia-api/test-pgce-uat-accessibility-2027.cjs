@@ -25,6 +25,9 @@ async function run(){
    await page.goto(origin+'/?perfil=coordinacion');
    // El primer control de la pantalla se puede alcanzar y operar solo con teclado.
    await page.keyboard.press('Tab');
+   // El acceso a la pauta UAT es ahora el primer enlace del laboratorio.
+   assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('href')),'/piloto/uat');
+   await page.keyboard.press('Tab');
    assert.equal(await page.evaluate(()=>document.activeElement.id),'measurement');
    await page.keyboard.press('Tab');
    assert.equal(await page.evaluate(()=>document.activeElement.id),'load');

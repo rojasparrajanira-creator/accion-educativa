@@ -56,6 +56,7 @@ jobs:
           node --check pgce-uat-evaluacion-local-2027.cjs
           node --check test-pgce-uat-evaluacion-local-2027.cjs
           node --check test-pgce-uat-evaluacion-browser-2027.cjs
+          node --check test-pgce-pilot-navigation-2027.cjs
           node --check generar-paquete-inicio-pgce-2027.cjs
           node --check test-inicio-piloto-pgce-2027.cjs
           node --check pgce-release-gate-2027.cjs
@@ -104,6 +105,9 @@ jobs:
       - name: Evaluar pauta humana sin certificación con navegador y exportación JSON local
         working-directory: convivencia-api
         run: node test-pgce-uat-evaluacion-browser-2027.cjs
+      - name: Verificar acceso al Plan 2027 oculto salvo cohorte autorizada
+        working-directory: convivencia-api
+        run: node test-pgce-pilot-navigation-2027.cjs
       - name: Generar matriz de trazabilidad para revisión profesional
         working-directory: convivencia-api
         run: node uat-trazabilidad-pgce-2027.cjs

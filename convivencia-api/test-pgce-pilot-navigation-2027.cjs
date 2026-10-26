@@ -31,15 +31,22 @@ async function run(){
   const page=await ctx.newPage();
   await page.goto(origin+'/inicio.html?establishment_id=1',{waitUntil:'networkidle'});
   const card=page.locator('#pgce-2027-card'),nav=page.locator('#pgce-2027-nav');
+  const surveysCard=page.locator('#pgce-2027-surveys-card'),
+    surveysNav=page.locator('#pgce-2027-surveys-nav');
   assert.equal(await card.count(),1);
   assert.equal(await nav.count(),1);
   assert.equal(await card.isVisible(),false);
   assert.equal(await nav.isVisible(),false);
+  assert.equal(await surveysCard.isVisible(),false);
+  assert.equal(await surveysNav.isVisible(),false);
+  assert.equal(await surveysCard.getAttribute('href'),'gestionar-encuestas-estamentos-2027.html');
   assert.equal(await card.getAttribute('href'),'diagnostico-dimensiones-pgce-2027.html');
   allow=true;
   await page.goto(origin+'/inicio.html?establishment_id=1',{waitUntil:'networkidle'});
   await card.waitFor({state:'visible'});
   await nav.waitFor({state:'visible'});
+  await surveysCard.waitFor({state:'visible'});
+  await surveysNav.waitFor({state:'visible'});
   assert.equal(await card.getAttribute('hidden'),null);
   assert.equal(await nav.getAttribute('hidden'),null);
   assert.ok(requests>=2);

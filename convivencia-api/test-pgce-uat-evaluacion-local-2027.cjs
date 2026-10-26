@@ -75,3 +75,33 @@ test('el resumen UAT identifica bloqueos, pendientes y nunca habilita producció
  assert.match(html,/Imprimir resumen y pauta/);
  assert.match(html,/SIN APROBACIÓN INSTITUCIONAL/);
 });
+
+
+test('UAT impide exportar referencias personales evidentes y fechas imposibles',()=>{
+ const {containsSensitiveText,validCalendarDate}=require('./pgce-uat-evaluacion-local-2027.cjs');
+ assert.equal(containsSensitiveText('RUN 12.345.678-9'),true);
+ assert.equal(containsSensitiveText('12345678-K'),true);
+ assert.equal(containsSensitiveText('persona@ejemplo.cl'),true);
+ assert.equal(containsSensitiveText('+56 9 1234 5678'),true);
+ assert.equal(containsSensitiveText('ACTA-SINTETICA-2027'),false);
+ assert.equal(validCalendarDate('2027-04-01'),true);
+ assert.equal(validCalendarDate('2028-02-29'),true);
+ for(const invalid of ['2027-02-29','2027-02-30','2027-13-01','2027-11-31','2027-00-12','27-01-01']){
+  assert.equal(validCalendarDate(invalid),false,invalid);
+ }
+ const template=catalog().map(x=>({id:x.id,estado:'No probado',fecha:'',evidencia:'',observacion:''}));
+ const base={schema:'mec-pgce-uat-v1',school_year:2027,results:template};
+ for(const value of ['RUN 12.345.678-9','contacto persona@ejemplo.cl','celular +56 9 1234 5678']){
+  const mutation={...template[0],estado:'Pasa',fecha:'2027-04-01',
+   evidencia:'ACTA-SINT-01',observacion:value};
+  assert.throws(()=>validateReview({...base,results:[mutation,...template.slice(1)]}),
+   /uat_resultados_invalidos/);
+ }
+ const impossible={...template[0],estado:'Falla',fecha:'2027-02-30',
+  evidencia:'INC-SINT-02'};
+ assert.throws(()=>validateReview({...base,results:[impossible,...template.slice(1)]}),
+  /uat_resultados_invalidos/);
+ assert.equal(validateReview(base).authorized_to_deploy,false);
+ assert.match(renderPage(),/containsSensitiveText/);
+ assert.match(renderPage(),/validCalendarDate/);
+});

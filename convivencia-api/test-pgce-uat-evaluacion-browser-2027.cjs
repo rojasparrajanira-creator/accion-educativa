@@ -36,6 +36,9 @@ async function run(){
   assert.match(await page.locator('#message').innerText(),/necesita fecha y evidencia/);
   await page.locator('#UAT-01-fecha').fill('2027-04-01');
   await page.locator('#UAT-01-evidencia').fill('ACTA-FICTICIA-01');
+  await page.locator('#UAT-01-observacion').fill('Contacto indebido persona@ejemplo.cl');
+  await page.locator('#download').click();
+  assert.match(await page.locator('#message').innerText(),/referencias ficticias/);
   await page.locator('#UAT-01-observacion').fill('Solo una verificación humana sintética');
   await page.locator('#UAT-02-estado').selectOption('Falla');
   await page.getByText(/REQUIERE CORRECCIONES/).waitFor();
@@ -76,6 +79,12 @@ async function run(){
     mimeType:'application/json',buffer:Buffer.from(JSON.stringify(bad))});
    await page.getByText(/información incompleta o inválida/).waitFor();
    assert.equal(await page.locator('#UAT-01-estado').inputValue(),'Pasa');
+   const badPrivate={...json,results:json.results.map(x=>({...x}))};
+   badPrivate.results[0].observacion='RUN 12.345.678-9';
+   await page.locator('#import-file').setInputFiles({name:'datos-personales.json',
+    mimeType:'application/json',buffer:Buffer.from(JSON.stringify(badPrivate))});
+   await page.getByText(/información incompleta o inválida/).waitFor();
+   assert.equal(await page.locator('#UAT-01-observacion').inputValue(),'Solo una verificación humana sintética');
   }finally{if(fs.existsSync(tmp))fs.unlinkSync(tmp);}
   assert.equal(outgoing,0);
   assert.deepEqual(errors,[]);

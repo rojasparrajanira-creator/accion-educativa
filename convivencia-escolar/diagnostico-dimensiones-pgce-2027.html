@@ -5,21 +5,35 @@
 <title>Diagnóstico y Plan 2027 | Convivencia Educativa</title>
 <style>
 :root{--navy:#123c75;--blue:#1157ce;--turq:#11b9c6;--paper:#fff;--muted:#4e6673;--line:#d4e9ef}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(130deg,#edf7ff 0%,#fff 82%);font:15px/1.52 Inter,system-ui,-apple-system,sans-serif;color:#213a46}
-button{font:inherit;cursor:pointer}button:focus-visible{outline:3px solid var(--turq);outline-offset:3px}
-.container{max-width:1120px;margin:26px auto 55px;padding:0 18px}.hero,.panel{padding:clamp(20px,3.2vw,34px);background:var(--paper);border:1px solid var(--line);border-radius:23px;box-shadow:0 14px 35px rgba(20,60,100,.06)}
+*{box-sizing:border-box}html{max-width:100%;overflow-x:clip}body{max-width:100%;overflow-x:clip;margin:0;background:linear-gradient(130deg,#edf7ff 0%,#fff 82%);font:15px/1.52 Inter,system-ui,-apple-system,sans-serif;color:#213a46}
+button{font:inherit;cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.table-scroll:focus-visible{outline:3px solid #067e92;outline-offset:3px}
+.container{max-width:1120px;min-width:0;margin:26px auto 55px;padding:0 18px}.hero,.panel{min-width:0;padding:clamp(20px,3.2vw,34px);background:var(--paper);border:1px solid var(--line);border-radius:23px;box-shadow:0 14px 35px rgba(20,60,100,.06)}
 .brand{font-size:12px;letter-spacing:.08em;font-weight:900;text-transform:uppercase;color:var(--blue)}
 h1{font-size:clamp(26px,5vw,39px);line-height:1.22;margin:10px 0;color:var(--navy)}h2{font-size:22px;margin:2px 0 16px;color:var(--navy)}h3{font-size:17px;margin:0 0 8px;color:var(--navy)}p{color:var(--muted);margin:8px 0 12px}
 .note{padding:14px 17px;background:#eff9fc;border-left:4px solid var(--turq);border-radius:12px;font-size:13px;color:#325666;margin:15px 0}
 .action{border:0;border-radius:12px;min-height:47px;padding:11px 21px;background:var(--blue);color:white;font-weight:800}.action:disabled{opacity:.6;cursor:not-allowed}
-.error{color:#9a3232;font-weight:750;min-height:20px}.layout{display:grid;grid-template-columns:1fr;gap:18px;margin-top:18px}
+.error{color:#9a3232;font-weight:750;min-height:20px}.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin-top:18px}
 .cardgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dim{border:1px solid var(--line);background:#fff;border-radius:16px;padding:18px}
 .small{font-size:12px;font-weight:750;letter-spacing:.04em;color:var(--blue)}.muted{font-size:13px;color:var(--muted)}.pill{display:inline-block;font-size:11px;background:#eff8ff;color:var(--navy);padding:5px 9px;border-radius:99px;margin:2px 5px 2px 0}
 .missing{color:#7a5b24;background:#fff5dd}.supported{background:#e9f8f5;color:#126961}
 table{width:100%;border-collapse:collapse}th,td{padding:13px 9px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{font-size:12px;color:var(--muted)}td:first-child{font-weight:750;color:var(--blue);width:90px}
 footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
+.field{margin:12px 0}.field label{display:block;font-size:13px;font-weight:750;color:var(--navy);margin-bottom:5px}
+.field input,.field textarea,.field select{display:block;width:100%;min-width:0;max-width:100%;font:inherit;padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#223b47}
+.field textarea{min-height:70px;resize:vertical}.muted-action{background:#eaf5f7;border:1px solid var(--line);color:var(--navy);border-radius:9px;padding:8px 11px;cursor:pointer}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
+.privacy-confirm{display:flex;align-items:flex-start;gap:12px;font-weight:650;line-height:1.5;margin:15px 0}
+.privacy-confirm input{width:22px;height:22px;flex:0 0 auto;accent-color:var(--blue)}
+#review-export,#download-csv{min-height:44px;margin:4px 8px 8px 0}
+.table-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+.pilot-list{list-style:none;padding:0;margin:8px 0 12px}.pilot-list li{padding:9px 0;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:10px;overflow-wrap:anywhere}.pilot-dot{font-weight:800;color:#755a13;flex:0 0 auto}.pilot-dot.done{color:#136353}
+@media(max-width:650px){#review-export,#download-csv,.action{width:100%;min-height:48px}.hero,.panel{max-width:100%;min-width:0}.dim{min-width:0}h2{font-size:19px}.note{overflow-wrap:anywhere}}
+.note,.review-row,.muted,#pending,#governance-list,#pilot-checks li{overflow-wrap:anywhere}
+.review-row{min-width:0;padding:12px 0;border-bottom:1px solid var(--line)}
+@media(max-width:650px){.form-grid{grid-template-columns:minmax(0,1fr)}}
+
 [hidden]{display:none!important}
-@media(max-width:650px){.cardgrid{grid-template-columns:1fr}.container{margin:10px auto 30px;padding:0 11px}.hero,.panel{padding:21px}table{font-size:12px}th,td{padding:9px 5px}td:first-child{width:57px}}
+@media(max-width:650px){.cardgrid{grid-template-columns:minmax(0,1fr)}.container{margin:10px auto 30px;padding:0 11px}.hero,.panel{padding:21px}table{font-size:12px}th,td{padding:9px 5px}td:first-child{width:57px}}
 </style>
 </head>
 <body>
@@ -28,11 +42,24 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  <span class="brand">Material Educativo Chile · Convivencia Educativa</span>
  <h1>Diagnóstico y Plan de Gestión 2027</h1>
  <p>Vista de revisión para profesionales: dimensiones del diagnóstico de convivencia, antecedentes que faltan y estructura para planificar acciones pertinentes a cada colegio.</p>
- <div class="note"><strong>Importante:</strong> esta pantalla está en desarrollo y no es una certificación de cumplimiento. Aún no están integrados los resultados estudiantiles. Solo presenta resultados adultos agregados cuando existe un grupo suficientemente grande. El Plan siempre requiere revisión y aprobación institucional.</div>
+ <div class="note"><strong>Importante:</strong> esta pantalla está en desarrollo y no es una certificación de cumplimiento. Integra resultados de estudiantes por nivel y medición cuando existen al menos 10 participaciones válidas. NT1/NT2 siguen pendientes de validación pedagógica. Los adultos se presentan por estamento, sin respuestas individuales. El Plan siempre requiere revisión y aprobación institucional.</div>
+ <label for="measurement" style="display:block;font-weight:750;margin:14px 0 7px">Medición estudiantil 2027</label>
+ <select id="measurement" aria-label="Seleccionar medición estudiantil" style="display:block;width:min(320px,100%);padding:12px;border:1px solid #d4e9ef;border-radius:12px;margin-bottom:13px">
+  <option value="M1">M1 · Diagnóstico inicial</option>
+  <option value="M2">M2 · Seguimiento intermedio</option>
+  <option value="M3">M3 · Evaluación final</option>
+ </select>
  <button id="load" class="action" type="button">Cargar diagnóstico institucional</button>
  <p id="status" class="error" role="alert" aria-live="polite"></p>
 </header>
-<div id="body" class="layout" hidden>
+<main id="body" class="layout" hidden>
+ <section class="panel" aria-labelledby="pilot-title">
+  <h2 id="pilot-title">Lista de verificación del piloto institucional</h2>
+  <p class="muted">Consulta los registros vigentes del establecimiento. Es una guía administrativa para la revisión profesional; no equivale a validación legal, certificación ni autorización de publicación.</p>
+  <ul id="pilot-checks" class="pilot-list" aria-label="Controles del piloto"></ul>
+  <p id="pilot-summary" class="muted" role="status" aria-live="polite">Sin comprobar.</p>
+  <button type="button" id="refresh-pilot" class="muted-action">Actualizar comprobaciones</button>
+ </section>
  <section class="panel">
   <h2>Fuentes de información</h2>
   <div id="sources"></div>
@@ -44,12 +71,96 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
   <div id="dimensions" class="cardgrid"></div>
  </section>
  <section class="panel">
+  <h2>Hallazgos para revisión profesional</h2>
+  <p class="muted">Las señales de las encuestas son orientativas. Un profesional debe contrastarlas con antecedentes institucionales antes de registrar una necesidad. No incluir nombres, RUN ni respuestas individuales de estudiantes.</p>
+  <div id="review-queue"></div>
+  <h3 style="margin-top:19px">Registrar hallazgo fundamentado</h3>
+  <div class="field"><label for="finding-dimension">Dimensión institucional</label><select id="finding-dimension"></select></div>
+  <div class="field"><label for="finding-need">Necesidad identificada tras revisión profesional</label><textarea id="finding-need" maxlength="1200" placeholder="Describe una necesidad colectiva basada en evidencias"></textarea></div>
+  <div class="field"><label for="finding-evidence">Referencia de respaldo (acta, informe institucional o registro autorizado)</label><input id="finding-evidence" maxlength="120" placeholder="Ej.: ACTA-CONVIVENCIA-2027-01"></div>
+  <button class="action" type="button" id="add-finding">Agregar hallazgo al borrador</button>
+  <div id="findings-list" style="margin-top:18px"></div>
+ </section>
+ <section class="panel">
   <h2>Plan de Gestión: siete componentes obligatorios</h2>
   <p>Se presenta una estructura vacía, no un Plan aprobado. Cada apartado debe completarse con objetivos, metas, actividades, personas responsables, plazos y evidencia documental.</p>
-  <table><thead><tr><th>Artículo</th><th>Área que debe planificarse</th><th>Estado</th></tr></thead><tbody id="plan-sections"></tbody></table>
+  <div class="table-scroll" role="region" aria-label="Resumen de componentes del Plan" tabindex="0"><table><thead><tr><th>Artículo</th><th>Área que debe planificarse</th><th>Estado</th></tr></thead><tbody id="plan-sections"></tbody></table></div>
   <div class="note" id="plan-warning"></div>
  </section>
-</div>
+ <section class="panel">
+  <h2>Editor de acciones institucionales 2027</h2>
+  <p class="muted">Selecciona uno de los siete apartados, completa los campos y vincúlalo con un hallazgo revisado. Los cambios solo se guardan cuando utilizas el botón Guardar borrador.</p>
+  <div class="field"><label for="action-clause">Acción a editar (identificador individual)</label><select id="action-clause"></select></div>
+  <div class="form-grid">
+   <div class="field"><label for="new-action-clause">Apartado para nueva acción</label><select id="new-action-clause"></select></div>
+   <div class="field"><label for="add-action">Agregar otra acción dentro del mismo apartado</label><button type="button" id="add-action" class="muted-action">+ Agregar acción</button></div>
+  </div>
+  <div class="form-grid" id="action-fields"></div>
+  <div class="field"><label for="action-finding">Hallazgo relacionado con esta acción</label><select id="action-finding"></select></div>
+  <div class="note">Este documento es un borrador editable. Guardarlo no significa que el Consejo Escolar lo haya revisado ni que Dirección lo haya aprobado.</div>
+  <button class="action" type="button" id="save-draft">Guardar borrador institucional</button>
+  <p id="save-status" class="muted" role="status" aria-live="polite"></p>
+  <div class="note" id="privacy-review-note"><strong>Antes de descargar:</strong> revisa los hallazgos, nombres, observaciones, referencias y seguimientos guardados. Confirma que contienen exclusivamente información institucional autorizada, sin nombres, RUN, relatos de casos ni datos identificables de estudiantes. Esta revisión no aprueba el Plan de Gestión.</div>
+  <label class="privacy-confirm"><input id="privacy-confirm" type="checkbox"> He revisado personalmente el contenido guardado y confirmo que es apropiado para exportación institucional.</label>
+  <button class="muted-action" type="button" id="review-export">Registrar revisión de privacidad</button>
+  <p class="muted" id="privacy-review-status" role="status" aria-live="polite">Guarda el borrador y registra la revisión antes de descargar.</p>
+  <button class="muted-action" type="button" id="download-csv">Descargar reporte preliminar CSV (Excel)</button>
+  <p class="muted" id="download-status" role="status" aria-live="polite">El archivo incluirá exclusivamente la información guardada y los agregados del período seleccionado.</p>
+ </section>
+ <section class="panel">
+  <h2>Antecedentes y participación institucional</h2>
+  <p class="muted">Registra referencias colectivas de actas y documentos autorizados. Estos campos no acreditan por sí mismos el cumplimiento de obligaciones ni reemplazan la aprobación de Dirección.</p>
+  <div class="form-grid" id="institution-fields"></div>
+  <h3>Fuentes complementarias del diagnóstico</h3>
+  <div id="diagnostic-sources-editor"></div>
+  <button id="add-source" class="muted-action" type="button">Agregar fuente</button>
+  <h3 style="margin-top:20px">Participación por estamento</h3>
+  <div id="participation-editor"></div>
+  <button id="add-participation" class="muted-action" type="button">Agregar participación</button>
+  <h3 style="margin-top:20px">Consejo Escolar, difusión y seguimiento</h3>
+  <div class="form-grid" id="institution-subfields"></div>
+  <button type="button" id="save-institution" class="action">Guardar antecedentes junto al plan</button>
+ </section>
+ <section class="panel">
+  <h2>Revisión del Consejo Escolar y constancia documental de Dirección</h2>
+  <p class="muted">Solo se registran referencias a documentos institucionales ya emitidos. La plataforma no verifica firmas, no firma documentos ni declara el Plan aprobado. La constancia de Dirección requiere perfil directivo autorizado y un borrador completo.</p>
+  <div class="field"><label for="governance-stage">Tipo de antecedente</label>
+   <select id="governance-stage">
+    <option value="council_review">Informe y revisión del Consejo Escolar</option>
+    <option value="direction_act">Acto formal de Dirección (solo directora/director)</option>
+   </select>
+  </div>
+  <div class="form-grid">
+   <div class="field"><label for="governance-ref">Referencia del documento institucional</label><input id="governance-ref" maxlength="120" placeholder="ACTA-CE-2027-01"></div>
+   <div class="field"><label for="governance-date">Fecha que figura en el documento</label><input id="governance-date" type="date"></div>
+  </div>
+  <label class="privacy-confirm"><input id="governance-confirm" type="checkbox"> Confirmo que existe un documento institucional emitido y revisé su referencia y fecha. No adjunto datos personales ni afirmo que el sistema haya verificado su autenticidad.</label>
+  <button id="save-governance" class="action" type="button">Registrar referencia documental</button>
+  <p id="governance-status" class="muted" role="status" aria-live="polite">Registros pendientes de consultar.</p>
+  <div class="note" id="governance-list">No se han consultado antecedentes documentales.</div>
+ </section>
+ <section class="panel">
+  <h2>Seguimiento manual M1–M2–M3 de acciones</h2>
+  <p class="muted">Registra avances respaldados por el equipo responsable. Los cortes no calculan ni comparan puntajes de encuestas y no aprueban el plan.</p>
+  <div class="form-grid">
+   <div class="field"><label for="followup-clause">Acción del Plan de Gestión</label><select id="followup-clause"></select></div>
+   <div class="field"><label for="followup-period">Período de seguimiento</label><select id="followup-period">
+    <option value="M1">M1 · Inicial</option><option value="M2">M2 · Intermedio</option><option value="M3">M3 · Final</option>
+   </select></div>
+   <div class="field"><label for="followup-status">Estado de la acción</label><select id="followup-status">
+    <option value="pending">Pendiente</option><option value="in_progress">En ejecución</option>
+    <option value="completed">Completada</option><option value="reprogrammed">Reprogramada</option>
+    <option value="suspended">Suspendida</option>
+   </select></div>
+   <div class="field"><label for="followup-percent">Porcentaje de avance verificado por el profesional</label><input type="number" min="0" max="100" step="1" id="followup-percent" value="0"></div>
+  </div>
+  <div class="field"><label for="followup-evidence">Referencias documentales (separadas por coma)</label><input id="followup-evidence" maxlength="1300"></div>
+  <div class="field"><label for="followup-note">Observaciones del seguimiento</label><textarea id="followup-note" maxlength="1500"></textarea></div>
+  <div class="field"><label for="followup-adjustment">Ajustes acordados / justificación</label><textarea id="followup-adjustment" maxlength="1500"></textarea></div>
+  <button type="button" class="action" id="save-followup">Guardar avance del período</button>
+  <p class="muted" id="followup-state" role="status" aria-live="polite"></p>
+ </section>
+</main>
 <footer>Material Educativo Chile · Documento de trabajo institucional 2027. Resultados agregados y revisión profesional.</footer>
 </div>
 <script>
@@ -57,6 +168,198 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
  const API='https://convivencia-escolar-api.onrender.com';
  const el=id=>document.getElementById(id);
  const texts={familia:'Familias',docente:'Docentes',asistente:'Asistentes',directivo:'Directivos/UTP',estudiantes:'Estudiantes'};
+ let currentDraft=null,savedRevision=0;
+ let followupRecords=[];
+ const actionFieldLabels=[
+  ['title','Nombre de la acción'],['objective','Objetivo específico'],
+  ['strategy','Estrategia de intervención'],['responsible','Responsable institucional'],
+  ['indicator','Indicador de evaluación'],['baseline','Línea base'],
+  ['target','Meta'],['place','Lugar de ejecución'],['resources','Recursos'],
+  ['expected_evidence','Medios de verificación'],['start_date','Fecha de inicio'],
+  ['end_date','Fecha de término'],['target_courses','Cursos destinatarios (separados por coma)'],
+  ['evaluation_method','Método de evaluación']
+ ];
+ const field=(id,title,value,type='text')=>{
+  const wrap=document.createElement('div');wrap.className='field';
+  const label=document.createElement('label');label.htmlFor=id;label.textContent=title;
+  const input=(type==='textarea'?document.createElement('textarea'):document.createElement('input'));
+  input.id=id;
+  if(type!=='textarea')input.type=type;
+  input.value=value||'';
+  wrap.append(label,input);return {wrap,input};
+ };
+ const institutionLabels=[
+  ['establishment_name','Nombre del establecimiento'],['rbd','RBD institucional'],
+  ['director','Dirección responsable'],['responsible','Responsable del PGCE'],
+  ['version','Versión del documento'],['policy_alignment','Vinculación con política nacional'],
+  ['pei_alignment','Articulación con PEI'],['rie_alignment','Articulación con reglamento interno'],
+  ['pme_alignment','Articulación con PME (cuando corresponda)']
+ ];
+ const sectionFields=[
+  ['council_school','report_ref','Referencia del informe al Consejo Escolar'],
+  ['council_school','feedback_or_justification','Observaciones y respuesta fundada'],
+  ['diffusion','channels','Canales de difusión'],
+  ['diffusion','calendar','Calendario de difusión'],
+  ['diffusion','delivery_record_plan','Constancia de entrega prevista'],
+  ['follow_up','frequency','Periodicidad del seguimiento'],
+  ['follow_up','responsible','Responsable del seguimiento'],
+  ['follow_up','evaluation_method','Método de evaluación institucional']
+ ];
+ const audiences=[
+  ['estudiantes','Estudiantes'],['familia','Familias'],['docente','Docentes'],
+  ['asistente','Asistentes de la educación'],['directivo','Directivos/UTP'],
+  ['institutional_records','Registros institucionales']
+ ];
+ function institutionEditor(){
+  if(!currentDraft)return;
+  const main=el('institution-fields');main.replaceChildren();
+  for(const [key,title] of institutionLabels){
+   const {wrap,input}=field('institution-'+key,title,currentDraft[key]||'',
+    ['policy_alignment','pei_alignment','rie_alignment','pme_alignment'].includes(key)?'textarea':'text');
+   input.oninput=()=>{currentDraft[key]=input.value};main.append(wrap);
+  }
+  const details=el('institution-subfields');details.replaceChildren();
+  for(const [group,key,title] of sectionFields){
+   currentDraft[group]??={};
+   const {wrap,input}=field(group+'-'+key,title,currentDraft[group][key]||'',
+    ['feedback_or_justification','evaluation_method'].includes(key)?'textarea':'text');
+   input.oninput=()=>{currentDraft[group][key]=input.value};details.append(wrap);
+  }
+  renderInstitutionRows('diagnostic_sources');
+  renderInstitutionRows('participation');
+ }
+ function renderInstitutionRows(section){
+  const container=el(section==='participation'?'participation-editor':'diagnostic-sources-editor');
+  container.replaceChildren();currentDraft[section]??=[];
+  currentDraft[section].forEach((entry,i)=>{
+   const wrap=document.createElement('div');wrap.className='review-row';
+   const selectWrap=document.createElement('div');selectWrap.className='field';
+   const label=document.createElement('label');label.textContent='Estamento o fuente';
+   const sel=document.createElement('select');
+   sel.id=section+'-'+i+'-audience';label.htmlFor=sel.id;
+   for(const [key,title] of audiences){
+    if(section==='participation'&&key==='institutional_records')continue;
+    const opt=document.createElement('option');opt.value=key;opt.textContent=title;sel.append(opt);
+   }
+   sel.value=entry.audience||'estudiantes';entry.audience=sel.value;
+   sel.onchange=()=>{entry.audience=sel.value};
+   selectWrap.append(label,sel);wrap.append(selectWrap);
+   const defs=section==='participation'?
+    [['summary','Síntesis de participación','textarea'],['evidence_ref','Referencia de acta','text'],['date','Fecha de participación','date']]:
+    [['method','Método / fuente','text'],['evidence_ref','Referencia documental','text']];
+   for(const [k,title,type] of defs){
+    const {wrap:box,input}=field(section+'-'+i+'-'+k,title,entry[k]||'',type);
+    input.oninput=()=>{entry[k]=input.value};wrap.append(box);
+   }
+   const remove=document.createElement('button');remove.type='button';remove.className='muted-action';remove.textContent='Quitar';
+   remove.setAttribute('aria-label','Quitar '+(section==='participation'?'participación':'fuente')+' '+(i+1));
+   remove.onclick=()=>{currentDraft[section].splice(i,1);renderInstitutionRows(section)};
+   wrap.append(remove);container.append(wrap);
+  });
+ }
+ function selectedFollowup(){
+  const actionId=el('followup-clause').value,measurement_code=el('followup-period').value;
+  return followupRecords.find(x=>x.action_id===actionId&&x.measurement_code===measurement_code);
+ }
+ function renderFollowup(){
+  const record=selectedFollowup();
+  el('followup-status').value=record?.status||'pending';
+  el('followup-percent').value=record?.progress_percent??0;
+  el('followup-evidence').value=(record?.evidence_refs||[]).join(', ');
+  el('followup-note').value=record?.professional_note||'';
+  el('followup-adjustment').value=record?.adjustment_note||'';
+  el('followup-state').textContent=record?
+   'Registro guardado: revisión '+record.revision+'. No constituye aprobación.':
+   'Todavía no existe un avance guardado para esta acción y período.';
+ }
+ async function loadFollowups(){
+  const r=await fetch(API+'/api/community-surveys/pgce-followup?school_year=2027',
+   {credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'});
+  const data=await r.json();
+  if(!r.ok||!data.ok)throw Error('No se pudo recuperar el seguimiento de las acciones.');
+  followupRecords=data.records||[];
+  renderFollowup();
+ }
+ function renderQueue(queue){
+  const node=el('review-queue');node.replaceChildren();
+  if(!queue.length){const p=document.createElement('p');p.textContent='Sin agregados suficientes para proponer temas de revisión.';node.append(p);return;}
+  for(const x of queue){
+   const row=document.createElement('div');row.className='review-row';
+   const title=document.createElement('strong');title.textContent=x.dimension_label;
+   const source=document.createElement('p');source.className='muted';
+   source.textContent='Fuentes agrupadas: '+x.source_groups.map(v=>texts[v]||v).join(', ')+'. Revisión profesional pendiente.';
+   row.append(title,source);node.append(row);
+  }
+ }
+ function renderFindings(){
+  const wrap=el('findings-list');wrap.replaceChildren();
+  if(!currentDraft)return;
+  for(const item of currentDraft.findings){
+   const row=document.createElement('div');row.className='review-row';
+   const title=document.createElement('strong');title.textContent=item.id+' · '+item.dimension_id;
+   const need=field('need-'+item.id,'Necesidad institucional',item.need,'textarea');
+   need.input.maxLength=1200;
+   need.input.oninput=()=>{item.need=need.input.value};
+   const evidence=field('evidence-'+item.id,'Referencias documentales (separadas por coma)',(item.evidence_refs||[]).join(', '));
+   evidence.input.oninput=()=>{item.evidence_refs=evidence.input.value.split(',').map(x=>x.trim()).filter(Boolean)};
+   const remove=document.createElement('button');remove.type='button';remove.className='muted-action';remove.textContent='Quitar hallazgo';
+   remove.onclick=()=>{
+    currentDraft.findings=currentDraft.findings.filter(x=>x.id!==item.id);
+    for(const a of currentDraft.actions)a.finding_ids=(a.finding_ids||[]).filter(id=>id!==item.id);
+    renderFindings();renderActionEditor();
+   };
+   row.append(title,need.wrap,evidence.wrap,remove);wrap.append(row);
+  }
+ }
+ function actionLabel(a){return '16D-'+a.clause+' · '+(a.title?.trim()||'Acción por completar')+' · '+a.action_id}
+ function refreshActionChoices(keepId){
+  const selected=keepId||el('action-clause').value;
+  const actionSelect=el('action-clause'),followSelect=el('followup-clause');
+  const followOld=followSelect.value;
+  actionSelect.replaceChildren();followSelect.replaceChildren();
+  for(const a of currentDraft.actions){
+   for(const select of [actionSelect,followSelect]){
+    const option=document.createElement('option');
+    option.value=a.action_id;option.textContent=actionLabel(a);select.append(option);
+   }
+  }
+  if(currentDraft.actions.some(a=>a.action_id===selected))actionSelect.value=selected;
+  if(currentDraft.actions.some(a=>a.action_id===followOld))followSelect.value=followOld;
+  actionSelect.onchange=renderActionEditor;
+  followSelect.onchange=renderFollowup;
+ }
+ function renderActionEditor(){
+  const wrap=el('action-fields');wrap.replaceChildren();
+  if(!currentDraft)return;
+  const actionId=el('action-clause').value;
+  const action=currentDraft.actions.find(x=>x.action_id===actionId);
+  if(!action)return;
+  for(const [key,title] of actionFieldLabels){
+   const value=key==='target_courses'?(action.target_courses||[]).join(', '):action[key]||'';
+   const type=key==='start_date'||key==='end_date'?'date':
+    ['objective','strategy','indicator','baseline','target','resources','expected_evidence','evaluation_method'].includes(key)?'textarea':'text';
+   const {wrap:box,input}=field('edit-'+key,title,value,type);
+   input.oninput=()=>{
+    if(key==='target_courses')action.target_courses=input.value.split(',').map(x=>x.trim()).filter(Boolean);
+    else action[key]=input.value;
+    if(key==='title'){
+     const id=action.action_id;
+     for(const select of [el('action-clause'),el('followup-clause')]){
+      const option=[...select.options].find(o=>o.value===id);
+      if(option)option.textContent=actionLabel(action);
+     }
+    }
+   };
+   wrap.append(box);
+  }
+  const select=el('action-finding');select.replaceChildren();
+  const empty=document.createElement('option');empty.value='';empty.textContent='Seleccionar hallazgo revisado';select.append(empty);
+  for(const h of currentDraft.findings){
+   const option=document.createElement('option');option.value=h.id;option.textContent=h.id+' · '+h.dimension_id;select.append(option);
+  }
+  select.value=action.finding_ids?.[0]||'';
+  select.onchange=()=>{action.finding_ids=select.value?[select.value]:[]};
+ }
  const humanStatus=s=>({
   insufficient_group_size:'Sin información suficiente',
   insufficient_item_responses:'Preguntas sin muestra suficiente',
@@ -77,7 +380,7 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    el('sources').appendChild(box);
   }
   const pending=report.student_levels_pending||[];
-  el('pending').textContent='Estudiantes: integración pendiente ('+pending.length+' niveles previstos, desde NT1 y NT2 hasta IV medio). Faltan además actas, observación, registros institucionales y participación del Consejo Escolar.';
+  el('pending').textContent='Medición '+(report.student_measurement_code||'sin seleccionar')+': '+(report.student_levels_present||[]).length+' niveles con información agregada suficiente; '+pending.length+' niveles pendientes. NT1 y NT2 aún sin medición operativa. Faltan actas, observación, registros institucionales y participación del Consejo Escolar.';
   const wrap=el('dimensions');wrap.replaceChildren();
   for(const d of report.dimensions){
    const card=document.createElement('article');card.className='dim';
@@ -103,19 +406,272 @@ footer{text-align:center;color:#657986;font-size:12px;padding-top:20px}
    }
    tbody.appendChild(tr);
   }
+  currentDraft=plan.draft;savedRevision=plan.saved_revision||0;
+  renderQueue(report.review_queue||[]);
+  const findingSelect=el('finding-dimension');findingSelect.replaceChildren();
+  for(const d of report.dimensions){
+   const option=document.createElement('option');option.value=d.id;option.textContent=d.label;findingSelect.append(option);
+  }
+  renderFindings();
+  const newClauseSelect=el('new-action-clause');newClauseSelect.replaceChildren();
+  for(const section of plan.sections){
+   const option=document.createElement('option');
+   option.value=section.clause.replace('16D-','');option.textContent=section.title;newClauseSelect.append(option);
+  }
+  refreshActionChoices();
+  renderActionEditor();
+  institutionEditor();
+  el('followup-period').onchange=renderFollowup;
+  followupRecords=[];renderFollowup();
+  el('save-status').textContent=savedRevision?'Borrador recuperado, revisión '+savedRevision+'.':'Sin borrador guardado todavía.';
   el('plan-warning').textContent='Estado del borrador: '+plan.preflight.status
    +'. Componentes pendientes: '+plan.preflight.missing.length
    +'. El establecimiento debe documentar participación, revisión del Consejo Escolar, metas, calendario, evidencia, seguimiento y acto de aprobación de Dirección.';
   el('body').hidden=false;
  }
+ async function refreshPilotChecklist(){
+  const res=await fetch(API+'/api/community-surveys/pgce-pilot-checklist?school_year=2027',{
+   credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
+  });
+  const d=await res.json();
+  if(!res.ok||!d.ok||!Array.isArray(d.checks))
+   throw Error('No se pudo consultar la lista del piloto.');
+  const list=el('pilot-checks');list.replaceChildren();
+  for(const check of d.checks){
+   const item=document.createElement('li');
+   const mark=document.createElement('span');
+   mark.className='pilot-dot'+(check.complete?' done':'');
+   mark.textContent=check.complete?'✓':'○';
+   mark.setAttribute('aria-hidden','true');
+   const content=document.createElement('span');
+   content.textContent=(check.complete?'Registrado: ':'Pendiente: ')+check.label;
+   item.append(mark,content);list.append(item);
+  }
+  el('pilot-summary').textContent=d.completed_checks+' de '+d.total_checks+
+   ' antecedentes registrados. Esta lista no habilita publicación ni certifica cumplimiento.';
+  return d;
+ }
+ el('refresh-pilot').onclick=async()=>{
+  try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
+ };
+ async function refreshGovernance(){
+  const r=await fetch(API+'/api/community-surveys/pgce-governance?school_year=2027',{
+   credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
+  });
+  const d=await r.json();
+  if(!r.ok||!d.ok)throw Error('No se pudieron consultar los antecedentes documentales.');
+  const names={council_review:'Consejo Escolar',direction_act:'Dirección'};
+  const summary=Object.entries(d.stages||{}).map(([key,value])=>
+   (names[key]||key)+': '+(value.current?
+    'referencia vigente '+(value.document_ref||''):
+    value.status==='document_reference_stale'?'referencia antigua; requiere nueva revisión':'sin registro documental'));
+  el('governance-list').textContent=summary.join(' · ');
+  el('governance-status').textContent=d.draft_revision?
+   'Versión actual del borrador: '+d.draft_revision+'. El registro no acredita aprobación legal.':
+   'Debes guardar primero el borrador institucional.';
+  return d;
+ }
+ el('save-governance').onclick=async()=>{
+  const button=el('save-governance');button.disabled=true;
+  try{
+   if(!el('governance-confirm').checked)throw Error('Revisa y confirma primero la existencia del documento.');
+   const state=await refreshGovernance();
+   if(!state.draft_revision)throw Error('Guarda el borrador antes de registrar el documento.');
+   const r=await fetch(API+'/api/community-surveys/pgce-governance?school_year=2027',{
+    method:'PUT',credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({expected_revision:state.draft_revision,record:{
+     stage:el('governance-stage').value,
+     document_ref:el('governance-ref').value.trim(),
+     document_date:el('governance-date').value,confirmation:true
+    }})
+   });
+   const d=await r.json();
+   if(r.status===409)throw Error('El borrador cambió o ya se registró un documento para esta versión.');
+   if(r.status===422)throw Error('No se puede registrar el acto de Dirección: falta la revisión del Consejo Escolar o completar el borrador.');
+   if(r.status===403)throw Error('Esta acción requiere un perfil institucional autorizado; la constancia de Dirección exige perfil directivo.');
+   if(!r.ok||!d.ok)throw Error('No se registró. Verifica la fecha y la referencia documental.');
+   el('governance-confirm').checked=false;
+   await refreshGovernance();
+   await refreshPilotChecklist();
+   el('governance-status').textContent='Referencia registrada para el borrador vigente; la autenticidad del documento no fue verificada por la plataforma.';
+  }catch(e){el('governance-status').textContent=e.message||'Error al registrar documento.'}
+  finally{button.disabled=false}
+ };
+ el('add-source').onclick=()=>{
+  if(!currentDraft)return;
+  currentDraft.diagnostic_sources??=[];
+  if(currentDraft.diagnostic_sources.length>=30)return;
+  currentDraft.diagnostic_sources.push({audience:'institutional_records',method:'',evidence_ref:''});
+  renderInstitutionRows('diagnostic_sources');
+ };
+ el('add-participation').onclick=()=>{
+  if(!currentDraft)return;
+  currentDraft.participation??=[];
+  if(currentDraft.participation.length>=30)return;
+  currentDraft.participation.push({audience:'estudiantes',summary:'',evidence_ref:'',date:''});
+  renderInstitutionRows('participation');
+ };
+ el('save-institution').onclick=()=>el('save-draft').click();
+ el('save-followup').onclick=async()=>{
+  if(!currentDraft)return;
+  const button=el('save-followup');button.disabled=true;
+  try{
+   const old=selectedFollowup();
+   const actionId=el('followup-clause').value;
+   const selectedAction=currentDraft.actions.find(x=>x.action_id===actionId);
+   if(!selectedAction)throw Error('Selecciona una acción existente.');
+   const input={
+    action_id:actionId,clause:selectedAction.clause,measurement_code:el('followup-period').value,
+    status:el('followup-status').value,progress_percent:Number(el('followup-percent').value),
+    evidence_refs:el('followup-evidence').value.split(',').map(x=>x.trim()).filter(Boolean),
+    professional_note:el('followup-note').value,
+    adjustment_note:el('followup-adjustment').value
+   };
+   if(el('followup-percent').value.trim()==='')throw Error('Indica un porcentaje válido.');
+   const r=await fetch(API+'/api/community-surveys/pgce-followup?school_year=2027',{
+    method:'PUT',credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({expected_revision:old?.revision||0,followup:input})
+   });
+   const data=await r.json();
+   if(r.status===409)throw Error('El registro cambió. Recarga para revisar antes de guardar.');
+   if(r.status===404)throw Error('Guarda primero el plan con una acción y su nombre.');
+   if(!r.ok||!data.ok)throw Error('No fue posible guardar. Verifica los datos y permisos.');
+   await loadFollowups();
+   try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
+   el('privacy-review-status').textContent='Seguimiento modificado. Debes renovar la revisión de privacidad.';
+   el('privacy-confirm').checked=false;
+   el('followup-state').textContent='Avance guardado, revisión '+data.revision+
+    '. Pendiente de evaluación y aprobación institucional.';
+  }catch(e){el('followup-state').textContent=e.message||'Error al guardar avance.'}
+  finally{button.disabled=false}
+ };
+ el('add-action').onclick=()=>{
+  if(!currentDraft)return;
+  if(currentDraft.actions.length>=70){
+   el('save-status').textContent='Se alcanzó el máximo de 70 acciones.';return;
+  }
+  const clause=el('new-action-clause').value;
+  if(!'abcdefg'.includes(clause))return;
+  const existing=currentDraft.actions
+   .filter(a=>a.clause===clause).map(a=>Number(a.action_id?.split('-')[2]||0));
+  const seq=Math.max(0,...existing)+1;
+  if(seq>99999)return;
+  const actionId='ACT-'+clause+'-'+String(seq).padStart(3,'0');
+  if(currentDraft.actions.some(a=>a.action_id===actionId))return;
+  currentDraft.actions.push({action_id:actionId,clause,title:'',objective:'',
+   strategy:'',responsible:'',indicator:'',baseline:'',target:'',place:'',
+   resources:'',expected_evidence:'',start_date:'',end_date:'',finding_ids:[]});
+  refreshActionChoices(actionId);
+  renderActionEditor();renderFollowup();
+  el('save-status').textContent='Acción '+actionId+' agregada. Completa sus campos y guarda el borrador.';
+ };
+ el('add-finding').onclick=()=>{
+  if(!currentDraft)return;
+  const dimension=el('finding-dimension').value;
+  const need=el('finding-need').value.trim(),evidence=el('finding-evidence').value.trim();
+  if(!need||!evidence){el('save-status').textContent='Describe una necesidad y registra su respaldo antes de agregarla.';return;}
+  if(currentDraft.findings.length>=40){el('save-status').textContent='Límite de hallazgos del borrador alcanzado.';return;}
+  const id='H-'+dimension+'-'+Date.now()+'-'+(currentDraft.findings.length+1);
+  currentDraft.findings.push({id,dimension_id:dimension,need,evidence_refs:[evidence]});
+  el('finding-need').value='';el('finding-evidence').value='';
+  renderFindings();renderActionEditor();
+  el('save-status').textContent='Hallazgo incorporado localmente. Guarda el borrador para conservarlo.';
+ };
+ el('save-draft').onclick=async()=>{
+  if(!currentDraft)return;
+  const button=el('save-draft');button.disabled=true;
+  el('save-status').textContent='Guardando borrador institucional…';
+  try{
+   const r=await fetch(API+'/api/community-surveys/pgce-draft?school_year=2027',{
+    method:'PUT',credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({expected_revision:savedRevision,draft:currentDraft})
+   });
+   const data=await r.json();
+   if(r.status===409)throw Error('Otro profesional guardó cambios. Recarga el borrador para revisar la versión actual.');
+   if(!r.ok||!data.ok)throw Error('No se guardó. Verifica permisos, referencias y que no existan datos personales.');
+   savedRevision=data.saved_revision;
+   try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
+   el('governance-status').textContent='Borrador modificado. Las referencias institucionales anteriores deberán volver a revisarse.';
+   el('governance-confirm').checked=false;
+   el('privacy-review-status').textContent='Borrador modificado. Revisa nuevamente la privacidad del contenido guardado.';
+   el('privacy-confirm').checked=false;
+   el('save-status').textContent='Borrador guardado: revisión '+savedRevision+
+    '. Pendientes editoriales: '+data.preflight.missing.length+'. No está aprobado.';
+  }catch(err){el('save-status').textContent=err.message||'Error al guardar borrador.'}
+  finally{button.disabled=false}
+ };
+ async function refreshPrivacyReview(){
+  const r=await fetch(API+'/api/community-surveys/pgce-export-review?school_year=2027',{
+   credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
+  });
+  const data=await r.json();
+  if(!r.ok||!data.ok)throw Error('No se pudo consultar la revisión de privacidad.');
+  el('privacy-review-status').textContent=data.can_export?
+   'Revisión de privacidad vigente para el borrador y seguimiento guardados. No equivale a aprobación institucional.':
+   'El borrador o su seguimiento requieren revisión de privacidad antes de exportar.';
+  return data;
+ }
+ el('review-export').onclick=async()=>{
+  const button=el('review-export');button.disabled=true;
+  try{
+   if(!el('privacy-confirm').checked)throw Error('Marca la confirmación solo después de revisar todo el contenido guardado.');
+   const state=await refreshPrivacyReview();
+   if(state.status==='save_draft_first')throw Error('Primero debes guardar el borrador institucional.');
+   const r=await fetch(API+'/api/community-surveys/pgce-export-review?school_year=2027',{
+    method:'PUT',credentials:'include',cache:'no-store',referrerPolicy:'no-referrer',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({confirmation:true,draft_revision:state.draft_revision,
+     followup_fingerprint:state.followup_fingerprint})
+   });
+   const data=await r.json();
+   if(r.status===409)throw Error('El borrador o seguimiento cambió. Recarga y revisa su versión actual.');
+   if(!r.ok||!data.ok)throw Error('La revisión no pudo registrarse. Comprueba tu sesión y permisos.');
+   el('privacy-confirm').checked=false;
+   try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
+   el('privacy-review-status').textContent='Revisión registrada. Puedes descargar el contenido guardado hasta su próxima modificación.';
+  }catch(err){el('privacy-review-status').textContent=err.message||'Error en la revisión'}
+  finally{button.disabled=false}
+ };
+ el('download-csv').onclick=async()=>{
+  const button=el('download-csv');button.disabled=true;
+  el('download-status').textContent='Generando reporte desde los registros guardados…';
+  try{
+   const period=el('measurement').value;
+   if(!['M1','M2','M3'].includes(period))throw Error('Medición inválida.');
+   const r=await fetch(API+'/api/community-surveys/pgce-export?school_year=2027&measurement_code='+encodeURIComponent(period),{
+    credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'
+   });
+   if(r.status===409)throw Error('Debes registrar una revisión vigente de privacidad sobre el contenido guardado antes de descargar.');
+   if(!r.ok)throw Error('No fue posible preparar el reporte. Revisa la sesión y los permisos.');
+   const contentType=r.headers.get('content-type')||'';
+   if(!contentType.includes('text/csv'))throw Error('El servidor no devolvió un archivo CSV.');
+   const file=await r.blob();
+   const objectUrl=URL.createObjectURL(file);
+   const link=document.createElement('a');
+   link.href=objectUrl;link.download='convivencia-pgce-2027-'+period+'-borrador.csv';
+   document.body.append(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(objectUrl),5000);
+   el('download-status').textContent='Reporte preliminar generado. Los cambios no guardados no se incluyen.';
+  }catch(e){el('download-status').textContent=e.message||'No se pudo descargar el reporte.'}
+  finally{button.disabled=false}
+ };
  el('load').onclick=async()=>{
   const btn=el('load');btn.disabled=true;el('status').textContent='Consultando información autorizada…';
   try{
-   const r=await fetch(API+'/api/community-surveys/pgce-scaffold?school_year=2027',
+   const period=el('measurement').value;
+   if(!['M1','M2','M3'].includes(period))throw Error('Medición inválida.');
+   const r=await fetch(API+'/api/community-surveys/pgce-scaffold?school_year=2027&measurement_code='+encodeURIComponent(period),
     {credentials:'include',cache:'no-store',referrerPolicy:'no-referrer'});
    const d=await r.json();
    if(!r.ok||!d.ok||!d.dimensions||!d.plan)throw Error('Debes ingresar con un perfil autorizado; el módulo aún podría no estar habilitado.');
    draw(d);el('status').textContent='';
+   try{await loadFollowups()}catch(e){el('followup-state').textContent=e.message}
+   try{await refreshPrivacyReview()}catch(e){el('privacy-review-status').textContent=e.message}
+   try{await refreshGovernance()}catch(e){el('governance-status').textContent=e.message}
+   try{await refreshPilotChecklist()}catch(e){el('pilot-summary').textContent=e.message}
   }catch(e){el('body').hidden=true;el('status').textContent=e.message||'No fue posible cargar el informe.'}
   finally{btn.disabled=false}
  };

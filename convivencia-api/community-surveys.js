@@ -5,20 +5,37 @@
 const crypto=require('node:crypto');
 const C=require('./community-surveys-core.cjs');
 const PGCE=require('./pgce-dimensions-integrated-2027.cjs');
+const studentDimensions=require('./student-dimensions-adapter-2027.cjs');
+const pgceDrafts=require('./pgce-planning-drafts-2027.cjs');
+const pgceFollowup=require('./pgce-follow-up-2027.cjs');
+const {buildPgceExportCsv}=require('./pgce-export-2027.cjs');
+const exportReview=require('./pgce-export-review-2027.cjs');
+const governance=require('./pgce-governance-2027.cjs');
+const pilotReadiness=require('./pgce-pilot-readiness-2027.cjs');
+const {createCohortGate}=require('./pgce-cohort-gate-2027.cjs');
+const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
 const goodCode=v=>/^[a-zA-Z0-9_-]{32}$/.test(v);
 const goodPin=v=>/^\d{8}$/.test(v);
 function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,allowedOrigins}){
  if(process.env.MEC_COMMUNITY_SURVEYS_ENABLED!=='1')return false;
- const admin=requireRole('coordinador_convivencia','dupla_psicosocial','director','directora');
+ const cohortGate=createCohortGate(process.env);
+ // Como el flag es global, limitar el piloto en Render al establecimiento
+ // explícitamente autorizado. No sustituye sesión, rol ni suscripción.
+ const cohortScope=(req,res,next)=>cohortGate.permits(req.auth?.establishment_id)
+  ?next():sendError(res,403,'pgce_pilot_cohort_forbidden');
+ const admin=[...requireRole('coordinador_convivencia','dupla_psicosocial','director','directora'),cohortScope];
  const publicRate=rateLimit({windowMs:60000,max:8});
  const adminRate=rateLimit({windowMs:60000,max:25});
- const active=async inv=>!accessStatus||await accessStatus(inv.establishment_id);
+ const active=async inv=>cohortGate.permits(inv.establishment_id)&&
+  (!accessStatus||await accessStatus(inv.establishment_id));
  // Evitar cambios desde sitios ajenos mediante cookies de sesión del profesional.
  const trustedOrigin=(req,res,next)=>{
   const origin=String(req.headers.origin||'');
-  if(origin && !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
+  // Las rutas de escritura con sesión requieren siempre un Origin explícito.
+  // Un Origin ausente también se rechaza: evita aceptar solicitudes ambiguas.
+  if(!origin || !(allowedOrigins instanceof Set && allowedOrigins.has(origin)))
    return sendError(res,403,'origin_forbidden');
   next();
  };
@@ -169,24 +186,197 @@ function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,a
  // Nunca aceptar filas, recuentos o resultados estudiantiles desde parámetros del cliente.
  async function getInstitutionDimensionReport(req){
    const establishmentId=C.safePositiveInt(req.auth.establishment_id);
-   if(!establishmentId||Number(req.query.school_year)!==2027)throw Error('invalid_year');
-   const rows=await pool.query(
-    'select audience,answers from community_survey_submissions where establishment_id=$1 and school_year=2027 and bank_version=$2',
-    [establishmentId,C.bank.version]);
-   return PGCE.buildDimensionReport(rows.rows,[]);
+   const measurementCode=String(req.query.measurement_code||'');
+   if(!establishmentId||Number(req.query.school_year)!==2027||
+      !studentDimensions.PERIODS.includes(measurementCode))throw Error('invalid_reporting_window');
+   // No unimos M1/M2/M3 ni escalas de distintos niveles.
+   const [adults,students]=await Promise.all([
+    pool.query('select audience,answers from community_survey_submissions where establishment_id=$1 and school_year=2027 and bank_version=$2',
+      [establishmentId,C.bank.version]),
+    studentDimensions.loadStudentDimensionAggregates(pool,{
+     establishmentId,schoolYear:2027,measurementCode})
+   ]);
+   const report=PGCE.buildDimensionReport(adults.rows,students);
+   report.student_measurement_code=measurementCode;
+   report.student_interpretation='Proporción de respuestas favorables por nivel y área temática, no puntaje DIA/SIMCE. Los niveles usan escalas distintas. Prohibido promediar o comparar entre niveles; NT1/NT2 pendientes.';
+   return report;
  }
  app.get('/api/community-surveys/dimensions',...admin,noStore,async(req,res)=>{
-  if(Number(req.query.school_year)!==2027)return sendError(res,400,'invalid_year');
+  if(Number(req.query.school_year)!==2027||!studentDimensions.PERIODS.includes(String(req.query.measurement_code||'')))return sendError(res,400,'invalid_reporting_window');
   try{return res.json({ok:true,report:await getInstitutionDimensionReport(req)})}
   catch(e){return sendError(res,503,'dimensions_unavailable')}
  });
  app.get('/api/community-surveys/pgce-scaffold',...admin,noStore,async(req,res)=>{
-  if(Number(req.query.school_year)!==2027)return sendError(res,400,'invalid_year');
+  if(Number(req.query.school_year)!==2027||!studentDimensions.PERIODS.includes(String(req.query.measurement_code||'')))return sendError(res,400,'invalid_reporting_window');
   try{
    const report=await getInstitutionDimensionReport(req);
-   return res.json({ok:true,dimensions:report,
-    plan:PGCE.buildPgceScaffold(report)});
+   const plan=PGCE.buildPgceScaffold(report);
+   const saved=await pgceDrafts.loadPgceDraft(pool,C.safePositiveInt(req.auth.establishment_id));
+   if(saved){
+    plan.draft=saved.draft;
+    plan.preflight=inspectPgceDraft(saved.draft);
+    plan.saved_revision=saved.revision;
+    plan.saved_at=saved.updated_at;
+   }else{plan.saved_revision=0;plan.saved_at=null}
+   // Aun si el editor está completo, esta ruta no aprueba planes.
+   return res.json({ok:true,dimensions:report,plan});
   }catch(e){return sendError(res,503,'pgce_scaffold_unavailable')}
+ });
+ // La revisión de privacidad se limita a un borrador guardado y sus revisiones.
+ // No equivale a aprobación institucional del Plan.
+ app.get('/api/community-surveys/pgce-export-review',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_export_scope');
+  try{return res.json({ok:true,...await exportReview.reviewStatus(pool,est),
+    institutional_approval:false})}
+  catch(e){return sendError(res,503,'pgce_export_review_unavailable')}
+ });
+ app.put('/api/community-surveys/pgce-export-review',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const actor=C.safePositiveInt(req.auth.id);
+  if(!est||!actor||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_export_scope');
+  try{
+   const result=await exportReview.recordReview(pool,{
+    establishmentId:est,actorId:actor,confirmation:req.body?.confirmation,
+    draftRevision:req.body?.draft_revision,
+    followupFingerprint:req.body?.followup_fingerprint
+   });
+   if(result.conflict)return sendError(res,409,'pgce_export_review_stale');
+   return res.json({ok:true,...result,institutional_approval:false});
+  }catch(e){
+   if(e.message==='invalid_export_review')return sendError(res,400,'invalid_export_review');
+   if(e.message==='invalid_export_reviewer')return sendError(res,403,'export_reviewer_forbidden');
+   return sendError(res,503,'pgce_export_review_unavailable');
+  }
+ });
+ // Exportación bajo sesión institucional. Solo bandas agregadas por dimensión
+ // y contenidos que el profesional guardó en el borrador anual.
+ app.get('/api/community-surveys/pgce-export',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const measurementCode=String(req.query.measurement_code||'');
+  if(!est||Number(req.query.school_year)!==2027||
+   !studentDimensions.PERIODS.includes(measurementCode))
+   return sendError(res,400,'invalid_export_scope');
+  try{
+   const review=await exportReview.reviewStatus(pool,est);
+   if(!review.can_export)return sendError(res,409,'pgce_export_review_required');
+   const report=await getInstitutionDimensionReport(req);
+   const saved=await pgceDrafts.loadPgceDraft(pool,est);
+   if(!saved||saved.revision!==review.draft_revision)
+    return sendError(res,409,'pgce_export_review_stale');
+   const draft=saved.draft;
+   const preflight=inspectPgceDraft(draft);
+   const followups=await pgceFollowup.listFollowups(pool,est);
+   const fresh=await exportReview.reviewStatus(pool,est);
+   if(!fresh.can_export||fresh.draft_revision!==review.draft_revision||
+    fresh.followup_fingerprint!==review.followup_fingerprint)
+    return sendError(res,409,'pgce_export_review_stale');
+   const csv=buildPgceExportCsv({report,draft,followups,preflight,measurementCode});
+   await exportReview.recordDownload(pool,{
+    establishmentId:est,actorId:C.safePositiveInt(req.auth.id),snapshot:review
+   });
+   res.setHeader('Content-Type','text/csv; charset=utf-8');
+   res.setHeader('Content-Disposition',
+    'attachment; filename="convivencia-pgce-2027-'+measurementCode+'-borrador.csv"');
+   res.setHeader('X-Content-Type-Options','nosniff');
+   return res.status(200).send(csv);
+  }catch(e){return sendError(res,503,'pgce_export_unavailable')}
+ });
+ // Lista administrativa de pilotaje, derivada únicamente de registros
+ // del establecimiento de la sesión; nunca habilita producción.
+ app.get('/api/community-surveys/pgce-pilot-checklist',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_pilot_scope');
+  try{
+   const state=await pilotReadiness.assessPilotReadiness(pool,est);
+   return res.json({ok:true,...state});
+  }catch(e){return sendError(res,503,'pgce_pilot_checklist_unavailable')}
+ });
+ // Evidencias documentales por personal de la misma institución.
+ // No se confunden con privacidad ni son aprobación automática del Plan.
+ app.get('/api/community-surveys/pgce-governance',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_governance_scope');
+  try{return res.json({ok:true,...await governance.governanceStatus(pool,est)})}
+  catch(e){return sendError(res,503,'pgce_governance_unavailable')}
+ });
+ app.put('/api/community-surveys/pgce-governance',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const actor=C.safePositiveInt(req.auth.id);
+  if(!est||!actor||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_governance_scope');
+  try{
+   const out=await governance.recordGovernance(pool,{
+    establishmentId:est,actorId:actor,expectedRevision:req.body?.expected_revision,
+    input:req.body?.record
+   });
+   if(out.conflict)return sendError(res,409,'pgce_governance_stale_or_duplicate');
+   if(out.notReady)return res.status(422).json({ok:false,error:'pgce_governance_not_ready',
+    missing:out.missing,council_recorded:out.council_recorded});
+   return res.json({ok:true,...out,can_certify_compliance:false});
+  }catch(e){
+   if(e.message==='invalid_pgce_governance')
+    return sendError(res,400,'invalid_pgce_governance');
+   if(e.message==='pgce_governance_forbidden')
+    return sendError(res,403,'pgce_governance_forbidden');
+   return sendError(res,503,'pgce_governance_unavailable');
+  }
+ });
+ // Edición profesional del único borrador anual por establecimiento.
+ // Sin aceptar establecimiento, RUN o respuestas individuales desde el navegador.
+ app.put('/api/community-surveys/pgce-draft',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const actor=C.safePositiveInt(req.auth.id);
+  if(!est||!actor||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_pgce_scope');
+  try{
+   const saved=await pgceDrafts.savePgceDraft(pool,{
+    establishmentId:est,actorId:actor,
+    expectedRevision:req.body?.expected_revision,draft:req.body?.draft
+   });
+   if(saved.conflict)return sendError(res,409,'pgce_draft_revision_conflict');
+   return res.json({ok:true,saved_revision:saved.revision,saved_at:saved.updated_at,
+    preflight:saved.preflight,can_publish:false,can_certify_compliance:false});
+  }catch(e){
+   if(e.message==='invalid_pgce_draft')return sendError(res,400,'invalid_pgce_draft');
+   if(e.message==='invalid_pgce_action_identity')return sendError(res,409,'pgce_action_identity_changed');
+   if(e.message==='invalid_pgce_actor')return sendError(res,403,'pgce_actor_forbidden');
+   return sendError(res,503,'pgce_draft_unavailable');
+  }
+ });
+ // Seguimiento manual: resultados históricos por acción y período, sin mezclar
+ // automáticamente encuestas M1, M2 y M3 ni publicar datos individuales.
+ app.get('/api/community-surveys/pgce-followup',...admin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  if(!est||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_pgce_scope');
+  try{
+   const records=await pgceFollowup.listFollowups(pool,est);
+   return res.json({ok:true,school_year:2027,records,can_approve_pgce:false});
+  }catch(e){return sendError(res,503,'pgce_followup_unavailable')}
+ });
+ app.put('/api/community-surveys/pgce-followup',...admin,adminRate,trustedOrigin,noStore,async(req,res)=>{
+  const est=C.safePositiveInt(req.auth.establishment_id);
+  const actor=C.safePositiveInt(req.auth.id);
+  if(!est||!actor||Number(req.query.school_year)!==2027)
+   return sendError(res,400,'invalid_pgce_scope');
+  try{
+   const saved=await pgceFollowup.saveFollowup(pool,{
+    establishmentId:est,actorId:actor,
+    expectedRevision:req.body?.expected_revision,input:req.body?.followup
+   });
+   if(saved.notFound)return sendError(res,404,'pgce_action_not_planned');
+   if(saved.conflict)return sendError(res,409,'pgce_followup_revision_conflict');
+   return res.json({ok:true,...saved});
+  }catch(e){
+   if(e.message==='invalid_pgce_followup')return sendError(res,400,'invalid_pgce_followup');
+   if(e.message==='invalid_pgce_actor')return sendError(res,403,'pgce_actor_forbidden');
+   return sendError(res,503,'pgce_followup_unavailable');
+  }
  });
  return true;
 }

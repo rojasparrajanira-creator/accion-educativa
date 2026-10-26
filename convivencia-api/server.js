@@ -69,7 +69,7 @@ app.use((req,res,next)=>{
     res.setHeader('Vary','Origin');
     res.setHeader('Access-Control-Allow-Credentials','true');
     res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Student-Access, X-Community-Access');
-    res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,OPTIONS');
   }
   if(req.method==='OPTIONS'){
     if(origin&&!allowedOrigins.has(origin))return res.sendStatus(403);

@@ -43,9 +43,9 @@
 6. **Activación limitada de la funcionalidad:** solo tras comprobar aislamiento, acceso y facturación real; configurar `MEC_COMMUNITY_SURVEYS_ENABLED` y verificar migración/reversión con responsables en línea.
 7. **Apertura por cohortes:** habilitar usuarios de prueba y posteriormente planes comerciales, monitoreando logs y métricas, con criterios explícitos de desactivación.
 
-**Atención:** el cambio a `MEC_COMMUNITY_SURVEYS_ENABLED=1` no puede usarse como segmentación por establecimiento porque es global: antes de activar hay que comprobar que el control de suscripción y permisos limite de verdad la cohorte. El simple estado `draft` de un PR no garantiza impedir fusiones por otros colaboradores; aplicar protecciones de rama y revisiones en GitHub.
+**Atención:** `MEC_COMMUNITY_SURVEYS_ENABLED=1` es un flag global de registro de rutas y migración, no de autorización individual. Se incorporó una segunda barrera `MEC_PGCE_PILOT_ESTABLISHMENT_IDS`, que se evalúa por establecimiento autenticado y también para sesiones de participantes. **En Render/producción, si la lista está vacía, todos los establecimientos son denegados**, aunque se active el módulo. Para el piloto se deben consignar únicamente los IDs internos expresamente autorizados, separados por coma, y verificar acceso/no acceso con usuarios reales del ambiente de pruebas. No establecer el flag ni la lista en LIVE hasta completar la auditoría y contar con consentimiento explícito. El estado `draft` de un PR no impide fusiones por terceros; aplicar protecciones de rama y revisiones en GitHub.
 
-## Comp puerta de revisión automatizada (no autorización)
+## Compuerta de revisión automatizada (no autorización)
 
 `node pgce-release-gate-2027.cjs` muestra pendientes y sale con error por defecto. Aunque se declaren aprobadas todas las comprobaciones, ese script **no certifica identidades, firmas ni autoriza la publicación**. Se requiere documentación real, decisión humana y autorización específica.
 

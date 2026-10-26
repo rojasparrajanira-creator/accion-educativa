@@ -44,11 +44,15 @@ async function run(){
   allow=true;
   await page.goto(origin+'/inicio.html?establishment_id=1',{waitUntil:'networkidle'});
   await card.waitFor({state:'visible'});
-  await nav.waitFor({state:'visible'});
   await surveysCard.waitFor({state:'visible'});
-  await surveysNav.waitFor({state:'visible'});
+  // En 390px el aside queda oculto por diseño, aunque los permisos sean correctos.
+  // Se verifica que el atributo hidden sea retirado; la navegación móvil usa las tarjetas.
+  await assert.equal(await nav.getAttribute('hidden'),null);
+  await assert.equal(await surveysNav.getAttribute('hidden'),null);
+  assert.equal(await nav.isVisible(),false);
+  assert.equal(await surveysNav.isVisible(),false);
   assert.equal(await card.getAttribute('hidden'),null);
-  assert.equal(await nav.getAttribute('hidden'),null);
+  assert.equal(await surveysCard.getAttribute('hidden'),null);
   assert.ok(requests>=2);
   assert.equal(outside,0);
   await ctx.close();

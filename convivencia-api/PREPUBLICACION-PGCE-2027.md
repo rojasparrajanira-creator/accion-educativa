@@ -10,7 +10,7 @@
 - 49 pruebas de API/kit y Playwright en tres motores completadas en la ejecución [40204761281](https://github.com/rojasparrajanira-creator/accion-educativa/actions/runs/40204761281) (commit `5b6b86a41c3a9c48e479f6a79bbbe18127155c61`).
 - Los módulos de encuestas de adultos, agregados estudiantiles, diagnóstico, borrador PGCE, seguimiento, gobierno, privacidad y exportación existen en ramas de desarrollo.
 - La ruta administrativa del módulo depende de `MEC_COMMUNITY_SURVEYS_ENABLED=1`. El esquema `community-surveys.sql` se aplica en el inicio **solo** cuando está activa. Habilitar la bandera en Render LIVE sin precauciones implica migración en base real.
-- La página `convivencia-escolar/diagnostico-dimensiones-pgce-2027.html` no existe en la rama de producción y no está integrada al acceso habitual de clientes.
+- La página `convivencia-escolar/diagnostico-dimensiones-pgce-2027.html` aún no existe en LIVE. En el candidato ya está vinculada desde `convivencia-escolar/inicio.html`, junto con `gestionar-encuestas-estamentos-2027.html`, con enlaces **ocultos por defecto** y visibles solo tras confirmación de la API (sesión, rol, suscripción y cohorte).
 - No existe aceptación humana real de los 20 casos de la pauta (`0/20` documentados). NT1 y NT2 no tienen evaluación operativa validada.
 
 ## Diferencias entre desarrollo y producción

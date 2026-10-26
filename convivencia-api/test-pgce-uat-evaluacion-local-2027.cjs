@@ -97,6 +97,10 @@ test('UAT impide exportar referencias personales evidentes y fechas imposibles',
   assert.throws(()=>validateReview({...base,results:[mutation,...template.slice(1)]}),
    /uat_resultados_invalidos/);
  }
+ const sensitiveEvidence={...template[0],estado:'Pasa',fecha:'2027-04-01',
+  evidencia:'12345678-9'};
+ assert.throws(()=>validateReview({...base,results:[sensitiveEvidence,...template.slice(1)]}),
+  /uat_resultados_invalidos/);
  const impossible={...template[0],estado:'Falla',fecha:'2027-02-30',
   evidencia:'INC-SINT-02'};
  assert.throws(()=>validateReview({...base,results:[impossible,...template.slice(1)]}),

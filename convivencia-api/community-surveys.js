@@ -12,6 +12,7 @@ const {buildPgceExportCsv}=require('./pgce-export-2027.cjs');
 const exportReview=require('./pgce-export-review-2027.cjs');
 const governance=require('./pgce-governance-2027.cjs');
 const pilotReadiness=require('./pgce-pilot-readiness-2027.cjs');
+const {createCohortGate}=require('./pgce-cohort-gate-2027.cjs');
 const {inspectPgceDraft}=require('./pgce-preflight-2027.cjs');
 const sendError=(res,status,error)=>res.status(status).json({ok:false,error});
 const noStore=(req,res,next)=>{res.setHeader('Cache-Control','no-store');res.setHeader('Pragma','no-cache');next()};
@@ -19,10 +20,16 @@ const goodCode=v=>/^[a-zA-Z0-9_-]{32}$/.test(v);
 const goodPin=v=>/^\d{8}$/.test(v);
 function registerCommunitySurveys({app,pool,requireRole,rateLimit,accessStatus,allowedOrigins}){
  if(process.env.MEC_COMMUNITY_SURVEYS_ENABLED!=='1')return false;
- const admin=requireRole('coordinador_convivencia','dupla_psicosocial','director','directora');
+ const cohortGate=createCohortGate(process.env);
+ // Como el flag es global, limitar el piloto en Render al establecimiento
+ // explícitamente autorizado. No sustituye sesión, rol ni suscripción.
+ const cohortScope=(req,res,next)=>cohortGate.permits(req.auth?.establishment_id)
+  ?next():sendError(res,403,'pgce_pilot_cohort_forbidden');
+ const admin=[...requireRole('coordinador_convivencia','dupla_psicosocial','director','directora'),cohortScope];
  const publicRate=rateLimit({windowMs:60000,max:8});
  const adminRate=rateLimit({windowMs:60000,max:25});
- const active=async inv=>!accessStatus||await accessStatus(inv.establishment_id);
+ const active=async inv=>cohortGate.permits(inv.establishment_id)&&
+  (!accessStatus||await accessStatus(inv.establishment_id));
  // Evitar cambios desde sitios ajenos mediante cookies de sesión del profesional.
  const trustedOrigin=(req,res,next)=>{
   const origin=String(req.headers.origin||'');

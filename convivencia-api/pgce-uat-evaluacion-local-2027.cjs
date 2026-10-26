@@ -11,12 +11,12 @@ const EVIDENCE_RE=/^[A-Za-z0-9_.\/-]{0,80}$/;
 // comprobación del archivo importado. No detectan todos los datos personales.
 function containsSensitiveText(text){
  if(typeof text!=='string')return false;
- return /(?:^|[^0-9])\\d{1,2}\\.?\\d{3}\\.?\\d{3}-[\\dkK](?![a-z0-9])/i.test(text)
-  || /\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b/i.test(text)
-  || /(?:^|\\D)(?:\\+?56[\\s.-]*)?9[\\s.-]?\\d{4}[\\s.-]?\\d{4}(?!\\d)/.test(text);
+ return /(?:^|[^0-9])\d{1,2}\.?\d{3}\.?\d{3}-[\dkK](?![a-z0-9])/i.test(text)
+  || /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)
+  || /(?:^|\D)(?:\+?56[\s.-]*)?9[\s.-]?\d{4}[\s.-]?\d{4}(?!\d)/.test(text);
 }
 function validCalendarDate(value){
- if(typeof value!=='string'||!/^20\\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])$/.test(value))return false;
+ if(typeof value!=='string'||!/^20\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/.test(value))return false;
  const date=new Date(value+'T12:00:00Z');
  return !Number.isNaN(date.getTime())&&date.toISOString().slice(0,10)===value;
 }

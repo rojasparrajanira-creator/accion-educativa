@@ -35,7 +35,7 @@ function validateReview(doc){
   const item=doc.results[i];
   if(!item||typeof item!=='object'||Array.isArray(item)||
     item.id!==cases[i].id||!STATUSES.has(item.estado)||
-    typeof item.evidencia!=='string'||!EVIDENCE_RE.test(item.evidencia)||
+    typeof item.evidencia!=='string'||!EVIDENCE_RE.test(item.evidencia)||containsSensitiveText(item.evidencia)||
     typeof item.observacion!=='string'||item.observacion.length>360||
     containsSensitiveText(item.observacion)||
     typeof item.fecha!=='string'||(item.fecha!==''&&!validCalendarDate(item.fecha)))
@@ -224,7 +224,7 @@ function updateCounter(){
 function documentData(){
  const entries=CASES.map(c=>items[c.id]);
  for(const item of entries){
-  if(!/^[A-Za-z0-9_.\\/-]{0,80}$/.test(item.evidencia)||
+  if(!/^[A-Za-z0-9_.\\/-]{0,80}$/.test(item.evidencia)||containsSensitiveText(item.evidencia)||
     item.observacion.length>360||containsSensitiveText(item.observacion)){
    throw Error('Usa únicamente referencias ficticias sin espacios ni datos personales ('+item.id+').');
   }
@@ -269,7 +269,7 @@ document.getElementById('import-file').addEventListener('change',async ev=>{
    const v=raw.results[i];
    if(!v||v.id!==CASES[i].id||!['No probado','Pasa','Falla'].includes(v.estado)||
     typeof v.fecha!=='string'||(v.fecha!==''&&!validCalendarDate(v.fecha))||
-    typeof v.evidencia!=='string'||!/^[A-Za-z0-9_.\\/-]{0,80}$/.test(v.evidencia)||
+    typeof v.evidencia!=='string'||!/^[A-Za-z0-9_.\\/-]{0,80}$/.test(v.evidencia)||containsSensitiveText(v.evidencia)||
     typeof v.observacion!=='string'||v.observacion.length>360||
     containsSensitiveText(v.observacion)||
     (v.estado!==DEFAULT&&(!v.evidencia||!v.fecha)))

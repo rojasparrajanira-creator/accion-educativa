@@ -5,6 +5,21 @@ const {parseActa}=require('./uat-trazabilidad-pgce-2027.cjs');
 const CASE_IDS=Array.from({length:20},(_,i)=>'UAT-'+String(i+1).padStart(2,'0'));
 const STATUSES=new Set(['No probado','Pasa','Falla']);
 const EVIDENCE_RE=/^[A-Za-z0-9_.\/-]{0,80}$/;
+
+// Los registros UAT son solamente referencias ficticias: no se deben exportar
+// identificadores de personas. Las listas se aplican al navegador y a la
+// comprobación del archivo importado. No detectan todos los datos personales.
+function containsSensitiveText(text){
+ if(typeof text!=='string')return false;
+ return /(?:^|[^0-9])\\d{1,2}\\.?\\d{3}\\.?\\d{3}-[\\dkK](?![a-z0-9])/i.test(text)
+  || /\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b/i.test(text)
+  || /(?:^|\\D)(?:\\+?56[\\s.-]*)?9[\\s.-]?\\d{4}[\\s.-]?\\d{4}(?!\\d)/.test(text);
+}
+function validCalendarDate(value){
+ if(typeof value!=='string'||!/^20\\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])$/.test(value))return false;
+ const date=new Date(value+'T12:00:00Z');
+ return !Number.isNaN(date.getTime())&&date.toISOString().slice(0,10)===value;
+}
 function catalog(){
  const data=parseActa();
  if(data.length!==20||data.map(x=>x.id).join('|')!==CASE_IDS.join('|'))
@@ -22,7 +37,8 @@ function validateReview(doc){
     item.id!==cases[i].id||!STATUSES.has(item.estado)||
     typeof item.evidencia!=='string'||!EVIDENCE_RE.test(item.evidencia)||
     typeof item.observacion!=='string'||item.observacion.length>360||
-    typeof item.fecha!=='string'||(item.fecha!==''&&!/^20\d\d-\d\d-\d\d$/.test(item.fecha)))
+    containsSensitiveText(item.observacion)||
+    typeof item.fecha!=='string'||(item.fecha!==''&&!validCalendarDate(item.fecha)))
    throw Error('uat_resultados_invalidos');
   if(item.estado!=='No probado'&&(!item.evidencia||!item.fecha))
    throw Error('uat_resultado_sin_fecha_o_evidencia');
@@ -132,6 +148,8 @@ small{color:#4a6273}
 <script>
 'use strict';
 const CASES=${json};
+const containsSensitiveText=${containsSensitiveText.toString()};
+const validCalendarDate=${validCalendarDate.toString()};
 const DEFAULT='No probado';
 const items=Object.fromEntries(CASES.map(x=>[x.id,{id:x.id,estado:DEFAULT,evidencia:'',observacion:'',fecha:''}]));
 const root=document.getElementById('cases'),msg=document.getElementById('message');
@@ -207,10 +225,11 @@ function documentData(){
  const entries=CASES.map(c=>items[c.id]);
  for(const item of entries){
   if(!/^[A-Za-z0-9_.\\/-]{0,80}$/.test(item.evidencia)||
-    item.observacion.length>360){
+    item.observacion.length>360||containsSensitiveText(item.observacion)){
    throw Error('Usa únicamente referencias ficticias sin espacios ni datos personales ('+item.id+').');
   }
-  if(item.estado!==DEFAULT&&(!item.fecha||!item.evidencia))
+  if((item.fecha!==''&&!validCalendarDate(item.fecha))||
+    (item.estado!==DEFAULT&&(!item.fecha||!item.evidencia)))
    throw Error(item.id+' necesita fecha y evidencia ficticia antes de descargar.');
  }
  return {schema:'mec-pgce-uat-v1',school_year:2027,
@@ -249,9 +268,10 @@ document.getElementById('import-file').addEventListener('change',async ev=>{
   for(let i=0;i<CASES.length;i++){
    const v=raw.results[i];
    if(!v||v.id!==CASES[i].id||!['No probado','Pasa','Falla'].includes(v.estado)||
-    typeof v.fecha!=='string'||!/^$|^20\\d\\d-\\d\\d-\\d\\d$/.test(v.fecha)||
+    typeof v.fecha!=='string'||(v.fecha!==''&&!validCalendarDate(v.fecha))||
     typeof v.evidencia!=='string'||!/^[A-Za-z0-9_.\\/-]{0,80}$/.test(v.evidencia)||
     typeof v.observacion!=='string'||v.observacion.length>360||
+    containsSensitiveText(v.observacion)||
     (v.estado!==DEFAULT&&(!v.evidencia||!v.fecha)))
     throw Error('El archivo contiene información incompleta o inválida: '+CASES[i].id);
   }
@@ -265,4 +285,4 @@ document.getElementById('import-file').addEventListener('change',async ev=>{
 draw();
 </script></body></html>`;
 }
-module.exports={catalog,renderPage,validateReview,summarizeReview};
+module.exports={catalog,renderPage,validateReview,summarizeReview,containsSensitiveText,validCalendarDate};

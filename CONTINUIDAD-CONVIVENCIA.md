@@ -405,3 +405,23 @@ Después:
 5. verificar API y sitio LIVE;
 6. recién entonces continuar desarrollo.
 
+
+---
+
+## AUDITORÍA DE REGRESIÓN 2026-10-27 (POSTERIOR A LOS CAMBIOS DE TIENDA)
+
+Se ejecutó el workflow preexistente `.github/workflows/convivencia-regression.yml` en el PR N.º 32, ampliado con controles de seguridad y piloto aislado.
+
+Resultados verificados en GitHub Actions, ejecución 40596380636:
+- **Formularios y navegación:** SUCCESS.
+- **API, seguridad y entrega digital:** SUCCESS.
+- **Piloto integral con PostgreSQL 18 temporal:** SUCCESS. El flujo exigió la aparición de `PILOT_SELFTEST PASSED` en los logs del proceso de prueba.
+
+Las pruebas nuevas comprueban:
+1. Un profesional no puede consultar estudiantes, cursos, mediciones, aplicaciones ni resultados de otro establecimiento.
+2. Un coordinador no puede acceder a endpoints exclusivos de `platform_admin`.
+3. `POST /api/pilot/setup` permanece bloqueado por defecto si no se activa explícitamente `MEC_ENABLE_PILOT`.
+
+**Límites:** la prueba integral de 2026-10-27 utilizó una base temporal aislada en GitHub Actions. NO es evidencia de una ejecución `PILOT_SELFTEST PASSED` en la API real de Render ni valida datos/credenciales de clientes. No se cambiaron variables de entorno de producción, no se hicieron pagos ni se cargaron estudiantes reales.
+
+Antes de liberar para estudiantes reales: comprobar el estado de `MEC_ENABLE_PILOT` en Render y desactivarlo, confirmar roles y accesos reales, repetir la validación integral con un establecimiento de prueba controlado contra la API publicada, revisar logs, verificar políticas de protección de datos y resolver los hallazgos pendientes. No afirmar aprobación comercial integral solo con CI.

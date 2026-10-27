@@ -16,3 +16,34 @@ test('establecimientos anteriores y tienda mantienen su acceso',async()=>{const 
 test('acciones nuevas rechazan origen ajeno; callback de Transbank permitido',async()=>{const r=await fetch(base+'/api/subscriptions/cancel',{method:'POST',headers:{Origin:'https://attacker.invalid',Cookie:cookie,'Content-Type':'application/json'},body:'{}'});assert.equal(r.status,403);assert.equal((await r.json()).error,'origin_forbidden')});
 
 test('recuperación de login real conserva clave anterior hasta usar clave enviada, luego exige cambio',async()=>{const r=await request('/api/auth/request-access',{email:'prof@example.invalid'},null);assert.equal(r.status,200);const before=(await pool.query('select * from users where id=$1',[user])).rows[0];const secret='Recuperacion123',salt='recovery-test';await pool.query("insert into mec_password_recoveries(user_id,password_hash,password_salt,expires_at) values($1,$2,$3,now()+interval '48 hours')",[user,crypto.scryptSync(secret,salt,64).toString('hex'),salt]);assert.equal((await request('/api/auth/login',{identifier:'prof@example.invalid',password:'Definitiva987'},null)).status,200);const login=await request('/api/auth/login',{identifier:'prof@example.invalid',password:secret},null);assert.equal(login.status,200);assert.equal(login.data.user.must_change_password,true);assert.equal((await request('/api/auth/login',{identifier:'prof@example.invalid',password:'Definitiva987'},null)).status,401);assert.notEqual((await pool.query('select password_hash from users where id=$1',[user])).rows[0].password_hash,before.password_hash)});
+
+test('aislamiento institucional: un profesional no puede consultar matrícula, cursos ni resultados de otro establecimiento',async()=>{
+  const endpoints=[
+    '/api/students?establishment_id='+est,
+    '/api/courses?establishment_id='+est,
+    '/api/measurements?establishment_id='+est,
+    '/api/applications?establishment_id='+est,
+    '/api/establishments/'+est+'/results'
+  ];
+  for(const endpoint of endpoints){
+    const response=await request(endpoint,undefined,legacyCookie);
+    assert.equal(response.status,403,endpoint+': '+JSON.stringify(response.data));
+  }
+});
+test('el coordinador no puede acceder a funciones exclusivas de Superadministración',async()=>{
+  const endpoints=[
+    '/api/platform/establishments',
+    '/api/store/admin/orders',
+    '/api/auth/mfa/status'
+  ];
+  for(const endpoint of endpoints){
+    const response=await request(endpoint,undefined,legacyCookie);
+    assert.equal(response.status,403,endpoint+': '+JSON.stringify(response.data));
+    assert.equal(response.data.error,'role_forbidden');
+  }
+});
+test('la creación de sesiones piloto está cerrada por defecto en el servidor',async()=>{
+  const response=await request('/api/pilot/setup',{},null);
+  assert.equal(response.status,404);
+  assert.equal(response.data.error,'pilot_disabled');
+});

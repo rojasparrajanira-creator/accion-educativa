@@ -62,7 +62,7 @@ function createStoreServiceAccountDriveAccess({env=process.env,fetchFn=fetch,now
   async function listPermissions(folderId,token){
     let cursor='',list=[];
     for(let page=0;page<20;page++){
-      const params=new URLSearchParams({fields:'nextPageToken,permissions(id,type,role,emailAddress)',pageSize:'100',supportsAllDrives:'true'});
+      const params=new URLSearchParams({fields:'nextPageToken,permissions(id,type,role,emailAddress,view)',pageSize:'100',supportsAllDrives:'true'});
       if(cursor)params.set('pageToken',cursor);
       const r=await request(DRIVE_API+encodeURIComponent(folderId)+'/permissions?'+params,{
         method:'GET',headers:{Authorization:'Bearer '+token}

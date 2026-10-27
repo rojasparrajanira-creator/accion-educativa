@@ -195,3 +195,18 @@ test('a Drive share error leaves the delivery failed for administrative retry',a
   assert.equal(result.sent,0);
   assert.equal(mail.length,0);
 });
+
+test('paid email gives verification and editing instructions without authorizing a different address',()=>{
+ const order={status:'paid',buyer_name:'Cliente de prueba',order_code:'MEC-PRUEBA-22'};
+ const msg=compose(order,[{product_title:'Protocolos escolares',delivery_url_snapshot:'https://drive.google.com/drive/folders/1ABCDEFGHijklmnopqrst'}]);
+ assert.match(msg.subject,/Material enviado/);
+ assert.match(msg.text,/Material enviado ✅/);
+ assert.match(msg.text,/tu compra es muy importante/);
+ assert.match(msg.text,/Spam o No deseados/);
+ assert.match(msg.text,/descargarlos en tu computadora/);
+ assert.match(msg.text,/mismo correo/);
+ assert.match(msg.text,/todas las subcarpetas/);
+ assert.match(msg.text,/no se otorgará acceso a terceros/);
+ assert.match(msg.text,/Quedamos atentos a tu confirmación/);
+ assert.match(msg.text,/MEC-PRUEBA-22/);
+});

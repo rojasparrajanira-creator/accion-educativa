@@ -34,7 +34,8 @@ test('el coordinador no puede acceder a funciones exclusivas de Superadministrac
   const endpoints=[
     '/api/platform/establishments',
     '/api/store/admin/orders',
-    '/api/auth/mfa/status'
+    '/api/auth/mfa/status',
+    '/api/platform/readiness'
   ];
   for(const endpoint of endpoints){
     const response=await request(endpoint,undefined,legacyCookie);

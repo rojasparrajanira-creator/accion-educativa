@@ -1,0 +1,48 @@
+name: Regresión Convivencia Escolar
+
+on:
+  pull_request:
+    branches: [convivencia-escolar]
+  push:
+    branches: [convivencia-escolar]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  convivencia-unit-tests:
+    name: API, seguridad y entrega digital
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: convivencia-api
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Verificar sintaxis de API
+        run: |
+          node --check server.js
+          node --check subscriptions.js
+          node --check pilot-selftest.js
+      - name: Pruebas unitarias sin datos de alumnos ni cobros reales
+        run: npm test
+
+  convivencia-frontend-syntax:
+    name: Formularios y navegación
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Comprobar JavaScript y pantallas principales
+        run: node convivencia-api/check-ui-syntax.cjs

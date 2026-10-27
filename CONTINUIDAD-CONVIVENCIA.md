@@ -425,3 +425,19 @@ Las pruebas nuevas comprueban:
 **Límites:** la prueba integral de 2026-10-27 utilizó una base temporal aislada en GitHub Actions. NO es evidencia de una ejecución `PILOT_SELFTEST PASSED` en la API real de Render ni valida datos/credenciales de clientes. No se cambiaron variables de entorno de producción, no se hicieron pagos ni se cargaron estudiantes reales.
 
 Antes de liberar para estudiantes reales: comprobar el estado de `MEC_ENABLE_PILOT` en Render y desactivarlo, confirmar roles y accesos reales, repetir la validación integral con un establecimiento de prueba controlado contra la API publicada, revisar logs, verificar políticas de protección de datos y resolver los hallazgos pendientes. No afirmar aprobación comercial integral solo con CI.
+
+---
+
+## ENDURECIMIENTO PILOTO Y ESTADO ADMINISTRATIVO (2026-10-27)
+
+- `POST /api/pilot/setup` deja de ser utilizable solo con `MEC_ENABLE_PILOT=true`.
+- Para una **autoprueba aislada** deben coincidir simultáneamente:
+  1. `MEC_ENABLE_PILOT=true`;
+  2. `RUN_PILOT_SELFTEST=1`;
+  3. `MEC_PILOT_TEST_KEY` con mínimo 32 bytes;
+  4. cabecera `X-MEC-Pilot-Test-Key` con la misma llave temporal.
+- Cualquier ausencia o error de clave provoca HTTP 404 `pilot_disabled`, sin crear sesión ni datos.
+- El workflow de GitHub Actions genera una clave aleatoria solo para el proceso temporal y ejecuta su `PILOT_SELFTEST PASSED` sobre PostgreSQL 18 efímero, separado de Render.
+- Existe el endpoint `GET /api/platform/readiness` protegido por `platform_admin`. Expone solamente indicadores booleanos de estado para mostrar en `admin-plataforma.html`: piloto, autoprueba, pagos recurrentes, correo de suscripciones y configuración de cifrado MFA. No revela contraseñas ni claves.
+- El modo piloto y la autoprueba deben permanecer deshabilitados en Render antes de usar matrícula real. La prueba temporal de CI NO acredita una prueba integral autenticada contra Render.
+- Las suscripciones Oneclick de producción y sus correos deben configurarse por separado; los pagos y la entrega de la tienda de materiales son independientes.

@@ -12,6 +12,15 @@ main{max-width:1180px;margin:auto;padding:30px 22px 60px}.top{display:flex;justi
 button{border:0;border-radius:11px;padding:11px 14px;font-weight:850;cursor:pointer}.primary{background:var(--g);color:#fff}.soft{background:var(--m);color:var(--g);border:1px solid var(--l)}.status{font-size:12px;color:var(--u);min-height:18px}
 table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;background:#F1F6F3;color:#567064;padding:10px}td{padding:11px 10px;border-bottom:1px solid #EDF1EE}.badge{display:inline-block;padding:5px 8px;border-radius:12px;background:#E3F4E9;color:#2F6A48;font-weight:800;font-size:10px}
 .note{background:#F6FAF8;border-radius:12px;padding:12px;color:var(--u);font-size:11px;line-height:1.5;margin-top:12px}
+
+.readiness-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin-top:14px}
+.readiness-item{border:1px solid var(--l);border-radius:12px;padding:13px;background:#f9fcfa;min-width:0}
+.readiness-item b{display:block;font-size:12px;color:var(--n);margin-bottom:6px}
+.readiness-item span{font-size:12px;font-weight:800;line-height:1.4}
+.readiness-item .ready{color:#156c3d}.readiness-item .waiting{color:#895512}
+.readiness-item .unsafe{color:#a32135}
+@media(max-width:750px){.readiness-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){.readiness-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.grid{grid-template-columns:1fr}.table-wrap{overflow:auto}table{min-width:720px}.top{display:block}}
 </style>
 <script src="js/auth-professional.js"></script><script>MECAuth.guard({roles:['platform_admin'],bindEstablishment:false});</script>
@@ -19,6 +28,16 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 </head>
 <body><main>
 <div class="top"><div><small style="font-weight:900;color:#2F8067;letter-spacing:.1em">ADMINISTRACIÓN DE PLATAFORMA</small><h1>Establecimientos</h1><p>Material Educativo Chile · alta inicial segura</p></div><div class="actions" style="margin:0"><button class="primary" type="button" onclick="location.href='admin-centro.html'">Centro de administración</button><button class="soft" type="button" onclick="MECAuth.logout()">Cerrar sesión</button></div></div>
+
+
+<section class="card" aria-labelledby="readiness-heading">
+ <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+  <div><h2 id="readiness-heading" style="margin:0;font-size:18px">Estado técnico de Convivencia Escolar</h2><p class="status" style="margin:7px 0 0">Configuración de la plataforma, sin mostrar contraseñas ni claves</p></div>
+  <button class="soft" id="readiness-refresh" type="button">Verificar estado</button>
+ </div>
+ <div class="readiness-grid" id="readiness-grid" aria-live="polite"><p class="status">Comprobando configuración…</p></div>
+ <div class="note">El pago recurrente de Convivencia es independiente de las compras de la tienda. Esta pantalla informa el estado: no modifica permisos, no realiza cobros ni envía mensajes. Para utilizar estudiantes reales deben estar cerrados el acceso piloto y la autoprueba del servidor.</div>
+</section>
 
 <section class="card">
 <h2 style="margin-top:0;font-size:18px">Dar de alta un establecimiento</h2>
@@ -112,6 +131,34 @@ document.getElementById('create').onclick=async()=>{
 async function loadMfaStatus(){const s=document.getElementById('mfa-status');try{const r=await fetch(API+'/api/auth/mfa/status',{credentials:'include'}),d=await r.json();if(!r.ok||!d.ok)return;if(d.mfa_enabled){document.getElementById('mfa-start').hidden=true;document.getElementById('mfa-setup').hidden=true;const when=d.mfa_enrolled_at?new Date(d.mfa_enrolled_at).toLocaleString('es-CL'):'fecha no disponible';s.textContent='Doble verificación activa desde '+when+'.';}else{s.textContent='La doble verificación aún no está activa.'}}catch(_){}}
 document.getElementById('mfa-enroll').onclick=async()=>{const s=document.getElementById('mfa-status'),password=document.getElementById('mfa-current-password').value;if(!password){s.textContent='Confirma tu contraseña actual antes de configurar la doble verificación.';return}s.textContent='Preparando configuración segura…';try{const r=await fetch(API+'/api/auth/mfa/enroll',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:password})}),d=await r.json();document.getElementById('mfa-current-password').value='';if(!r.ok||!d.ok)throw new Error(d.error||'mfa_error');document.getElementById('mfa-secret').value=d.secret;document.getElementById('mfa-start').hidden=true;document.getElementById('mfa-setup').hidden=false;s.textContent='Configura tu aplicación autenticadora y confirma el código.'}catch(e){s.textContent=e.message==='invalid_current_password'?'La contraseña actual no es correcta.':e.message==='mfa_not_configured'?'La clave criptográfica del servidor aún no está configurada. No se activó MFA.':e.message==='mfa_already_enabled'?'La doble verificación ya está activa.':'No fue posible iniciar la configuración.'}};
 document.getElementById('mfa-confirm').onclick=async()=>{const s=document.getElementById('mfa-status'),token=document.getElementById('mfa-token').value.trim();if(!/^\d{6}$/.test(token)){s.textContent='Ingresa el código de 6 dígitos de tu autenticador.';return}try{const r=await fetch(API+'/api/auth/mfa/confirm',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'mfa_error');document.getElementById('mfa-setup').hidden=true;document.getElementById('mfa-secret').value='';document.getElementById('mfa-token').value='';document.getElementById('recovery-codes').textContent=(d.recovery_codes||[]).join('\n');document.getElementById('recovery-box').hidden=false;s.textContent='Doble verificación activada. Guarda los códigos antes de cerrar esta página.'}catch(e){s.textContent=e.message==='invalid_mfa_code'?'El código no es válido. Revisa el autenticador e intenta nuevamente.':'No fue posible activar la doble verificación.'}};
+
+async function loadReadiness(){
+ const wrap=document.getElementById('readiness-grid'),button=document.getElementById('readiness-refresh');
+ button.disabled=true;
+ try{
+   const r=await fetch(API+'/api/platform/readiness',{credentials:'include'}),data=await r.json();
+   if(!r.ok||!data.ok||!data.readiness)throw new Error('No se pudo comprobar la configuración.');
+   const c=data.readiness;
+   const indicators=[
+    ['Acceso piloto',c.pilot_route_open?'Habilitado para pruebas: revisar antes de usar datos reales':c.pilot_requested?'Protegido, pero la bandera piloto sigue activada':'Cerrado',c.pilot_route_open?'unsafe':c.pilot_requested?'waiting':'ready'],
+    ['Autoprueba en el servidor',c.pilot_selftest_requested?'Activada: revisar configuración':'Desactivada',c.pilot_selftest_requested?'unsafe':'ready'],
+    ['Pago recurrente Convivencia',c.subscription_payment_ready?'Preparado':'Pendiente de habilitar en producción',c.subscription_payment_ready?'ready':'waiting'],
+    ['Correo de suscripciones',c.subscription_email_ready?'Preparado':'Pendiente de configurar',c.subscription_email_ready?'ready':'waiting'],
+    ['Cifrado del autenticador MFA',c.mfa_key_configured?'Configurado':'Pendiente de configurar',c.mfa_key_configured?'ready':'waiting']
+   ];
+   wrap.replaceChildren();
+   for(const [label,value,tone] of indicators){
+     const item=document.createElement('div');item.className='readiness-item';
+     const title=document.createElement('b');title.textContent=label;
+     const state=document.createElement('span');state.textContent=value;state.className=tone;
+     item.append(title,state);wrap.appendChild(item);
+   }
+ }catch(e){wrap.replaceChildren();const p=document.createElement('p');p.className='status';p.textContent='No fue posible consultar el estado técnico. '+e.message;wrap.appendChild(p)}
+ finally{button.disabled=false}
+}
+document.getElementById('readiness-refresh').addEventListener('click',loadReadiness);
+loadReadiness();
+
 load();loadMfaStatus();
 </script>
 <footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>

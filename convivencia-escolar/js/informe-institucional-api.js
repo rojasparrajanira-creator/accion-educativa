@@ -80,6 +80,7 @@ window.MECInstitution={
         const empty=document.createElement('p');
         empty.textContent=d.suppressed?'Los resultados dimensionales agregados están suprimidos por tamaño de grupo.':'No existen resultados dimensionales suficientes para esta medición.';
         box.appendChild(empty);
+        MECReportExport.setReady(true); // También puede descargarse la constancia de supresión por privacidad.
         return;
       }
 
@@ -102,7 +103,9 @@ window.MECInstitution={
       a.href='pgce-panel.html?establishment_id='+encodeURIComponent(id);
       a.textContent='Abrir Panel PGCE →';
       box.appendChild(a);
+      MECReportExport.setReady(true);
     }catch(e){
+      MECReportExport.setReady(false);
       box.textContent='No fue posible cargar los resultados institucionales.';
     }
   }

@@ -85,6 +85,7 @@ jobs:
           PORT: '3721'
         run: |
           set -eu
+          export MEC_PILOT_TEST_KEY="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('hex'))")"
           node server.js > pilot-ci.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT

@@ -11,6 +11,18 @@ window.MECReportExport={
     const d=new Date(),date=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
     return (clean||'informe')+'-'+date+'.rtf';
   },
+  installPrivacyLifecycle(){
+    // El navegador puede restaurar una página con datos escolares desde su historial.
+    // Ocultamos el informe al salir y forzamos comprobar la sesión si vuelve desde BFCache.
+    window.addEventListener('pagehide',()=>{
+      this.setReady(false);
+      const report=document.querySelector('.report');
+      if(report)report.style.visibility='hidden';
+    });
+    window.addEventListener('pageshow',event=>{
+      if(event.persisted)window.location.reload();
+    });
+  },
   setReady(ready){
     const root=document.querySelector('.report');
     if(root)root.dataset.reportReady=ready?'true':'false';
@@ -58,3 +70,4 @@ window.MECReportExport={
     return true;
   }
 };
+document.addEventListener('DOMContentLoaded',()=>MECReportExport.installPrivacyLifecycle());

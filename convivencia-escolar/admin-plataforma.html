@@ -39,6 +39,17 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
  <div class="note">El pago recurrente de Convivencia es independiente de las compras de la tienda. Esta pantalla informa el estado: no modifica permisos, no realiza cobros ni envía mensajes. Para utilizar estudiantes reales deben estar cerrados el acceso piloto y la autoprueba del servidor.</div>
 </section>
 
+<section class="card" aria-labelledby="privacy-heading">
+ <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <div><h2 id="privacy-heading" style="font-size:18px;margin:0">Inventario de datos escolares · Convivencia</h2>
+    <p class="status" style="margin:7px 0 0">Solo cantidades por categoría; no presenta nombres, RUT ni respuestas.</p></div>
+  <button class="soft" type="button" id="privacy-refresh">Verificar inventario</button>
+ </div>
+ <div class="note">Este inventario no borra ni anonimiza registros. Los plazos de conservación aún necesitan una decisión documentada conforme a la finalidad, responsabilidades institucionales, obligaciones legales y derechos de estudiantes y familias. No se establecerán vencimientos automáticos sin esa aprobación.</div>
+ <div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Categoría</th><th>Finalidad</th><th>Registros</th><th>Primer registro fechado</th><th>Conservación</th></tr></thead><tbody id="privacy-rows"><tr><td colspan="5">Pulsa «Verificar inventario».</td></tr></tbody></table></div>
+ <p id="privacy-status" role="status" aria-live="polite" class="status" style="margin-top:10px"></p>
+</section>
+
 <section class="card">
 <h2 style="margin-top:0;font-size:18px">Dar de alta un establecimiento</h2>
 <div class="grid">
@@ -159,6 +170,32 @@ async function loadReadiness(){
 }
 document.getElementById('readiness-refresh').addEventListener('click',loadReadiness);
 loadReadiness();
+
+async function loadPrivacyInventory(){
+ const button=document.getElementById('privacy-refresh'),rows=document.getElementById('privacy-rows'),
+  status=document.getElementById('privacy-status');
+ button.disabled=true;status.textContent='Consultando cantidades; sin modificar datos…';
+ try{
+  const response=await fetch(API+'/api/platform/privacy-inventory',{credentials:'include',cache:'no-store'});
+  const data=await response.json();
+  if(!response.ok||!data.ok||data.scope!=='convivencia_only'||data.mode!=='read_only')throw Error('privacy_inventory_unavailable');
+  rows.replaceChildren();
+  for(const item of data.datasets){
+   const tr=document.createElement('tr');
+   tr.appendChild(td(item.label));
+   tr.appendChild(td(item.purpose));
+   tr.appendChild(td(Number(item.count).toLocaleString('es-CL')));
+   tr.appendChild(td(date(item.oldest)));
+   tr.appendChild(td('Pendiente de revisión institucional y legal'));
+   rows.appendChild(tr);
+  }
+  if(!data.datasets.length){const tr=document.createElement('tr'),cell=td('No hay categorías disponibles.');cell.colSpan=5;tr.append(cell);rows.appendChild(tr)}
+  status.textContent='Inventario agregado actualizado. No se consultaron datos personales ni se borraron registros.';
+ }catch(e){
+  status.textContent='No fue posible obtener el inventario. Verifica tu sesión de Superadministración.';
+ }finally{button.disabled=false}
+}
+document.getElementById('privacy-refresh').addEventListener('click',loadPrivacyInventory);
 
 load();loadMfaStatus();
 </script>

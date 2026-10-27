@@ -35,7 +35,8 @@ test('el coordinador no puede acceder a funciones exclusivas de Superadministrac
     '/api/platform/establishments',
     '/api/store/admin/orders',
     '/api/auth/mfa/status',
-    '/api/platform/readiness'
+    '/api/platform/readiness',
+    '/api/platform/privacy-inventory'
   ];
   for(const endpoint of endpoints){
     const response=await request(endpoint,undefined,legacyCookie);
@@ -64,4 +65,23 @@ test('panel de preparación accesible al superadministrador ficticio sin revelar
   assert.equal(typeof readiness.mfa_key_configured,'boolean');
   assert.equal(JSON.stringify(response.data).includes('MEC_PILOT_TEST_KEY'),false);
   assert.equal(JSON.stringify(response.data).includes(token),false);
+  const baseline=(await pool.query('select count(*)::int total from students')).rows[0].total;
+  const inventory=await request('/api/platform/privacy-inventory',undefined,'mec_session='+token);
+  assert.equal(inventory.status,200,JSON.stringify(inventory.data));
+  assert.equal(inventory.data.ok,true);
+  assert.equal(inventory.data.scope,'convivencia_only');
+  assert.equal(inventory.data.mode,'read_only');
+  assert.equal(inventory.data.retention_automated,false);
+  assert.equal(inventory.data.retention_period_defined,false);
+  assert.ok(Array.isArray(inventory.data.datasets));
+  const studentRow=inventory.data.datasets.find(row=>row.code==='students');
+  assert.equal(studentRow.count,baseline);
+  assert.equal(studentRow.retention_status,'pending_institutional_legal_review');
+  assert.equal(inventory.data.datasets.some(row=>row.code.startsWith('store_')),false);
+  assert.equal(JSON.stringify(inventory.data).includes('Estudiante ficticio'),false);
+  assert.equal(JSON.stringify(inventory.data).includes('prof@example.invalid'),false);
+  assert.equal(JSON.stringify(inventory.data).includes('12345678-5'),false);
+  const after=(await pool.query('select count(*)::int total from students')).rows[0].total;
+  assert.equal(after,baseline);
+  assert.equal((await request('/api/platform/privacy-inventory',undefined,null)).status,401);
 });

@@ -101,3 +101,15 @@ jobs:
             grep 'PILOT_SELFTEST FAILED' pilot-ci.log || tail -n 40 pilot-ci.log
             exit 1
           fi
+
+  convivencia-live-readonly:
+    name: Respuesta pública y acceso anónimo en LIVE
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificación GET sin credenciales, compras ni matrículas
+        run: node convivencia-api/check-live-smoke.cjs

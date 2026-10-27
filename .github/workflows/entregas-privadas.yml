@@ -1,0 +1,34 @@
+name: Verificar entregas privadas
+on:
+  pull_request:
+    paths:
+      - 'convivencia-api/store-delivery.js'
+      - 'convivencia-api/store-drive-access.js'
+      - 'convivencia-api/store-drive-service-account.js'
+      - 'convivencia-api/test-store-*.cjs'
+      - '.github/workflows/entregas-privadas.yml'
+  push:
+    branches: [convivencia-escolar]
+    paths:
+      - 'convivencia-api/store-delivery.js'
+      - 'convivencia-api/store-drive-access.js'
+      - 'convivencia-api/store-drive-service-account.js'
+      - 'convivencia-api/test-store-*.cjs'
+      - '.github/workflows/entregas-privadas.yml'
+jobs:
+  entrega-privada:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Comprobar sintaxis
+        run: |
+          node --check convivencia-api/store-delivery.js
+          node --check convivencia-api/store-drive-service-account.js
+          node --check convivencia-api/server.js
+      - name: Probar envíos y permisos
+        run: |
+          cd convivencia-api
+          node --test test-store-delivery.cjs test-store-drive-access.cjs test-store-drive-service-account.cjs

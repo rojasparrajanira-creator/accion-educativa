@@ -246,9 +246,9 @@ async function loadStoreOrders(){
       const fiscal=paid?(o.tax_document_status==='issued'?(String(o.document_type||'').startsWith('factura_')?'Factura electrónica emitida':'Boleta electrónica emitida'):(taxLabels[o.tax_document_status]||'Documento tributario pendiente')):'Sin documento (sin pago)';
       const requested=o.requested_document==='factura'?'Factura solicitada':o.requested_document==='boleta'?'Boleta solicitada':'Documento no especificado';
       return '<div class="product" style="grid-template-columns:minmax(0,1fr) auto">'+
-        '<div><strong>'+esc(o.order_code)+'</strong> · '+money(o.total_clp)+'<div class="muted">'+esc(o.buyer_email||'')+'</div>'+
+        '<div><strong>Pedido N.º '+Number(o.id)+'</strong> · Código '+esc(o.order_code)+' · '+money(o.total_clp)+'<div class="muted">'+esc(o.buyer_email||'')+'</div>'+
         '<div class="muted">'+payment+' · '+delivery+'</div><div class="muted">'+requested+' · '+fiscal+'</div></div>'+
-        (paid?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Autorizar acceso Drive</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div><p data-drive-feedback role="status" aria-live="polite" style="display:none;max-width:390px;margin:0;padding:10px 12px;border:1px solid #cbd9ef;border-radius:10px;background:#f5f9ff;color:#203353;font-size:13px;line-height:1.45;overflow-wrap:anywhere"></p></div>':'')+'</div>';
+        (paid?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Comprobar / conceder acceso al comprador</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div><p data-drive-feedback role="status" aria-live="polite" style="display:none;max-width:390px;margin:0;padding:10px 12px;border:1px solid #cbd9ef;border-radius:10px;background:#f5f9ff;color:#203353;font-size:13px;line-height:1.45;overflow-wrap:anywhere"></p></div>':'')+'</div>';
     }).join('');
   }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message}
 }
@@ -268,10 +268,10 @@ $('storeOrdersList').addEventListener('click',async e=>{
       }
     };
     grantBtn.disabled=true;
-    showMessage('Consultando Google Drive para autorizar únicamente al comprador…');
+    showMessage('Comprobando si el comprador ya tiene permiso. Solo se concederá si falta…');
     try{
       const result=await api('/api/store/admin/orders/'+orderId+'/drive-access',{method:'POST'});
-      showMessage('Acceso privado autorizado para el correo del comprador en '+result.folders+' carpeta(s). Ahora vuelve a abrir el mismo enlace.');
+      showMessage('Google confirmó el permiso del correo comprador en '+result.folders+' carpeta(s). Si ya existía, no se creó uno nuevo.');
     }catch(err){
       const map={
         drive_account_not_connected:'La cuenta propietaria no está conectada a Google Drive.',

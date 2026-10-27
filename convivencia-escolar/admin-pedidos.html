@@ -149,9 +149,9 @@ function show(){
   const badges=el('div',null,'order-tags');
   for(const item of [paymentLabel(o),deliveryLabel(o),fiscalLabel(o)])badges.appendChild(tag(item[0],item[1]));
   article.appendChild(badges);
-  if(o.status==='paid'&&o.delivery_status!=='sent'){
+  if(o.status==='paid'){
    const actions=el('div',null,'order-buttons');
-   const grant=el('button','Comprobar / conceder acceso al comprador','secondary');
+   const grant=el('button','Comprobar acceso a carpetas compradas','secondary');
    const retry=el('button','Reintentar correo','secondary');
    const note=el('p',null,'order-msg muted');note.setAttribute('role','status');
    grant.type='button';retry.type='button';
@@ -160,7 +160,7 @@ function show(){
     grant.disabled=true;note.textContent='Consultando Google Drive…';
     try{
       const result=await api('/api/store/admin/orders/'+encodeURIComponent(o.id)+'/drive-access',{method:'POST'});
-      note.textContent='Drive confirmó acceso para el correo registrado en '+num(result.folders)+' carpeta(s). Si el permiso ya existía, no se creó uno duplicado.';
+      note.textContent='Drive confirmó y completó, cuando correspondía, los permisos del correo de compra en '+num(result.folders)+' carpeta(s) de productos; se revisaron también sus subcarpetas. No se autorizaron terceros.';
     }catch(e){note.textContent='No se pudo confirmar el acceso a Drive: '+e.message+(e.reason?' ('+e.reason+')':'')+'. No se compartió con otro correo.'}
     finally{grant.disabled=false}
    });
@@ -174,8 +174,9 @@ function show(){
     finally{retry.disabled=false}
    });
    actions.appendChild(grant);
-   if(deliveryConfiguration.email_ready)actions.appendChild(retry);
+   if(o.delivery_status!=='sent'&&deliveryConfiguration.email_ready)actions.appendChild(retry);
    article.append(actions,note);
+  if(o.delivery_last_error){const msg=el('p','Último inconveniente registrado: '+String(o.delivery_last_error).slice(0,105),'muted');article.appendChild(msg);}
   }
   list.appendChild(article);
  }

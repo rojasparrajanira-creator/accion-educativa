@@ -26,7 +26,7 @@ function compose(order,items,taxDocument=null,contactEmail='accioneducativaspa@g
   if(!Array.isArray(items)||!items.length)throw Error('delivery_items_missing');
   const name=String(order.buyer_name||'').replace(/[\r\n]+/g,' ').trim();
   const code=String(order.order_code||'').replace(/[\r\n]+/g,' ').trim();
-  let text='Hola '+name+',\n\nGracias por comprar en Material Educativo Chile.\nTu pago fue confirmado. Aquí tienes tus materiales digitales:\n\n';
+  let text='Hola '+name+',\n\nMaterial enviado ✅\n\nMuchas gracias por confiar en Material Educativo Chile; tu compra es muy importante para nosotros. 💛\n\nTu pago fue confirmado. Aquí tienes los enlaces de tus materiales digitales:\n\n';
   for(const item of items){
     const url=driveLink(item.delivery_url_snapshot);
     if(!url)throw Error('invalid_delivery_link');
@@ -37,8 +37,8 @@ function compose(order,items,taxDocument=null,contactEmail='accioneducativaspa@g
     const name=taxDocument.document_type==='voucher'?'Comprobante de pago electrónico':taxDocument.document_type.startsWith('factura_')?'Factura electrónica':'Boleta electrónica';
     text+='\n'+name+':\n'+taxDocument.document_url+'\n';
   }
-  text+='\nNúmero de pedido: '+code+'\n\nSi necesitas ayuda para acceder al material, escríbenos a '+contactEmail+'.\nMaterial Educativo Chile\nwww.materialeducativochile.cl\n';
-  return {subject:'Tus materiales digitales - pedido '+code,text};
+  text+='\nPor favor, confirma la recepción de este correo (revisa también Spam o No deseados).\n\n📌 IMPORTANTE PARA EDITAR\nPara modificar los documentos, primero debes descargarlos en tu computadora. No se editan directamente desde la carpeta compartida de Drive. Si algún material viene en un archivo ZIP (por ejemplo, Protocolos), descárgalo y descomprímelo en tu equipo: Drive o el teléfono pueden no mostrar su contenido en la vista previa.\n\n🔒 ACCESO A LA CARPETA COMPARTIDA\nLas carpetas están disponibles únicamente para el correo registrado en tu compra. Inicia sesión en Google Drive con ese mismo correo y verifica que puedes abrir la carpeta principal y todas las subcarpetas de los materiales adquiridos.\nNo se enviarán a otro correo ni se otorgará acceso a terceros sin autorización expresa de Material Educativo Chile.\n\nSi alguna carpeta no abre o aparece Solicitar acceso, responde a este correo indicando cuál es, para que podamos revisarla. No necesitas realizar otra compra.\n\nQuedamos atentos a tu confirmación.\n\nNúmero de pedido: '+code+'\n\nAyuda: '+contactEmail+'\nMaterial Educativo Chile\nwww.materialeducativochile.cl\n';
+  return {subject:'Material enviado ✅ - pedido '+code,text};
 }
 function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,grantAccess,logger=console}){
   let processing=false;
@@ -92,7 +92,9 @@ function createStoreDelivery({pool,env=process.env,fetchFn=fetch,sendOverride,gr
       for(const job of jobs.rows){
         try{await send(conn,job,cfg);sent++}
         catch(error){
-          const reason=String(error?.message||'delivery_failed').slice(0,90);
+          const code=String(error?.message||'delivery_failed').replace(/[^a-zA-Z0-9_]/g,'').slice(0,60);
+          const googleReason=String(error?.googleReason||'').replace(/[^a-zA-Z0-9_]/g,'').slice(0,48);
+          const reason=code+(googleReason?'_reason_'+googleReason:'');
           await conn.query("update store_delivery_jobs set status='failed',attempts=attempts+1,last_error=$2,next_attempt_at=now()+interval '5 minutes'*least(attempts+1,12),updated_at=now() where order_id=$1",[job.order_id,reason]);
           await conn.query("insert into store_delivery_events(order_id,status,buyer_email,detail) select id,'failed',buyer_email,$2 from store_orders where id=$1",[job.order_id,reason]);
           logger.error('Store delivery failed for order '+job.order_id+': '+reason);

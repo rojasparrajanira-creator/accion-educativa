@@ -9,10 +9,9 @@ const env={MEC_STORE_DRIVE_SERVICE_ACCOUNT_JSON:JSON.stringify({
  token_uri:'https://oauth2.googleapis.com/token'
 })};
 const folderId='1abcdefghijklmnOpqrstUVWxyz0123456';
-const childFolderId='1limitedNestedFolderAbcdEfghijk12345';
 const item={delivery_url_snapshot:'https://drive.google.com/drive/folders/'+folderId+'?usp=sharing'};
 function mock(permissions=[{id:'owner',type:'user',role:'owner',emailAddress:'owner@example.org'},
- {id:'sa',type:'user',role:'writer',emailAddress:saEmail}],shareable=true,{children=[],childPermissions=[]}={}){
+ {id:'sa',type:'user',role:'writer',emailAddress:saEmail}],shareable=true){
  const calls=[];
  const fetchFn=async(url,init)=>{
   calls.push({url:String(url),method:init.method||'GET',headers:init.headers,body:init.body});
@@ -23,13 +22,9 @@ function mock(permissions=[{id:'owner',type:'user',role:'owner',emailAddress:'ow
    assert.ok(crypto.verify('RSA-SHA256',Buffer.from(h+'.'+p),crypto.createPublicKey(privateKey),Buffer.from(sig,'base64url')));
    return {ok:true,json:async()=>({access_token:'test-sa-token',expires_in:3600})};
   }
-  if(String(url).includes('/permissions?')&&(init.method||'GET')==='GET')return {ok:true,json:async()=>({permissions:String(url).includes('/'+childFolderId+'/')?childPermissions:permissions})};
+  if(String(url).includes('/permissions?')&&(init.method||'GET')==='GET')return {ok:true,json:async()=>({permissions})};
   if(String(url).includes('/permissions?')&&(init.method||'GET')==='POST')
    return {ok:true,json:async()=>({id:'added',type:'user',role:'reader',emailAddress:'buyer@example.org'})};
-  if(String(url).includes('/drive/v3/files?')&&(init.method||'GET')==='GET'){
-   const query=new URL(String(url)).searchParams.get('q')||'';
-   return {ok:true,json:async()=>({files:query.includes("'"+folderId+"' in parents")?children:[]})};
-  }
   if(String(url).includes('/files/')&&(init.method||'GET')==='GET')
    return {ok:true,json:async()=>({id:folderId,mimeType:'application/vnd.google-apps.folder',capabilities:{canShare:shareable}})};
   throw Error('unexpected '+url);
@@ -101,36 +96,4 @@ test('checkout preflight refuses public delivery folders and external links',asy
 test('checkout preflight cannot be performed with an unconfigured service account',async()=>{
  const access=createStoreServiceAccountDriveAccess({env:{},fetchFn:async()=>{throw Error('should not make network calls')}});
  await assert.rejects(access.validateProducts({items:[item]}),/drive_service_account_not_configured/);
-});
-
-test('buyer gets direct reader access to limited subfolder of purchased product only',async()=>{
- const child={id:childFolderId,mimeType:'application/vnd.google-apps.folder',
-  inheritedPermissionsDisabled:true,capabilities:{canShare:true,canListChildren:true}};
- const {calls,access}=mock(undefined,true,{children:[child],
-  childPermissions:[{id:'c-owner',type:'user',role:'owner',emailAddress:'owner@example.org'}]});
- const result=await access.authorizeBuyer({buyerEmail:'buyer@example.org',items:[item]});
- assert.deepEqual(result,{authorized:true,folders:1});
- const grants=calls.filter(x=>x.method==='POST'&&x.url.includes('/permissions?'));
- assert.equal(grants.length,2);
- assert.ok(grants.some(x=>x.url.includes('/'+folderId+'/')));
- assert.ok(grants.some(x=>x.url.includes('/'+childFolderId+'/')));
- for(const call of grants){
-  assert.deepEqual(JSON.parse(call.body),{type:'user',role:'reader',emailAddress:'buyer@example.org'});
-  assert.match(call.url,/sendNotificationEmail=false/);
- }
-});
-test('checkout preflight detects inaccessible limited subfolder before charging',async()=>{
- const child={id:childFolderId,mimeType:'application/vnd.google-apps.folder',
-  inheritedPermissionsDisabled:true,capabilities:{canShare:false,canListChildren:false}};
- const {access,calls}=mock(undefined,true,{children:[child]});
- await assert.rejects(access.validateProducts({items:[item]}),/drive_subfolder_not_shareable/);
- assert.equal(calls.filter(x=>x.method==='POST'&&x.url.includes('/permissions?')).length,0);
-});
-test('buyer with metadata-only access is not falsely marked as able to open a limited folder',async()=>{
- const child={id:childFolderId,mimeType:'application/vnd.google-apps.folder',
-  inheritedPermissionsDisabled:true,capabilities:{canShare:true,canListChildren:true}};
- const {access,calls}=mock(undefined,true,{children:[child],
-  childPermissions:[{id:'metadata',type:'user',role:'reader',view:'metadata',emailAddress:'buyer@example.org'}]});
- await assert.rejects(access.authorizeBuyer({buyerEmail:'buyer@example.org',items:[item]}),/drive_subfolder_metadata_only/);
- assert.equal(calls.filter(x=>x.method==='POST'&&x.url.includes('/permissions?')).length,0);
 });

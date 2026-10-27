@@ -62,7 +62,7 @@ function createStoreServiceAccountDriveAccess({env=process.env,fetchFn=fetch,now
   async function listPermissions(folderId,token){
     let cursor='',list=[];
     for(let page=0;page<20;page++){
-      const params=new URLSearchParams({fields:'nextPageToken,permissions(id,type,role,emailAddress,view)',pageSize:'100',supportsAllDrives:'true'});
+      const params=new URLSearchParams({fields:'nextPageToken,permissions(id,type,role,emailAddress)',pageSize:'100',supportsAllDrives:'true'});
       if(cursor)params.set('pageToken',cursor);
       const r=await request(DRIVE_API+encodeURIComponent(folderId)+'/permissions?'+params,{
         method:'GET',headers:{Authorization:'Bearer '+token}
@@ -73,62 +73,6 @@ function createStoreServiceAccountDriveAccess({env=process.env,fetchFn=fetch,now
       if(!cursor)return list;
     }
     throw Error('drive_permission_pages_exceeded');
-  }
-
-  // Solo descendientes de la carpeta del producto comprado; nunca otras carpetas de Drive.
-  // En Drive una subcarpeta con acceso limitado NO hereda el permiso del padre.
-  async function limitedSubfolders(rootId,token){
-    const pending=[{id:rootId,depth:0,canListChildren:true}],seen=new Set([rootId]),limited=[];
-    for(let at=0;at<pending.length;at++){
-      const folder=pending[at];
-      if(folder.canListChildren===false)throw Error('drive_subfolder_not_readable');
-      let cursor='';
-      for(let page=0;page<15;page++){
-        const params=new URLSearchParams({
-          q:"'"+folder.id+"' in parents and mimeType = '"+FOLDER_TYPE+"' and trashed = false",
-          fields:'nextPageToken,files(id,mimeType,inheritedPermissionsDisabled,capabilities(canShare,canListChildren))',
-          pageSize:'100',supportsAllDrives:'true',includeItemsFromAllDrives:'true'
-        });
-        if(cursor)params.set('pageToken',cursor);
-        const response=await request('https://www.googleapis.com/drive/v3/files?'+params,{
-          method:'GET',headers:{Authorization:'Bearer '+token}
-        },'children');
-        if(!Array.isArray(response.files))throw Error('drive_subfolders_unavailable');
-        for(const child of response.files){
-          if(child.mimeType!==FOLDER_TYPE||!/^[a-zA-Z0-9_-]{10,}$/.test(String(child.id||'')))
-            throw Error('drive_subfolder_invalid');
-          if(seen.has(child.id))continue;
-          if(seen.size>=250||folder.depth>=12)throw Error('drive_folder_tree_limit');
-          seen.add(child.id);
-          if(child.inheritedPermissionsDisabled===true){
-            if(child.capabilities?.canShare!==true)throw Error('drive_subfolder_not_shareable');
-            limited.push(child.id);
-          }
-          pending.push({id:child.id,depth:folder.depth+1,
-            canListChildren:child.capabilities?.canListChildren});
-        }
-        cursor=String(response.nextPageToken||'');
-        if(!cursor)break;
-        if(page===14)throw Error('drive_folder_tree_limit');
-      }
-    }
-    return limited;
-  }
-  function buyerCanOpen(permission,email){
-    return permission.type==='user'&&
-      String(permission.emailAddress||'').trim().toLowerCase()===email&&
-      permission.view!=='metadata'&&
-      ['reader','commenter','writer','owner','organizer','fileOrganizer'].includes(permission.role);
-  }
-  async function grantReader(folderId,email,token){
-    const created=await request(DRIVE_API+encodeURIComponent(folderId)+
-      '/permissions?sendNotificationEmail=false&supportsAllDrives=true&fields=id,type,role,emailAddress',{
-      method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({type:'user',role:'reader',emailAddress:email})
-    },'grant');
-    if(!created.id||created.type!=='user'||created.role!=='reader'||
-      (created.emailAddress&&String(created.emailAddress).toLowerCase()!==email))
-      throw Error('drive_grant_not_confirmed');
   }
   // Preflight before opening Webpay: the app must be able to share EVERY purchased private folder.
   // No buyer permission is created here; unpaid visitors cannot access the materials.
@@ -153,7 +97,6 @@ function createStoreServiceAccountDriveAccess({env=process.env,fetchFn=fetch,now
         String(p.emailAddress||'').trim().toLowerCase()===conf.email&&
         ['writer','owner'].includes(p.role));
       if(!editor)throw Error('drive_service_account_not_folder_editor');
-      await limitedSubfolders(id,token); // Detecta subcarpetas que el comprador no heredaría.
     }
     return {ready:true,folders:new Set(ids).size};
   }
@@ -177,23 +120,16 @@ function createStoreServiceAccountDriveAccess({env=process.env,fetchFn=fetch,now
       const permissions=await listPermissions(id,token);
       if(permissions.some(p=>['anyone','domain','group'].includes(p.type)))
         throw Error('drive_folder_not_restricted');
-      // Comprobar antes TODAS las subcarpetas (sin conceder permisos fuera del producto).
-      const limited=await limitedSubfolders(id,token);
-      const explicit=new Map();
-      for(const childId of limited){
-        const subPermissions=await listPermissions(childId,token);
-        if(subPermissions.some(p=>['anyone','domain','group'].includes(p.type)))
-          throw Error('drive_folder_not_restricted');
-        const existing=subPermissions.find(p=>p.type==='user'&&String(p.emailAddress||'').trim().toLowerCase()===email);
-        if(existing?.view==='metadata')throw Error('drive_subfolder_metadata_only');
-        explicit.set(childId,!!existing&&buyerCanOpen(existing,email));
-      }
       const existing=permissions.find(p=>p.type==='user'&&String(p.emailAddress||'').trim().toLowerCase()===email);
-      if(existing?.view==='metadata')throw Error('drive_folder_metadata_only');
-      if(!existing||!buyerCanOpen(existing,email))await grantReader(id,email,token);
-      // Permiso directo SOLO en subcarpetas con acceso limitado, cuando están dentro del producto comprado.
-      for(const childId of limited){
-        if(!explicit.get(childId))await grantReader(childId,email,token);
+      if(!existing){
+        const created=await request(DRIVE_API+encodeURIComponent(id)+
+          '/permissions?sendNotificationEmail=false&supportsAllDrives=true&fields=id,type,role,emailAddress',{
+          method:'POST',headers:{...headers,'Content-Type':'application/json'},
+          body:JSON.stringify({type:'user',role:'reader',emailAddress:email})
+        },'grant');
+        if(!created.id||created.type!=='user'||created.role!=='reader'||
+          (created.emailAddress&&String(created.emailAddress).toLowerCase()!==email))
+          throw Error('drive_grant_not_confirmed');
       }
       done.add(id);
     }

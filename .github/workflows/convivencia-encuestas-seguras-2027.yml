@@ -1,0 +1,131 @@
+name: Encuestas seguras 2027 - piloto aislado
+on:
+  push:
+    branches:
+      - feature/convivencia-encuestas-seguras-2027
+      - feature/convivencia-dimensiones-pgce-integrado-2027
+      - feature/convivencia-agregados-estudiantiles-pgce-2027
+  pull_request:
+    branches:
+      - feature/convivencia-dimensiones-pgce-integrado-2027
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validar-api-adultos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependencias en runner sin credenciales ni base real
+        working-directory: convivencia-api
+        run: npm install --no-audit --no-fund
+      - name: Sintaxis de API, banco y pruebas
+        working-directory: convivencia-api
+        run: |
+          node --check server.js
+          node --check community-surveys.js
+          node --check community-surveys-core.cjs
+          node --check test-community-surveys-2027.cjs
+          node --check test-community-front-2027.cjs
+          node --check pgce-dimensions-integrated-2027.cjs
+          node --check test-pgce-dimensions-integrated-2027.cjs
+          node --check test-pgce-screen-2027.cjs
+          node --check student-dimensions-adapter-2027.cjs
+          node --check pgce-planning-drafts-2027.cjs
+          node --check pgce-follow-up-2027.cjs
+          node --check pgce-export-2027.cjs
+          node --check pgce-export-review-2027.cjs
+          node --check pgce-governance-2027.cjs
+          node --check pgce-pilot-readiness-2027.cjs
+          node --check test-pgce-pilot-readiness-2027.cjs
+          node --check test-pgce-http-security-2027.cjs
+          node --check test-pgce-governance-2027.cjs
+          node --check test-pgce-export-review-2027.cjs
+          node --check test-pgce-browser-smoke-2027.cjs
+          node --check test-pgce-browser-real-api-2027.cjs
+          node --check piloto-local-pgce-2027.cjs
+          node --check test-pgce-local-pilot-2027.cjs
+          node --check test-pgce-local-pilot-browser-2027.cjs
+          node --check test-pgce-uat-accessibility-2027.cjs
+          node --check uat-trazabilidad-pgce-2027.cjs
+          node --check pgce-uat-evaluacion-local-2027.cjs
+          node --check test-pgce-uat-evaluacion-local-2027.cjs
+          node --check test-pgce-uat-evaluacion-browser-2027.cjs
+          node --check test-pgce-pilot-navigation-2027.cjs
+          node --check generar-paquete-inicio-pgce-2027.cjs
+          node --check test-inicio-piloto-pgce-2027.cjs
+          node --check pgce-release-gate-2027.cjs
+          node --check test-pgce-release-gate-2027.cjs
+          node --check pgce-cohort-gate-2027.cjs
+          node --check test-pgce-cohort-gate-2027.cjs
+          node --check test-uat-trazabilidad-pgce-2027.cjs
+          node --check test-pgce-export-2027.cjs
+          node --check test-pgce-follow-up-2027.cjs
+          node --check test-pgce-v2-migration-2027.cjs
+          node --check test-pgce-planning-drafts-2027.cjs
+          node --check test-student-dimensions-adapter-2027.cjs
+      - name: Recorrido HTTP con datos sintéticos y PostgreSQL en memoria
+        working-directory: convivencia-api
+        run: node --test test-community-surveys-2027.cjs test-community-front-2027.cjs test-pgce-dimensions-integrated-2027.cjs test-pgce-screen-2027.cjs test-student-dimensions-adapter-2027.cjs test-pgce-planning-drafts-2027.cjs test-pgce-follow-up-2027.cjs test-pgce-v2-migration-2027.cjs test-pgce-export-2027.cjs test-pgce-export-review-2027.cjs test-pgce-governance-2027.cjs test-pgce-pilot-readiness-2027.cjs test-pgce-http-security-2027.cjs test-pgce-local-pilot-2027.cjs test-uat-trazabilidad-pgce-2027.cjs test-pgce-uat-evaluacion-local-2027.cjs test-inicio-piloto-pgce-2027.cjs test-pgce-release-gate-2027.cjs test-pgce-cohort-gate-2027.cjs
+
+  validar-editor-movil:
+    needs: validar-api-adultos
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias locales y navegador de prueba
+        working-directory: convivencia-api
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund playwright@1.56.1 @axe-core/playwright@4.10.2
+          npx playwright install --with-deps chromium firefox webkit
+      - name: Probar editor de Convivencia 2027 en Chromium Firefox WebKit
+        working-directory: convivencia-api
+        env:
+          PGCE_PILOT_SCREENSHOTS_DIR: pilot-evidence
+        run: node test-pgce-browser-smoke-2027.cjs
+      - name: Verificar navegador contra API real del piloto y PostgreSQL temporal
+        working-directory: convivencia-api
+        run: node test-pgce-browser-real-api-2027.cjs
+      - name: Ejecutar piloto local real con política de red bloqueada
+        working-directory: convivencia-api
+        run: node test-pgce-local-pilot-browser-2027.cjs
+      - name: Validar teclado, etiquetas y ampliación 200% sin datos reales
+        working-directory: convivencia-api
+        run: node test-pgce-uat-accessibility-2027.cjs
+      - name: Evaluar pauta humana sin certificación con navegador y exportación JSON local
+        working-directory: convivencia-api
+        run: node test-pgce-uat-evaluacion-browser-2027.cjs
+      - name: Verificar acceso al Plan 2027 oculto salvo cohorte autorizada
+        working-directory: convivencia-api
+        run: node test-pgce-pilot-navigation-2027.cjs
+      - name: Generar matriz de trazabilidad para revisión profesional
+        working-directory: convivencia-api
+        run: node uat-trazabilidad-pgce-2027.cjs
+      - name: Preparar kit descargable de inicio sin conexión a producción
+        working-directory: convivencia-api
+        run: node generar-paquete-inicio-pgce-2027.cjs
+      - name: Publicar pauta de evaluación descargable sin instalaciones
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgce-2027-pauta-de-inicio
+          path: convivencia-api/pilot-starter-pack/
+          retention-days: 14
+          if-no-files-found: error
+      - name: Guardar imágenes sintéticas del piloto para revisión humana
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgce-2027-vistas-ficticias
+          path: convivencia-api/pilot-evidence/
+          retention-days: 7
+          if-no-files-found: warn

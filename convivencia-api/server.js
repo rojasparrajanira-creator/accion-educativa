@@ -68,8 +68,8 @@ app.use((req,res,next)=>{
     res.setHeader('Access-Control-Allow-Origin',origin);
     res.setHeader('Vary','Origin');
     res.setHeader('Access-Control-Allow-Credentials','true');
-    res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Student-Access');
-    res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers','Content-Type, X-Student-Access, X-Community-Access');
+    res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,OPTIONS');
   }
   if(req.method==='OPTIONS'){
     if(origin&&!allowedOrigins.has(origin))return res.sendStatus(403);
@@ -126,6 +126,9 @@ async function initDatabase(){
   if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL no configurada');
   await pool.query(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));
   await pool.query(fs.readFileSync(path.join(__dirname,'subscriptions.sql'),'utf8'));
+  // Encuestas 2027 de adultos: migración opt-in, jamás ejecutar por defecto.
+  if(process.env.MEC_COMMUNITY_SURVEYS_ENABLED==='1')
+    await pool.query(fs.readFileSync(path.join(__dirname,'community-surveys.sql'),'utf8'));
   await pool.query("delete from auth_sessions where expires_at<=now()");
   await pool.query(`delete from response_drafts d using survey_applications a,measurement_settings ms
     where d.application_id=a.id and ms.measurement_id=a.measurement_id
@@ -2243,6 +2246,13 @@ app.get('/api/site/admin/contacts',...requireRole('platform_admin'),async(req,re
   const q=await pool.query("select id,sender_name,sender_email,subject,message,email_notification_status,created_at from site_contact_messages order by created_at desc limit 100");
   ok(res,{messages:q.rows});
 }catch(e){res.status(500).json({ok:false,error:'contact_inbox_unavailable'})}});
+
+// Rutas aisladas bajo habilitación explícita; conservar sistema actual sin cambios.
+if(process.env.MEC_COMMUNITY_SURVEYS_ENABLED==='1'){
+  const {registerCommunitySurveys}=require('./community-surveys');
+  registerCommunitySurveys({app,pool,requireRole,rateLimit:publicRateLimit,
+    accessStatus:id=>subscriptions.accessStatus(id),allowedOrigins});
+}
 
 const port=process.env.PORT||3000;
 initDatabase().then(()=>app.listen(port,()=>{

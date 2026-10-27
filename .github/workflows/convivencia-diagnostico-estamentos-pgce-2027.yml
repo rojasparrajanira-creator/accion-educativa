@@ -1,0 +1,25 @@
+name: Diagnóstico estamentos y PGCE 2027
+on:
+  push:
+    branches:
+      - feature/convivencia-matriz-cumplimiento-pgce-2027
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  auditar-borradores:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validar sintaxis
+        run: |
+          node --check convivencia-escolar/js/instrumentos-estamentos-2027.js
+          node --check convivencia-api/pgce-preflight-2027.cjs
+          node --check convivencia-api/test-instrumentos-estamentos-2027.cjs
+          node --check convivencia-api/test-pgce-preflight-2027.cjs
+      - name: Verificar encuestas, privacidad y estructura del Plan
+        run: node --test convivencia-api/test-instrumentos-estamentos-2027.cjs convivencia-api/test-pgce-preflight-2027.cjs

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Encuesta de convivencia · Comunidad educativa</title>
+<style>
+:root{--main:#156c64;--ink:#143b38;--muted:#566e69;--border:#d2e7df;--bg:#eef9f5}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(125deg,#e5f8f2,#fcfdff);color:var(--ink);font:16px/1.5 Inter,-apple-system,system-ui,Arial,sans-serif}
+button,input{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible{outline:3px solid #1176ba;outline-offset:3px}
+.shell{width:min(700px,100%);margin:28px auto;padding:0 18px 48px}.card{background:#fff;padding:clamp(22px,4vw,35px);border:1px solid var(--border);border-radius:24px;box-shadow:0 14px 36px rgba(18,90,83,.08)}
+.logo{font-size:13px;font-weight:850;color:var(--main);margin-bottom:16px}.tag{font-size:12px;color:#866523;font-weight:800;background:#fff5cf;border-radius:20px;padding:6px 12px;display:inline-block}
+h1{color:var(--main);font-size:clamp(26px,4.5vw,34px);line-height:1.2;margin:12px 0}h2{font-size:clamp(21px,4vw,28px);line-height:1.35}
+p{color:var(--muted)}.field{margin:14px 0}.field label{display:block;font-weight:750;margin-bottom:7px}
+.field input{width:100%;padding:13px;border-radius:12px;border:1px solid var(--border);font-size:16px}
+.action{border:0;border-radius:13px;padding:13px 19px;min-height:48px;background:var(--main);color:white;font-weight:800}
+.action.secondary{color:var(--main);background:#e5f5ef}.action:disabled{opacity:.5;cursor:not-allowed}
+.notice{border-left:4px solid #20a58e;padding:13px 15px;margin:18px 0;background:#f0faf7;border-radius:10px;font-size:13px;color:#45645c}
+.status{min-height:25px;color:#9d382f;font-weight:600;font-size:13px} .bar{height:10px;background:#e1ede8;border-radius:99px;overflow:hidden;margin-bottom:14px}
+.fill{height:100%;width:0;background:#25a58f}.label{font-size:13px;font-weight:750;color:var(--muted)}
+.choices{display:grid;gap:9px}.choice{min-height:55px;display:flex;gap:12px;align-items:center;border:2px solid var(--border);border-radius:12px;padding:12px 15px;cursor:pointer}
+.choice:has(input:checked){border-color:var(--main);background:#ebfaf4}.choice input{accent-color:var(--main);width:20px;height:20px;flex:none}
+.nav{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:23px}
+footer{text-align:center;margin-top:18px;font-size:12px;color:var(--muted)}
+[hidden]{display:none!important}@media(max-width:520px){.shell{margin:12px auto}.card{padding:21px}.nav button{flex:1}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <main class="card">
+    <div class="logo">Material Educativo Chile · Convivencia Educativa</div>
+    <section id="access">
+      <span class="tag">Encuestas comunidad educativa · Piloto 2027</span>
+      <h1>Ingresa a tu encuesta</h1>
+      <p>Tu establecimiento debe entregarte un código de invitación y un PIN personal por canales separados. No compartas tus credenciales.</p>
+      <form id="login">
+        <div class="field"><label for="code">Código de invitación</label><input id="code" required maxlength="32" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="Código entregado por el establecimiento"></div>
+        <div class="field"><label for="pin">PIN de 8 dígitos</label><input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" required placeholder="••••••••"></div>
+        <button id="login-btn" type="submit" class="action">Ingresar a la encuesta</button>
+      </form>
+      <p id="login-error" class="status" role="alert" aria-live="polite"></p>
+      <p class="notice">La encuesta es una consulta de convivencia, no una evaluación clínica ni una prueba con nota. Puedes optar por no responder cualquier pregunta. El acceso está disponible únicamente cuando el establecimiento ha autorizado el piloto.</p>
+    </section>
+    <section id="survey" hidden>
+      <p class="label" id="audience"></p>
+      <div class="bar"><div class="fill" id="bar" role="progressbar" aria-label="Avance de la encuesta" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div></div>
+      <p class="label" id="counter"></p>
+      <h2 id="question" tabindex="-1"></h2>
+      <div id="choices" class="choices" role="radiogroup" aria-labelledby="question"></div>
+      <div class="nav">
+        <button id="previous" type="button" class="action secondary">← Anterior</button>
+        <button id="skip" type="button" class="action secondary">Omitir</button>
+        <button id="next" type="button" class="action" disabled>Siguiente →</button>
+      </div>
+      <p class="notice">«No tengo información», «No corresponde» y «Omitir» son respuestas distintas y no representan puntajes. No escribas datos personales en la encuesta.</p>
+    </section>
+    <section id="confirm" hidden>
+      <h1>Revisa antes de finalizar</h1>
+      <p id="review"></p>
+      <p>Al enviar, las respuestas quedan registradas para el diagnóstico institucional. Esta invitación no puede responderse otra vez. Los informes estarán disponibles solo para profesionales autorizados, de forma agregada y con umbrales de privacidad.</p>
+      <button class="action secondary" type="button" id="review-back">← Revisar respuestas</button>
+      <button class="action" type="button" id="submit">Enviar mis respuestas</button>
+      <p id="submit-error" class="status" role="alert" aria-live="polite"></p>
+    </section>
+    <section id="done" hidden>
+      <h1>¡Gracias por participar!</h1>
+      <p>La encuesta fue enviada correctamente. Tu aporte ayudará a conocer necesidades de convivencia del establecimiento.</p>
+    </section>
+  </main>
+  <footer>Acceso individual · No compartir enlaces ni PIN · Instrumento propio de diagnóstico institucional</footer>
+</div>
+<script>
+(()=>{'use strict';
+const API='https://convivencia-escolar-api.onrender.com';
+const el=id=>document.getElementById(id);
+const screens=['access','survey','confirm','done'];
+let token='',questions=[],scale=[],answers=Object.create(null),current=0,audience='';
+function show(id){for(const s of screens)el(s).hidden=s!==id}
+el('pin').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,8)});
+el('login').addEventListener('submit',async ev=>{
+ ev.preventDefault();
+ const code=el('code').value.trim(),pin=el('pin').value.trim();
+ if(!/^[a-zA-Z0-9_-]{32}$/.test(code)||!/^\d{8}$/.test(pin)){el('login-error').textContent='Revisa el código y el PIN recibidos.';return}
+ const btn=el('login-btn');btn.disabled=true;el('login-error').textContent='';
+ try{
+   const r=await fetch(API+'/api/community-surveys/redeem',{
+     method:'POST',headers:{'Content-Type':'application/json'},credentials:'omit',cache:'no-store',
+     referrerPolicy:'no-referrer',body:JSON.stringify({invite_code:code,pin})});
+   const data=await r.json();
+   if(!r.ok||!data.ok)throw Error('No fue posible ingresar. Revisa tus credenciales, el plazo de vigencia o consulta al establecimiento.');
+   if(!/^[A-Za-z0-9_-]{32}$/.test(data.session_token)||!Array.isArray(data.questions)||!Array.isArray(data.scale))throw Error('Respuesta de acceso inesperada.');
+   token=data.session_token;questions=data.questions;scale=data.scale;audience=data.audience;
+   el('code').value='';el('pin').value='';
+   answers=Object.create(null);current=0;paint();
+ }catch(e){el('login-error').textContent=e.message||'No fue posible conectar con el servicio.'}
+ finally{btn.disabled=false}
+});
+function paint(){
+ show('survey');
+ const item=questions[current],response=answers[item.id];
+ const pct=Math.round(current/questions.length*100);
+ el('bar').style.width=pct+'%';el('bar').setAttribute('aria-valuenow',String(pct));
+ const labels={familia:'Madres, padres y apoderados',docente:'Docentes',asistente:'Asistentes de la educación',directivo:'Equipo directivo y UTP'};
+ el('audience').textContent=labels[audience]||'Comunidad educativa';
+ el('counter').textContent='Pregunta '+(current+1)+' de '+questions.length;
+ el('question').textContent=item.wording;
+ const target=el('choices');target.replaceChildren();
+ for(const option of [...scale,{value:'skipped',label:'Prefiero no responder'}]){
+   const lab=document.createElement('label');lab.className='choice';
+   const input=document.createElement('input');input.type='radio';input.name='answer';
+   input.checked=response===option.value;
+   const span=document.createElement('span');span.textContent=option.label;
+   input.onchange=()=>{answers[item.id]=option.value;el('next').disabled=false};
+   lab.append(input,span);target.appendChild(lab);
+ }
+ el('previous').disabled=current===0;el('next').disabled=response===undefined;
+ el('next').textContent=current===questions.length-1?'Revisar →':'Siguiente →';
+ el('question').focus({preventScroll:true});
+}
+function advance(){
+ if(current===questions.length-1){
+   show('confirm');
+   const values=Object.values(answers);
+   const selected=values.filter(v=>typeof v==='number').length;
+   const unknown=values.filter(v=>v==='unknown').length;
+   const na=values.filter(v=>v==='not_applicable').length;
+   const skipped=values.filter(v=>v==='skipped').length;
+   el('review').textContent='Has respondido '+selected+' preguntas de acuerdo, '+unknown+' sin información, '+na+' no aplicables y '+skipped+' omitidas.';
+ }else{current++;paint()}
+}
+el('previous').onclick=()=>{if(current>0){current--;paint()}};
+el('skip').onclick=()=>{answers[questions[current].id]='skipped';advance()};
+el('next').onclick=()=>{if(answers[questions[current].id]!==undefined)advance()};
+el('review-back').onclick=()=>paint();
+el('submit').onclick=async()=>{
+ if(!token)return;
+ const btn=el('submit');btn.disabled=true;el('submit-error').textContent='';
+ try{
+  const r=await fetch(API+'/api/community-surveys/submit',{
+   method:'POST',headers:{'Content-Type':'application/json','X-Community-Access':token},
+   credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',
+   body:JSON.stringify({answers})});
+  const data=await r.json();
+  if(!r.ok||!data.ok)throw Error('No fue posible registrar las respuestas. Verifica el acceso y vuelve a intentar.');
+  token='';answers=Object.create(null);questions=[];scale=[];
+  show('done');
+ }catch(e){el('submit-error').textContent=e.message}
+ finally{btn.disabled=false}
+};
+})();
+</script>
+</body></html>

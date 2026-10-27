@@ -1,0 +1,37 @@
+name: Kit de inicio profesional PGCE 2027
+on:
+  push:
+    branches:
+      - feature/convivencia-agregados-estudiantiles-pgce-2027
+    paths:
+      - .github/workflows/pgce-2027-kit-inicio.yml
+      - convivencia-api/generar-paquete-inicio-pgce-2027.cjs
+      - convivencia-api/pgce-uat-evaluacion-local-2027.cjs
+      - convivencia-api/ACTA-ACEPTACION-PILOTO-PGCE-2027.md
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preparar-kit-sin-produccion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preparar pauta offline y guia con datos ficticios
+        run: node convivencia-api/generar-paquete-inicio-pgce-2027.cjs
+      - name: Verificar pauta y guia generadas
+        shell: bash
+        run: |
+          test -s convivencia-api/pilot-starter-pack/PAUTA-UAT-2027-ABRIR-EN-NAVEGADOR.html
+          test -s convivencia-api/pilot-starter-pack/LEEME-INICIO-SEGURO-2027.txt
+          ! grep -q 'https://convivencia-escolar-api.onrender.com' convivencia-api/pilot-starter-pack/PAUTA-UAT-2027-ABRIR-EN-NAVEGADOR.html
+      - name: Adjuntar kit descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: pgce-2027-pauta-de-inicio
+          path: convivencia-api/pilot-starter-pack/
+          retention-days: 14
+          if-no-files-found: error

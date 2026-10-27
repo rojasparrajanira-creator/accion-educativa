@@ -30,7 +30,7 @@ async function json(res){
 }
 async function runPilotSelfTest(base){
   const startedAt=new Date().toISOString(),stamp=Date.now(),log=[];
-  const setupRaw=await fetch(base+'/api/pilot/setup',{method:'POST'});
+  const setupRaw=await fetch(base+'/api/pilot/setup',{method:'POST',headers:{'X-MEC-Pilot-Test-Key':String(process.env.MEC_PILOT_TEST_KEY||'')}});
   const setupPair=await json(setupRaw);
   if(!setupPair.res.ok||!setupPair.d.ok)throw new Error('pilot_setup_failed:'+JSON.stringify(setupPair.d));
   const cookie=(setupPair.res.headers.get('set-cookie')||'').split(';')[0];

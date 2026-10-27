@@ -204,6 +204,7 @@ test('paid email gives verification and editing instructions without authorizing
  assert.match(msg.text,/tu compra es muy importante/);
  assert.match(msg.text,/Spam o No deseados/);
  assert.match(msg.text,/descargarlos en tu computadora/);
+ assert.match(msg.text,/descárgalo y descomprímelo/);
  assert.match(msg.text,/mismo correo/);
  assert.match(msg.text,/todas las subcarpetas/);
  assert.match(msg.text,/ni se otorgará acceso a terceros/);

@@ -110,4 +110,4 @@ window.MECInstitution={
     }
   }
 };
-document.addEventListener('DOMContentLoaded',()=>MECInstitution.load());
+document.addEventListener('DOMContentLoaded',()=>window.MECReportAccess.then(()=>MECInstitution.load()));

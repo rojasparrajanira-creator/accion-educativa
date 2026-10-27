@@ -46,3 +46,58 @@ jobs:
           node-version: '22'
       - name: Comprobar JavaScript y pantallas principales
         run: node convivencia-api/check-ui-syntax.cjs
+
+  convivencia-piloto-aislado:
+    name: Piloto integral con PostgreSQL temporal
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: convivencia_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: temporal_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d convivencia_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias del piloto
+        working-directory: convivencia-api
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Autoprueba integral sin usar Render ni datos reales
+        working-directory: convivencia-api
+        env:
+          DATABASE_URL: postgres://postgres:temporal_ci@127.0.0.1:5432/convivencia_ci
+          MEC_ENABLE_PILOT: 'true'
+          RUN_PILOT_SELFTEST: '1'
+          MEC_STORE_DELIVERY_ENABLED: '0'
+          MEC_STORE_PAYMENT_PROVIDER: webpay
+          MEC_WEBPAY_MODE: integration
+          PORT: '3721'
+        run: |
+          set -eu
+          node server.js > pilot-ci.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          passed=0
+          for n in $(seq 1 120); do
+            if grep -q 'PILOT_SELFTEST PASSED' pilot-ci.log; then passed=1; break; fi
+            if grep -q 'PILOT_SELFTEST FAILED' pilot-ci.log; then break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ "$passed" -eq 1 ]; then
+            grep 'PILOT_SELFTEST PASSED' pilot-ci.log
+          else
+            grep 'PILOT_SELFTEST FAILED' pilot-ci.log || tail -n 40 pilot-ci.log
+            exit 1
+          fi

@@ -7,14 +7,24 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
  const publicOrigin=String(env.MEC_SUBSCRIPTION_WEB_ORIGIN||'https://www.materialeducativochile.cl/convivencia-escolar').replace(/\/$/,'');
  const apiOrigin=String(env.MEC_SUBSCRIPTION_API_ORIGIN||'https://convivencia-escolar-api.onrender.com').replace(/\/$/,'');
  const notifyEmail=String(env.MEC_SUBSCRIPTION_NOTIFY_EMAIL||env.MEC_PLATFORM_ADMIN_EMAIL||'accioneducativaspa@gmail.com').trim();
- const mailKey=String(env.MEC_SUBSCRIPTION_RESEND_API_KEY||env.MEC_CONTACT_RESEND_API_KEY||'');
- const mailFrom=String(env.MEC_SUBSCRIPTION_FROM_EMAIL||env.MEC_CONTACT_FROM_EMAIL||'');
+ // Para reutilizar el remitente de la tienda se requiere autorización técnica explícita.
+ const existingKey=String(env.MEC_SUBSCRIPTION_RESEND_API_KEY||env.MEC_CONTACT_RESEND_API_KEY||'').trim();
+ const existingFrom=String(env.MEC_SUBSCRIPTION_FROM_EMAIL||env.MEC_CONTACT_FROM_EMAIL||'').trim();
+ const storeKey=String(env.MEC_STORE_RESEND_API_KEY||'').trim();
+ const storeFrom=String(env.MEC_STORE_FROM_EMAIL||'').trim();
+ const storeEmailAvailable=!!(storeKey&&storeFrom);
+ const storeEmailOptIn=String(env.MEC_SUBSCRIPTION_USE_STORE_EMAIL||'')==='1';
+ const usingStoreEmail=storeEmailOptIn&&storeEmailAvailable&&!(existingKey&&existingFrom);
+ const mailKey=usingStoreEmail?storeKey:existingKey;
+ const mailFrom=usingStoreEmail?storeFrom:existingFrom;
  function configuration(){
   const production=env.MEC_ONECLICK_MODE==='production';
   const code=String(env.MEC_ONECLICK_COMMERCE_CODE||''),child=String(env.MEC_ONECLICK_CHILD_COMMERCE_CODE||''),apiKey=String(env.MEC_ONECLICK_API_KEY||'');
   const configured=production&&!!(code&&child&&apiKey&&vault.ready);
   const mailReady=!!(vault.ready&&((mailKey&&mailFrom)||mailOverride));
-  return {configured,mailReady,ready:configured&&mailReady,code,child,apiKey,production};
+  return {configured,mailReady,ready:configured&&mailReady,code,child,apiKey,production,
+    encryptionReady:!!vault.ready,mailProviderConfigured:!!(mailKey||mailOverride),
+    mailSenderConfigured:!!(mailFrom||mailOverride),storeEmailAvailable,storeEmailOptIn,usingStoreEmail};
  }
  function gateway(){if(gatewayOverride)return gatewayOverride;const c=configuration();if(!c.ready)throw Error('billing_not_ready');const opts=new Options(c.code,c.apiKey,Environment.Production);return {inscription:new Oneclick.MallInscription(opts),transaction:new Oneclick.MallTransaction(opts),child:c.child}}
  async function locked(id,fn){
@@ -170,7 +180,7 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
    (select count(*) from mec_subscription_mail m where m.subscription_id=s.id and m.status<>'sent')::int pending_emails
    from mec_subscriptions s order by s.created_at desc limit 200`);
   const access=await pool.query('select r.id,r.created_at,u.name,u.email,e.rbd,e.name establishment from mec_access_requests r join users u on u.id=r.user_id join establishments e on e.id=u.establishment_id where r.status=$1 order by r.created_at desc limit 100',['pending']);
-  const c=configuration();res.json({ok:true,subscriptions:q.rows,access_requests:access.rows,configuration:{production:c.production,oneclick_ready:c.configured,email_ready:c.mailReady,payment_ready:c.ready}});
+  const c=configuration();res.json({ok:true,subscriptions:q.rows,access_requests:access.rows,configuration:{production:c.production,oneclick_ready:c.configured,email_ready:c.mailReady,payment_ready:c.ready,encryption_ready:c.encryptionReady,email_provider_configured:c.mailProviderConfigured,email_sender_configured:c.mailSenderConfigured,store_email_available:c.storeEmailAvailable,store_email_opt_in:c.storeEmailOptIn,using_store_email:c.usingStoreEmail}});
  }catch(e){res.status(503).json({ok:false,error:'admin_unavailable'})}});
  app.post('/api/subscriptions/admin/:id/activate',...requireRole('platform_admin'),async(req,res)=>{try{
   if(!configuration().mailReady)return res.status(503).json({ok:false,error:'email_not_ready'});
@@ -193,7 +203,14 @@ function createSubscriptions({app,pool,requireAuth,requireRole,rateLimit,makePas
   });res.json({ok:true,...result});
  }catch(e){res.status(409).json({ok:false,error:e.code==='23505'?'rbd_already_registered':'activation_not_available'})}});
  app.post('/api/subscriptions/admin/:id/reconcile',...requireRole('platform_admin'),async(req,res)=>{try{const s=(await pool.query('select activated_at from mec_subscriptions where id=$1',[req.params.id])).rows[0];if(!s)return res.status(404).json({ok:false,error:'subscription_not_found'});res.json({ok:true,...await charge(req.params.id,!s.activated_at)})}catch(e){res.status(503).json({ok:false,error:'reconciliation_unavailable'})}});
- app.post('/api/subscriptions/admin/mail/retry',...requireRole('platform_admin'),async(req,res)=>{try{await pool.query("update mec_subscription_mail set next_attempt_at=now(),attempts=0 where status<>'sent'");await flushMail();res.json({ok:true})}catch(e){res.status(503).json({ok:false,error:'mail_unavailable'})}});
+ app.post('/api/subscriptions/admin/mail/retry',...requireRole('platform_admin'),async(req,res)=>{
+  if(!configuration().mailReady)return res.status(503).json({ok:false,error:'email_not_ready'});
+  try{
+   await pool.query("update mec_subscription_mail set next_attempt_at=now(),attempts=0 where status<>'sent'");
+   await flushMail();
+   res.json({ok:true,processed:true});
+  }catch(e){res.status(503).json({ok:false,error:'mail_unavailable'})}
+ });
  async function prepareRecovery(userId){
   if(!configuration().mailReady)return false;
   return locked('credential-'+userId,async c=>{

@@ -50,7 +50,7 @@ button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible
   <div class="metric"><strong id="statOrders">—</strong><span>Pedidos registrados</span></div>
   <div class="metric"><strong id="statPaid">—</strong><span>Compras pagadas</span></div>
   <div class="metric"><strong id="statRevenue">—</strong><span>Ventas pagadas (CLP)</span></div>
-  <div class="metric"><strong id="statSent">—</strong><span>Correos enviados</span></div>
+  <div class="metric"><strong id="statSent">—</strong><span>Envíos registrados por el sistema</span></div>
   <div class="metric"><strong id="statPending">—</strong><span>Pagados sin envío confirmado</span></div>
 </section>
 <section class="panel">
@@ -98,7 +98,7 @@ function paymentLabel(o){
 }
 function deliveryLabel(o){
  if(o.status!=='paid')return ['Entrega no habilitada: pago pendiente','warning'];
- if(o.delivery_status==='sent')return ['Correo de entrega enviado','ok'];
+ if(o.delivery_status==='sent')return [deliveryConfiguration.test_mode?'Correo enviado a casilla de pruebas':'Correo de entrega enviado','ok'];
  if(o.delivery_status==='failed')return ['Entrega fallida: requiere revisión','error'];
  if(o.delivery_status==='pending')return ['En espera de correo','warning'];
  return ['Sin envío confirmado','warning'];
@@ -188,6 +188,7 @@ async function load(){
   orders=Array.isArray(data.orders)?data.orders:[];
   deliveryConfiguration=config||{};
   summarize();show();
+  if(deliveryConfiguration.test_mode) $('status').textContent+=' ATENCIÓN: el servidor está en modo integración; los correos se dirigen a la casilla de pruebas, no al comprador.';
  }catch(e){
   $('status').textContent='No fue posible consultar los pedidos. '+e.message;
  }finally{$('refresh').disabled=false}

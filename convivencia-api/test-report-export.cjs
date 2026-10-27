@@ -44,7 +44,7 @@ test('habilita Word y PDF solo tras resultados confirmados',()=>{
  assert.equal(p.exporter.print(),true);
  assert.equal(p.metrics().downloads,1);
  assert.equal(p.metrics().printCalls,1);
- assert.match(p.metrics().contents[0],/\\\\rtf1/);
+ assert.match(p.metrics().contents[0],/\\rtf1/);
  assert.match(p.metrics().contents[0],/Estudiante ficticio/);
  assert.match(p.status.textContent,/Informe listo/);
  p.exporter.setReady(false);

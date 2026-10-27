@@ -695,6 +695,12 @@ app.get('/api/platform/readiness',...requireRole('platform_admin'),(req,res)=>{
     pilot_selftest_requested:String(process.env.RUN_PILOT_SELFTEST||'')==='1',
     subscription_payment_ready:!!conf.ready,
     subscription_email_ready:!!conf.mailReady,
+    subscription_encryption_ready:!!conf.encryptionReady,
+    subscription_email_provider_configured:!!conf.mailProviderConfigured,
+    subscription_email_sender_configured:!!conf.mailSenderConfigured,
+    subscription_store_email_available:!!conf.storeEmailAvailable,
+    subscription_store_email_opt_in:!!conf.storeEmailOptIn,
+    subscription_using_store_email:!!conf.usingStoreEmail,
     mfa_key_configured:!!mfaKey()
   }});
 });

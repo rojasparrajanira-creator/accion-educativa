@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pedidos y entregas · Material Educativo Chile</title>
+<script src="js/auth-professional.js"></script>
+<script>MECAuth.guard({roles:['platform_admin'],bindEstablishment:false,forbiddenToLogin:true});</script>
+<style>
+:root{--blue:#003898;--turquoise:#13c4d9;--ink:#1b2b43;--muted:#59718d;--border:#dbe5f2}
+*{box-sizing:border-box}html:not([data-auth="ok"]) body{visibility:hidden}
+body{font:14px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#f5f9ff;margin:0}
+main{max-width:1180px;margin:auto;padding:24px 17px 48px}
+h1,h2{color:var(--blue)}h1{font-size:27px;margin:0 0 8px}h2{font-size:17px;margin:0 0 12px}
+p{line-height:1.55}.muted{color:var(--muted)}.intro{background:linear-gradient(105deg,#003898,#1167b8);border-radius:18px;color:white;padding:22px;margin-bottom:19px}
+.intro h1{color:white}.intro p{color:#e5f9ff;margin:6px 0 0}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.metric{background:#fff;border:1px solid var(--border);border-radius:15px;padding:15px;box-shadow:0 6px 20px #0038980b}
+.metric strong{display:block;font-size:clamp(19px,2.2vw,29px);color:var(--blue);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.metric span{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-top:5px}
+.panel{background:white;border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.controls>*{flex:1 1 180px}
+label{display:block;font-size:12px;font-weight:700;margin-bottom:5px}
+input,select{border:1px solid #c8d6e7;border-radius:9px;padding:10px;width:100%;font:inherit;background:white}
+button{border:0;background:var(--blue);color:white;font:inherit;font-weight:700;padding:10px 13px;border-radius:9px;cursor:pointer}
+button.secondary{background:#edf7fb;color:var(--blue);border:1px solid #b9dce9}
+button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--turquoise)}
+.order{border:1px solid var(--border);border-radius:13px;padding:16px;margin:12px 0;background:#fff}
+.order-head{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start;justify-content:space-between}
+.order h3{margin:0 0 6px;color:var(--blue);font-size:17px}.order p{margin:6px 0}
+.order-tags{display:flex;flex-wrap:wrap;gap:7px;margin:11px 0}
+.tag{display:inline-block;font-weight:700;font-size:12px;border-radius:999px;padding:6px 10px;background:#f1f4fa;color:#32435d}
+.tag.ok{background:#e8f7ef;color:#176140}.tag.warning{background:#fff3e3;color:#8b4c0a}
+.tag.error{background:#fdecee;color:#9b293e}
+.order-buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+.order-msg{font-size:13px;margin-top:12px;white-space:pre-wrap}
+.note{border-left:4px solid var(--turquoise);background:#effaff;padding:13px 15px;border-radius:7px}
+#status{min-height:20px}#ordersList:empty:after{content:"Sin resultados";color:var(--muted)}
+@media(max-width:850px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){main{padding:12px 10px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.metric{padding:12px}.metric strong{font-size:20px}}
+</style>
+</head>
+<body>
+<main>
+<section class="intro">
+  <h1>Pedidos y entregas</h1>
+  <p>Panel privado de Superadministración. Identifica cada compra por su número interno y código, distingue el pago, el acceso a Drive, el envío del correo y el documento tributario.</p>
+</section>
+<section class="stats" aria-label="Resumen numérico de los pedidos consultados">
+  <div class="metric"><strong id="statOrders">—</strong><span>Pedidos registrados</span></div>
+  <div class="metric"><strong id="statPaid">—</strong><span>Compras pagadas</span></div>
+  <div class="metric"><strong id="statRevenue">—</strong><span>Ventas pagadas (CLP)</span></div>
+  <div class="metric"><strong id="statSent">—</strong><span>Correos enviados</span></div>
+  <div class="metric"><strong id="statPending">—</strong><span>Pagados sin envío confirmado</span></div>
+</section>
+<section class="panel">
+  <h2>Buscar un pedido</h2>
+  <div class="controls">
+    <div><label for="search">Número, código, nombre o correo</label><input id="search" type="search" placeholder="Ej.: 40, 8990, apellido o correo" autocomplete="off"></div>
+    <div><label for="filter">Estado del pedido</label><select id="filter"><option value="all">Todos</option><option value="paid">Pagados</option><option value="pending">Pagados sin correo confirmado</option><option value="failed">Entrega fallida</option><option value="sent">Correo enviado</option><option value="unpaid">Sin pago confirmado</option></select></div>
+    <div style="flex:0 0 auto;align-self:end"><button id="refresh" type="button">Actualizar pedidos</button></div>
+  </div>
+  <p class="muted" id="status" role="status" aria-live="polite">Consultando pedidos…</p>
+  <p class="muted">Las cifras se calculan sobre los últimos 250 pedidos que proporciona actualmente la API, no necesariamente sobre todas las ventas históricas.</p>
+</section>
+<section class="panel">
+  <h2>Detalle de pedidos</h2>
+  <div class="note">«Pago aprobado» confirma el pago, pero no el envío. «En espera de correo» significa que el correo aún no consta como enviado. «Documento tributario pendiente» significa que la boleta o factura aún no figura registrada como emitida en esta plataforma. Si el cliente ya tiene acceso a la carpeta, la comprobación de Drive no necesita crear un permiso duplicado.</div>
+  <div id="ordersList"></div>
+  <p class="muted" id="empty" hidden>No hay pedidos que coincidan con los filtros.</p>
+</section>
+</main>
+<script>
+'use strict';
+const API='https://convivencia-escolar-api.onrender.com';
+const $=id=>document.getElementById(id);
+const clp=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(n)||0);
+const num=n=>new Intl.NumberFormat('es-CL').format(Number(n)||0);
+const date=v=>{if(!v)return 'Sin fecha';const d=new Date(v);return Number.isNaN(d.getTime())?'Sin fecha':new Intl.DateTimeFormat('es-CL',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Santiago'}).format(d)};
+let orders=[],deliveryConfiguration={};
+async function api(path,options={}){
+ const response=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json'},...options});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok){const error=new Error(data.error||'Error de servidor');error.reason=data.reason||'';throw error}
+ return data;
+}
+function el(tag,text,className){
+ const n=document.createElement(tag);
+ if(text!==undefined&&text!==null)n.textContent=String(text);
+ if(className)n.className=className;
+ return n;
+}
+function paymentLabel(o){
+ if(o.status==='paid')return ['Pago aprobado','ok'];
+ if(o.status==='cancelled')return ['Pago cancelado','warning'];
+ if(o.status==='payment_initialized')return ['Pago en proceso','warning'];
+ return ['Pago no confirmado','warning'];
+}
+function deliveryLabel(o){
+ if(o.status!=='paid')return ['Entrega no habilitada: pago pendiente','warning'];
+ if(o.delivery_status==='sent')return ['Correo de entrega enviado','ok'];
+ if(o.delivery_status==='failed')return ['Entrega fallida: requiere revisión','error'];
+ if(o.delivery_status==='pending')return ['En espera de correo','warning'];
+ return ['Sin envío confirmado','warning'];
+}
+function fiscalLabel(o){
+ if(o.status!=='paid')return ['Documento tributario sin gestionar','warning'];
+ if(o.tax_document_status==='issued')return ['Documento tributario registrado como emitido','ok'];
+ if(o.tax_document_status==='voucher_validated')return ['Comprobante registrado como validado','ok'];
+ if(o.tax_document_status==='failed')return ['Documento tributario en revisión','error'];
+ return ['Documento tributario pendiente de registrar','warning'];
+}
+function tag(label,tone){return el('span',label,'tag '+tone)}
+function addText(parent,label,value){
+ const p=el('p');const b=el('strong',label+': ');p.append(b,document.createTextNode(String(value)));parent.appendChild(p);
+}
+function summarize(){
+ const paid=orders.filter(o=>o.status==='paid');
+ $('statOrders').textContent=num(orders.length);
+ $('statPaid').textContent=num(paid.length);
+ $('statRevenue').textContent=clp(paid.reduce((sum,o)=>sum+(Number(o.total_clp)||0),0));
+ $('statSent').textContent=num(paid.filter(o=>o.delivery_status==='sent').length);
+ $('statPending').textContent=num(paid.filter(o=>o.delivery_status!=='sent').length);
+}
+function show(){
+ const list=$('ordersList');list.replaceChildren();
+ const q=$('search').value.trim().toLocaleLowerCase('es');
+ const f=$('filter').value;
+ const selected=orders.filter(o=>{
+  const searchable=[o.id,o.order_code,o.buyer_name,o.buyer_email].join(' ').toLocaleLowerCase('es');
+  if(q&&!searchable.includes(q))return false;
+  if(f==='paid')return o.status==='paid';
+  if(f==='pending')return o.status==='paid'&&o.delivery_status!=='sent';
+  if(f==='failed')return o.status==='paid'&&o.delivery_status==='failed';
+  if(f==='sent')return o.status==='paid'&&o.delivery_status==='sent';
+  if(f==='unpaid')return o.status!=='paid';
+  return true;
+ });
+ $('empty').hidden=selected.length!==0;
+ for(const o of selected){
+  const article=el('article',null,'order'),head=el('div',null,'order-head'),identity=el('div');
+  identity.append(el('h3','Pedido interno N.º '+num(o.id)),el('p','Código de compra: '+(o.order_code||'No disponible'),'muted'));
+  const amount=el('strong',clp(o.total_clp));amount.style.fontSize='20px';
+  head.append(identity,amount);article.appendChild(head);
+  addText(article,'Comprador',o.buyer_name||'Sin nombre');
+  addText(article,'Correo registrado',o.buyer_email||'Sin correo');
+  addText(article,'Fecha',date(o.created_at));
+  addText(article,'Productos incluidos',num(o.item_count||0));
+  const badges=el('div',null,'order-tags');
+  for(const item of [paymentLabel(o),deliveryLabel(o),fiscalLabel(o)])badges.appendChild(tag(item[0],item[1]));
+  article.appendChild(badges);
+  if(o.status==='paid'&&o.delivery_status!=='sent'){
+   const actions=el('div',null,'order-buttons');
+   const grant=el('button','Comprobar / conceder acceso al comprador','secondary');
+   const retry=el('button','Reintentar correo','secondary');
+   const note=el('p',null,'order-msg muted');note.setAttribute('role','status');
+   grant.type='button';retry.type='button';
+   grant.addEventListener('click',async()=>{
+    if(!confirm('La plataforma comprobará el permiso del correo registrado en el pedido '+o.id+'. Si falta, intentará conceder acceso LECTOR solo a las carpetas compradas. No se comparte con otros destinatarios. ¿Continuar?'))return;
+    grant.disabled=true;note.textContent='Consultando Google Drive…';
+    try{
+      const result=await api('/api/store/admin/orders/'+encodeURIComponent(o.id)+'/drive-access',{method:'POST'});
+      note.textContent='Drive confirmó acceso para el correo registrado en '+num(result.folders)+' carpeta(s). Si el permiso ya existía, no se creó uno duplicado.';
+    }catch(e){note.textContent='No se pudo confirmar el acceso a Drive: '+e.message+(e.reason?' ('+e.reason+')':'')+'. No se compartió con otro correo.'}
+    finally{grant.disabled=false}
+   });
+   retry.addEventListener('click',async()=>{
+    if(!confirm('Esto reintentará el CORREO del pedido '+o.id+'. Solo se enviará después de comprobar el acceso privado a Drive. ¿Continuar?'))return;
+    retry.disabled=true;note.textContent='Solicitando reintento…';
+    try{
+     const r=await api('/api/store/admin/orders/'+encodeURIComponent(o.id)+'/delivery/retry',{method:'POST'});
+     note.textContent=r.queued?'Reintento registrado. Esto NO confirma el envío; actualiza los pedidos para consultar el resultado.':'No se pudo confirmar el reintento.';
+    }catch(e){note.textContent='No se pudo programar el envío: '+e.message}
+    finally{retry.disabled=false}
+   });
+   actions.appendChild(grant);
+   if(deliveryConfiguration.email_ready)actions.appendChild(retry);
+   article.append(actions,note);
+  }
+  list.appendChild(article);
+ }
+ $('status').textContent='Mostrando '+num(selected.length)+' de '+num(orders.length)+' pedidos consultados.';
+}
+async function load(){
+ $('refresh').disabled=true;$('status').textContent='Actualizando pedidos…';
+ try{
+  const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
+  orders=Array.isArray(data.orders)?data.orders:[];
+  deliveryConfiguration=config||{};
+  summarize();show();
+ }catch(e){
+  $('status').textContent='No fue posible consultar los pedidos. '+e.message;
+ }finally{$('refresh').disabled=false}
+}
+$('search').addEventListener('input',show);
+$('filter').addEventListener('change',show);
+$('refresh').addEventListener('click',load);
+load();
+</script>
+</body></html>

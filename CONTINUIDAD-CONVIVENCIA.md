@@ -441,3 +441,12 @@ Antes de liberar para estudiantes reales: comprobar el estado de `MEC_ENABLE_PIL
 - Existe el endpoint `GET /api/platform/readiness` protegido por `platform_admin`. Expone solamente indicadores booleanos de estado para mostrar en `admin-plataforma.html`: piloto, autoprueba, pagos recurrentes, correo de suscripciones y configuración de cifrado MFA. No revela contraseñas ni claves.
 - El modo piloto y la autoprueba deben permanecer deshabilitados en Render antes de usar matrícula real. La prueba temporal de CI NO acredita una prueba integral autenticada contra Render.
 - Las suscripciones Oneclick de producción y sus correos deben configurarse por separado; los pagos y la entrega de la tienda de materiales son independientes.
+
+
+## AJUSTES COMERCIALES DE CORREO DE SUSCRIPCIONES
+
+- Se confirmó que tienda de materiales usa `MEC_STORE_RESEND_API_KEY`/`MEC_STORE_FROM_EMAIL` mientras las suscripciones utilizan `MEC_SUBSCRIPTION_*` o respaldo `MEC_CONTACT_*`. Por tanto «correos de tienda listos» no equivale a «correos de suscripción listos».
+- Se permite respaldo opcional del par completo de credenciales de tienda **solo** con `MEC_SUBSCRIPTION_USE_STORE_EMAIL=1`, desactivado por defecto. No se ha cambiado esa variable en Render ni generado un envío real.
+- La API y panel privado informan si el remitente de tienda está configurado para un posible uso futuro, sin revelar claves.
+- No se reinicia la cola cuando correo no está listo: endpoint de reintentos responde `503 email_not_ready` y la administración bloquea el botón.
+- La activación comercial requiere verificar remitente y consentimiento, revisar posibles correos pendientes y disponer de Oneclick Mall de producción; no confundir con pagos Mercado Pago de la tienda.

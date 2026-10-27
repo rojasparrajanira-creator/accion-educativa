@@ -48,3 +48,20 @@ test('la creación de sesiones piloto está cerrada por defecto en el servidor',
   assert.equal(response.status,404);
   assert.equal(response.data.error,'pilot_disabled');
 });
+
+test('panel de preparación accesible al superadministrador ficticio sin revelar secretos',async()=>{
+  const admin=(await pool.query("insert into users(establishment_id,email,name,role,active) values($1,'admin-readiness@example.invalid','Administrador de Prueba','platform_admin',true) returning id",[est])).rows[0].id;
+  const token='test-admin-readiness-token';
+  await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '1 hour')",[crypto.createHash('sha256').update(token).digest('hex'),admin]);
+  const response=await request('/api/platform/readiness',undefined,'mec_session='+token);
+  assert.equal(response.status,200,JSON.stringify(response.data));
+  assert.equal(response.data.ok,true);
+  const readiness=response.data.readiness;
+  assert.equal(readiness.pilot_route_open,false);
+  assert.equal(readiness.pilot_selftest_requested,false);
+  assert.equal(typeof readiness.subscription_payment_ready,'boolean');
+  assert.equal(typeof readiness.subscription_email_ready,'boolean');
+  assert.equal(typeof readiness.mfa_key_configured,'boolean');
+  assert.equal(JSON.stringify(response.data).includes('MEC_PILOT_TEST_KEY'),false);
+  assert.equal(JSON.stringify(response.data).includes(token),false);
+});

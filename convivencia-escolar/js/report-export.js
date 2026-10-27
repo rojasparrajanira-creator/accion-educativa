@@ -70,4 +70,4 @@ window.MECReportExport={
     return true;
   }
 };
-document.addEventListener('DOMContentLoaded',()=>MECReportExport.installPrivacyLifecycle());
+document.addEventListener('DOMContentLoaded',()=>window.MECReportExport.installPrivacyLifecycle());

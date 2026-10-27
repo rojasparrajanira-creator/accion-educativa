@@ -1047,7 +1047,18 @@ body:has(.mec-home-main) .public-header .nav a:hover{color:#ffdb50}
 .mec-welcome-promise{font-size:clamp(17px,2.05vw,23px);font-weight:500;margin:0 0 8px}
 .mec-welcome-promise strong{font-weight:750}
 .mec-welcome-description{font-size:clamp(14px,1.45vw,17px);font-weight:450;margin:0;max-width:990px}
-.mec-welcome *{text-shadow:none;filter:none}
+.mec-welcome *{filter:none}
+/* Legibilidad de los textos iniciales: conserva el fondo, la posición y el contenido. */
+.mec-welcome-title{font-weight:900;letter-spacing:-.035em;text-shadow:0 3px 14px rgba(0,10,48,.55)}
+.mec-welcome-title .mec-word-encuentra,
+.mec-welcome-title .mec-word-material,
+.mec-welcome-title .mec-word-que,
+.mec-welcome-title .mec-word-necesitas{background:none;-webkit-text-fill-color:#bdf9ff;color:#bdf9ff}
+.mec-welcome-title .mec-word-el{-webkit-text-fill-color:#fff;color:#fff}
+.mec-welcome-kicker{color:#e9fdff;font-weight:850;text-shadow:0 2px 10px rgba(0,10,48,.65)}
+.mec-welcome-promise{color:#fff!important;font-weight:750;text-shadow:0 2px 12px rgba(0,10,48,.75)}
+.mec-welcome-promise strong{font-weight:900}
+.mec-welcome-description{color:#f5fbff!important;font-weight:600;text-shadow:0 2px 12px rgba(0,10,48,.7)}
 .mec-home-main .mec-home-community{padding-top:17px}
 @media(max-width:600px){
   .mec-welcome{padding:26px 0 13px}

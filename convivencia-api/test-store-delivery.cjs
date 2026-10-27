@@ -206,7 +206,7 @@ test('paid email gives verification and editing instructions without authorizing
  assert.match(msg.text,/descargarlos en tu computadora/);
  assert.match(msg.text,/mismo correo/);
  assert.match(msg.text,/todas las subcarpetas/);
- assert.match(msg.text,/no se otorgará acceso a terceros/);
+ assert.match(msg.text,/ni se otorgará acceso a terceros/);
  assert.match(msg.text,/Quedamos atentos a tu confirmación/);
  assert.match(msg.text,/MEC-PRUEBA-22/);
 });

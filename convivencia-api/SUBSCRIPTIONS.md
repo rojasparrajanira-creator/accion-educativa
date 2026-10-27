@@ -23,6 +23,8 @@ No activar cobros con credenciales de integración. Hasta completar esta configu
 - `MEC_ONECLICK_API_KEY`: llave API de producción correspondiente.
 - `MEC_SUBSCRIPTION_ENCRYPTION_KEY`: secreto estable de cifrado. Si no se indica, usa `MEC_GOOGLE_TOKEN_ENCRYPTION_KEY`. No cambiarlo sin migrar los valores cifrados.
 - `MEC_SUBSCRIPTION_RESEND_API_KEY` y `MEC_SUBSCRIPTION_FROM_EMAIL`: proveedor y remitente verificado. Admiten como respaldo `MEC_CONTACT_RESEND_API_KEY` y `MEC_CONTACT_FROM_EMAIL` ya existentes.
+- `MEC_SUBSCRIPTION_USE_STORE_EMAIL=1`: **opcional, no activado por defecto**. Solo cuando se verifique el remitente de la tienda y se autorice expresamente reutilizarlo para suscripciones, permite tomar como respaldo **el par completo** `MEC_STORE_RESEND_API_KEY` + `MEC_STORE_FROM_EMAIL`. Las credenciales explícitas de suscripción o contacto tienen prioridad. Este ajuste no habilita por sí solo Oneclick ni debe activarse sin revisar primero la cola histórica: al configurar correo se podrán procesar mensajes pendientes.
+- El panel de Superadministración muestra indicadores técnicos sin secretos: cifrado, proveedor, remitente y disponibilidad opcional del correo de tienda. Con correo deshabilitado, «Reintentar correos pendientes» queda bloqueado y la API devuelve `email_not_ready`, sin tocar la cola.
 - `MEC_SUBSCRIPTION_NOTIFY_EMAIL`: destinatario de solicitudes, pagos y cancelaciones. Respaldo: `MEC_PLATFORM_ADMIN_EMAIL`; si falta, `accioneducativaspa@gmail.com`.
 - Opcionales: `MEC_SUBSCRIPTION_WEB_ORIGIN` (por defecto `https://www.materialeducativochile.cl/convivencia-escolar`) y `MEC_SUBSCRIPTION_API_ORIGIN` (por defecto `https://convivencia-escolar-api.onrender.com`).
 

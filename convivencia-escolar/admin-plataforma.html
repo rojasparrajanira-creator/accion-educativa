@@ -143,7 +143,8 @@ async function loadReadiness(){
     ['Acceso piloto',c.pilot_route_open?'Habilitado para pruebas: revisar antes de usar datos reales':c.pilot_requested?'Protegido, pero la bandera piloto sigue activada':'Cerrado',c.pilot_route_open?'unsafe':c.pilot_requested?'waiting':'ready'],
     ['Autoprueba en el servidor',c.pilot_selftest_requested?'Activada: revisar configuración':'Desactivada',c.pilot_selftest_requested?'unsafe':'ready'],
     ['Pago recurrente Convivencia',c.subscription_payment_ready?'Preparado':'Pendiente de habilitar en producción',c.subscription_payment_ready?'ready':'waiting'],
-    ['Correo de suscripciones',c.subscription_email_ready?'Preparado':'Pendiente de configurar',c.subscription_email_ready?'ready':'waiting'],
+    ['Correo de suscripciones',c.subscription_email_ready?'Preparado':!c.subscription_encryption_ready?'Falta cifrado seguro':!c.subscription_email_provider_configured?'Falta proveedor de correo':!c.subscription_email_sender_configured?'Falta remitente':'Pendiente de configurar',c.subscription_email_ready?'ready':'waiting'],
+    ['Correo de tienda reutilizable',c.subscription_using_store_email?'Habilitado expresamente':c.subscription_store_email_available?'Disponible como opción, sin activar automáticamente':'No configurado para reutilización',c.subscription_using_store_email?'ready':'waiting'],
     ['Cifrado del autenticador MFA',c.mfa_key_configured?'Configurado':'Pendiente de configurar',c.mfa_key_configured?'ready':'waiting']
    ];
    wrap.replaceChildren();

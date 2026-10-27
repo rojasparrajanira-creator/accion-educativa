@@ -34,3 +34,52 @@ test('sin credenciales de producción no se inicia pago ni renovaciones',async()
 test('cancelación durante pago incierto verifica cargo previo sin nueva autorización',async()=>{const r=await request();await pool.query("update mec_subscriptions set tbk_user_encrypted=$1,status='payment_pending' where id=$2",[vault.encrypt('mock'),r.id]);mode='timeout';await service.charge(r.id,true);const n=charges;await service.cancel(r.id);mode='approve';assert.equal((await service.charge(r.id,true)).approved,true);assert.equal(charges,n);const s=(await pool.query('select * from mec_subscriptions where id=$1',[r.id])).rows[0];assert.equal(s.status,'cancelled');assert.equal(s.activated_at,null);assert.equal((await call('/api/subscriptions/admin/'+r.id+'/activate',{},admin)).status,409);await service.charge(r.id,true);assert.equal(charges,n)});
 
 test('correo de renovación incluye enlace seguro para cancelar sin sesión',async()=>{await service.flushMail();const m=mails.find(m=>m.subject==='Renovación aprobada · Material Educativo Chile');assert.ok(m.text.includes('Cancelar suscripción de Plataforma de Convivencia Escolar:'));const token=m.text.match(/cancelar-suscripcion\.html#([A-Za-z0-9_-]{43})/)[1];assert.equal((await call('/api/subscriptions/status',{token})).status,200);assert.equal((await call('/api/subscriptions/cancel-by-token',{token})).status,200);assert.equal((await pool.query('select token_hash from mec_subscription_cancellation_tokens where token_hash=$1',[domain.hash(token)])).rows[0].token_hash,domain.hash(token))});
+
+
+test('reutilización de correo de tienda exige autorización expresa y conserva remitente',()=>{
+ const makeConfig=options=>createSubscriptions({
+  app:express(),pool:{},requireAuth:()=>{},requireRole:()=>[(req,res,next)=>next()],
+  rateLimit:()=>((req,res,next)=>next()),makePassword,validRut,normalizeRut:x=>String(x||''),
+  env:{MEC_SUBSCRIPTION_ENCRYPTION_KEY:'test-only',
+   MEC_STORE_RESEND_API_KEY:'store-test-key',MEC_STORE_FROM_EMAIL:'ventas@example.invalid',...options}
+ }).configuration();
+ const blocked=makeConfig({});
+ assert.equal(blocked.storeEmailAvailable,true);
+ assert.equal(blocked.mailReady,false);
+ assert.equal(blocked.usingStoreEmail,false);
+ const authorized=makeConfig({MEC_SUBSCRIPTION_USE_STORE_EMAIL:'1'});
+ assert.equal(authorized.storeEmailOptIn,true);
+ assert.equal(authorized.usingStoreEmail,true);
+ assert.equal(authorized.mailReady,true);
+ assert.equal(authorized.ready,false); // No basta tener correo para habilitar cobros de Oneclick.
+ const dedicated=makeConfig({
+  MEC_SUBSCRIPTION_USE_STORE_EMAIL:'1',MEC_SUBSCRIPTION_RESEND_API_KEY:'sub-key',
+  MEC_SUBSCRIPTION_FROM_EMAIL:'suscripciones@example.invalid'
+ });
+ assert.equal(dedicated.usingStoreEmail,false); // No sustituir remitente explícito.
+ assert.equal(dedicated.mailReady,true);
+ const incomplete=makeConfig({MEC_SUBSCRIPTION_USE_STORE_EMAIL:'1',MEC_STORE_FROM_EMAIL:''});
+ assert.equal(incomplete.mailReady,false);
+ assert.equal(incomplete.usingStoreEmail,false);
+});
+test('reintentar cola con correo deshabilitado rechaza la acción sin modificar mensajes',async()=>{
+ const app=express();app.use(express.json());
+ let sqlWrites=0;
+ const service2=createSubscriptions({
+  app,pool:{query:async()=>{sqlWrites++;throw Error('No debería tocar base de datos')}},
+  requireAuth:(req,res,next)=>next(),requireRole:()=>[(req,res,next)=>next()],
+  rateLimit:()=>((req,res,next)=>next()),makePassword,validRut,normalizeRut:x=>String(x||''),
+  env:{MEC_SUBSCRIPTION_ENCRYPTION_KEY:'test-only'}
+ });
+ assert.equal(service2.configuration().mailReady,false);
+ const server2=app.listen(0,'127.0.0.1');
+ try{
+  await new Promise(resolve=>server2.once('listening',resolve));
+  const response=await fetch('http://127.0.0.1:'+server2.address().port+'/api/subscriptions/admin/mail/retry',
+    {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  assert.equal(response.status,503);
+  const result=await response.json();
+  assert.equal(result.error,'email_not_ready');
+  assert.equal(sqlWrites,0);
+ }finally{await new Promise(resolve=>server2.close(resolve))}
+});

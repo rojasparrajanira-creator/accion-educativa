@@ -105,3 +105,24 @@ test('panel de pedidos entrega registros existentes sin errores de agrupación S
   assert.equal((await request('/api/store/admin/orders',undefined,legacyCookie)).status,403);
   assert.equal((await request('/api/store/admin/orders',undefined,null)).status,401);
 });
+
+
+test('matriz 2027: profesores, asistentes y dupla no acceden a gestión ajena ni Superadministración',async()=>{
+ const roles=['profesor','asistente_educacion','dupla_psicosocial'];
+ const another=(await pool.query("insert into establishments(name,rbd) values('Colegio Externo Simulado','E2E-ROLE') returning id")).rows[0].id;
+ for(const role of roles){
+  const email='role-'+role+'@example.invalid',token='test-role-'+role;
+  const u=(await pool.query("insert into users(establishment_id,email,name,role,active,must_change_password) values($1,$2,$3,$4,true,false) returning id",[est,email,'Profesional Ficticio '+role,role])).rows[0].id;
+  await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '1 hour')",[crypto.createHash('sha256').update(token).digest('hex'),u]);
+  const auth='mec_session='+token;
+  for(const path of ['/api/platform/readiness','/api/platform/privacy-inventory','/api/platform/establishments']){
+   const res=await request(path,undefined,auth);
+   assert.equal(res.status,403,role+' indebido en '+path+': '+JSON.stringify(res.data));
+  }
+  for(const path of ['/api/students?establishment_id='+another,'/api/courses?establishment_id='+another,'/api/measurements?establishment_id='+another,'/api/applications?establishment_id='+another]){
+   const res=await request(path,undefined,auth);
+   assert.equal(res.status,403,role+' accedió a otro establecimiento por '+path+': '+JSON.stringify(res.data));
+  }
+ }
+ console.log('ROLES_CONVIVENCIA_2027_PASSED: coordinación, dupla, profesor y asistente aislados');
+});

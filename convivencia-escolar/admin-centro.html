@@ -20,62 +20,22 @@ body{margin:0;background:#f3f8fb;color:var(--navy);font:14px Inter,-apple-system
 #adminFrame{display:block;width:100%;min-height:750px;border:0;background:#fff}
 #frameStatus{padding:12px 20px;font-size:12px;color:#53718b}
 @media(max-width:650px){.shell{padding:12px 10px}.top{padding:12px}.tabs{display:grid;grid-template-columns:repeat(2,1fr)}.tabs button{padding:11px 6px;font-size:12px}.intro{padding:20px}.panel-title{padding:13px}}
+.admin-cards{padding:17px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.admin-cards a{text-decoration:none;color:var(--navy);border:1px solid var(--border);border-radius:13px;padding:17px;background:#f8fcff;display:block}.admin-cards a:focus-visible,.admin-cards a:hover{outline:3px solid var(--cyan);background:#effaff}.admin-cards strong{font-size:15px;display:block;margin-bottom:8px}.admin-cards span{font-size:13px;line-height:1.55;display:block;color:#49718a}.admin-help{padding:0 18px 18px;color:#486b82;line-height:1.65}@media(max-width:650px){.admin-cards{grid-template-columns:1fr;padding:12px}}
 </style><link rel="stylesheet" href="css/portal-footer.css">
 </head>
 <body>
 <header class="top"><div class="brand"><img src="https://material-educativo-chile-portal.onrender.com/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile"><div><strong>Material Educativo Chile</strong><small>Centro de Superadministración</small></div></div><div class="actions"><a href="https://material-educativo-chile-portal.onrender.com/" target="_blank" rel="noopener">Ver sitio público ↗</a><button type="button" onclick="MECAuth.logout()">Cerrar sesión</button></div></header>
-<main class="shell"><section class="intro"><span>UNA CUENTA · SEIS ÁREAS DE GESTIÓN</span><h1>Centro de Superadministración</h1><p>Administra productos, pedidos, entregas, publicaciones, consultas, suscripciones y establecimientos desde un mismo lugar, con tu cuenta de Superadministrador.</p></section>
-<nav class="tabs" aria-label="Secciones de administración">
-<button type="button" data-tab="tienda" class="active" aria-selected="true">Tienda y materiales</button>
-<button type="button" data-tab="pedidos" aria-selected="false">Pedidos y entregas</button>
-<button type="button" data-tab="blog" aria-selected="false">Blog y publicaciones</button>
-<button type="button" data-tab="consultas" aria-selected="false">Consultas recibidas</button>
-<button type="button" data-tab="plataforma" aria-selected="false">Plataformas y establecimientos</button>
-<button type="button" data-tab="suscripciones" aria-selected="false">Suscripciones y solicitudes</button>
-</nav>
-<section class="panel"><div class="panel-title"><div><h2 id="panelHeading">Tienda y materiales</h2><p id="panelDescription">Productos, imágenes, precios y conexiones a Google Drive.</p></div><a id="panelDirect" href="admin-tienda.html" target="_blank" rel="noopener">Abrir sección en ventana nueva ↗</a></div>
-<p id="frameStatus" role="status">Cargando sección…</p><iframe id="adminFrame" title="Administración de tienda" src="admin-tienda.html" loading="eager"></iframe></section>
+<main class="shell"><section class="intro"><span>NAVEGACIÓN CLARA · ACCESOS SEPARADOS</span><h1>Centro de Superadministración</h1><p>Selecciona una sección para abrirla por completo. Las ventas de materiales y las suscripciones de Convivencia se administran por separado.</p></section>
+
+<section class="panel"><div class="panel-title"><div><h2>Accesos de administración</h2><p>Abre cada módulo a pantalla completa. No utiliza ventanas incrustadas, que pueden ocultar errores de sesión.</p></div></div>
+<div class="admin-cards" aria-label="Accesos directos">
+<a href="admin-tienda.html"><strong>Catálogo y productos</strong><span>Publicación, material y asociación de carpetas Drive. No modifica permisos al abrir.</span></a>
+<a href="admin-pedidos.html"><strong>Pedidos, pagos y entregas</strong><span>Verifica pedidos pagados, envíos pendientes e historial del sistema. Abrir no reenvía correos.</span></a>
+<a href="admin-contenidos.html?seccion=blog"><strong>Blog y publicaciones</strong><span>Editar y guardar publicaciones con una sesión activa.</span></a>
+<a href="admin-contenidos.html?seccion=consultas"><strong>Consultas y respuestas</strong><span>Leer solicitudes y responder desde tu correo. No envía correos automáticamente.</span></a>
+<a href="admin-plataforma.html"><strong>Establecimientos de Convivencia</strong><span>Panel institucional, seguridad y estado de piloto. Piloto cerrado es una medida de protección.</span></a>
+<a href="admin-suscripciones.html"><strong>Suscripciones de Convivencia</strong><span>Solicitudes y estado de pagos recurrentes, separados de las ventas de materiales.</span></a>
+</div><p class="admin-help">Si un módulo no muestra pedidos o consultas, verifica el aviso de sesión dentro de esa página. <strong>No significa que los registros estén borrados.</strong> Los permisos de carpetas de productos corresponden a los compradores y solo deben concederse mediante acciones expresas, nunca de forma masiva sin revisión.</p></section>
 </main>
-<script>
-'use strict';
-const sections={
-tienda:{title:'Tienda y materiales',description:'Productos, imágenes, precios y conexiones a Google Drive.',src:'admin-tienda.html',height:1250},
-pedidos:{title:'Pedidos y entregas',description:'Números de pedido, ventas pagadas y estado de correos, Drive y boletas.',src:'admin-pedidos.html',height:1250},
-blog:{title:'Blog y publicaciones',description:'Crea, edita y publica artículos en la web.',src:'admin-contenidos.html?seccion=blog',height:1100},
-consultas:{title:'Consultas recibidas',description:'Revisa los mensajes enviados desde el formulario de contacto.',src:'admin-contenidos.html?seccion=consultas',height:950},
-suscripciones:{title:'Suscripciones y solicitudes',description:'Pagos, activación de cuentas y solicitudes de claves por correo.',src:'admin-suscripciones.html',height:1200},
-plataforma:{title:'Plataformas y establecimientos',description:'Administra establecimientos, usuarios iniciales y seguridad de la cuenta.',src:'admin-plataforma.html',height:1250}
-};
-const frame=document.getElementById('adminFrame'),status=document.getElementById('frameStatus');
-let active='tienda',observer=null;
-function resizeFrame(){
-  try{
-    const d=frame.contentDocument;if(!d||!d.body)return;
-    const h=Math.max(d.body.scrollHeight,d.documentElement.scrollHeight,600);
-    frame.style.height=(h+32)+'px';
-  }catch(e){frame.style.height=sections[active].height+'px'}
-}
-function showSection(tab,updateHash=true){
-  if(!sections[tab])tab='tienda';active=tab;const s=sections[tab];
-  document.getElementById('panelHeading').textContent=s.title;
-  document.getElementById('panelDescription').textContent=s.description;
-  document.getElementById('panelDirect').href=s.src;
-  document.querySelectorAll('[data-tab]').forEach(btn=>{const on=btn.dataset.tab===tab;btn.classList.toggle('active',on);btn.setAttribute('aria-selected',String(on))});
-  status.textContent='Cargando '+s.title.toLowerCase()+'…';
-  frame.title=s.title;frame.style.height=s.height+'px';frame.src=s.src;
-  if(updateHash)history.replaceState(null,'','#'+tab);
-}
-frame.addEventListener('load',()=>{
-  status.textContent='';if(observer){observer.disconnect();observer=null}
-  try{
-    const doc=frame.contentDocument;
-    if(!doc||!doc.body)return;
-    observer=new ResizeObserver(resizeFrame);observer.observe(doc.body);
-    resizeFrame();
-  }catch(e){frame.style.height=sections[active].height+'px'}
-});
-document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showSection(b.dataset.tab)));
-window.addEventListener('hashchange',()=>showSection(location.hash.slice(1),false));
-const initial=location.hash.slice(1);if(sections[initial])showSection(initial,false);
-</script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
+<footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
 </body></html>

@@ -233,6 +233,10 @@ async function runPilotSelfTest(base){
 
   await expectError('aggregate_without_scope',()=>prof('/api/courses/'+courseId+'/results'),'measurement_and_school_year_required');
   await expectError('pgce_wrong_establishment',()=>prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id=999999999'),'establishment_forbidden');
+  await expectError('diagnostic_wrong_establishment',()=>prof('/api/establishments/999999999/results?measurement_id='+mid+'&school_year='+year),'establishment_forbidden');
+  await expectError('pgce_dashboard_wrong_establishment',()=>prof('/api/pgce/dashboard?establishment_id=999999999'),'establishment_forbidden');
+  await expectError('pgce_history_wrong_establishment',()=>prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id=999999999'),'establishment_forbidden');
+  log.push('cross_establishment_diagnostic_pgce_denied');
   log.push('negative_controls');
 
   return {ok:true,stamp,started_at:startedAt,finished_at:new Date().toISOString(),establishment_id:eid,course_id:courseId,student_id:Number(st.id),application_id:appId,pgce_intervention_id:Number(pg.intervention.id),case_id:Number(cs.case.id),checks:log};

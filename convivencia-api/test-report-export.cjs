@@ -92,3 +92,18 @@ test('los tres informes esperan autenticación validada antes de consultar resul
  const js=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/js/informe-institucional-api.js'),'utf8');
  assert.match(js,/MECReportAccess\.then\(\(\)=>MECInstitution\.load\(\)\)/);
 });
+
+test('asignación, diagnóstico y plan no consultan datos antes de validar la sesión',()=>{
+ const root=path.join(__dirname,'../convivencia-escolar');
+ const assignment=fs.readFileSync(path.join(root,'asignar-encuestas.html'),'utf8');
+ const assignmentJs=fs.readFileSync(path.join(root,'js/asignacion-api.js'),'utf8');
+ const diagnostic=fs.readFileSync(path.join(root,'diagnostico.html'),'utf8');
+ const plan=fs.readFileSync(path.join(root,'plan-gestion.html'),'utf8');
+ assert.match(assignment,/window\.MECAssignmentAccess=MECAuth\.guard\(\)/);
+ assert.match(assignmentJs,/MECAssignmentAccess\.then\(\(\)=>window\.MECAssign\.init\(\)\)/);
+ assert.match(diagnostic,/window\.MECDiagnosticAccess=MECAuth\.guard\(\)/);
+ assert.match(diagnostic,/await window\.MECDiagnosticAccess/);
+ assert.match(plan,/window\.MECPlanAccess=MECAuth\.guard\(\)/);
+ assert.match(plan,/window\.MECPlanAccess\.then\(\(\)=>load\(\)\)/);
+ for(const html of [assignment,diagnostic,plan])assert.doesNotMatch(html,/<script>MECAuth\.guard\(\);<\/script>/);
+});

@@ -1,0 +1,50 @@
+name: Staging autenticado aislado de Convivencia
+on:
+  pull_request:
+    branches: [convivencia-escolar]
+    paths:
+      - 'convivencia-api/render-isolated-staging.cjs'
+      - '.github/workflows/convivencia-render-staging.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  staging-local-isolated:
+    name: Sesiones reales de prueba sin infraestructura comercial
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    defaults:
+      run:
+        working-directory: convivencia-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias de Convivencia para staging
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Simular arranque staging + sesiones HTTP autenticadas y rol separado
+        env:
+          PORT: '3724'
+        run: |
+          set -eu
+          node render-isolated-staging.cjs > staging-ci.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          passed=0
+          for n in $(seq 1 100); do
+            if grep -q 'PILOT_SELFTEST PASSED' staging-ci.log; then passed=1; break; fi
+            if grep -q 'PILOT_SELFTEST FAILED' staging-ci.log; then break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$passed" -ne 1 ]; then
+            grep 'PILOT_SELFTEST FAILED' staging-ci.log || tail -n 40 staging-ci.log
+            exit 1
+          fi
+          grep 'CONVIVENCIA_STAGING_ISOLATED:' staging-ci.log
+          grep 'PILOT_SELFTEST PASSED' staging-ci.log
+          if ! grep -q 'Store delivery enabled: no' staging-ci.log; then
+            echo 'El staging habilitó entrega comercial'; exit 1
+          fi
+          echo 'STAGING_ISOLATED_PASSED'

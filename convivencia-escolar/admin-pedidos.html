@@ -192,7 +192,7 @@ async function load(){
   if(!orders.length)$('status').textContent='La API respondió correctamente, pero NO devolvió pedidos en esta base de datos. Esto no permite concluir que no existan ventas históricas; no significa que Mercado Pago no haya recibido pagos. Hay que conciliar los registros antes de hacer cambios.';
   if(deliveryConfiguration.test_mode) $('status').textContent+=' ATENCIÓN: el servidor está en modo integración; los correos se dirigen a la casilla de pruebas, no al comprador.';
  }catch(e){
-  orders=[];deliveryConfiguration={};$('statOrders').textContent='—';$('statPaid').textContent='—';$('statPending').textContent='—';$('statSent').textContent='—';$('orders').replaceChildren();
+  orders=[];deliveryConfiguration={};$('statOrders').textContent='—';$('statPaid').textContent='—';$('statPending').textContent='—';$('statSent').textContent='—';$('statRevenue').textContent='—';$('ordersList').replaceChildren();
   $('status').textContent='ERROR DE CONSULTA (no es cero ventas): '+e.message+' No reintentes permisos ni correos hasta recuperar los pedidos.';
  }finally{$('refresh').disabled=false}
 }

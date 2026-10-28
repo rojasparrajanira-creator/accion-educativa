@@ -25,8 +25,8 @@ function server(){
     }catch(e){res.writeHead(404);res.end('Not found')}
   });
 }
-const mockSetup=({authenticated,groupSmall=false})=>({
-  authenticated,groupSmall,
+const mockSetup=({authenticated,groupSmall=false,role='coordinador_convivencia',subscriptionActive=true})=>({
+  authenticated,groupSmall,role,subscriptionActive,
   school:'Escuela Ficticia para Pruebas',student:'Estudiante Simulado',
   applicationId:123,courseId:51,establishmentId:45,measurementId:90
 });
@@ -44,9 +44,9 @@ async function mockApi(page,options,events){
       let status=200,body;
       if(url.pathname==='/api/auth/me'){
         if(options.authenticated){
-          body={ok:true,user:{id:7,role:'coordinador_convivencia',name:'Profesional de Prueba',
+          body={ok:true,user:{id:7,role:options.role,name:'Profesional de Prueba',
             establishment:options.school,establishment_id:options.establishmentId,
-            subscription_active:true,must_change_password:false}};
+            subscription_active:options.subscriptionActive,must_change_password:false}};
         }else {status=401;body={ok:false,error:'authentication_required'}}
       }else if(!options.authenticated){
         status=401;body={ok:false,error:'authentication_required'};
@@ -138,6 +138,21 @@ async function run(){
       passed++;
     }
 
+    // Los perfiles fuera del módulo y las suscripciones vencidas no deben consultar resultados.
+    for(const scenario of [
+      {name:'rol no autorizado',opts:{authenticated:true,role:'asistente_educacion'},redirect:'**/notificaciones.html*'},
+      {name:'suscripción vencida',opts:{authenticated:true,subscriptionActive:false},redirect:'**/cuenta-vencida.html*'}
+    ]){
+      const ctx=await browser.newContext(),page=await ctx.newPage(),events=[];
+      await mockApi(page,mockSetup(scenario.opts),events);
+      await page.goto(origin+'/informe-individual.html?application_id=123&establishment_id=45');
+      await page.waitForURL(scenario.redirect,{timeout:12000});
+      assert.deepEqual(events.filter(p=>p.includes('/results')),[],
+        scenario.name+' consultó resultados escolares antes de bloquear el acceso');
+      await ctx.close();
+      console.log('NAVEGADOR_CONVIVENCIA_OK '+scenario.name+' sin fuga de resultados');
+      passed++;
+    }
     // Privacidad en grupos pequeños: documento descargable con supresión y sin promedios.
     {
       const ctx=await browser.newContext({acceptDownloads:true}),page=await ctx.newPage(),events=[];

@@ -188,4 +188,4 @@ window.MECAssign={
     }catch(e){msg.textContent=e.message||'No fue posible preparar las aplicaciones.'}finally{btn.disabled=false;this.syncCourse()}
   }
 };
-document.addEventListener('DOMContentLoaded',()=>window.MECAssign.init());
+document.addEventListener('DOMContentLoaded',()=>window.MECAssignmentAccess.then(()=>window.MECAssign.init()));

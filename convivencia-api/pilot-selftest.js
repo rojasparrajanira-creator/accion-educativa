@@ -166,6 +166,13 @@ async function runPilotSelfTest(base){
   if(!linkedIntervention)throw new Error('pgce_dashboard_missing');
   const updates=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id='+eid);
   if(!updates.updates?.some(x=>Number(x.id)===Number(follow.update.id)&&x.measurement_code==='M1'&&Number(x.progress_percent)===25))throw new Error('pgce_followup_history_missing');
+  for(const [code,progress] of [['M2',50],['M3',75]]){
+    const update=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates',{method:'POST',body:{establishment_id:eid,measurement_code:code,status:'in_progress',progress_percent:progress,evidence_note:'Evidencia ficticia '+code,adjustment_note:'Ajuste simulado '+code}});
+    if(!update.update?.id)throw new Error('pgce_'+code+'_followup_missing');
+    const recorded=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id='+eid);
+    if(!recorded.updates?.some(x=>Number(x.id)===Number(update.update.id)&&x.measurement_code===code&&Number(x.progress_percent)===progress))throw new Error('pgce_'+code+'_history_invalid');
+  }
+  log.push('pgce_m1_m2_m3_history');
   log.push('diagnostic_pgce_followup_integrated');
   log.push('pgce_task');
 

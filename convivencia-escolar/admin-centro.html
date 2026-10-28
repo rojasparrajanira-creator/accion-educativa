@@ -37,7 +37,7 @@ body{margin:0;background:#f3f8fb;color:var(--navy);font:14px Inter,-apple-system
   <div class="panel-title"><div><h2 id="panelHeading">Estado de la administración</h2><p id="panelDescription">Cada sección se abre como página completa, sin ventanas incrustadas.</p></div><a id="panelDirect" href="admin-tienda.html">Abrir Tienda y materiales</a></div>
   <div style="padding:18px 20px">
     <p id="frameStatus" role="status">Comprobando la sesión y la disponibilidad de la información…</p>
-    <p style="font-size:13px;color:#41536b">Los pedidos de la tienda son independientes de las solicitudes y suscripciones de Convivencia. Una lista vacía no demuestra que no existan ventas; revisa primero la conexión y los filtros.</p>
+    <p style="font-size:13px;color:#41536b">Los pedidos de la tienda son independientes de las solicitudes y suscripciones de Convivencia. Una lista vacía no demuestra que no existan ventas; revisa primero la conexión y los filtros. «Preparar autorización masiva» solo genera instrucciones para la administración sobre carpetas privadas de Drive; NO es necesario para consultar pagos y NO realiza cambios por sí solo.</p>
     <div id="adminHealth" style="display:grid;gap:10px;margin-top:16px" aria-live="polite"></div>
     <button id="adminHealthReload" type="button" style="margin-top:14px;padding:11px 16px;background:#003898;color:white;border:0;border-radius:10px;font-weight:800">Actualizar diagnóstico</button>
   </div>
@@ -90,7 +90,6 @@ document.querySelectorAll('[data-tab]').forEach(button=>button.addEventListener(
  const section=sections[button.dataset.tab];
  if(section)location.href=section.src;
 }));
-document.getElementById('panelDirect').addEventListener('click',e=>{});
 document.getElementById('adminHealthReload').addEventListener('click',diagnose);
 MECAuth.guard({roles:['platform_admin'],bindEstablishment:false,forbiddenToLogin:true}).then(diagnose);
 </script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>

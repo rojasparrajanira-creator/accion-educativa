@@ -92,3 +92,11 @@ test('los tres informes esperan autenticación validada antes de consultar resul
  const js=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/js/informe-institucional-api.js'),'utf8');
  assert.match(js,/MECReportAccess\.then\(\(\)=>MECInstitution\.load\(\)\)/);
 });
+
+test('recuperación de clave permite reintento sin exponer errores técnicos',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/solicitar-clave.html'),'utf8');
+ assert.match(html,/finally\{b\.disabled=false\}/);
+ assert.match(html,/No se pudo procesar la solicitud/);
+ assert.doesNotMatch(html,/s\.textContent=err\.message/);
+ assert.match(html,/api\/auth\/request-access/);
+});

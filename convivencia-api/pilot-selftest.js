@@ -149,8 +149,8 @@ async function runPilotSelfTest(base){
   if(Number(courseResults.applications)<1)throw new Error('course_results_missing');
   const institutionResults=await prof('/api/establishments/'+eid+'/results?measurement_id='+mid+'&school_year='+year);
   if(Number(institutionResults.applications)<1)throw new Error('institution_results_missing');
-  if(!Object.keys(institutionResults.dimension_summary||{}).length)throw new Error('institution_diagnostic_dimensions_missing');
-  if(!Object.keys(courseResults.dimension_summary||{}).length)throw new Error('course_diagnostic_dimensions_missing');
+  if(institutionResults.suppressed){if(Object.keys(institutionResults.dimension_summary||{}).length)throw new Error('institution_privacy_suppression_failed')}else if(!Object.keys(institutionResults.dimension_summary||{}).length)throw new Error('institution_diagnostic_dimensions_missing');
+  if(courseResults.suppressed){if(Object.keys(courseResults.dimension_summary||{}).length)throw new Error('course_privacy_suppression_failed')}else if(!Object.keys(courseResults.dimension_summary||{}).length)throw new Error('course_diagnostic_dimensions_missing');
   log.push('results_review');
 
   const team=await prof('/api/team');

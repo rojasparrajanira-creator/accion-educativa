@@ -4,6 +4,9 @@ on:
     branches: [convivencia-escolar]
     paths:
       - 'convivencia-api/render-isolated-staging.cjs'
+      - 'convivencia-api/Dockerfile.render-isolated'
+      - 'convivencia-api/render-isolated-postgres-entrypoint.sh'
+      - 'convivencia-api/render-isolated-postgres.cjs'
       - '.github/workflows/convivencia-render-staging.yml'
   workflow_dispatch:
 permissions:
@@ -48,3 +51,37 @@ jobs:
             echo 'El staging habilitó entrega comercial'; exit 1
           fi
           echo 'STAGING_ISOLATED_PASSED'
+
+  staging-docker-postgres:
+    name: PostgreSQL real, login aislado y límite 512 MB
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir Docker de staging con PostgreSQL 18
+        run: docker build --file convivencia-api/Dockerfile.render-isolated --tag convivencia-aislada:test .
+      - name: Verificar sesiones HTTP autenticadas dentro del contenedor
+        run: |
+          set -eu
+          docker run -d --name convivencia-aislada-ci --memory=512m --memory-swap=512m -p 127.0.0.1:3725:10000 convivencia-aislada:test
+          trap 'docker rm -f convivencia-aislada-ci >/dev/null 2>&1 || true' EXIT
+          passed=0
+          for n in $(seq 1 120); do
+            logs="$(docker logs convivencia-aislada-ci 2>&1 || true)"
+            if printf '%s' "$logs" | grep -q 'PILOT_SELFTEST PASSED'; then passed=1; break; fi
+            if printf '%s' "$logs" | grep -q 'PILOT_SELFTEST FAILED'; then break; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' convivencia-aislada-ci 2>/dev/null || true)" != "true" ]; then break; fi
+            sleep 2
+          done
+          if [ "$passed" -ne 1 ]; then
+            docker logs --tail 60 convivencia-aislada-ci || true
+            exit 1
+          fi
+          docker logs convivencia-aislada-ci | grep -E 'CONVIVENCIA_POSTGRES_ISOLATED|PILOT_SELFTEST PASSED|Store delivery enabled'
+          # La API de staging jamás debe exponer rutas al exterior.
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3725/api/auth/me)"
+          if [ "$code" != "404" ]; then echo "API aislada expuesta: HTTP $code"; exit 1; fi
+          if ! docker logs convivencia-aislada-ci 2>&1 | grep -q 'Store delivery enabled: no'; then
+            echo 'Integración comercial accidentalmente activada'; exit 1
+          fi
+          echo 'RENDER_DOCKER_POSTGRES_STAGING_PASSED'

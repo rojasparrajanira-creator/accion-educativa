@@ -186,6 +186,18 @@ async function run(){
       console.log('NAVEGADOR_CONVIVENCIA_OK '+info.file+' · visualización celular sin desborde');
       passed++;
     }
+    // Recorrido de navegación protegido: no consultar matrículas ni PGCE sin sesión.
+    for(const file of ['asignar-encuestas.html','diagnostico.html','plan-gestion.html']){
+      const ctx=await browser.newContext(),page=await ctx.newPage(),events=[];
+      await mockApi(page,mockSetup({authenticated:false}),events);
+      await page.goto(origin+'/'+file+'?establishment_id=45',{waitUntil:'domcontentloaded'});
+      await page.waitForURL('**/ingreso.html?next=*',{timeout:12000});
+      assert.equal(events.filter(x=>x!=='/api/auth/me').length,0,
+        file+' consultó antecedentes escolares antes de autenticar: '+events.join(','));
+      await ctx.close();
+      console.log('NAVEGADOR_CONVIVENCIA_OK '+file+' bloquea consultas anónimas');
+      passed++;
+    }
     console.log('BROWSER_REPORTS_PASSED '+passed+' controles · datos ficticios, PDF real y móvil');
   }finally{
     await browser.close();

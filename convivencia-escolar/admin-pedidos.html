@@ -81,7 +81,7 @@ let orders=[],deliveryConfiguration={};
 async function api(path,options={}){
  const response=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json'},...options});
  const data=await response.json().catch(()=>({}));
- if(!response.ok){const error=new Error(data.error||'Error de servidor');error.reason=data.reason||'';throw error}
+ if(!response.ok){const error=new Error(response.status===401?'Sesión caducada: vuelve a iniciar sesión.':response.status===403?'Acceso denegado: comprueba tu cuenta de Superadministración.':(data.error||'Error HTTP '+response.status));error.reason=data.reason||'';throw error}
  return data;
 }
 function el(tag,text,className){
@@ -189,9 +189,11 @@ async function load(){
   orders=Array.isArray(data.orders)?data.orders:[];
   deliveryConfiguration=config||{};
   summarize();show();
+  if(!orders.length)$('status').textContent='La API respondió correctamente, pero NO devolvió pedidos en esta base de datos. Esto no permite concluir que no existan ventas históricas; no significa que Mercado Pago no haya recibido pagos. Hay que conciliar los registros antes de hacer cambios.';
   if(deliveryConfiguration.test_mode) $('status').textContent+=' ATENCIÓN: el servidor está en modo integración; los correos se dirigen a la casilla de pruebas, no al comprador.';
  }catch(e){
-  $('status').textContent='No fue posible consultar los pedidos. '+e.message;
+  orders=[];deliveryConfiguration={};$('statOrders').textContent='—';$('statPaid').textContent='—';$('statPending').textContent='—';$('statSent').textContent='—';$('orders').replaceChildren();
+  $('status').textContent='ERROR DE CONSULTA (no es cero ventas): '+e.message+' No reintentes permisos ni correos hasta recuperar los pedidos.';
  }finally{$('refresh').disabled=false}
 }
 $('search').addEventListener('input',show);

@@ -7,6 +7,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
+import {PDFDocument} from 'pdf-lib';
 
 const WEB=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../convivencia-escolar');
 const apiOrigin='https://convivencia-escolar-api.onrender.com';
@@ -30,6 +31,8 @@ const mockSetup=({authenticated,groupSmall=false})=>({
   applicationId:123,courseId:51,establishmentId:45,measurementId:90
 });
 async function mockApi(page,options,events){
+  // Bloquea cualquier petición HTTPS real, incluso si cambia una pantalla.
+  await page.route('https://**/*',route=>route.abort('blockedbyclient'));
   await page.exposeFunction('mecTestRecord',path=>events.push(path));
   await page.addInitScript(({origin,options})=>{
     const realFetch=window.fetch.bind(window);
@@ -109,9 +112,16 @@ async function run(){
         info.file+' no contiene texto esperado en Word');
       assert.ok(events.includes('/api/auth/me'),info.file+' no validó sesión');
       assert.ok(events.some(x=>x.includes('/results')),info.file+' no consultó resultados');
+      // A diferencia de interceptar window.print, aquí Chromium produce un PDF real.
+      const pdfPath=path.join(screenshots,info.file+'.pdf');
+      const pdfBytes=await page.pdf({path:pdfPath,format:'A4',printBackground:true});
+      assert.ok(pdfBytes.length>4500,info.file+' produjo PDF vacío o incompleto');
+      assert.equal(Buffer.from(pdfBytes).subarray(0,5).toString('ascii'),'%PDF-',info.file+' PDF no válido');
+      const pdf=await PDFDocument.load(pdfBytes);
+      assert.ok(pdf.getPageCount()>=1,info.file+' PDF sin páginas');
       await page.screenshot({path:path.join(screenshots,info.file+'.png'),fullPage:true});
       await ctx.close();
-      console.log('NAVEGADOR_CONVIVENCIA_OK '+info.file+' · sesión, pantalla, Word y PDF');
+      console.log('NAVEGADOR_CONVIVENCIA_OK '+info.file+' · sesión, pantalla, Word y PDF real ('+pdf.getPageCount()+' página(s))');
       passed++;
     }
 
@@ -141,7 +151,27 @@ async function run(){
       console.log('NAVEGADOR_CONVIVENCIA_OK supresión de grupos pequeños');
       passed++;
     }
-    console.log('BROWSER_REPORTS_PASSED '+passed+' controles · datos ficticios');
+    // Vista celular para detectar desbordes que dificultan leer informes en móviles.
+    for(const info of cases){
+      const ctx=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true});
+      const page=await ctx.newPage(),events=[];
+      await mockApi(page,mockSetup({authenticated:true}),events);
+      await page.goto(origin+'/'+info.file+'?'+info.params,{waitUntil:'domcontentloaded'});
+      await page.locator('.report[data-report-ready="true"]').waitFor({timeout:12000});
+      const geometry=await page.evaluate(()=>({
+        viewportWidth:document.documentElement.clientWidth,
+        documentWidth:document.documentElement.scrollWidth
+      }));
+      assert.ok(geometry.documentWidth<=geometry.viewportWidth+3,
+        info.file+' presenta scroll horizontal en celular: '+JSON.stringify(geometry));
+      assert.ok((await page.locator('.report').innerText()).includes(info.expected),
+        info.file+' no muestra resultados en celular');
+      await page.screenshot({path:path.join(screenshots,info.file+'-movil.png'),fullPage:true});
+      await ctx.close();
+      console.log('NAVEGADOR_CONVIVENCIA_OK '+info.file+' · visualización celular sin desborde');
+      passed++;
+    }
+    console.log('BROWSER_REPORTS_PASSED '+passed+' controles · datos ficticios, PDF real y móvil');
   }finally{
     await browser.close();
     await new Promise(resolve=>local.close(resolve));

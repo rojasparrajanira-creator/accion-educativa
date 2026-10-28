@@ -33,49 +33,64 @@ body{margin:0;background:#f3f8fb;color:var(--navy);font:14px Inter,-apple-system
 <button type="button" data-tab="plataforma" aria-selected="false">Plataformas y establecimientos</button>
 <button type="button" data-tab="suscripciones" aria-selected="false">Suscripciones y solicitudes</button>
 </nav>
-<section class="panel"><div class="panel-title"><div><h2 id="panelHeading">Tienda y materiales</h2><p id="panelDescription">Productos, imágenes, precios y conexiones a Google Drive.</p></div><a id="panelDirect" href="admin-tienda.html" target="_blank" rel="noopener">Abrir sección en ventana nueva ↗</a></div>
-<p id="frameStatus" role="status">Cargando sección…</p><iframe id="adminFrame" title="Administración de tienda" src="admin-tienda.html" loading="eager"></iframe></section>
-</main>
-<script>
+<section class="panel" aria-labelledby="panelHeading">
+  <div class="panel-title"><div><h2 id="panelHeading">Estado de la administración</h2><p id="panelDescription">Cada sección se abre como página completa, sin ventanas incrustadas.</p></div><a id="panelDirect" href="admin-tienda.html">Abrir Tienda y materiales</a></div>
+  <div style="padding:18px 20px">
+    <p id="frameStatus" role="status">Comprobando la sesión y la disponibilidad de la información…</p>
+    <p style="font-size:13px;color:#41536b">Los pedidos de la tienda son independientes de las solicitudes y suscripciones de Convivencia. Una lista vacía no demuestra que no existan ventas; revisa primero la conexión y los filtros. «Preparar autorización masiva» solo genera instrucciones para la administración sobre carpetas privadas de Drive; NO es necesario para consultar pagos y NO realiza cambios por sí solo.</p>
+    <div id="adminHealth" style="display:grid;gap:10px;margin-top:16px" aria-live="polite"></div>
+    <button id="adminHealthReload" type="button" style="margin-top:14px;padding:11px 16px;background:#003898;color:white;border:0;border-radius:10px;font-weight:800">Actualizar diagnóstico</button>
+  </div>
+</section><script>
 'use strict';
 const sections={
-tienda:{title:'Tienda y materiales',description:'Productos, imágenes, precios y conexiones a Google Drive.',src:'admin-tienda.html',height:1250},
-pedidos:{title:'Pedidos y entregas',description:'Números de pedido, ventas pagadas y estado de correos, Drive y boletas.',src:'admin-pedidos.html',height:1250},
-blog:{title:'Blog y publicaciones',description:'Crea, edita y publica artículos en la web.',src:'admin-contenidos.html?seccion=blog',height:1100},
-consultas:{title:'Consultas recibidas',description:'Revisa los mensajes enviados desde el formulario de contacto.',src:'admin-contenidos.html?seccion=consultas',height:950},
-suscripciones:{title:'Suscripciones y solicitudes',description:'Pagos, activación de cuentas y solicitudes de claves por correo.',src:'admin-suscripciones.html',height:1200},
-plataforma:{title:'Plataformas y establecimientos',description:'Administra establecimientos, usuarios iniciales y seguridad de la cuenta.',src:'admin-plataforma.html',height:1250}
+ tienda:{title:'Tienda y materiales',src:'admin-tienda.html'},
+ pedidos:{title:'Pedidos y entregas',src:'admin-pedidos.html'},
+ blog:{title:'Blog y publicaciones',src:'admin-contenidos.html?seccion=blog'},
+ consultas:{title:'Consultas recibidas',src:'admin-contenidos.html?seccion=consultas'},
+ plataforma:{title:'Plataformas y establecimientos',src:'admin-plataforma.html'},
+ suscripciones:{title:'Suscripciones y solicitudes',src:'admin-suscripciones.html'}
 };
-const frame=document.getElementById('adminFrame'),status=document.getElementById('frameStatus');
-let active='tienda',observer=null;
-function resizeFrame(){
-  try{
-    const d=frame.contentDocument;if(!d||!d.body)return;
-    const h=Math.max(d.body.scrollHeight,d.documentElement.scrollHeight,600);
-    frame.style.height=(h+32)+'px';
-  }catch(e){frame.style.height=sections[active].height+'px'}
+const checkItems=[
+ {label:'Sesión Superadministración',url:'/api/auth/me',count:d=>d.user?.role==='platform_admin'?'Autorizada':'Rol sin permisos',guard:true},
+ {label:'Pedidos de tienda (hasta 250 recientes)',url:'/api/store/admin/orders',count:d=>Array.isArray(d.orders)?d.orders.length+' pedidos en la consulta':'Respuesta sin listado'},
+ {label:'Blog y publicaciones',url:'/api/site/admin/blog',count:d=>Array.isArray(d.posts)?d.posts.length+' publicaciones':'Respuesta sin listado'},
+ {label:'Consultas recibidas',url:'/api/site/admin/contacts',count:d=>Array.isArray(d.messages)?d.messages.length+' consultas':'Respuesta sin listado'},
+ {label:'Suscripciones Convivencia (distintas de ventas de tienda)',url:'/api/subscriptions/admin',count:d=>Array.isArray(d.subscriptions)?d.subscriptions.length+' solicitudes o cuentas':'Respuesta sin listado'}
+];
+function addHealth(label,message,problem=false){
+ const row=document.createElement('div');row.style.cssText='border:1px solid #dbe5f0;padding:13px;border-radius:10px;background:#fff';
+ const title=document.createElement('strong');title.textContent=label;
+ const desc=document.createElement('p');desc.textContent=message;desc.style.cssText='margin:7px 0 0;font-size:13px;color:'+(problem?'#a13a30':'#274466');
+ row.append(title,desc);document.getElementById('adminHealth').append(row);
 }
-function showSection(tab,updateHash=true){
-  if(!sections[tab])tab='tienda';active=tab;const s=sections[tab];
-  document.getElementById('panelHeading').textContent=s.title;
-  document.getElementById('panelDescription').textContent=s.description;
-  document.getElementById('panelDirect').href=s.src;
-  document.querySelectorAll('[data-tab]').forEach(btn=>{const on=btn.dataset.tab===tab;btn.classList.toggle('active',on);btn.setAttribute('aria-selected',String(on))});
-  status.textContent='Cargando '+s.title.toLowerCase()+'…';
-  frame.title=s.title;frame.style.height=s.height+'px';frame.src=s.src;
-  if(updateHash)history.replaceState(null,'','#'+tab);
+async function diagnose(){
+ const button=document.getElementById('adminHealthReload'),status=document.getElementById('frameStatus');
+ button.disabled=true;status.textContent='Consultando la API de manera segura…';
+ document.getElementById('adminHealth').replaceChildren();
+ try{
+   for(const item of checkItems){
+     try{
+       const response=await fetch(MECAuth.API+item.url,{credentials:'include',cache:'no-store'});
+       const data=await response.json().catch(()=>({}));
+       if(!response.ok||!data.ok){
+         const code=String(data.error||'respuesta_no_valida');
+         const problem=response.status===401?'Sesión vencida: vuelve a ingresar.':response.status===403?'Cuenta sin permiso para esta sección.':'Error '+response.status+' ('+code+'). No significa que los registros se hayan borrado.';
+         addHealth(item.label,problem,true);
+       }else{
+         const value=item.count(data);
+         addHealth(item.label,value, item.guard&&data.user?.role!=='platform_admin');
+       }
+     }catch(error){addHealth(item.label,'No se pudo conectar con la API. Comprueba la red y vuelve a intentar. No implica pérdida de datos.',true)}
+   }
+   status.textContent='Diagnóstico terminado. Para trabajar abre la sección como página completa.';
+ }finally{button.disabled=false}
 }
-frame.addEventListener('load',()=>{
-  status.textContent='';if(observer){observer.disconnect();observer=null}
-  try{
-    const doc=frame.contentDocument;
-    if(!doc||!doc.body)return;
-    observer=new ResizeObserver(resizeFrame);observer.observe(doc.body);
-    resizeFrame();
-  }catch(e){frame.style.height=sections[active].height+'px'}
-});
-document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showSection(b.dataset.tab)));
-window.addEventListener('hashchange',()=>showSection(location.hash.slice(1),false));
-const initial=location.hash.slice(1);if(sections[initial])showSection(initial,false);
+document.querySelectorAll('[data-tab]').forEach(button=>button.addEventListener('click',()=>{
+ const section=sections[button.dataset.tab];
+ if(section)location.href=section.src;
+}));
+document.getElementById('adminHealthReload').addEventListener('click',diagnose);
+MECAuth.guard({roles:['platform_admin'],bindEstablishment:false,forbiddenToLogin:true}).then(diagnose);
 </script><footer class="mec-site-footer"><nav aria-label="Enlaces al portal Material Educativo Chile"><a href="https://www.materialeducativochile.cl/#/">Inicio</a><a href="https://www.materialeducativochile.cl/#/tienda">Tienda</a><a href="https://www.materialeducativochile.cl/#/plataformas">Plataformas</a><a href="https://www.materialeducativochile.cl/#/quienes-somos">Quiénes somos</a><a href="https://www.materialeducativochile.cl/#/mision-vision">Misión y Visión</a><a href="https://www.materialeducativochile.cl/#/blog">Blog</a><a href="https://www.materialeducativochile.cl/#/contacto">Contacto</a></nav><p><a href="https://www.materialeducativochile.cl/#/privacidad">Política de Privacidad y Protección de Datos Personales</a></p><p>Datos personales: Ley N.º 19.628 y Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. Acceso restringido y uso de antecedentes para fines autorizados.</p></footer>
 </body></html>

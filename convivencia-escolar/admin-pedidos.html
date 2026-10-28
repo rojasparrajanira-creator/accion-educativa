@@ -137,6 +137,8 @@ function show(){
   return true;
  });
  $('empty').hidden=selected.length!==0;
+ if(!orders.length)$('empty').textContent='La API respondió correctamente, pero no devolvió pedidos en esta base de datos. Esto no confirma que no existan ventas realizadas en Mercado Pago u otros canales. Revisa la conciliación comercial antes de asumir cero ventas.';
+ else $('empty').textContent='No hay pedidos que coincidan con los filtros actuales. Borra la búsqueda o cambia el estado a Todos.';
  for(const o of selected){
   const article=el('article',null,'order'),head=el('div',null,'order-head'),identity=el('div');
   identity.append(el('h3','Pedido interno N.º '+num(o.id)),el('p','Código de compra: '+(o.order_code||'No disponible'),'muted'));
@@ -180,7 +182,7 @@ function show(){
   }
   list.appendChild(article);
  }
- $('status').textContent='Mostrando '+num(selected.length)+' de '+num(orders.length)+' pedidos consultados.';
+ $('status').textContent='Registros de esta API: '+num(orders.length)+'. Mostrando '+num(selected.length)+'. Esta pantalla no es un extracto de Mercado Pago ni garantiza incorporar ventas antiguas o hechas por otros canales.';
 }
 async function load(){
  $('refresh').disabled=true;$('status').textContent='Actualizando pedidos…';
@@ -191,7 +193,9 @@ async function load(){
   summarize();show();
   if(deliveryConfiguration.test_mode) $('status').textContent+=' ATENCIÓN: el servidor está en modo integración; los correos se dirigen a la casilla de pruebas, no al comprador.';
  }catch(e){
-  $('status').textContent='No fue posible consultar los pedidos. '+e.message;
+  const code=String(e.message||'');
+  $('status').textContent=(code==='authentication_required'||code==='role_forbidden'||code==='password_change_required')?'Tu sesión de Superadministración no permite consultar pedidos. Inicia sesión nuevamente con la cuenta maestra; ningún pedido fue borrado.':('No fue posible consultar los pedidos del servidor ('+code+'). No se puede concluir que no existan ventas.');
+  $('empty').hidden=true;
  }finally{$('refresh').disabled=false}
 }
 $('search').addEventListener('input',show);

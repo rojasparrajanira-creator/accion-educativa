@@ -85,3 +85,23 @@ test('panel de preparación accesible al superadministrador ficticio sin revelar
   assert.equal(after,baseline);
   assert.equal((await request('/api/platform/privacy-inventory',undefined,null)).status,401);
 });
+
+test('panel de pedidos entrega registros existentes sin errores de agrupación SQL',async()=>{
+  const admin=(await pool.query("insert into users(establishment_id,email,name,role,active) values($1,'orders-admin@example.invalid','Administrador de Pedidos','platform_admin',true) returning id",[est])).rows[0].id;
+  const token='fixture-orders-session';
+  await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '1 hour')",[crypto.createHash('sha256').update(token).digest('hex'),admin]);
+  const code='ORD-CI-TEST-001';
+  const created=await pool.query("insert into store_orders(order_code,buyer_name,buyer_email,status,total_clp) values($1,'Cliente Ficticio','comprador@example.invalid','paid',8990) returning id",[code]);
+  const id=created.rows[0].id;
+  await pool.query("insert into store_delivery_jobs(order_id,status,attempts,last_error) values($1,'failed',1,'Fallo simulado')",[id]);
+  const response=await request('/api/store/admin/orders',undefined,'mec_session='+token);
+  assert.equal(response.status,200,JSON.stringify(response.data));
+  const order=response.data.orders.find(x=>x.order_code===code);
+  assert.ok(order,'El historial no devolvió el pedido ficticio');
+  assert.equal(order.status,'paid');
+  assert.equal(order.total_clp,8990);
+  assert.equal(order.delivery_status,'failed');
+  assert.equal(order.delivery_last_error,'Fallo simulado');
+  assert.equal((await request('/api/store/admin/orders',undefined,legacyCookie)).status,403);
+  assert.equal((await request('/api/store/admin/orders',undefined,null)).status,401);
+});

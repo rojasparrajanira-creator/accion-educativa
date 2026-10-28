@@ -149,6 +149,8 @@ async function runPilotSelfTest(base){
   if(Number(courseResults.applications)<1)throw new Error('course_results_missing');
   const institutionResults=await prof('/api/establishments/'+eid+'/results?measurement_id='+mid+'&school_year='+year);
   if(Number(institutionResults.applications)<1)throw new Error('institution_results_missing');
+  if(!Object.keys(institutionResults.dimension_summary||{}).length)throw new Error('institution_diagnostic_dimensions_missing');
+  if(!Object.keys(courseResults.dimension_summary||{}).length)throw new Error('course_diagnostic_dimensions_missing');
   log.push('results_review');
 
   const team=await prof('/api/team');
@@ -160,7 +162,11 @@ async function runPilotSelfTest(base){
   const follow=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates',{method:'POST',body:{establishment_id:eid,measurement_code:'M1',status:'in_progress',progress_percent:25,evidence_note:'Evidencia AUTO E2E',adjustment_note:'Sin ajuste'}});
   if(!follow.update?.id||!follow.linked_tasks?.some(x=>Number(x.id)===Number(pg.task.id)&&x.status==='in_progress'))throw new Error('pgce_task_sync_failed');
   const dashboard=await prof('/api/pgce/dashboard?establishment_id='+eid);
-  if(!dashboard.interventions?.some(x=>Number(x.id)===Number(pg.intervention.id)))throw new Error('pgce_dashboard_missing');
+  const linkedIntervention=dashboard.interventions?.find(x=>Number(x.id)===Number(pg.intervention.id));
+  if(!linkedIntervention)throw new Error('pgce_dashboard_missing');
+  const updates=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id='+eid);
+  if(!updates.updates?.some(x=>Number(x.id)===Number(follow.update.id)&&x.measurement_code==='M1'&&Number(x.progress_percent)===25))throw new Error('pgce_followup_history_missing');
+  log.push('diagnostic_pgce_followup_integrated');
   log.push('pgce_task');
 
   const directTask=await prof('/api/tasks',{method:'POST',body:{title:'Tarea AUTO E2E '+stamp,description:'Tarea ficticia',assigned_to:self.id,due_date:dates.end,priority:'medium'}});

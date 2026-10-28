@@ -62,7 +62,7 @@ function showSection(tab,updateHash=true){
   document.getElementById('panelDirect').href=s.src;
   document.querySelectorAll('[data-tab]').forEach(btn=>{const on=btn.dataset.tab===tab;btn.classList.toggle('active',on);btn.setAttribute('aria-selected',String(on))});
   status.textContent='Cargando '+s.title.toLowerCase()+'…';
-  frame.title=s.title;frame.style.height=s.height+'px';frame.src=s.src;
+  frame.title=s.title;frame.style.height=s.height+'px';location.assign(s.src);return;
   if(updateHash)history.replaceState(null,'','#'+tab);
 }
 frame.addEventListener('load',()=>{

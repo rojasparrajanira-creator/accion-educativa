@@ -44,7 +44,7 @@ button:disabled{opacity:.5;cursor:wait}.secondary{background:#edf9fc;color:var(-
 </div><div class="actions"><button type="submit">Guardar artículo</button><button type="button" class="secondary" id="newBlog">Nuevo artículo</button></div>
 <p id="blogMessage" class="status" role="status"></p></form>
 <h3>Publicaciones guardadas</h3><div id="blogList" class="note">Cargando…</div></section>
-<section class="card" id="contactsSection"><h2>Bandeja de consultas</h2><p class="note">Mensajes privados enviados desde el formulario del portal. Responde directamente desde tu correo.</p><div id="contactList" class="note">Cargando…</div></section>
+<section class="card" id="contactsSection"><h2>Bandeja de consultas</h2><p class="note">Mensajes privados enviados desde el portal. «Abrir correo» utiliza la aplicación de correo del dispositivo; el panel todavía no envía respuestas por sí solo. Si no se abre, usa «Copiar correo».</p><div id="contactList" class="note">Cargando…</div></section>
 </main>
 <script>
 'use strict';
@@ -71,9 +71,16 @@ async function loadPosts(){
 async function loadContacts(){
   try{
     const rows=(await api('/api/site/admin/contacts')).messages||[];
-    el('contactList').innerHTML=rows.length?rows.map(x=>`<article class="row"><div><strong>${esc(x.subject)}</strong><span class="tag">${new Date(x.created_at).toLocaleString('es-CL')}</span><p>${esc(x.sender_name)} · ${esc(x.sender_email)}</p><p class="contact-text">${esc(x.message)}</p></div><div><a class="contact-link" href="mailto:${encodeURIComponent(x.sender_email)}?subject=${encodeURIComponent('Re: '+x.subject)}">Responder por correo →</a></div></article>`).join(''):'Todavía no hay consultas.';
+    el('contactList').innerHTML=rows.length?rows.map(x=>`<article class="row"><div><strong>${esc(x.subject)}</strong><span class="tag">${new Date(x.created_at).toLocaleString('es-CL')}</span><p>${esc(x.sender_name)} · ${esc(x.sender_email)}</p><p class="contact-text">${esc(x.message)}</p></div><div><a class="contact-link" href="mailto:${esc(x.sender_email)}?subject=${encodeURIComponent('Re: '+x.subject)}">Abrir correo para responder</a><button type="button" class="secondary" data-copy-email="${esc(x.sender_email)}">Copiar correo</button></div></article>`).join(''):'Todavía no hay consultas.';
   }catch(e){el('contactList').textContent='No se pudo cargar: '+e.message}
 }
+el('contactList').addEventListener('click',async event=>{
+ const btn=event.target.closest('[data-copy-email]');
+ if(!btn)return;
+ const email=btn.dataset.copyEmail;
+ try{await navigator.clipboard.writeText(email);btn.textContent='Correo copiado';}
+ catch(e){prompt('Copia este correo para responder desde tu aplicación de email:',email);}
+});
 el('newBlog').addEventListener('click',resetForm);
 el('blogList').addEventListener('click',async e=>{
   const edit=e.target.closest('[data-edit]');if(edit){editPost(edit.dataset.edit);return}

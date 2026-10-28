@@ -1,10 +1,6 @@
 'use strict';
 
-function isoLocal(d){
-  const x=new Date(d);
-  return [x.getFullYear(),String(x.getMonth()+1).padStart(2,'0'),String(x.getDate()).padStart(2,'0')].join('-');
-}
-function addDays(n){const d=new Date();d.setDate(d.getDate()+n);return isoLocal(d)}
+const {isoLocal,addDays}=require('./pilot-dates');
 function rutDv(body){
   let sum=0,m=2;
   for(let i=String(body).length-1;i>=0;i--){sum+=Number(String(body)[i])*m;m=m===7?2:m+1}

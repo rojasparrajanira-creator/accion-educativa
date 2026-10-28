@@ -33,8 +33,8 @@ body{margin:0;background:#f3f8fb;color:var(--navy);font:14px Inter,-apple-system
 <button type="button" data-tab="plataforma" aria-selected="false">Plataformas y establecimientos</button>
 <button type="button" data-tab="suscripciones" aria-selected="false">Suscripciones y solicitudes</button>
 </nav>
-<section class="panel"><div class="panel-title"><div><h2 id="panelHeading">Tienda y materiales</h2><p id="panelDescription">Productos, imágenes, precios y conexiones a Google Drive.</p></div><a id="panelDirect" href="admin-tienda.html" target="_blank" rel="noopener">Abrir sección en ventana nueva ↗</a></div>
-<p id="frameStatus" role="status">Cargando sección…</p><iframe id="adminFrame" title="Administración de tienda" src="admin-tienda.html" loading="eager"></iframe></section>
+<p style="margin:12px 0;color:#52728c;font-weight:700">Abre cada área con los botones de arriba. Se mostrará como una página completa para evitar problemas con las ventanas incrustadas.</p><section class="panel" hidden><div class="panel-title"><div><h2 id="panelHeading">Tienda y materiales</h2><p id="panelDescription">Productos, imágenes, precios y conexiones a Google Drive.</p></div><a id="panelDirect" href="admin-tienda.html" target="_blank" rel="noopener">Abrir sección en ventana nueva ↗</a></div>
+<p id="frameStatus" role="status">Cargando sección…</p><iframe id="adminFrame" title="Administración de tienda" src="about:blank" loading="lazy"></iframe></section>
 </main>
 <script>
 'use strict';
@@ -62,7 +62,7 @@ function showSection(tab,updateHash=true){
   document.getElementById('panelDirect').href=s.src;
   document.querySelectorAll('[data-tab]').forEach(btn=>{const on=btn.dataset.tab===tab;btn.classList.toggle('active',on);btn.setAttribute('aria-selected',String(on))});
   status.textContent='Cargando '+s.title.toLowerCase()+'…';
-  frame.title=s.title;frame.style.height=s.height+'px';frame.src=s.src;
+  location.assign(s.src);return;
   if(updateHash)history.replaceState(null,'','#'+tab);
 }
 frame.addEventListener('load',()=>{

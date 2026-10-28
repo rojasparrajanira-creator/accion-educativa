@@ -44,7 +44,7 @@ button:disabled{opacity:.5;cursor:wait}.secondary{background:#edf9fc;color:var(-
 </div><div class="actions"><button type="submit">Guardar artículo</button><button type="button" class="secondary" id="newBlog">Nuevo artículo</button></div>
 <p id="blogMessage" class="status" role="status"></p></form>
 <h3>Publicaciones guardadas</h3><div id="blogList" class="note">Cargando…</div></section>
-<section class="card" id="contactsSection"><h2>Bandeja de consultas</h2><p class="note">Mensajes privados enviados desde el formulario del portal. Responde directamente desde tu correo.</p><div id="contactList" class="note">Cargando…</div></section>
+<section class="card" id="contactsSection"><h2>Bandeja de consultas</h2><p class="note">Mensajes privados enviados desde el formulario del portal. «Responder por correo» abre la aplicación de correo configurada en tu dispositivo: NO envía mensajes desde este panel. Si no se abre, usa «Copiar correo» y responde desde tu Gmail.</p><p id="contactStatus" class="status" role="status" aria-live="polite"></p><button type="button" class="secondary" id="refreshContacts">Actualizar consultas</button><div id="contactList" class="note">Cargando…</div></section>
 </main>
 <script>
 'use strict';
@@ -69,11 +69,20 @@ async function loadPosts(){
   }catch(e){el('blogList').textContent='No se pudo cargar: '+e.message}
 }
 async function loadContacts(){
+  el('contactStatus').textContent='Consultando bandeja…';
   try{
     const rows=(await api('/api/site/admin/contacts')).messages||[];
-    el('contactList').innerHTML=rows.length?rows.map(x=>`<article class="row"><div><strong>${esc(x.subject)}</strong><span class="tag">${new Date(x.created_at).toLocaleString('es-CL')}</span><p>${esc(x.sender_name)} · ${esc(x.sender_email)}</p><p class="contact-text">${esc(x.message)}</p></div><div><a class="contact-link" href="mailto:${encodeURIComponent(x.sender_email)}?subject=${encodeURIComponent('Re: '+x.subject)}">Responder por correo →</a></div></article>`).join(''):'Todavía no hay consultas.';
-  }catch(e){el('contactList').textContent='No se pudo cargar: '+e.message}
+    el('contactList').innerHTML=rows.length?rows.map(x=>`<article class="row"><div><strong>${esc(x.subject)}</strong><span class="tag">${new Date(x.created_at).toLocaleString('es-CL')}</span><p>${esc(x.sender_name)} · ${esc(x.sender_email)}</p><p class="contact-text">${esc(x.message)}</p></div><div class="row-actions"><a class="contact-link" href="mailto:${esc(x.sender_email)}?subject=${encodeURIComponent('Re: '+x.subject)}">Abrir correo para responder</a><button class="secondary" type="button" data-copy-email="${esc(x.sender_email)}">Copiar correo</button></div></article>`).join(''):'Todavía no hay consultas.';
+    el('contactStatus').textContent=rows.length?'Consultas recibidas: '+rows.length+'. Para responder, abre tu correo o copia la dirección.':'La API respondió sin consultas. Si esperabas mensajes, verifica el formulario original y la cuenta conectada.';
+  }catch(e){el('contactList').textContent='No se pudo consultar la bandeja.';el('contactStatus').textContent=e.message==='authentication_required'?'Sesión vencida: vuelve a iniciar sesión.':'ERROR DE CONSULTA: '+e.message}
 }
+el('refreshContacts').addEventListener('click',loadContacts);
+el('contactList').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-copy-email]');if(!button)return;
+  const email=button.dataset.copyEmail;
+  try{await navigator.clipboard.writeText(email);el('contactStatus').textContent='Correo copiado. Abre Gmail y pega el destinatario.'}
+  catch(e){el('contactStatus').textContent='No fue posible copiar automáticamente. Dirección: '+email}
+});
 el('newBlog').addEventListener('click',resetForm);
 el('blogList').addEventListener('click',async e=>{
   const edit=e.target.closest('[data-edit]');if(edit){editPost(edit.dataset.edit);return}

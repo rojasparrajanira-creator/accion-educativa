@@ -1,0 +1,43 @@
+name: Informes Convivencia · navegador sintético
+on:
+  pull_request:
+    branches: [convivencia-escolar]
+    paths:
+      - 'convivencia-api/test-report-browser.mjs'
+      - 'convivencia-escolar/informe-*.html'
+      - 'convivencia-escolar/js/report-export.js'
+      - 'convivencia-escolar/js/informe-institucional-api.js'
+      - '.github/workflows/convivencia-informes-browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  informes-chromium:
+    name: Informes en Chromium, sin producción
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - name: Descargar versión de Convivencia
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar navegador de pruebas sin scripts de instalación
+        working-directory: convivencia-api
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Preparar Chromium aislado
+        working-directory: convivencia-api
+        run: npx playwright install --with-deps chromium
+      - name: Verificar informes individual, curso e institucional con datos ficticios
+        run: node convivencia-api/test-report-browser.mjs
+      - name: Conservar capturas ficticias para revisión
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: convivencia-informes-ficticios
+          path: artifacts/informes-convivencia
+          if-no-files-found: ignore
+          retention-days: 7

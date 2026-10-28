@@ -92,3 +92,12 @@ test('los tres informes esperan autenticación validada antes de consultar resul
  const js=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/js/informe-institucional-api.js'),'utf8');
  assert.match(js,/MECReportAccess\.then\(\(\)=>MECInstitution\.load\(\)\)/);
 });
+
+test('seguimiento PGCE usa contenedor de historial propio y espera sesión',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'../convivencia-escolar/pgce-seguimiento.html'),'utf8');
+ assert.match(html,/window\.MECPGCEAccess=MECAuth\.guard\(\)/);
+ assert.match(html,/const historyPanel=document\.getElementById\('history'\)/);
+ assert.match(html,/window\.MECPGCEAccess\.then\(\(\)=>loadInterventions\(\)\)/);
+ assert.doesNotMatch(html,/\bhistory\.(innerHTML|textContent)\s*=/);
+ assert.doesNotMatch(html,/\bloadInterventions\(\);/);
+});

@@ -114,6 +114,7 @@ function tag(label,tone){return el('span',label,'tag '+tone)}
 function addText(parent,label,value){
  const p=el('p');const b=el('strong',label+': ');p.append(b,document.createTextNode(String(value)));parent.appendChild(p);
 }
+function resetSummary(){for(const id of ['statOrders','statPaid','statRevenue','statSent','statPending'])$(id).textContent='—'}
 function summarize(){
  const paid=orders.filter(o=>o.status==='paid');
  $('statOrders').textContent=num(orders.length);
@@ -186,12 +187,20 @@ async function load(){
  $('refresh').disabled=true;$('status').textContent='Actualizando pedidos…';
  try{
   const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
-  orders=Array.isArray(data.orders)?data.orders:[];
+  if(!Array.isArray(data.orders))throw new Error('La API no devolvió una lista válida de pedidos.');
+  orders=data.orders;
   deliveryConfiguration=config||{};
   summarize();show();
+  if(!orders.length){
+    $('status').textContent='Esta base de datos no registra pedidos en la consulta actual. Esto NO confirma que no existan ventas en Mercado Pago ni en la tienda. Debe verificarse la fuente de datos de los cobros y los pedidos históricos.';
+  }
   if(deliveryConfiguration.test_mode) $('status').textContent+=' ATENCIÓN: el servidor está en modo integración; los correos se dirigen a la casilla de pruebas, no al comprador.';
  }catch(e){
-  $('status').textContent='No fue posible consultar los pedidos. '+e.message;
+  resetSummary();$('ordersList').replaceChildren();$('empty').hidden=true;
+  const auth=/authentication_required|role_forbidden|password_change_required|subscription_expired|Failed to fetch|NetworkError/i.test(e.message);
+  $('status').textContent=auth
+   ?'No se pudo validar el acceso administrativo o la conexión con la API. Abre esta sección fuera del Centro, comprueba tu sesión de Superadministración e inicia sesión nuevamente si corresponde. No se puede concluir que no existan ventas. Detalle técnico: '+e.message
+   :'No se pudo consultar el historial de pedidos; las cifras quedan ocultas para evitar mostrar 0 incorrectamente. Error: '+e.message;
  }finally{$('refresh').disabled=false}
 }
 $('search').addEventListener('input',show);

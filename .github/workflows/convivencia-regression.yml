@@ -79,6 +79,7 @@ jobs:
           DATABASE_URL: postgres://postgres:temporal_ci@127.0.0.1:5432/convivencia_ci
           MEC_ENABLE_PILOT: 'true'
           RUN_PILOT_SELFTEST: '1'
+          TZ: America/Santiago
           MEC_STORE_DELIVERY_ENABLED: '0'
           MEC_STORE_PAYMENT_PROVIDER: webpay
           MEC_WEBPAY_MODE: integration

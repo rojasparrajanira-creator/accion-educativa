@@ -6,6 +6,20 @@ La Ley 19.628 vigente regula hoy los datos personales en Chile. La Ley 21.719 mo
 
 **No existe un período de retención único aplicable indistintamente a respuestas de encuestas, casos de protección, expedientes, registros de seguridad y contratos.** Definir cada período exige evaluar finalidad, obligaciones legales sectoriales, derechos del titular, plazos de prescripción, necesidad probatoria, contractos de prestación, medidas de seguridad y eventuales órdenes de conservación.
 
+## Atención específica a niños, niñas y adolescentes
+
+La versión de la Ley 19.628 modificada por la Ley 21.719, **con vigencia desde el 1 de diciembre de 2026**, incorpora el artículo 16 quáter. Este exige atender al interés superior de niños, niñas y adolescentes y a su autonomía progresiva. Según las condiciones y excepciones del artículo, el tratamiento de datos de niños y niñas (menores de 14 años), y el tratamiento de datos sensibles de adolescentes menores de 16 años, pueden requerir consentimiento de quienes ejercen su representación o cuidado personal, salvo que una ley lo autorice o mande expresamente. **No asumir que todos los tratamientos requieren idéntica autorización ni que una aceptación comercial sustituye el fundamento legal.**
+
+Antes de operar la plataforma con alumnos identificables, cada establecimiento y el operador deben establecer por escrito:
+- quién decide finalidades y medios del tratamiento y quién actúa por instrucciones;
+- qué datos se recogen en cada uno de los seis instrumentos y qué información puede ser sensible;
+- fundamento jurídico por finalidad, tratamiento por nivel etario y condiciones de participación voluntaria donde corresponda;
+- información clara, pertinente y accesible a estudiantes, familias y profesionales;
+- mecanismos de solicitud de derechos y verificación de representación, con acceso restringido;
+- protocolo de incidentes, control de accesos, subencargados, copias locales, respaldos y transferencias si correspondieran.
+
+Fuente oficial: https://www.bcn.cl/leychile/Navegar?idNorma=1209272&idVersion=2026-12-01 . Esto requiere validación jurídica sectorial antes de difundirse como una política definitiva.
+
 ## Matriz inicial para revisión de instituciones
 
 | Conjunto | Finalidad | Responsable de decisión | Plazo / evento de cierre | Evaluaciones previas |

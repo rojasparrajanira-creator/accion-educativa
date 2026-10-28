@@ -1,0 +1,11 @@
+FROM postgres:18-alpine
+RUN apk add --no-cache nodejs npm
+WORKDIR /app/convivencia-api
+COPY convivencia-api/package*.json ./
+RUN npm install --omit=dev --ignore-scripts --no-audit --no-fund
+COPY convivencia-api/ ./
+RUN chmod +x render-isolated-postgres-entrypoint.sh
+ENV PORT=10000 TZ=America/Santiago NODE_ENV=production
+USER postgres
+EXPOSE 10000
+CMD ["/bin/sh","render-isolated-postgres-entrypoint.sh"]

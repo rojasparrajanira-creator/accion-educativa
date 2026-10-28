@@ -85,3 +85,92 @@ test('panel de preparación accesible al superadministrador ficticio sin revelar
   assert.equal(after,baseline);
   assert.equal((await request('/api/platform/privacy-inventory',undefined,null)).status,401);
 });
+
+
+test('aceptación institucional ficticia: alta, primera clave, M1–M3 y aislamiento entre dos escuelas',async()=>{
+  // Datos exclusivamente sintéticos en PGlite temporal; ninguna petición a Render ni correo real.
+  const admin=(await pool.query(
+    "insert into users(establishment_id,email,name,role,active) values($1,'aceptacion-admin@example.invalid','Administrador Simulado','platform_admin',true) returning id",
+    [est])).rows[0].id;
+  const adminToken='synthetic-institutional-admin-acceptance';
+  await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '1 hour')",
+    [crypto.createHash('sha256').update(adminToken).digest('hex'),admin]);
+  const adminCookie='mec_session='+adminToken;
+  const input=(suffix)=>({
+    name:'Establecimiento Ficticio '+suffix,rbd:'TEST-CI-'+suffix,school_year:2027,
+    coordinator_name:'Coordinación de Prueba '+suffix,
+    coordinator_email:'coordinacion-'+suffix.toLowerCase()+'@example.invalid',
+    temporary_password:'Temporal2027!'+suffix
+  });
+  const denied=await request('/api/platform/onboard',input('A'),legacyCookie);
+  assert.equal(denied.status,403,'La Coordinación nunca puede dar de alta otra institución');
+  const anon=await request('/api/platform/onboard',input('A'),null);
+  assert.equal(anon.status,401,'La alta no puede quedar expuesta sin sesión');
+
+  const first=await request('/api/platform/onboard',input('A'),adminCookie);
+  assert.equal(first.status,201,'Alta ficticia A: '+JSON.stringify(first.data));
+  assert.equal(first.data.ok,true);
+  assert.equal(first.data.coordinator.role,'coordinador_convivencia');
+  assert.equal(first.data.coordinator.must_change_password,true);
+  assert.equal(first.data.coordinator.password_hash,undefined,'Nunca exponer hash en API');
+  assert.equal(first.data.measurements.length,3);
+  assert.deepEqual(first.data.measurements.map(x=>x.code).sort(),['M1','M2','M3']);
+  assert.ok(first.data.measurements.every(x=>x.school_year===2027&&x.status==='draft'),
+    'Las mediciones no pueden activarse por sí solas');
+
+  const second=await request('/api/platform/onboard',input('B'),adminCookie);
+  assert.equal(second.status,201,'Alta ficticia B: '+JSON.stringify(second.data));
+  assert.notEqual(first.data.establishment.id,second.data.establishment.id);
+  const duplicate=await request('/api/platform/onboard',input('A'),adminCookie);
+  assert.equal(duplicate.status,409);
+  assert.equal(duplicate.data.error,'rbd_exists');
+  assert.equal((await pool.query("select count(*)::int total from establishments where rbd='TEST-CI-A'")).rows[0].total,1);
+
+  const aId=Number(first.data.establishment.id);
+  const bId=Number(second.data.establishment.id);
+  const initial=await request('/api/auth/login',{
+    identifier:'coordinacion-a@example.invalid',password:input('A').temporary_password
+  },null);
+  assert.equal(initial.status,200,'Ingreso institucional ficticio: '+JSON.stringify(initial.data));
+  assert.equal(initial.data.user.must_change_password,true);
+  assert.equal(Number(initial.data.user.establishment_id),aId);
+  const provisional=initial.cookie;
+  assert.ok(provisional?.startsWith('mec_session='));
+  const blocked=await request('/api/measurements?establishment_id='+aId,undefined,provisional);
+  assert.equal(blocked.data.error,'password_change_required');
+
+  const change=await request('/api/auth/change-password',{
+    current_password:input('A').temporary_password,new_password:'NuevaClaveSegura2027!'
+  },provisional);
+  assert.equal(change.status,200,'Cambio de clave: '+JSON.stringify(change.data));
+  assert.equal((await request('/api/auth/me',undefined,provisional)).status,401,
+    'La sesión con clave provisional debe invalidarse');
+  const coordinatorCookie=change.cookie;
+  assert.ok(coordinatorCookie?.startsWith('mec_session='));
+  const current=await request('/api/auth/me',undefined,coordinatorCookie);
+  assert.equal(current.status,200);
+  assert.equal(current.data.user.must_change_password,false);
+
+  const own=await request('/api/measurements?establishment_id='+aId,undefined,coordinatorCookie);
+  assert.equal(own.status,200,JSON.stringify(own.data));
+  assert.equal(own.data.measurements.length,3);
+  assert.ok(own.data.measurements.every(x=>x.status==='draft'));
+  const ownStudents=await request('/api/students?establishment_id='+aId,undefined,coordinatorCookie);
+  assert.equal(ownStudents.status,200);
+  assert.equal(ownStudents.data.students.length,0,'La alta no incorpora matrículas reales');
+  for(const forbidden of [
+    '/api/measurements?establishment_id='+bId,
+    '/api/courses?establishment_id='+bId,
+    '/api/students?establishment_id='+bId,
+    '/api/applications?establishment_id='+bId,
+    '/api/establishments/'+bId+'/results?measurement_id='+second.data.measurements[0].id+'&school_year=2027'
+  ]){
+    const result=await request(forbidden,undefined,coordinatorCookie);
+    assert.equal(result.status,403,forbidden+': '+JSON.stringify(result.data));
+  }
+  assert.equal((await request('/api/platform/privacy-inventory',undefined,coordinatorCookie)).status,403);
+  assert.equal((await request('/api/platform/onboard',input('C'),coordinatorCookie)).status,403);
+  assert.equal((await pool.query("select count(*)::int total from mec_subscriptions where establishment_id in ($1,$2)",[aId,bId])).rows[0].total,0,
+    'La alta manual no debe crear cobros recurrentes ni suscripciones de prueba');
+  console.log('ACEPTACION_INSTITUCIONAL_FICTICIA_OK: 2 colegios, cambio de clave, aislamiento y M1–M3');
+});

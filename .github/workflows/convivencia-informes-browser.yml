@@ -27,13 +27,13 @@ jobs:
           node-version: '22'
       - name: Instalar navegador de pruebas sin scripts de instalación
         working-directory: convivencia-api
-        run: npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1 pdf-lib@1.17.1
       - name: Preparar Chromium aislado
         working-directory: convivencia-api
         run: npx playwright install --with-deps chromium
-      - name: Verificar informes individual, curso e institucional con datos ficticios
+      - name: Verificar PDFs reales, Word e informes móviles con datos ficticios
         run: node convivencia-api/test-report-browser.mjs
-      - name: Conservar capturas ficticias para revisión
+      - name: Conservar capturas y PDFs ficticios para revisión
         if: always()
         uses: actions/upload-artifact@v4
         with:

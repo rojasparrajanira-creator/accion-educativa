@@ -71,9 +71,18 @@ async function loadPosts(){
 async function loadContacts(){
   try{
     const rows=(await api('/api/site/admin/contacts')).messages||[];
-    el('contactList').innerHTML=rows.length?rows.map(x=>`<article class="row"><div><strong>${esc(x.subject)}</strong><span class="tag">${new Date(x.created_at).toLocaleString('es-CL')}</span><p>${esc(x.sender_name)} · ${esc(x.sender_email)}</p><p class="contact-text">${esc(x.message)}</p></div><div><a class="contact-link" href="mailto:${encodeURIComponent(x.sender_email)}?subject=${encodeURIComponent('Re: '+x.subject)}">Abrir aplicación de correo</a></div></article>`).join(''):'Todavía no hay consultas.';
+    window.currentAdminContacts=rows;
+    el('contactList').innerHTML=rows.length?rows.map(x=>`<article class="row"><div><strong>${esc(x.subject)}</strong><span class="tag">${new Date(x.created_at).toLocaleString('es-CL')}</span><p>${esc(x.sender_name)} · ${esc(x.sender_email)}</p><p class="contact-text">${esc(x.message)}</p></div><div class="row-actions"><a class="contact-link" href="mailto:${encodeURIComponent(x.sender_email)}?subject=${encodeURIComponent('Re: '+x.subject)}">Abrir correo</a><button type="button" class="secondary" data-contact-copy="${Number(x.id)}">Copiar dirección</button></div></article>`).join(''):'Todavía no hay consultas.';
   }catch(e){el('contactList').textContent='No se pudo cargar: '+e.message}
 }
+el('contactList').addEventListener('click',async event=>{
+ const button=event.target.closest('[data-contact-copy]');if(!button)return;
+ const contact=(window.currentAdminContacts||[]).find(x=>Number(x.id)===Number(button.dataset.contactCopy));
+ if(!contact)return;
+ const address=String(contact.sender_email||'');
+ try{await navigator.clipboard.writeText(address);button.textContent='Dirección copiada';}
+ catch(_){window.prompt('Copia la dirección para responder desde Gmail:',address);}
+});
 el('newBlog').addEventListener('click',resetForm);
 el('blogList').addEventListener('click',async e=>{
   const edit=e.target.closest('[data-edit]');if(edit){editPost(edit.dataset.edit);return}

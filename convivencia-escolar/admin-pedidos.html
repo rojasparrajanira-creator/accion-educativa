@@ -61,6 +61,7 @@ button:disabled{opacity:.55;cursor:wait}button:focus-visible,input:focus-visible
     <div style="flex:0 0 auto;align-self:end"><button id="refresh" type="button">Actualizar pedidos</button></div>
   </div>
   <p class="muted" id="status" role="status" aria-live="polite">Consultando pedidos…</p>
+  <p class="muted">Este panel consulta exclusivamente los pedidos registrados en la API actual. No equivale a un reporte de todos los pagos históricos de Mercado Pago. Si aparece un error de sesión o conexión, los contadores mostrarán —, nunca cero.</p>
   <p class="muted">Las cifras se calculan sobre los últimos 250 pedidos que proporciona actualmente la API, no necesariamente sobre todas las ventas históricas.</p>
 </section>
 <section class="panel">
@@ -81,7 +82,16 @@ let orders=[],deliveryConfiguration={};
 async function api(path,options={}){
  const response=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json'},...options});
  const data=await response.json().catch(()=>({}));
- if(!response.ok){const error=new Error(data.error||'Error de servidor');error.reason=data.reason||'';throw error}
+ if(!response.ok){
+  const messages={authentication_required:'Tu sesión no está activa. Vuelve a ingresar con la cuenta de Superadministración.',
+    role_forbidden:'Esta cuenta no tiene permisos de Superadministración.',
+    password_change_required:'Primero debes cambiar tu contraseña provisional.',
+    subscription_expired:'La cuenta indica una suscripción vencida; revisar el acceso de Superadministración.'};
+  const error=new Error(messages[data.error]||data.error||('Error HTTP '+response.status));
+  error.reason=data.reason||'';
+  error.httpStatus=response.status;
+  throw error;
+ }
  return data;
 }
 function el(tag,text,className){
@@ -191,7 +201,15 @@ async function load(){
   summarize();show();
   if(deliveryConfiguration.test_mode) $('status').textContent+=' ATENCIÓN: el servidor está en modo integración; los correos se dirigen a la casilla de pruebas, no al comprador.';
  }catch(e){
-  $('status').textContent='No fue posible consultar los pedidos. '+e.message;
+  // No representar un error de consulta como cero pedidos o ventas.
+  for(const id of ['statOrders','statPaid','statRevenue','statSent','statPending'])$(id).textContent='—';
+  $('ordersList').replaceChildren();$('empty').hidden=true;
+  $('status').textContent='NO SE PUDIERON CARGAR LOS PEDIDOS. '+e.message+
+    ' Los datos no se han borrado; esta pantalla no logró consultarlos.';
+  if(e.httpStatus===401||e.httpStatus===403){
+    const link=document.createElement('a');link.href='ingreso.html?next=admin-pedidos.html';
+    link.textContent=' Volver a iniciar sesión';link.style.marginLeft='8px';$('status').append(link);
+  }
  }finally{$('refresh').disabled=false}
 }
 $('search').addEventListener('input',show);

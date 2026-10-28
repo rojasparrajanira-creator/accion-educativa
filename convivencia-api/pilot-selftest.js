@@ -145,6 +145,8 @@ async function runPilotSelfTest(base){
   if(Number(courseResults.applications)<1)throw new Error('course_results_missing');
   const institutionResults=await prof('/api/establishments/'+eid+'/results?measurement_id='+mid+'&school_year='+year);
   if(Number(institutionResults.applications)<1)throw new Error('institution_results_missing');
+  if(institutionResults.suppressed){if(Object.keys(institutionResults.dimension_summary||{}).length)throw new Error('institution_privacy_suppression_failed')}else if(!Object.keys(institutionResults.dimension_summary||{}).length)throw new Error('institution_diagnostic_dimensions_missing');
+  if(courseResults.suppressed){if(Object.keys(courseResults.dimension_summary||{}).length)throw new Error('course_privacy_suppression_failed')}else if(!Object.keys(courseResults.dimension_summary||{}).length)throw new Error('course_diagnostic_dimensions_missing');
   log.push('results_review');
 
   const team=await prof('/api/team');
@@ -156,7 +158,18 @@ async function runPilotSelfTest(base){
   const follow=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates',{method:'POST',body:{establishment_id:eid,measurement_code:'M1',status:'in_progress',progress_percent:25,evidence_note:'Evidencia AUTO E2E',adjustment_note:'Sin ajuste'}});
   if(!follow.update?.id||!follow.linked_tasks?.some(x=>Number(x.id)===Number(pg.task.id)&&x.status==='in_progress'))throw new Error('pgce_task_sync_failed');
   const dashboard=await prof('/api/pgce/dashboard?establishment_id='+eid);
-  if(!dashboard.interventions?.some(x=>Number(x.id)===Number(pg.intervention.id)))throw new Error('pgce_dashboard_missing');
+  const linkedIntervention=dashboard.interventions?.find(x=>Number(x.id)===Number(pg.intervention.id));
+  if(!linkedIntervention)throw new Error('pgce_dashboard_missing');
+  const updates=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id='+eid);
+  if(!updates.updates?.some(x=>Number(x.id)===Number(follow.update.id)&&x.measurement_code==='M1'&&Number(x.progress_percent)===25))throw new Error('pgce_followup_history_missing');
+  for(const [code,progress] of [['M2',50],['M3',75]]){
+    const update=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates',{method:'POST',body:{establishment_id:eid,measurement_code:code,status:'in_progress',progress_percent:progress,evidence_note:'Evidencia ficticia '+code,adjustment_note:'Ajuste simulado '+code}});
+    if(!update.update?.id)throw new Error('pgce_'+code+'_followup_missing');
+    const recorded=await prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id='+eid);
+    if(!recorded.updates?.some(x=>Number(x.id)===Number(update.update.id)&&x.measurement_code===code&&Number(x.progress_percent)===progress))throw new Error('pgce_'+code+'_history_invalid');
+  }
+  log.push('pgce_m1_m2_m3_history');
+  log.push('diagnostic_pgce_followup_integrated');
   log.push('pgce_task');
 
   const directTask=await prof('/api/tasks',{method:'POST',body:{title:'Tarea AUTO E2E '+stamp,description:'Tarea ficticia',assigned_to:self.id,due_date:dates.end,priority:'medium'}});
@@ -216,6 +229,10 @@ async function runPilotSelfTest(base){
 
   await expectError('aggregate_without_scope',()=>prof('/api/courses/'+courseId+'/results'),'measurement_and_school_year_required');
   await expectError('pgce_wrong_establishment',()=>prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id=999999999'),'establishment_forbidden');
+  await expectError('diagnostic_wrong_establishment',()=>prof('/api/establishments/999999999/results?measurement_id='+mid+'&school_year='+year),'establishment_forbidden');
+  await expectError('pgce_dashboard_wrong_establishment',()=>prof('/api/pgce/dashboard?establishment_id=999999999'),'establishment_forbidden');
+  await expectError('pgce_history_wrong_establishment',()=>prof('/api/pgce/interventions/'+pg.intervention.id+'/updates?establishment_id=999999999'),'establishment_forbidden');
+  log.push('cross_establishment_diagnostic_pgce_denied');
   log.push('negative_controls');
 
   return {ok:true,stamp,started_at:startedAt,finished_at:new Date().toISOString(),establishment_id:eid,course_id:courseId,student_id:Number(st.id),application_id:appId,pgce_intervention_id:Number(pg.intervention.id),case_id:Number(cs.case.id),checks:log};

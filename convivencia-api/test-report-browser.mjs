@@ -198,6 +198,19 @@ async function run(){
       console.log('NAVEGADOR_CONVIVENCIA_OK '+file+' bloquea consultas anónimas');
       passed++;
     }
+    // Autenticación profesional en Chromium: las pantallas de trabajo solo cargan datos después de la sesión.
+    for(const file of ['asignar-encuestas.html','diagnostico.html','plan-gestion.html']){
+      const ctx=await browser.newContext(),page=await ctx.newPage(),events=[];
+      await mockApi(page,mockSetup({authenticated:true}),events);
+      await page.goto(origin+'/'+file+'?establishment_id=45',{waitUntil:'domcontentloaded'});
+      await page.waitForFunction(()=>document.documentElement.dataset.auth==='ok',{timeout:12000});
+      await page.waitForFunction(()=>document.querySelector('body')?.innerText?.length>80,{timeout:12000});
+      assert.ok(events.includes('/api/auth/me'),file+' no validó sesión profesional');
+      assert.ok(!page.url().includes('/ingreso.html'),file+' redirigió indebidamente al profesional autenticado');
+      await ctx.close();
+      console.log('NAVEGADOR_CONVIVENCIA_OK '+file+' · interfaz accesible con sesión ficticia');
+      passed++;
+    }
     console.log('BROWSER_REPORTS_PASSED '+passed+' controles · datos ficticios, PDF real y móvil');
   }finally{
     await browser.close();

@@ -8,7 +8,7 @@
 *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#eef7f3;display:grid;place-items:center;padding:24px;color:#20352F}
 .card{width:min(500px,100%);background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:0 20px 55px rgba(23,62,53,.13)}
 .brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}.brand img{width:62px;height:62px;object-fit:contain}.brand b{color:var(--navy)}.brand span{display:block;color:var(--muted);font-size:11px}
-h1{color:var(--green);margin:7px 0;font-size:27px}.sub{color:var(--muted);font-size:13px;line-height:1.55}.field{margin:13px 0}.field label{display:block;font-size:11px;font-weight:800;color:#567064;margin-bottom:6px}.field input{width:100%;border:1px solid #D7E3DC;border-radius:12px;padding:12px;font:inherit}
+h1{color:var(--green);margin:7px 0;font-size:27px}.sub{color:var(--muted);font-size:13px;line-height:1.55}.field{margin:13px 0}.field label{display:block;font-size:11px;font-weight:800;color:#567064;margin-bottom:6px}.field .password-wrap{position:relative}.field input{width:100%;border:1px solid #D7E3DC;border-radius:12px;padding:12px 52px 12px 12px;font:inherit}.field .reveal{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:42px;height:40px;display:grid;place-items:center;border:0;border-radius:9px;background:transparent;color:var(--green);padding:6px;cursor:pointer}.field .reveal:hover,.field .reveal:focus-visible{background:#e8f3ed;outline-offset:2px}.field .reveal svg{width:21px;height:21px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}.match{font-size:12px;min-height:18px;margin-top:6px;color:var(--muted)}
 button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff;padding:13px;font:inherit;font-weight:850;cursor:pointer}.status{min-height:20px;font-size:12px;color:#9a3b32}.rule{font-size:11px;color:var(--muted);background:#f5faf7;border-radius:12px;padding:11px}
 </style>
 <script src="js/auth-professional.js"></script><script>MECAuth.guard({allowAnyRole:true,bindEstablishment:false});</script>
@@ -20,9 +20,9 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 <h1>Cambiar mi clave</h1>
 <p class="sub">Por seguridad, las cuentas nuevas deben reemplazar su clave temporal antes de acceder a la plataforma.</p>
 <form id="form">
-  <div class="field"><label>Clave actual</label><input id="current" type="password" autocomplete="current-password" required></div>
-  <div class="field"><label>Nueva clave</label><input id="next" type="password" autocomplete="new-password" required minlength="10"></div>
-  <div class="field"><label>Repetir nueva clave</label><input id="repeat" type="password" autocomplete="new-password" required minlength="10"></div>
+  <div class="field"><label for="current">Clave actual</label><div class="password-wrap"><input id="current" type="password" autocomplete="current-password" required><button type="button" class="reveal" data-reveal="current" aria-label="Mostrar clave actual" aria-pressed="false" title="Mostrar clave actual"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.7-7 10-7 10 7 10 7-3.7 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+  <div class="field"><label for="next">Nueva clave</label><div class="password-wrap"><input id="next" type="password" autocomplete="new-password" required minlength="10"><button type="button" class="reveal" data-reveal="next" aria-label="Mostrar nueva clave" aria-pressed="false" title="Mostrar nueva clave"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.7-7 10-7 10 7 10 7-3.7 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+  <div class="field"><label for="repeat">Repetir nueva clave</label><div class="password-wrap"><input id="repeat" type="password" autocomplete="new-password" required minlength="10"><button type="button" class="reveal" data-reveal="repeat" aria-label="Mostrar repetir nueva clave" aria-pressed="false" title="Mostrar repetir nueva clave"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.7-7 10-7 10 7 10 7-3.7 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></button></div><div id="match-status" class="match" aria-live="polite"></div></div>
   <p class="rule">Usa al menos 10 caracteres e incluye letras y números. No reutilices la clave temporal.</p>
   <button id="save" type="submit">Guardar nueva clave</button>
   <p class="status" id="status" role="alert" aria-live="polite"></p>
@@ -30,6 +30,16 @@ button{width:100%;border:0;border-radius:12px;background:var(--green);color:#fff
 </main>
 <script>
 const form=document.getElementById('form'),status=document.getElementById('status'),save=document.getElementById('save');
+const eyeOpen='<path d="M2 12s3.7-7 10-7 10 7 10 7-3.7 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>';
+const eyeClosed='<path d="M3 3l18 18M10.6 5.1A11.8 11.8 0 0 1 12 5c6.3 0 10 7 10 7a17 17 0 0 1-4 4.6M6.4 6.5C3.6 8.4 2 12 2 12s3.7 7 10 7c1.7 0 3.2-.5 4.5-1.2"/><path d="M10 10a3 3 0 0 0 4 4"/>';
+document.querySelectorAll('[data-reveal]').forEach(btn=>btn.addEventListener('click',()=>{
+ const input=document.getElementById(btn.dataset.reveal),show=input.type==='password';input.type=show?'text':'password';
+ btn.setAttribute('aria-pressed',String(show));btn.setAttribute('aria-label',(show?'Ocultar ':'Mostrar ')+input.closest('.field').querySelector('label').textContent.toLowerCase());
+ btn.title=btn.getAttribute('aria-label');btn.querySelector('svg').innerHTML=show?eyeClosed:eyeOpen;
+}));
+const matchStatus=document.getElementById('match-status'),newInput=document.getElementById('next'),repeatInput=document.getElementById('repeat');
+function validateMatch(){const v=newInput.value,r=repeatInput.value;if(!r){matchStatus.textContent='';return}const matches=v===r;matchStatus.textContent=matches?'Las claves coinciden.':'Las claves no coinciden.';matchStatus.style.color=matches?'#176B5B':'#9a3b32'}
+newInput.addEventListener('input',validateMatch);repeatInput.addEventListener('input',validateMatch);
 function safeNext(){const q=new URLSearchParams(location.search),next=q.get('next');return next&&/^[a-z0-9._-]+\.html(?:\?.*)?$/i.test(next)?next:null}
 form.addEventListener('submit',async e=>{
  e.preventDefault();

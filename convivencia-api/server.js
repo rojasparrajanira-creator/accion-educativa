@@ -625,14 +625,17 @@ app.post('/api/auth/change-password',requireAuth,async(req,res)=>{try{
   const u=await pool.query("select password_hash,password_salt from users where id=$1",[req.auth.id]);
   if(!u.rowCount||!(await verifyPassword(current,u.rows[0].password_salt,u.rows[0].password_hash)))return res.status(401).json({ok:false,error:'invalid_current_password'});
   const cred=await makePassword(next);
-  await pool.query("update users set password_hash=$1,password_salt=$2,must_change_password=false,temporary_password_expires_at=null where id=$3",[cred.hash,cred.salt,req.auth.id]);
+  // Actualizar credenciales sin depender de columnas opcionales en instalaciones antiguas.
+  await pool.query("update users set password_hash=$1,password_salt=$2,must_change_password=false where id=$3",[cred.hash,cred.salt,req.auth.id]);
+  const expiryColumn=await pool.query("select 1 from information_schema.columns where table_schema='public' and table_name='users' and column_name='temporary_password_expires_at'");
+  if(expiryColumn.rowCount)await pool.query("update users set temporary_password_expires_at=null where id=$1",[req.auth.id]);
   // No depender de una tabla opcional de recuperación para completar el cambio de clave.
   await pool.query("delete from auth_sessions where user_id=$1",[req.auth.id]);
   const token=crypto.randomBytes(32).toString('base64url');
   await pool.query("insert into auth_sessions(token_hash,user_id,expires_at) values($1,$2,now()+interval '8 hours')",[sha256(token),req.auth.id]);
   setSessionCookie(res,token);
   ok(res,{changed:true});
-}catch(e){res.status(400).json({ok:false,error:'password_change_failed'})}});
+}catch(e){console.error('Password change failed (sanitized):',e.code||'unknown',e.message);res.status(500).json({ok:false,error:'password_change_failed'})}});
 
 app.post('/api/pgce/interventions',...requireRole('coordinador_convivencia','dupla_psicosocial'),async(req,res)=>{const client=await pool.connect();try{
   const b=req.body||{};

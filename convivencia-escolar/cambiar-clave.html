@@ -58,7 +58,8 @@ form.addEventListener('submit',async e=>{
    location.href=role==='platform_admin'?(next||'admin-plataforma.html'):['coordinador_convivencia','dupla_psicosocial'].includes(role)?'inicio.html?establishment_id='+encodeURIComponent(user.establishment_id):'notificaciones.html?establishment_id='+encodeURIComponent(user.establishment_id);
  }catch(err){
    status.style.color='#9a3b32';
-   status.textContent=err.message==='invalid_current_password'?'La clave actual no es correcta.':'No fue posible cambiar la clave.';
+   const messages={invalid_current_password:'La clave actual no coincide con la registrada. Verifica la clave temporal.',weak_password:'La nueva clave debe tener al menos 10 caracteres, letras y números, y ser diferente de la actual.',authentication_required:'Tu sesión expiró. Inicia sesión nuevamente.',temporary_password_expired:'La clave temporal expiró. Solicita una nueva.',password_change_failed:'El servidor no logró guardar la clave. Comunica este error al soporte.'};
+   status.textContent=messages[err.message]||'No fue posible cambiar la clave (código: '+String(err.message||'desconocido').slice(0,55)+').';
    save.disabled=false;
  }
 });

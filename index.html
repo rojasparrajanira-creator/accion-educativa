@@ -1322,6 +1322,46 @@ body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner [data-me
  color:#ffffff!important;
  -webkit-text-fill-color:#ffffff!important;
 }
+
+/* Blog: portada visible y completa en la mitad superior de cada tarjeta. */
+.mec-blog-grid .mec-blog-card{
+ display:flex;
+ flex-direction:column;
+ min-width:0;
+}
+.mec-blog-grid .mec-blog-art{
+ height:215px!important;
+ min-height:215px!important;
+ width:100%;
+ overflow:hidden;
+ background:#eef5fc!important;
+ color:#23518a;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+}
+.mec-blog-grid .mec-blog-art img{
+ width:100%!important;
+ height:100%!important;
+ display:block;
+ object-fit:contain!important;
+ object-position:center center!important;
+}
+.mec-blog-grid .mec-blog-card-content{
+ flex:1;
+ padding:19px 20px 23px;
+ background:#ffffff;
+}
+.mec-blog-grid .mec-blog-image-unavailable span{
+ display:block;
+ padding:16px;
+ font-size:14px;
+ font-weight:750;
+ text-align:center;
+}
+@media(max-width:760px){
+ .mec-blog-grid .mec-blog-art{height:200px!important;min-height:200px!important}
+}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>

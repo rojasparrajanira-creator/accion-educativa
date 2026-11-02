@@ -1168,6 +1168,16 @@ body:has(.mec-home-main) .mec-featured #portalFeatured{margin-top:14px!important
  .mec-home-action-row .mec-home-community-inner{justify-content:center}
 }
 
+
+/* Corrección de contraste: degradado azul visible en la parte baja de la portada. */
+body:has(.mec-home-main) .mec-welcome{
+  background:linear-gradient(to bottom,#ffffff 0%,#ffffff 25%,#f0faff 44%,#bce4ff 69%,#4b9fe5 100%)!important;
+}
+body:has(.mec-home-main) .mec-welcome::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,rgba(255,255,255,.40) 0%,transparent 60%);
+}
+body:has(.mec-home-main) .mec-welcome-inner{position:relative;z-index:1}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>

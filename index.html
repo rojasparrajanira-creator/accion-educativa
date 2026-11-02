@@ -1142,6 +1142,69 @@ body:has(.mec-home-main) .mec-featured #portalFeatured{margin-top:14px!important
  body:has(.mec-home-main) .mec-featured{padding:20px 0 28px!important}
 }
 @media(prefers-reduced-motion:reduce){.mec-home-catalog-btn{transition:none}}
+
+/* MEC · ajuste solicitado: tarjeta de comunidad blanca y degradado CONTINUO
+   desde Los más vendidos hasta el final de la página principal. */
+body:has(.mec-home-main) .mec-welcome{
+ background:#fff!important;
+}
+body:has(.mec-home-main) .mec-home-main{
+ background:#fff!important;
+}
+body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner{
+ background:#fff!important;
+ border:1px solid #d9e8f4!important;
+ border-radius:15px!important;
+ box-shadow:0 9px 24px rgba(7,47,111,.10)!important;
+ padding:13px 18px!important;
+}
+body:has(.mec-home-main) .mec-home-gradient{
+ background:linear-gradient(180deg,
+  #ffffff 0%,
+  #eef8ff 17%,
+  #c5e7ff 35%,
+  #80b9f0 54%,
+  #3276d5 76%,
+  #07399e 92%,
+  #052678 100%)!important;
+}
+body:has(.mec-home-main) .mec-home-gradient > .mec-featured,
+body:has(.mec-home-main) .mec-home-gradient > .mec-catalog,
+body:has(.mec-home-main) .mec-home-gradient > .mec-platforms{
+ background:transparent!important;
+ background-image:none!important;
+}
+body:has(.mec-home-main) .mec-home-gradient > .mec-featured::before,
+body:has(.mec-home-main) .mec-home-gradient > .mec-catalog::before,
+body:has(.mec-home-main) .mec-home-gradient > .mec-platforms::before{display:none!important}
+body:has(.mec-home-main) .mec-home-gradient > .mec-featured{
+ padding-top:12px!important;
+}
+body:has(.mec-home-main) .mec-home-gradient > .mec-featured .mec-section-heading h2,
+body:has(.mec-home-main) .mec-home-gradient > .mec-featured .mec-section-heading p,
+body:has(.mec-home-main) .mec-home-gradient > .mec-featured .mec-section-heading .mec-kicker{
+ color:#103f87!important;
+}
+body:has(.mec-home-main) .mec-home-gradient > .mec-catalog .mec-catalog-quicklinks>span,
+body:has(.mec-home-main) .mec-home-gradient > .mec-catalog .mec-catalog-status{
+ color:#133d80!important;
+}
+body:has(.mec-home-main) .mec-home-gradient > .mec-platforms .mec-section-heading h2,
+body:has(.mec-home-main) .mec-home-gradient > .mec-platforms .mec-section-heading p,
+body:has(.mec-home-main) .mec-home-gradient > .mec-platforms .mec-section-heading .mec-kicker{
+ color:#fff!important;
+}
+body:has(.mec-home-main) .mec-home-gradient > .mec-platforms{
+ padding-bottom:60px!important;
+}
+body:has(.mec-home-main) ~ .footer{
+ background:#052678!important;
+ border-top:1px solid rgba(255,255,255,.2)!important;
+}
+@media(max-width:760px){
+ body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner{padding:11px 13px!important}
+}
+
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -1216,6 +1279,7 @@ function home(){return `${header('Inicio')}<main class="mec-home-main">
 </div>
 <figure class="mec-welcome-photo"><img src="/assets/material-educativo/estudiante-portada-original.jpeg" width="1536" height="864" alt="Estudiante sonriente en el patio de su establecimiento" fetchpriority="high" decoding="async"></figure>
 </div></section>
+<div class="mec-home-gradient">
 <section class="mec-featured" id="destacados"><div class="container"><div class="mec-section-heading"><span class="mec-kicker">DESCUBRE NUESTROS RECURSOS</span><h2 id="featuredTitle">Materiales destacados</h2><p id="featuredIntro">Una selección de recursos del catálogo actual.</p></div><div class="mec-products-grid" id="portalFeatured"><p class="mec-loading">Cargando materiales…</p></div></div></section>
 ${portalCatalogSection()}
 <section class="mec-platforms" id="plataformas"><div class="container"><div class="mec-section-heading"><span class="mec-kicker">SOLUCIONES PARA TU ESTABLECIMIENTO</span><h2>Conoce nuestras plataformas</h2><p>Tres espacios especializados para acompañar las trayectorias educativas, evaluar indicadores de desarrollo personal y social y fortalecer la gestión institucional.</p></div><div class="mec-platform-grid">
@@ -1223,8 +1287,8 @@ ${portalCatalogSection()}
 <article class="mec-platform-card conv"><div class="mec-platform-symbol">✳</div><div class="mec-platform-label">CONVIVENCIA ESCOLAR</div><h3>Más información para acompañar mejor</h3><p>Diagnósticos, seguimiento, planes de intervención y herramientas para fortalecer la convivencia educativa.</p><a href="#/convivencia-escolar" class="mec-platform-cta">Conoce la plataforma de Convivencia Escolar →</a></article>
 <article class="mec-platform-card idps"><div class="mec-platform-symbol">◉</div><div class="mec-platform-label">INDICADORES DE DESARROLLO PERSONAL Y SOCIAL · IDPS</div><h3>Diagnóstico y seguimiento de los IDPS</h3><p>Aplicación de encuestas, seguimiento por curso, resultados e informes para apoyar decisiones educativas.</p><a href="https://idps-gestion-material-educativo.onrender.com/" target="_blank" rel="noopener noreferrer" class="mec-platform-cta">Ingresar a plataforma IDPS ↗</a></article>
 </div></div></section>
-
-</main>${footer()}`}
+</div>
+</main>${footer()}}
 function portalCatalogSection(){return `<section class="mec-catalog" id="tienda"><div class="container"><div class="mec-catalog-quicklinks" aria-label="Explorar por tipo de material"><span>¿Qué necesitas hoy?</span><div><button type="button" onclick="selectPortalMaterial(\'talleres\')">Talleres</button><button type="button" onclick="selectPortalMaterial(\'protocolos\')">Protocolos</button><button type="button" onclick="selectPortalMaterial(\'planes-institucionales\')">Planes</button><button type="button" onclick="selectPortalMaterial(\'guias\')">Cuadernillos</button><button type="button" onclick="selectPortalMaterial(\'packs\')">Packs</button></div></div><div class="mec-filters"><label class="mec-filter-search">Buscar por título o tema<input id="portalSearch" type="search" placeholder="Ej.: buen trato, prevención, convivencia…" oninput="renderPortalCatalog()"></label><label class="mec-filter-course">Curso o nivel<select id="portalCourse" onchange="renderPortalCatalog()"><option value="">Todos los niveles</option><option value="nt1">NT1 · Prekínder</option><option value="nt2">NT2 · Kínder</option>${Array.from({length:8},(_,i)=>`<option value="b${i+1}">${i+1}° básico</option>`).join('')}${Array.from({length:4},(_,i)=>`<option value="m${i+1}">${i+1}° medio</option>`).join('')}</select></label><label class="mec-filter-type">Tipo de material<select id="portalMaterialType" onchange="renderPortalCatalog()"><option value="">Todos los tipos</option><option value="talleres">Talleres</option><option value="protocolos">Protocolos</option><option value="reglamento">Reglamento interno</option><option value="planes-institucionales">Planes institucionales obligatorios</option><option value="intervencion-individual">Planes de intervención individuales</option><option value="guias">Guías y cuadernillos</option><option value="presentaciones">Presentaciones</option><option value="packs">Packs</option><option value="otros">Otros materiales</option></select></label><button class="mec-filter-clear" onclick="clearPortalFilters()" type="button">Limpiar</button></div><div class="mec-catalog-status" id="portalCatalogStatus" role="status">Cargando catálogo…</div><div class="mec-products-grid" id="portalProducts"><p class="mec-loading">Cargando materiales…</p></div></div></section>`}
 function platforms(){return `${header('Plataformas')}<main class="mec-platform-page"><div class="container"><div class="mec-section-heading"><span class="mec-kicker">PLATAFORMAS INSTITUCIONALES</span><h1>Conoce nuestras plataformas</h1><p>Descubre cómo cada solución puede apoyar el trabajo de tu comunidad educativa.</p></div><div class="mec-platform-grid"><article class="mec-platform-card voc"><div class="mec-platform-symbol">◈</div><h2>Orientación Vocacional</h2><p>Herramientas para acompañar decisiones educativas y trayectorias de vida.</p><a class="mec-platform-cta" href="https://jbr-v2-1-0-scale-staging.onrender.com/" target="_blank" rel="noopener noreferrer">Ingresar a Orientación Vocacional ↗</a></article><article class="mec-platform-card conv"><div class="mec-platform-symbol">✳</div><h2>Convivencia Escolar</h2><p>Diagnóstico, seguimiento y planificación de acciones para fortalecer la convivencia.</p><p class="mec-conv-summary">Organiza el diagnóstico, la intervención y el seguimiento para fortalecer la convivencia educativa.</p><a class="mec-platform-cta" href="/convivencia-escolar/ingreso.html">Conoce la plataforma →</a></article><article class="mec-platform-card idps"><div class="mec-platform-symbol">◉</div><h2>Indicadores de Desarrollo Personal y Social (IDPS)</h2><p>Encuestas, seguimiento, resultados e informes para los equipos educativos.</p><a class="mec-platform-cta" href="https://idps-gestion-material-educativo.onrender.com/" target="_blank" rel="noopener noreferrer">Ingresar a plataforma IDPS ↗</a></article></div><section class="mec-platform-overview"><h2>¿Qué puedes conocer?</h2><p>Una vista general de las herramientas disponibles. La demostración es ilustrativa y no utiliza información de estudiantes.</p><div class="mec-platform-overview-grid"><article><h3>Diagnóstico</h3><p>Instrumentos para explorar clima, bienestar y convivencia.</p></article><article><h3>Seguimiento</h3><p>Organización de acciones, casos y responsables.</p></article><article><h3>Intervención</h3><p>Planes e informes para orientar el trabajo institucional.</p></article></div></section></div></main>${footer()}`}
 function platformDetail(kind){const voc=kind==='voc';const name=voc?'Orientación Vocacional':'Convivencia Escolar';const features=voc?[['Autoconocimiento','Instrumentos progresivos para reconocer intereses y habilidades.'],['Seguimiento','Avance por curso y trayectoria educativa.'],['Informes','Resultados para apoyar la orientación y la toma de decisiones.']]:[['Diagnóstico','Instrumentos para explorar clima, bienestar y convivencia.'],['Seguimiento','Organización de acciones, casos y responsables.'],['Intervención','Planes e informes para orientar el trabajo institucional.']];const url=voc?'https://jbr-v2-1-0-scale-staging.onrender.com/':'/convivencia-escolar/ingreso.html';return `${header('Plataformas')}<main class="mec-platform-detail ${voc?'voc':'conv'}"><div class="container"><a class="mec-back" href="#/plataformas">← Todas las plataformas</a><div class="mec-detail-head"><div><span class="mec-kicker">MATERIAL EDUCATIVO CHILE · PLATAFORMAS</span><h1>${name}</h1><p>${voc?'Acompaña el autoconocimiento, la exploración de alternativas y la transición a la vida adulta.':'Organiza el diagnóstico, la intervención y el seguimiento para fortalecer la convivencia educativa.'}</p><a class="mec-primary" href="${url}" ${voc?'target="_blank" rel="noopener"':''}>Ingresar a la plataforma ${voc?'↗':'→'}</a></div><div class="mec-demo-preview" aria-label="Vista demostrativa de funciones"><span>VISTA DEMOSTRATIVA · SIN DATOS REALES</span><div class="mec-demo-top"><img src="/assets/material-educativo/logo-oficial.jpg" alt=""><b>${name}</b></div><div class="mec-demo-tiles">${features.map((f,i)=>`<div><small>0${i+1}</small><strong>${f[0]}</strong><p>${f[1]}</p></div>`).join('')}</div></div></div><div class="mec-section-heading"><h2>¿Qué puedes conocer?</h2><p>Una vista general de las herramientas disponibles. La demostración es ilustrativa; no utiliza información de estudiantes.</p></div><div class="mec-feature-grid">${features.map((f,i)=>`<article><span>0${i+1}</span><h3>${f[0]}</h3><p>${f[1]}</p></article>`).join('')}</div><div class="mec-detail-bottom"><p>¿Quieres conocer cómo puede utilizarse en tu establecimiento?</p><a href="#/contacto">Solicitar información →</a></div></div></main>${footer()}`}

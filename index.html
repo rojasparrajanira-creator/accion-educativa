@@ -1087,135 +1087,61 @@ body:has(.mec-home-main) .public-header .nav a:hover{color:#ffdb50}
 }
 
 
-/* Portada 2026: fondo claro, franja azul degradada, catálogo y comunidad en una fila. */
-body:has(.mec-home-main),body:has(.mec-home-main) main.mec-home-main{
-  background:#fff!important;color:#103680!important;
-}
-body:has(.mec-home-main) .mec-welcome{
-  position:relative;padding:clamp(38px,5vw,75px) 0 clamp(34px,4vw,58px)!important;
-  background:linear-gradient(180deg,#fff 0%,#fbfdff 42%,#e5f4ff 78%,#bddff7 100%)!important;
-  color:#103680!important;
-}
-body:has(.mec-home-main) .mec-welcome-inner{
-  max-width:1320px!important;min-height:470px;
-  padding-right:min(39%,480px);
-}
-body:has(.mec-home-main) .mec-welcome-kicker{
-  color:#1260b4!important;text-shadow:none!important;font-weight:850!important;
-}
-body:has(.mec-home-main) .mec-welcome-title{
-  color:#103f96!important;text-shadow:none!important;font-size:inherit!important;
-  margin-bottom:18px!important;
-}
-body:has(.mec-home-main) .mec-welcome-title .mec-word-encuentra{
-  color:#1252b3!important;-webkit-text-fill-color:#1252b3!important;
-  font-size:clamp(43px,6vw,80px)!important;
-}
-body:has(.mec-home-main) .mec-welcome-title-rest{
-  font-size:clamp(27px,3.4vw,46px)!important;
-}
-body:has(.mec-home-main) .mec-welcome-title .mec-word-el,
-body:has(.mec-home-main) .mec-welcome-title .mec-word-necesitas{
-  color:#134a9f!important;-webkit-text-fill-color:#134a9f!important;
-}
-body:has(.mec-home-main) .mec-welcome-title .mec-word-material,
-body:has(.mec-home-main) .mec-welcome-title .mec-word-que{
-  color:#06aebc!important;-webkit-text-fill-color:#06aebc!important;
-}
-body:has(.mec-home-main) .mec-welcome-promise,
-body:has(.mec-home-main) .mec-welcome-description{
-  color:#174d9a!important;text-shadow:none!important;max-width:740px!important;
-}
-.mec-home-action-row{
-  display:flex;align-items:center;justify-content:space-between;gap:20px;
-  margin-top:28px;max-width:760px;
-}
-.mec-home-catalog-btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:16px;
-  min-width:190px;min-height:58px;border-radius:15px;
-  background:#ffda26;color:#0e419c!important;font-weight:900;font-size:18px;
-  text-decoration:none;box-shadow:0 10px 24px rgba(22,79,140,.15);
-  border:1px solid #efbf00;white-space:nowrap;transition:transform .2s,box-shadow .2s;
-}
-.mec-home-catalog-btn:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(22,79,140,.22)}
-.mec-home-catalog-btn:focus-visible{outline:3px solid #0756d8;outline-offset:4px}
-.mec-home-action-row .mec-home-community{margin:0!important;padding:0!important;background:transparent!important;border:0!important;flex:1!important;}
-.mec-home-action-row .mec-home-community-inner{
-  display:flex;align-items:center;justify-content:flex-end;gap:11px;flex-wrap:wrap;
-  border:1px solid #b7d9f1;border-radius:14px;background:rgba(255,255,255,.64);padding:14px 17px;
-}
-.mec-home-action-row .mec-home-community-title,.mec-home-action-row .mec-home-community-label{
-  color:#16438f!important;font-size:13px!important;font-weight:800!important;
-}
-.mec-home-action-row .mec-home-community-count{color:#065ac4!important;font-size:29px!important}
-body:has(.mec-home-main) .mec-featured{
-  background:#fff!important;padding:26px 0 45px!important;
-}
-body:has(.mec-home-main) .mec-featured .mec-section-heading h2{
-  color:#0b439a!important;font-size:clamp(29px,3.7vw,43px)!important;
-}
-body:has(.mec-home-main) .mec-featured .mec-section-heading .mec-kicker{color:#00a9bc!important}
-body:has(.mec-home-main) .mec-featured #portalFeatured{margin-top:14px!important}
-@media(max-width:850px){
- body:has(.mec-home-main) .mec-welcome-inner{padding-right:0!important;min-height:0!important}
- .mec-home-action-row{flex-wrap:wrap;gap:13px}
- .mec-home-action-row .mec-home-community{min-width:245px}
-}
-@media(max-width:550px){
- body:has(.mec-home-main) .mec-welcome{padding:30px 0!important}
- .mec-home-catalog-btn{width:100%;min-height:52px}
- .mec-home-action-row .mec-home-community{width:100%;min-width:0}
- .mec-home-action-row .mec-home-community-inner{justify-content:center}
-}
-
-
-/* Corrección de contraste: degradado azul visible en la parte baja de la portada. */
-body:has(.mec-home-main) .mec-welcome{
-  background:linear-gradient(to bottom,#ffffff 0%,#ffffff 25%,#f0faff 44%,#bce4ff 69%,#4b9fe5 100%)!important;
-}
-body:has(.mec-home-main) .mec-welcome::before{
-  content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(100deg,rgba(255,255,255,.40) 0%,transparent 60%);
-}
-body:has(.mec-home-main) .mec-welcome-inner{position:relative;z-index:1}
-
-/* Continuidad de degradado entre bienvenida y más vendidos; sin corte blanco. */
-body:has(.mec-home-main) .mec-home-main{
-  background:linear-gradient(180deg,#fff 0%,#f2faff 17%,#cfeeff 30%,#89c8f0 46%,#e5f4ff 65%,#fff 100%)!important;
-}
-body:has(.mec-home-main) .mec-welcome{
-  background:transparent!important;
-  padding-top:clamp(24px,3vw,40px)!important;
-  padding-bottom:12px!important;
-}
-body:has(.mec-home-main) .mec-welcome-inner{
-  min-height:0!important;
-}
-body:has(.mec-home-main) .mec-featured{
-  background:transparent!important;
-  padding:6px 0 28px!important;
-  margin:0!important;
-}
-body:has(.mec-home-main) .mec-featured .mec-section-heading{
-  margin-top:0!important;
-  margin-bottom:8px!important;
-}
-body:has(.mec-home-main) .mec-featured #portalFeatured{margin-top:7px!important}
-body:has(.mec-home-main) .mec-welcome::before{display:none!important}
-@media(max-width:700px){
- body:has(.mec-home-main) .mec-welcome{padding-bottom:10px!important}
- body:has(.mec-home-main) .mec-featured{padding-top:6px!important}
-}
-
-/* Restaurar encabezado azul eléctrico oscuro del portal (sin plomo). */
-body:has(.mec-home-main) .public-header,
-body:has(.mec-home-main) header.public-header{
- background:#0737a5!important;background-image:linear-gradient(105deg,#052579 0%,#063bb8 50%,#0755dc 100%)!important;
- border-bottom:1px solid rgba(255,255,255,.20)!important;
-}
+/* Portada definitiva MEC · 2026-11-02. Presentación pública; sin cambios de datos. */
+body:has(.mec-home-main),body:has(.mec-home-main) main.mec-home-main{background:#fff!important;color:#103680!important}
+/* Conserva el encabezado azul oscuro actualizado en la rama. */
+body:has(.mec-home-main) .public-header,body:has(.mec-home-main) header.public-header{background:#0737a5!important;background-image:linear-gradient(105deg,#052579 0%,#063bb8 50%,#0755dc 100%)!important;border-bottom:1px solid rgba(255,255,255,.20)!important}
 body:has(.mec-home-main) .public-header .nav a{color:#fff!important}
-body:has(.mec-home-main) .public-header .nav a:hover,
-body:has(.mec-home-main) .public-header .nav a.active{color:#ffde54!important}
+body:has(.mec-home-main) .public-header .nav a:hover,body:has(.mec-home-main) .public-header .nav a.active{color:#ffde54!important}
+body:has(.mec-home-main) .public-header .mobile-menu{color:#fff!important}
+body:has(.mec-home-main) .mec-welcome{position:relative;overflow:hidden;padding:0!important;background:linear-gradient(180deg,#fff 0%,#f4faff 30%,#cce8fc 66%,#68ace6 100%)!important;color:#103680!important}
+body:has(.mec-home-main) .mec-welcome::before{display:none}
+body:has(.mec-home-main) .mec-welcome-inner{position:relative;max-width:1320px!important;min-height:460px;padding:0!important;display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);align-items:stretch;gap:0}
+.mec-welcome-copy{position:relative;z-index:1;padding:42px 24px 38px 0;align-self:center;min-width:0}
+body:has(.mec-home-main) .mec-welcome-kicker{color:#15508d!important;text-shadow:none!important;font-size:11px;font-weight:750;letter-spacing:.12em;margin-bottom:14px}
+body:has(.mec-home-main) .mec-welcome-title{color:#103f96!important;text-shadow:none!important;margin:0 0 20px!important;text-wrap:initial;letter-spacing:-.045em}
+body:has(.mec-home-main) .mec-welcome-title .mec-word-encuentra{color:#104590!important;-webkit-text-fill-color:#104590!important;font-size:clamp(46px,5.3vw,72px)!important;line-height:1.05}
+body:has(.mec-home-main) .mec-welcome-title-rest{font-size:clamp(31px,3.1vw,43px)!important;line-height:1.2;margin-top:9px}
+body:has(.mec-home-main) .mec-welcome-title .mec-word-el,body:has(.mec-home-main) .mec-welcome-title .mec-word-necesitas{color:#104590!important;-webkit-text-fill-color:#104590!important}
+body:has(.mec-home-main) .mec-welcome-title .mec-word-material,body:has(.mec-home-main) .mec-welcome-title .mec-word-que{color:#007c91!important;-webkit-text-fill-color:#007c91!important}
+body:has(.mec-home-main) .mec-welcome-promise,body:has(.mec-home-main) .mec-welcome-description{color:#173f74!important;text-shadow:none!important;max-width:650px!important}
+body:has(.mec-home-main) .mec-welcome-promise{font-size:clamp(17px,1.6vw,21px);font-weight:500;line-height:1.5;margin-bottom:12px}
+body:has(.mec-home-main) .mec-welcome-description{font-size:14px;font-weight:400;line-height:1.65;margin:0}
+.mec-welcome-photo{position:relative;min-width:0;margin:0 -50px 0 -30px;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 28%),linear-gradient(180deg,#000 82%,transparent 100%);mask-composite:intersect;-webkit-mask-image:linear-gradient(90deg,transparent,#000 28%),linear-gradient(180deg,#000 82%,transparent 100%);-webkit-mask-composite:source-in}
+.mec-welcome-photo img{display:block;width:100%;height:100%;position:absolute;inset:0;object-fit:cover;object-position:76% center}
+.mec-home-action-row{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:25px;max-width:650px}
+.mec-home-catalog-btn{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-width:175px;min-height:56px;border-radius:12px;background:#ffda26;color:#103b7c!important;font-weight:800;font-size:17px;text-decoration:none;box-shadow:0 8px 20px rgba(22,79,140,.12);border:1px solid #efbf00;white-space:nowrap;transition:transform .2s,box-shadow .2s,background .2s}
+.mec-home-catalog-btn:hover{background:#ffe463;transform:translateY(-2px);box-shadow:0 12px 24px rgba(22,79,140,.2)}
+.mec-home-catalog-btn:focus-visible{outline:3px solid #0756d8;outline-offset:4px}
+.mec-home-action-row .mec-home-community{margin:0!important;padding:0!important;background:transparent!important;border:0!important;flex:1;min-width:0}
+.mec-home-action-row .mec-home-community-inner{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 14px;border:0;border-left:1px solid #7baed5;border-radius:0;background:transparent;padding:3px 0 3px 20px;text-align:left}
+.mec-home-action-row .mec-home-community-title,.mec-home-action-row .mec-home-community-label{color:#123f7a!important}
+.mec-home-action-row .mec-home-community-title{font-size:13px!important;font-weight:750;letter-spacing:0}
+.mec-home-action-row .mec-home-community-label{font-size:11px!important;grid-row:2}
+.mec-home-action-row .mec-home-community-count{color:#103f87!important;font-size:27px!important;grid-column:2;grid-row:1/3}
+body:has(.mec-home-main) .mec-featured{background:linear-gradient(180deg,#68ace6 0%,#eaf5ff 150px,#fff 300px)!important;padding:18px 0 32px!important}
+body:has(.mec-home-main) .mec-featured .mec-section-heading h2{color:#103f87!important;font-size:clamp(27px,3vw,36px)!important}
+body:has(.mec-home-main) .mec-featured .mec-section-heading .mec-kicker{color:#007c91!important}
+body:has(.mec-home-main) .mec-featured #portalFeatured{margin-top:14px!important}
+@media(max-width:1000px){.mec-welcome-copy{padding-block:30px}.mec-home-action-row{gap:13px}.mec-home-catalog-btn{min-width:145px}.mec-home-action-row .mec-home-community-inner{padding-left:13px;gap:3px 8px}.mec-home-action-row .mec-home-community-count{font-size:23px!important}}
+@media(max-width:760px){
+ body:has(.mec-home-main) .mec-welcome-inner{grid-template-columns:1fr!important;min-height:0!important}
+ .mec-welcome-copy{padding:27px 0 8px}
+ body:has(.mec-home-main) .mec-welcome-title{margin-bottom:15px!important}
+ body:has(.mec-home-main) .mec-welcome-title .mec-word-encuentra{font-size:clamp(43px,10vw,64px)!important}
+ body:has(.mec-home-main) .mec-welcome-title-rest{font-size:clamp(29px,6.6vw,42px)!important;margin-top:6px}
+ body:has(.mec-home-main) .mec-welcome-promise{font-size:17px;line-height:1.45;margin-bottom:8px}
+ body:has(.mec-home-main) .mec-welcome-description{font-size:13px;line-height:1.55}
+ .mec-home-action-row{margin-top:18px;gap:12px}
+ .mec-home-catalog-btn{min-width:140px;min-height:51px;font-size:15px;gap:10px}
+ .mec-home-action-row .mec-home-community-inner{grid-template-columns:1fr;gap:3px;padding-left:12px}
+ .mec-home-action-row .mec-home-community-count{grid-column:1;grid-row:2;font-size:24px!important}
+ .mec-home-action-row .mec-home-community-label{grid-row:3;font-size:10px!important}
+ .mec-welcome-photo{height:210px;margin:0 -21px;mask-image:linear-gradient(90deg,transparent,#000 20%),linear-gradient(180deg,transparent,#000 16%,#000 85%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 20%),linear-gradient(180deg,transparent,#000 16%,#000 85%,transparent)}
+ .mec-welcome-photo img{object-position:76% 35%}
+ body:has(.mec-home-main) .mec-featured{padding:20px 0 28px!important}
+}
+@media(prefers-reduced-motion:reduce){.mec-home-catalog-btn{transition:none}}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -1272,12 +1198,13 @@ async function requestAccess(){const email=$('#access-email')?.value.trim();if(!
 function productCard(p){const level=p.levels?.length>2?`${p.levels[0]} a ${p.levels.at(-1)}`:(p.levels||[]).join(', ');return `<article class="product-card"><div class="product-cover"><img src="${esc(p.coverUrl||AS+'producto-emociones.webp')}" alt="${esc(p.title)}">${p.featured?'<span class="badge">Destacado</span>':''}</div><div class="product-body"><div class="product-category">${esc(p.category?.name||'Material educativo')}</div><div class="product-title">${esc(p.title)}</div><div class="meta-row"><span class="meta-chip">${esc(level)}</span><span class="meta-chip">${esc((p.formats||[]).join(' · '))}</span><strong class="price">${clp(p.priceClp)}</strong></div><div class="product-actions"><button class="details-btn" onclick="location.hash='#/material/${esc(p.slug)}'">Ver detalle</button><button class="add-btn" onclick="addCart('${p.id}')">🛒</button></div></div></article>`}
 function home(){return `${header('Inicio')}<main class="mec-home-main">
 <section class="mec-welcome" id="inicio" aria-labelledby="mecWelcomeTitle"><div class="container mec-welcome-inner">
+<div class="mec-welcome-copy">
   <p class="mec-welcome-kicker">TIENDA OFICIAL · MATERIALES DIGITALES</p>
   <h1 id="mecWelcomeTitle" class="mec-welcome-title"><span class="mec-word-encuentra">Encuentra</span><span class="mec-welcome-title-rest"><span class="mec-word-el">el</span> <span class="mec-word-material">material</span> <span class="mec-word-que">que</span> <span class="mec-word-necesitas">necesitas</span></span></h1>
   <p class="mec-welcome-promise">Tu tiempo vale. <strong>Nosotros preparamos los recursos por ti.</strong></p>
   <p class="mec-welcome-description">Explora todos nuestros materiales publicados, filtra por tipo de material o curso, busca un tema, revisa sus detalles y compra directamente desde nuestra tienda digital.</p>
   <div class="mec-home-action-row">
-    <a class="mec-home-catalog-btn" href="#/catalogo" aria-label="Ver catálogo de materiales educativos">Ver catálogo <span aria-hidden="true">›</span></a>
+    <a class="mec-home-catalog-btn" href="tienda.html#catalogo" aria-label="Ver catálogo de materiales educativos">Ver catálogo <span aria-hidden="true">›</span></a>
     <div class="mec-home-community" aria-label="Nuestra comunidad">
       <div class="mec-home-community-inner">
         <span class="mec-home-community-title">Nuestra comunidad</span>
@@ -1286,6 +1213,8 @@ function home(){return `${header('Inicio')}<main class="mec-home-main">
       </div>
     </div>
   </div>
+</div>
+<figure class="mec-welcome-photo"><img src="/assets/material-educativo/estudiante-portada-original.jpeg" width="1536" height="864" alt="Estudiante sonriente en el patio de su establecimiento" fetchpriority="high" decoding="async"></figure>
 </div></section>
 <section class="mec-featured" id="destacados"><div class="container"><div class="mec-section-heading"><span class="mec-kicker">DESCUBRE NUESTROS RECURSOS</span><h2 id="featuredTitle">Materiales destacados</h2><p id="featuredIntro">Una selección de recursos del catálogo actual.</p></div><div class="mec-products-grid" id="portalFeatured"><p class="mec-loading">Cargando materiales…</p></div></div></section>
 ${portalCatalogSection()}

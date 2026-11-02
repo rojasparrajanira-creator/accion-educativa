@@ -1206,6 +1206,16 @@ body:has(.mec-home-main) .mec-welcome::before{display:none!important}
  body:has(.mec-home-main) .mec-welcome{padding-bottom:10px!important}
  body:has(.mec-home-main) .mec-featured{padding-top:6px!important}
 }
+
+/* Restaurar encabezado azul eléctrico oscuro del portal (sin plomo). */
+body:has(.mec-home-main) .public-header,
+body:has(.mec-home-main) header.public-header{
+ background:#0737a5!important;background-image:linear-gradient(105deg,#052579 0%,#063bb8 50%,#0755dc 100%)!important;
+ border-bottom:1px solid rgba(255,255,255,.20)!important;
+}
+body:has(.mec-home-main) .public-header .nav a{color:#fff!important}
+body:has(.mec-home-main) .public-header .nav a:hover,
+body:has(.mec-home-main) .public-header .nav a.active{color:#ffde54!important}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>

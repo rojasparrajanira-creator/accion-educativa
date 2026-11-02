@@ -1315,6 +1315,13 @@ body:has(.mec-home-main) .mec-home-action-row .mec-home-community-count{
 body:has(.mec-home-main) .mec-home-action-row .mec-home-community-count{
  color:#ffffff!important;
 }
+
+/* Refuerzo final: cifra blanca incluso ante reglas antiguas en caché. */
+body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner strong.mec-home-community-count,
+body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner [data-mec-stat="visitors"]{
+ color:#ffffff!important;
+ -webkit-text-fill-color:#ffffff!important;
+}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -1385,7 +1392,7 @@ function home(){return `${header('Inicio')}<main class="mec-home-main">
       <div class="mec-home-community-inner">
         <span class="mec-home-community-title">Nuestra comunidad</span>
         <span class="mec-home-community-label">Visitantes del sitio</span>
-        <strong class="mec-home-community-count" data-mec-stat="visitors" aria-label="Cantidad de visitantes del sitio">—</strong>
+        <strong class="mec-home-community-count" style="color:#ffffff!important" data-mec-stat="visitors" aria-label="Cantidad de visitantes del sitio">—</strong>
       </div>
     </div>
   </div>

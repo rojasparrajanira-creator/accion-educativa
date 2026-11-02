@@ -1205,6 +1205,56 @@ body:has(.mec-home-main) .footer{
  body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner{padding:11px 13px!important}
 }
 
+
+/* Ajuste de jerarquía visual: más vendidos y portadas arriba; azul comienza antes. */
+body:has(.mec-home-main) .mec-welcome-inner{
+ min-height:370px!important;
+}
+body:has(.mec-home-main) .mec-welcome-copy{
+ padding-top:20px!important;
+ padding-bottom:17px!important;
+}
+body:has(.mec-home-main) .mec-welcome-title{
+ margin-bottom:12px!important;
+}
+body:has(.mec-home-main) .mec-welcome-kicker{
+ margin-bottom:8px!important;
+}
+body:has(.mec-home-main) .mec-home-action-row{
+ margin-top:14px!important;
+}
+body:has(.mec-home-main) .mec-home-gradient{
+ background:linear-gradient(180deg,
+ #ffffff 0%,
+ #e7f5ff 6%,
+ #a7d7ff 16%,
+ #69b0f1 30%,
+ #347edb 49%,
+ #1456bd 68%,
+ #083a9e 86%,
+ #052678 100%)!important;
+}
+body:has(.mec-home-main) .mec-home-gradient>.mec-featured{
+ padding-top:3px!important;
+ padding-bottom:20px!important;
+}
+body:has(.mec-home-main) .mec-home-gradient>.mec-featured .mec-section-heading{
+ margin-top:0!important;
+ margin-bottom:5px!important;
+}
+body:has(.mec-home-main) .mec-home-gradient>.mec-featured .mec-section-heading h2{
+ margin:2px 0 3px!important;
+}
+body:has(.mec-home-main) .mec-home-gradient>.mec-featured #portalFeatured{
+ margin-top:5px!important;
+}
+@media(max-width:760px){
+ body:has(.mec-home-main) .mec-welcome-inner{min-height:0!important}
+ body:has(.mec-home-main) .mec-welcome-copy{padding:15px 0 8px!important}
+ body:has(.mec-home-main) .mec-welcome-photo{height:155px!important}
+ body:has(.mec-home-main) .mec-home-gradient>.mec-featured{padding-top:2px!important}
+ body:has(.mec-home-main) .mec-home-gradient>.mec-featured .mec-section-heading{margin-bottom:5px!important}
+}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>

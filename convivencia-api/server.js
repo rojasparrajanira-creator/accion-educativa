@@ -105,6 +105,17 @@ const storeImageUpload=multer({
     cb(null,(type==='image/jpeg'||type==='image/png')&&/\.(jpe?g|png)$/.test(name));
   }
 });
+const blogCoverUpload=multer({
+  storage:multer.memoryStorage(),
+  limits:{files:1,fileSize:5*1024*1024},
+  fileFilter:(req,file,cb)=>{
+    const type=String(file.mimetype||'').toLowerCase();
+    const name=String(file.originalname||'').toLowerCase();
+    cb(null,((type==='image/jpeg'&&/\.jpe?g$/.test(name))||
+      (type==='image/png'&&/\.png$/.test(name))||
+      (type==='image/webp'&&/\.webp$/.test(name))));
+  }
+});
 const siteAssetUpload=multer({
   storage:multer.memoryStorage(),
   limits:{files:1,fileSize:3*1024*1024},
@@ -2196,6 +2207,20 @@ app.get('/api/site/blog',async(req,res)=>{try{
   ok(res,{posts:q.rows});
 }catch(e){console.error('Blog public read failed:',e.message);res.status(500).json({ok:false,error:'blog_unavailable'})}});
 
+// Carga segura de portadas del blog desde el panel de administración.
+app.post('/api/site/admin/blog-image',...requireRole('platform_admin'),(req,res,next)=>{
+  blogCoverUpload.single('image')(req,res,err=>{
+    if(err)return res.status(400).json({ok:false,error:err.code==='LIMIT_FILE_SIZE'?'La imagen supera 5 MB.':'Usa una imagen JPG, PNG o WEBP de hasta 5 MB.'});
+    next();
+  });
+},async(req,res)=>{
+  try{
+    if(!req.file?.buffer?.length)return res.status(400).json({ok:false,error:'Selecciona una imagen JPG, PNG o WEBP.'});
+    const q=await pool.query("insert into store_product_images(mime_type,image_data) values($1,$2) returning id",[req.file.mimetype,req.file.buffer]);
+    const base=String(process.env.RENDER_EXTERNAL_URL||'https://convivencia-escolar-api.onrender.com').replace(/\/$/,'');
+    ok(res,{image_url:base+'/api/store/images/'+q.rows[0].id});
+  }catch(e){console.error('Blog image upload failed:',e.message);res.status(500).json({ok:false,error:'No se pudo guardar la imagen del blog.'})}
+});
 app.get('/api/site/admin/blog',...requireRole('platform_admin'),async(req,res)=>{try{
   const q=await pool.query("select id,title,category,excerpt,content,image_url,status,created_at,updated_at from site_blog_posts order by updated_at desc limit 150");
   ok(res,{posts:q.rows});

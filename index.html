@@ -1362,6 +1362,67 @@ body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner [data-me
 @media(max-width:760px){
  .mec-blog-grid .mec-blog-art{height:200px!important;min-height:200px!important}
 }
+
+/* Corrección de portada del blog: foto limitada a una franja, nunca encima del texto. */
+.mec-blog-grid{
+ align-items:start!important;
+}
+.mec-blog-grid .mec-blog-card{
+ display:flex!important;
+ flex-direction:column!important;
+ overflow:hidden!important;
+ min-width:0!important;
+ isolation:isolate;
+}
+.mec-blog-grid .mec-blog-art{
+ position:relative!important;
+ display:block!important;
+ flex:0 0 205px!important;
+ height:205px!important;
+ min-height:0!important;
+ max-height:205px!important;
+ width:100%!important;
+ overflow:hidden!important;
+ background:#edf5fc!important;
+}
+.mec-blog-grid .mec-blog-art>img{
+ position:absolute!important;
+ inset:0!important;
+ display:block!important;
+ width:100%!important;
+ height:100%!important;
+ max-width:100%!important;
+ max-height:100%!important;
+ min-height:0!important;
+ object-fit:cover!important;
+ object-position:center 22%!important;
+ margin:0!important;
+ border:0!important;
+}
+.mec-blog-grid .mec-blog-card-content{
+ position:relative!important;
+ z-index:1!important;
+ display:block!important;
+ flex:1 0 auto!important;
+ width:100%!important;
+ min-width:0!important;
+ padding:20px!important;
+ background:#ffffff!important;
+ color:#0f2d52!important;
+}
+.mec-blog-grid .mec-blog-card-content h2,
+.mec-blog-grid .mec-blog-card-content p{
+ position:static!important;
+ max-width:100%!important;
+ overflow-wrap:anywhere;
+}
+@media(max-width:760px){
+ .mec-blog-grid .mec-blog-art{
+  flex-basis:185px!important;
+  height:185px!important;
+  max-height:185px!important;
+ }
+}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>

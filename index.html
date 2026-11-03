@@ -1455,6 +1455,11 @@ body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner [data-me
  .mec-rice-promo-buy{min-height:37px;padding:8px 13px}
 }
 @media(prefers-reduced-motion:reduce){.mec-rice-promo-buy{transform:none!important}}
+
+/* Imagen de portada real del producto en la tarjeta flotante. */
+.mec-rice-promo-image{display:flex;align-items:center;justify-content:center;width:100%;height:150px;overflow:hidden;margin:2px 0 11px;border-radius:12px;background:#fff;border:1px solid rgba(255,255,255,.4)}
+.mec-rice-promo-image img{display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+@media(max-width:760px){.mec-rice-promo-image{height:112px;margin:2px 0 9px;border-radius:10px}}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -1506,10 +1511,28 @@ function addCart(id){const p=allProducts().find(x=>x.id===id);if(!p)return;const
 function allProducts(){return [...state.products,...state.localProducts.filter(lp=>!state.products.some(p=>p.id===lp.id))]}
 function header(active='',commercial=false){return `<header class="public-header"><div class="container header-row"><a class="brand" href="#/" aria-label="Material Educativo Chile · Inicio"><img src="/assets/material-educativo/logo-oficial.jpg" alt="Logo Material Educativo Chile"></a><button class="icon-btn mobile-menu" onclick="toggleMenu()" aria-label="Abrir menú">☰</button><nav class="nav" id="main-nav">${[['Inicio','#/'],['Tienda','#/tienda'],['Plataformas','#/plataformas'],['Quiénes somos','#/quienes-somos'],['Misión y visión','#/mision-vision'],['Blog','#/blog'],['Contacto','#/contacto']].map(([n,h])=>`<a class="${active===n?'active':''}" href="${h}">${n}</a>`).join('')}</nav><div class="header-actions"><a class="header-shop" href="#/tienda">Ver materiales</a><a class="header-cart" href="tienda.html#catalogo" aria-label="Ir a la tienda y al carrito"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L20 8H7"/><circle cx="10" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/></svg></a></div></div></header>`}
 let mecRicePromoDismissed=false;
+async function hydrateRicePromoImage(){
+ const cover=document.getElementById('mecRicePromoCover');
+ if(!cover)return;
+ try{
+  const products=portalProducts.length?portalProducts:(await (async()=>{
+   const response=await fetch(PORTAL_API+'/api/store/products',{cache:'no-store'});
+   if(!response.ok)throw Error('catalog_unavailable');
+   const data=await response.json();
+   return Array.isArray(data.products)?data.products:[];
+  })());
+  const product=products.find(p=>String(p.slug||'').toLowerCase()==='reglamento-interno-de-convivencia-educativa-2027')||
+   products.find(p=>/reglamento interno.*2027/i.test(String(p.title||'')));
+  if(!product?.image_url)return;
+  const liveCover=document.getElementById('mecRicePromoCover');
+  if(liveCover)liveCover.src=portalImageUrl(product.image_url);
+ }catch(e){console.warn('Portada de promoción no disponible:',e.message)}
+}
 function dismissMecRicePromo(){mecRicePromoDismissed=true;document.getElementById('mecRicePromo')?.remove()}
 function footer(){return `<footer class="footer"><div class="container footer-row"><div class="footer-brand"><img src="/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile" style="width:52px;height:52px;object-fit:contain;border-radius:50%"><div><b>Material Educativo Chile</b><div>Recursos educativos que transforman.</div></div></div><div class="footer-links"><a href="#/contacto">Contacto</a><a href="#/blog">Blog</a><a href="#/privacidad">Política de privacidad y protección de datos</a><a href="https://www.instagram.com/materialeducativo.chile/" target="_blank" rel="noopener">Instagram</a><small>© ${new Date().getFullYear()} · @materialeducativo.chile</small><a class="footer-admin" href="https://convivencia-escolar-material-educativo.onrender.com/ingreso.html?next=admin-centro.html" rel="noopener">Acceso Superadministrador</a></div></div></footer>${mecRicePromoDismissed?'':`<aside class="mec-rice-promo" id="mecRicePromo" aria-label="Reglamento Interno de Convivencia Escolar 2027">
 <button class="mec-rice-promo-close" type="button" aria-label="Cerrar promoción" onclick="dismissMecRicePromo()">×</button>
 <div class="mec-rice-promo-top"><span class="mec-rice-promo-icon" aria-hidden="true">📘</span><span class="mec-rice-promo-tag">MATERIAL DESTACADO · 2027</span></div>
+<div class="mec-rice-promo-image"><img id="mecRicePromoCover" src="/assets/material-educativo/logo-oficial.jpg" alt="Portada del Reglamento Interno de Convivencia Escolar 2027" loading="eager" decoding="async" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></div>
 <h2>Reglamento Interno de Convivencia Escolar 2027</h2>
 <a class="mec-rice-promo-buy" href="https://materialeducativochile.cl/tienda.html?producto=reglamento-interno-de-convivencia-educativa-2027#catalogo">Compra ahora <span aria-hidden="true">→</span></a>
 </aside>`}`}
@@ -1838,14 +1861,14 @@ async function hydrateTeamImage(){
 }
 async function loadData(){state.categories=[];state.products=[];state.apiOnline=false}
 async function render(){const app=$('#app'),raw=location.hash||'#/',path=raw.split('?')[0],parts=path.replace(/^#\//,'').split('/').filter(Boolean);window.scrollTo(0,0);pauseMecCarousel();const storeRoutes=new Set(['catalogo','categorias','categoria','material','carrito','checkout','compra-confirmada','correo-enviado','biblioteca']);if(storeRoutes.has(parts[0])){location.replace(STORE_URL);return}if(parts[0]==='biblioteca'){app.innerHTML='<div class="empty">Cargando biblioteca...</div>';app.innerHTML=await library(parts[1]);return}if(parts[0]==='admin'||parts[0]==='superadministrador'){app.innerHTML='<div class="empty">Redirigiendo al acceso seguro…</div>';location.replace('https://convivencia-escolar-material-educativo.onrender.com/ingreso.html?next=admin-tienda.html');return}if(path==='#/'||path==='#')app.innerHTML=home();else if(parts[0]==='plataformas')app.innerHTML=platforms();else if(parts[0]==='orientacion-vocacional')app.innerHTML=platformDetail('voc');else if(parts[0]==='convivencia-escolar'){location.replace('/convivencia-escolar/ingreso.html');return;}else if(parts[0]==='privacidad')app.innerHTML=privacyPolicy();else if(parts[0]==='tienda')app.innerHTML=home();else if(parts[0]==='quienes-somos')app.innerHTML=about();else if(parts[0]==='mision-vision')app.innerHTML=mission();else if(parts[0]==='blog')app.innerHTML=blog();else if(parts[0]==='contacto')app.innerHTML=contact();else if(parts[0]==='catalogo')app.innerHTML=catalog();else if(parts[0]==='categorias')app.innerHTML=categoriesPage();else if(parts[0]==='categoria')app.innerHTML=categoryPage(parts[1]);else if(parts[0]==='material')app.innerHTML=detail(parts[1]);else if(parts[0]==='carrito')app.innerHTML=cartPage();else if(parts[0]==='checkout')app.innerHTML=checkout();else if(parts[0]==='compra-confirmada')app.innerHTML=confirmation();else if(parts[0]==='correo-enviado')app.innerHTML=emailSentPage();else app.innerHTML=notFound();updateCartCount();if(path==='#/'||path==='#'||parts[0]==='tienda'){hydratePortal();goMecCarousel(0);resumeMecCarousel();window.MECAnalytics?.refreshStats()}if(parts[0]==='blog')hydrateBlog();if(parts[0]==='tienda')requestAnimationFrame(()=>document.getElementById('tienda')?.scrollIntoView({block:'start'}))}
-window.addEventListener('hashchange',()=>{render().catch(showPortalLoadError)});
+window.addEventListener('hashchange',()=>{render().then(hydrateRicePromoImage).catch(showPortalLoadError)});
 function showPortalLoadError(err){
  console.error('Error al mostrar portada:',err);
  const root=document.getElementById('app');
  if(root)root.innerHTML='<main style="min-height:80vh;background:#fff;color:#10449a;padding:35px 20px;font-family:Arial,sans-serif"><h1>Material Educativo Chile</h1><p>No se pudo cargar esta vista. Puedes volver a intentar o entrar directamente a la tienda.</p><p><a href="/" style="color:#0755bb;font-weight:bold">Volver a inicio</a> · <a href="/tienda.html" style="color:#0755bb;font-weight:bold">Abrir catálogo</a></p></main>';
 }
 window.addEventListener('DOMContentLoaded',async()=>{
- try{await loadData();await render();try{window.MECAnalytics?.start()}catch(e){console.warn('Estadísticas no disponibles:',e)}}
+ try{await loadData();await render();hydrateRicePromoImage();try{window.MECAnalytics?.start()}catch(e){console.warn('Estadísticas no disponibles:',e)}}
  catch(e){showPortalLoadError(e)}
 });
 </script>

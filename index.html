@@ -1423,6 +1423,38 @@ body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner [data-me
   max-height:185px!important;
  }
 }
+
+/* Promoción flotante del Reglamento Interno de Convivencia Escolar 2027. */
+.mec-rice-promo{
+ position:fixed;
+ right:22px;
+ bottom:22px;
+ z-index:990;
+ width:min(330px,calc(100vw - 32px));
+ padding:17px 17px 16px;
+ color:#fff;
+ background:linear-gradient(125deg,#052b88 0%,#0a56d4 58%,#073ca9 100%);
+ border:1px solid rgba(255,255,255,.28);
+ border-radius:19px;
+ box-shadow:0 12px 38px rgba(5,29,94,.31);
+ font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+}
+.mec-rice-promo[hidden]{display:none!important}
+.mec-rice-promo-top{display:flex;align-items:center;gap:8px;margin:0 29px 8px 0}
+.mec-rice-promo-icon{display:grid;place-items:center;width:31px;height:31px;flex:0 0 31px;border-radius:9px;background:rgba(255,255,255,.17);font-size:19px}
+.mec-rice-promo-tag{font-size:10px;letter-spacing:.10em;font-weight:900;color:#ffe45a}
+.mec-rice-promo h2{margin:0 0 13px!important;color:#fff!important;font-size:19px!important;line-height:1.24!important;font-weight:850!important;letter-spacing:-.02em}
+.mec-rice-promo-buy{display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:40px;padding:10px 17px;border-radius:10px;background:#ffdc4e;color:#082b73!important;font-weight:900;font-size:13px;text-decoration:none!important;box-shadow:0 3px 9px rgba(0,0,0,.13)}
+.mec-rice-promo-buy:hover,.mec-rice-promo-buy:focus-visible{background:#ffeb85;transform:translateY(-1px)}
+.mec-rice-promo-close{position:absolute;top:9px;right:10px;width:29px;height:29px;display:grid;place-items:center;border:0;border-radius:50%;background:rgba(255,255,255,.17);color:#fff;font-size:20px;line-height:1;cursor:pointer}
+.mec-rice-promo-close:hover,.mec-rice-promo-close:focus-visible{background:rgba(255,255,255,.32)}
+@media(max-width:760px){
+ .mec-rice-promo{right:12px;bottom:12px;width:min(290px,calc(100vw - 24px));padding:12px 13px 13px;border-radius:15px}
+ .mec-rice-promo-top{margin-bottom:5px}
+ .mec-rice-promo h2{font-size:16px!important;margin-bottom:10px!important}
+ .mec-rice-promo-buy{min-height:37px;padding:8px 13px}
+}
+@media(prefers-reduced-motion:reduce){.mec-rice-promo-buy{transform:none!important}}
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
@@ -1473,7 +1505,14 @@ function updateCartCount(){const n=state.cart.reduce((a,b)=>a+(b.quantity||1),0)
 function addCart(id){const p=allProducts().find(x=>x.id===id);if(!p)return;const item=state.cart.find(x=>x.id===id);if(item)item.quantity++;else state.cart.push({id:p.id,slug:p.slug,title:p.title,priceClp:p.priceClp,coverUrl:p.coverUrl,quantity:1});saveCart();toast('Material agregado al carrito.');}
 function allProducts(){return [...state.products,...state.localProducts.filter(lp=>!state.products.some(p=>p.id===lp.id))]}
 function header(active='',commercial=false){return `<header class="public-header"><div class="container header-row"><a class="brand" href="#/" aria-label="Material Educativo Chile · Inicio"><img src="/assets/material-educativo/logo-oficial.jpg" alt="Logo Material Educativo Chile"></a><button class="icon-btn mobile-menu" onclick="toggleMenu()" aria-label="Abrir menú">☰</button><nav class="nav" id="main-nav">${[['Inicio','#/'],['Tienda','#/tienda'],['Plataformas','#/plataformas'],['Quiénes somos','#/quienes-somos'],['Misión y visión','#/mision-vision'],['Blog','#/blog'],['Contacto','#/contacto']].map(([n,h])=>`<a class="${active===n?'active':''}" href="${h}">${n}</a>`).join('')}</nav><div class="header-actions"><a class="header-shop" href="#/tienda">Ver materiales</a><a class="header-cart" href="tienda.html#catalogo" aria-label="Ir a la tienda y al carrito"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L20 8H7"/><circle cx="10" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/></svg></a></div></div></header>`}
-function footer(){return `<footer class="footer"><div class="container footer-row"><div class="footer-brand"><img src="/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile" style="width:52px;height:52px;object-fit:contain;border-radius:50%"><div><b>Material Educativo Chile</b><div>Recursos educativos que transforman.</div></div></div><div class="footer-links"><a href="#/contacto">Contacto</a><a href="#/blog">Blog</a><a href="#/privacidad">Política de privacidad y protección de datos</a><a href="https://www.instagram.com/materialeducativo.chile/" target="_blank" rel="noopener">Instagram</a><small>© ${new Date().getFullYear()} · @materialeducativo.chile</small><a class="footer-admin" href="https://convivencia-escolar-material-educativo.onrender.com/ingreso.html?next=admin-centro.html" rel="noopener">Acceso Superadministrador</a></div></div></footer>`}
+let mecRicePromoDismissed=false;
+function dismissMecRicePromo(){mecRicePromoDismissed=true;document.getElementById('mecRicePromo')?.remove()}
+function footer(){return `<footer class="footer"><div class="container footer-row"><div class="footer-brand"><img src="/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile" style="width:52px;height:52px;object-fit:contain;border-radius:50%"><div><b>Material Educativo Chile</b><div>Recursos educativos que transforman.</div></div></div><div class="footer-links"><a href="#/contacto">Contacto</a><a href="#/blog">Blog</a><a href="#/privacidad">Política de privacidad y protección de datos</a><a href="https://www.instagram.com/materialeducativo.chile/" target="_blank" rel="noopener">Instagram</a><small>© ${new Date().getFullYear()} · @materialeducativo.chile</small><a class="footer-admin" href="https://convivencia-escolar-material-educativo.onrender.com/ingreso.html?next=admin-centro.html" rel="noopener">Acceso Superadministrador</a></div></div></footer>${mecRicePromoDismissed?'':`<aside class="mec-rice-promo" id="mecRicePromo" aria-label="Reglamento Interno de Convivencia Escolar 2027">
+<button class="mec-rice-promo-close" type="button" aria-label="Cerrar promoción" onclick="dismissMecRicePromo()">×</button>
+<div class="mec-rice-promo-top"><span class="mec-rice-promo-icon" aria-hidden="true">📘</span><span class="mec-rice-promo-tag">MATERIAL DESTACADO · 2027</span></div>
+<h2>Reglamento Interno de Convivencia Escolar 2027</h2>
+<a class="mec-rice-promo-buy" href="https://materialeducativochile.cl/tienda.html?producto=reglamento-interno-de-convivencia-educativa-2027#catalogo">Compra ahora <span aria-hidden="true">→</span></a>
+</aside>`}`}
 function privacyPolicy(){return `${header('Privacidad')}<main class="mec-privacy-page"><div class="container"><h1>Política de privacidad y protección de datos personales</h1><p><strong>Material Educativo Chile</strong> reconoce la importancia de proteger la privacidad de quienes visitan el sitio y utilizan sus plataformas educativas.</p><h2>Información y finalidades</h2><p>Según el servicio utilizado, se podrán tratar datos de contacto, identificación y acceso, información de uso de la plataforma y datos educativos necesarios para la gestión autorizada por cada establecimiento. Los datos deben utilizarse únicamente para fines determinados, legítimos y comunicados a sus titulares.</p><h2>Información de estudiantes y menores de edad</h2><p>Los antecedentes escolares, socioemocionales y de convivencia requieren especial resguardo. Su acceso debe limitarse a personas autorizadas, conforme a sus funciones, y evitarse su publicación o divulgación indebida. Los establecimientos y demás responsables del tratamiento deben determinar y documentar la base jurídica correspondiente, incluidas las autorizaciones que procedan.</p><h2>Estadísticas anónimas de navegación</h2><p>Para mostrar actividad y mejorar nuestros materiales contabilizamos visitas al sitio y aperturas de fichas de productos mediante identificadores técnicos aleatorios guardados en el navegador, transformados en valores hash antes de almacenarlos en el servidor. Este registro no incluye nombres, correos ni direcciones IP en las tablas de estadísticas; las cifras representan navegadores aproximados, no personas identificadas. Puedes borrar esos identificadores eliminando los datos del sitio en tu navegador.</p><h2>Derechos y solicitudes</h2><p>Las personas pueden solicitar información sobre el tratamiento de sus datos y ejercer los derechos que correspondan según la legislación vigente, incluyendo acceso, rectificación y cancelación o supresión cuando proceda. Para consultas iniciales escribe a <a href="mailto:materialeducativochile1@gmail.com">materialeducativochile1@gmail.com</a>. Cuando un establecimiento sea el responsable de los datos escolares, las solicitudes deberán dirigirse también a dicho establecimiento.</p><h2>Seguridad y conservación</h2><p>El tratamiento de información debe incorporar controles de acceso, medidas de seguridad adecuadas y plazos de conservación vinculados con la finalidad y las obligaciones legales aplicables. Nunca deben compartirse contraseñas ni antecedentes de estudiantes mediante canales no autorizados.</p><h2>Marco normativo</h2><p>Esta información considera la Ley N.º 19.628 sobre protección de la vida privada y la Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. La preparación para esta nueva ley no reemplaza el cumplimiento de las obligaciones actualmente vigentes.</p><p>Textos legales: <a href="https://www.bcn.cl/leychile/navegar?idNorma=141599" target="_blank" rel="noopener">Ley N.º 19.628</a> y <a href="https://www.bcn.cl/leychile/navegar?idNorma=1209272" target="_blank" rel="noopener">Ley N.º 21.719</a>.</p><p><strong>Nota:</strong> esta página constituye información general de privacidad. Los detalles sobre responsables, proveedores, transferencias, conservación y bases jurídicas deben documentarse y verificarse para cada servicio antes de considerarla una política definitiva de cumplimiento.</p><p><a href="#/">← Volver al inicio</a></p></div></main>${footer()}`}
 function toggleMenu(){$('#main-nav')?.classList.toggle('open')}
 function openSearch(){location.href=STORE_URL}function goSearch(){const q=$('#modal-search')?.value||'';closeModal();location.hash='#/catalogo?q='+encodeURIComponent(q)}

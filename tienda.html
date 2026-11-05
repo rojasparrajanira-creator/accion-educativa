@@ -453,6 +453,11 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
 /* Aviso de correo preferente bajo el campo de entrega: recomendación, no restricción. */
 .gmail-delivery-tip{margin:9px 0 16px;padding:12px 14px;border:1.5px solid #f0bc3b;border-left:5px solid #edaa15;border-radius:11px;background:#fff5ce;color:#42300a;font-size:13px;font-weight:600;line-height:1.55;box-shadow:0 3px 9px rgba(92,65,5,.08)}
 .gmail-delivery-tip strong{font-weight:850;color:#3d2900}
+.email-validation{font-size:12px;line-height:1.5;margin:8px 0 13px;font-weight:700;color:#4c5970}
+.email-validation.is-error{color:#b42339}
+.email-validation.is-ok{color:#14613c}
+#buyerEmail[aria-invalid="true"],#buyerEmailConfirm[aria-invalid="true"]{border-color:#c83247;box-shadow:0 0 0 2px rgba(200,50,71,.09)}
+
 
 .cart-count-pill{display:inline-block;vertical-align:middle;padding:4px 9px;border-radius:999px;background:#e9f4ff;color:#084aab;font-size:13px}
 .cart-item button{color:#9b2635;font-weight:750;font-size:12px;white-space:nowrap}
@@ -525,9 +530,11 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
       <label for="buyerName">Nombre y apellido</label>
       <input id="buyerName" autocomplete="name" placeholder="Tu nombre">
       <label for="buyerEmail">Correo de entrega</label>
-      <input id="buyerEmail" type="email" autocomplete="email" placeholder="correo@gmail.com">
-      <p class="cart-help">Usa el correo donde recibirás los enlaces de Google Drive.</p>
-      <p class="gmail-delivery-tip" id="gmailDeliveryTip" role="note"><strong>Correo Gmail recomendado:</strong> como primera opción, utiliza una dirección <strong>@gmail.com</strong> para facilitar el acceso a tus materiales en Google Drive. También puedes comprar con Hotmail, Outlook u otro correo.</p>
+      <input id="buyerEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="100" placeholder="tunombre@gmail.com" aria-describedby="gmailDeliveryTip buyerEmailStatus" required>
+      <label for="buyerEmailConfirm">Confirma tu correo Gmail *</label>
+      <input id="buyerEmailConfirm" type="email" inputmode="email" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="100" placeholder="Escríbelo nuevamente" aria-describedby="buyerEmailStatus" required>
+      <p id="buyerEmailStatus" class="email-validation" role="status" aria-live="polite">Escribe dos veces tu Gmail para confirmar la dirección de entrega.</p>
+      <p class="gmail-delivery-tip" id="gmailDeliveryTip" role="note"><strong>Correo Gmail obligatorio:</strong> solo aceptamos direcciones que terminen exactamente en <strong>@gmail.com</strong>. Revisa cada letra antes de pagar: los materiales se entregarán a esa dirección mediante Google Drive.</p>
       <label for="buyerDocument">¿Qué documento necesitas?</label>
       <select id="buyerDocument" class="mec-doc-select" aria-describedby="buyerDocumentInfo" required>
         <option value="" selected>Selecciona boleta o factura</option>
@@ -754,7 +761,7 @@ function renderCart(){
   const total=cart.reduce((sum,x)=>sum+Number(x.price_clp||0)*Number(x.quantity||1),0);
   document.getElementById('cartTotal').textContent=cart.length&&!products.length?'Calculando…':money(total);
   const mobileTotal=document.getElementById('mobileCartTotal');if(mobileTotal)mobileTotal.textContent=cart.length&&!products.length?'…':money(total);
-  document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady;
+  document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady||!isGmailConfirmed();
 }
 function addCart(id){
   const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
@@ -823,12 +830,52 @@ document.addEventListener('click',e=>{
   const rem=e.target.closest('[data-remove]');if(rem)removeCart(Number(rem.dataset.remove));
 });
 
+function validDeliveryGmail(value){
+ const email=String(value||'').trim().toLowerCase();
+ const local=email.split('@')[0]||'';
+ return /^[a-z0-9](?:[a-z0-9.+-]{0,62}[a-z0-9])?@gmail\.com$/.test(email)&&!local.includes('..')&&!local.startsWith('.')&&!local.endsWith('.');
+}
+function isGmailConfirmed(){
+ const email=document.getElementById('buyerEmail').value.trim().toLowerCase();
+ const confirmEmail=document.getElementById('buyerEmailConfirm').value.trim().toLowerCase();
+ return validDeliveryGmail(email)&&email===confirmEmail;
+}
+function updateEmailValidation(){
+ const first=document.getElementById('buyerEmail'),second=document.getElementById('buyerEmailConfirm');
+ const email=first.value.trim(),confirmation=second.value.trim(),status=document.getElementById('buyerEmailStatus');
+ status.classList.remove('is-error','is-ok');
+ let message='Escribe dos veces tu Gmail para confirmar la dirección de entrega.';
+ if(email&&!validDeliveryGmail(email)){
+  message='Revisa el correo: debe terminar exactamente en @gmail.com (no .co, .con ni otros dominios).';
+  status.classList.add('is-error');
+ }else if(email&&confirmation&&email.toLowerCase()!==confirmation.toLowerCase()){
+  message='Los correos no coinciden. Revisa que estén escritos exactamente igual.';
+  status.classList.add('is-error');
+ }else if(email&&confirmation&&isGmailConfirmed()){
+  message='Correo Gmail confirmado: '+email.toLowerCase()+'. Verifica que sea tu dirección real.';
+  status.classList.add('is-ok');
+ }
+ status.textContent=message;
+ first.setAttribute('aria-invalid',String(!!email&&!validDeliveryGmail(email)));
+ second.setAttribute('aria-invalid',String(!!confirmation&&email.toLowerCase()!==confirmation.toLowerCase()));
+ document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady||!isGmailConfirmed();
+}
+['buyerEmail','buyerEmailConfirm'].forEach(id=>{
+ const field=document.getElementById(id);
+ field.addEventListener('input',updateEmailValidation);
+ field.addEventListener('blur',updateEmailValidation);
+});
+
 async function createOrder(){
   const msg=document.getElementById('cartMsg'),btn=document.getElementById('orderBtn');
   if(!checkoutReady){msg.textContent='Compras temporalmente suspendidas: estamos verificando la entrega privada. No se iniciará ningún cobro.';return}
-  const buyerName=document.getElementById('buyerName').value.trim(),buyerEmail=document.getElementById('buyerEmail').value.trim();
+  const buyerName=document.getElementById('buyerName').value.trim(),buyerEmail=document.getElementById('buyerEmail').value.trim().toLowerCase(),buyerEmailConfirmation=document.getElementById('buyerEmailConfirm').value.trim().toLowerCase();
   if(!cart.length){msg.textContent='Agrega al menos un material.';return}
-  if(buyerName.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)){msg.textContent='Completa correctamente tu nombre y correo.';return}
+  if(buyerName.length<2){msg.textContent='Completa tu nombre y apellido.';return}
+  if(!validDeliveryGmail(buyerEmail)||buyerEmail!==buyerEmailConfirmation){
+   msg.textContent='Antes de pagar, escribe y confirma correctamente tu correo @gmail.com.';
+   updateEmailValidation();document.getElementById('buyerEmail').focus();return;
+  }
   const requestedDocument=document.getElementById('buyerDocument').value;
   if(!['boleta','factura'].includes(requestedDocument)){msg.textContent='Selecciona si necesitas boleta o factura antes de continuar.';document.getElementById('buyerDocument').focus();return}
   const invoice=requestedDocument==='factura'?{
@@ -841,9 +888,9 @@ async function createOrder(){
   if(invoice&&Object.values(invoice).some(v=>!v)){msg.textContent='Completa todos los datos de la empresa para solicitar factura.';return}
   btn.disabled=true;msg.textContent='Conectando con el medio de pago…';
   try{
-    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,requested_document:requestedDocument,invoice,items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
+    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,buyer_email_confirmation:buyerEmailConfirmation,requested_document:requestedDocument,invoice,items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(d.error||'No fue posible iniciar el pago');
+    if(!r.ok)throw new Error(d.message||d.error||'No fue posible iniciar el pago');
     if(!d.payment_ready||!d.payment?.url)throw new Error(d.message||'Pago no disponible');
     if(d.provider!=='mercadopago')throw new Error('Mercado Pago no está disponible para este pedido');
     const u=new URL(d.payment.url);
@@ -889,6 +936,7 @@ paymentResult();
 fetch(API+'/api/store/checkout/config').then(r=>r.json()).then(d=>{
   checkoutProvider='mercadopago';
   checkoutReady=!!(d.ok&&d.checkout_ready&&d.provider==='mercadopago');
+  updateEmailValidation();
   const button=document.getElementById('orderBtn'),msg=document.getElementById('cartMsg');
   if(checkoutReady){
     document.getElementById('paymentMode').textContent='Pago único y seguro con Mercado Pago';

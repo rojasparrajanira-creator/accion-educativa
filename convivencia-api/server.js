@@ -1838,6 +1838,26 @@ app.post('/api/store/admin/products/:id',requireAuth,async(req,res)=>{try{
 }catch(e){res.status(400).json({ok:false,error:e.code==='23505'?'store_slug_exists':'store_product_update_failed'})}});
 
 
+/* Retiro seguro de materiales duplicados: oculta la ficha pública sin borrar ventas, entregas ni historial. */
+app.delete('/api/store/admin/products/:id',requireAuth,async(req,res)=>{
+ try{
+  if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
+  const id=Number(req.params.id);
+  if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({ok:false,error:'invalid_product_id'});
+  const q=await pool.query(
+   "update store_products set status='archived',updated_at=now() where id=$1 and status<>'archived' returning id,title,status",
+   [id]
+  );
+  if(!q.rowCount){
+   const exists=await pool.query("select id from store_products where id=$1",[id]);
+   if(!exists.rowCount)return res.status(404).json({ok:false,error:'store_product_not_found'});
+   return res.status(409).json({ok:false,error:'store_product_already_archived'});
+  }
+  ok(res,{product:q.rows[0],archived:true});
+ }catch(e){console.error('Store product archive failed:',String(e?.message||'').slice(0,120));res.status(500).json({ok:false,error:'store_product_delete_failed'})}
+});
+
+
 app.get('/api/store/checkout/config',storeStatusRateLimit,(req,res)=>{
   const cfg=storePaymentConfig(),ready=storeCheckoutReady();
   ok(res,{provider:cfg.provider,configured:cfg.configured,mode:cfg.mode,checkout_ready:ready,

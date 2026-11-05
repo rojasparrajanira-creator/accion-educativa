@@ -449,6 +449,16 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
 /* Aviso de correo preferente bajo el campo de entrega: recomendación, no restricción. */
 .gmail-delivery-tip{margin:9px 0 16px;padding:12px 14px;border:1.5px solid #f0bc3b;border-left:5px solid #edaa15;border-radius:11px;background:#fff5ce;color:#42300a;font-size:13px;font-weight:600;line-height:1.55;box-shadow:0 3px 9px rgba(92,65,5,.08)}
 .gmail-delivery-tip strong{font-weight:850;color:#3d2900}
+
+.cart-count-pill{display:inline-block;vertical-align:middle;padding:4px 9px;border-radius:999px;background:#e9f4ff;color:#084aab;font-size:13px}
+.cart-item button{color:#9b2635;font-weight:750;font-size:12px;white-space:nowrap}
+.mobile-cart-shortcut{display:none}
+@media(max-width:980px){
+ .mobile-cart-shortcut:not([hidden]){position:fixed;z-index:90;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(390px,calc(100vw - 32px));display:flex;align-items:center;justify-content:space-between;gap:8px;padding:13px 17px;border-radius:15px;background:#0c49ad;color:#fff;text-decoration:none;font-weight:800;box-shadow:0 9px 30px rgba(8,38,91,.32)}
+ .mobile-cart-shortcut strong{background:#ffdc44;color:#082b73;padding:3px 9px;border-radius:999px}
+ body{padding-bottom:76px}
+ #cartPanel{scroll-margin-top:16px}
+}
 </style>
 </head>
 <body>
@@ -505,7 +515,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
     <section><div id="grid" class="grid"><p class="empty">Cargando catálogo…</p></div></section>
     <aside class="cart" id="cartPanel">
       <div class="payment-badge" id="paymentMode">Pago seguro</div>
-      <h2>Mi compra</h2>
+      <h2>Mi compra <span id="cartCount" class="cart-count-pill" aria-live="polite"></span></h2>
       <ul id="cartList" class="cart-list"><li class="empty">Sin productos</li></ul>
       <div class="cart-total"><span>Total</span><span id="cartTotal">$0</span></div>
       <label for="buyerName">Nombre y apellido</label>
@@ -538,6 +548,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
     </aside>
   </div>
 </main>
+<a class="mobile-cart-shortcut" id="mobileCartShortcut" href="#cartPanel" hidden aria-label="Ver mi carrito"><span>🛒 Ver mi compra</span><strong id="mobileCartCount">0</strong><span id="mobileCartTotal">$0</span></a>
 <footer class="store-footer">
  <div class="store-footer-inner">
   <div class="store-footer-brand"><img src="assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile"><div><strong>Material Educativo Chile</strong><span>Recursos educativos que transforman.</span></div></div>
@@ -559,7 +570,33 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
 const API='https://convivencia-escolar-api.onrender.com';
 const money=v=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(v||0));
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let products=[],cart=[],checkoutReady=false,checkoutProvider='mercadopago';
+const STORE_CART_KEY='mec_store_cart_v1';
+function readSavedCart(){
+ try{
+  const data=JSON.parse(localStorage.getItem(STORE_CART_KEY)||'[]');
+  if(!Array.isArray(data))return [];
+  return data.filter(x=>Number.isSafeInteger(Number(x.product_id))&&Number(x.product_id)>0&&Number.isInteger(Number(x.quantity))&&Number(x.quantity)>0)
+   .slice(0,100).map(x=>({product_id:Number(x.product_id),quantity:Math.min(99,Number(x.quantity))}));
+ }catch(e){return []}
+}
+function saveStoreCart(){
+ try{localStorage.setItem(STORE_CART_KEY,JSON.stringify(cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))))}catch(e){console.warn('No fue posible guardar el carrito en este navegador',e)}
+}
+function reconcileStoreCart(){
+ const merged=new Map();
+ for(const entry of cart){
+  const p=products.find(x=>Number(x.id)===Number(entry.product_id));
+  if(!p)continue;
+  const id=Number(p.id),q=Math.min(99,Math.max(1,Number(entry.quantity)||1));
+  merged.set(id,Math.min(99,(merged.get(id)||0)+q));
+ }
+ cart=[...merged].map(([id,quantity])=>{
+  const p=products.find(x=>Number(x.id)===id);
+  return {product_id:id,quantity,title:p.title,price_clp:Number(p.price_clp)};
+ });
+ saveStoreCart();
+}
+let products=[],cart=readSavedCart(),checkoutReady=false,checkoutProvider='mercadopago';
 let selectedProductSlug=(new URLSearchParams(location.search).get('producto')||'').trim();
 function materialUrl(p){
   const url=new URL('https://materialeducativochile.cl/tienda.html');
@@ -699,19 +736,27 @@ function setHeroProduct(){
   document.getElementById('heroProductOld').textContent=p.compare_at_price_clp?money(p.compare_at_price_clp):'';
 }
 function renderCart(){
+  const count=cart.reduce((sum,x)=>sum+Number(x.quantity||0),0);
+  const pill=document.getElementById('cartCount');
+  if(pill)pill.textContent=count?count+' material'+(count===1?'':'es'):'';
+  const shortcut=document.getElementById('mobileCartShortcut');
+  if(shortcut)shortcut.hidden=!count;
+  const mobileCount=document.getElementById('mobileCartCount');
+  if(mobileCount)mobileCount.textContent=String(count);
   const list=document.getElementById('cartList');
   if(!cart.length)list.innerHTML='<li class="empty">Sin productos</li>';
-  else list.innerHTML=cart.map((x,i)=>'<li class="cart-item"><span>'+esc(x.title)+' × '+x.quantity+'</span><button type="button" data-remove="'+i+'" aria-label="Quitar">×</button></li>').join('');
+  else list.innerHTML=cart.map((x,i)=>'<li class="cart-item"><span>'+esc(x.title)+' × '+x.quantity+'</span><button type="button" data-remove="'+i+'" aria-label="Quitar material del carrito">Quitar ×</button></li>').join('');
   const total=cart.reduce((sum,x)=>sum+Number(x.price_clp||0)*Number(x.quantity||1),0);
   document.getElementById('cartTotal').textContent=money(total);
+  const mobileTotal=document.getElementById('mobileCartTotal');if(mobileTotal)mobileTotal.textContent=money(total);
   document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady;
 }
 function addCart(id){
   const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
   const found=cart.find(x=>x.product_id===Number(id));
-  if(found)found.quantity+=1;else cart.push({product_id:Number(id),quantity:1,title:p.title,price_clp:Number(p.price_clp)});
-  renderCart();document.getElementById('cartMsg').textContent='Material agregado a tu compra.';
-  if(innerWidth<981)document.getElementById('cartPanel').scrollIntoView({behavior:'smooth',block:'start'});
+  if(found)found.quantity=Math.min(99,found.quantity+1);else cart.push({product_id:Number(id),quantity:1,title:p.title,price_clp:Number(p.price_clp)});
+  saveStoreCart();renderCart();document.getElementById('cartMsg').textContent='Material agregado a tu compra.';
+  if(innerWidth<981)document.getElementById('mobileCartShortcut')?.classList.add('has-items');
 }
 
 let infoPreviousFocus=null;
@@ -764,7 +809,7 @@ document.addEventListener('keydown',e=>{
   }
 });
 
-function removeCart(index){cart.splice(index,1);renderCart()}
+function removeCart(index){if(index<0||index>=cart.length)return;cart.splice(index,1);saveStoreCart();renderCart()}
 document.addEventListener('click',e=>{
   const shared=e.target.closest('[data-share]');if(shared){copyMaterialLink(shared.dataset.share,shared);return}
   const full=e.target.closest('[data-full-catalog]');if(full){openFullCatalog();return}
@@ -855,7 +900,14 @@ fetch(API+'/api/store/checkout/config').then(r=>r.json()).then(d=>{
   document.getElementById('cartMsg').textContent='No fue posible comprobar el estado de la entrega. No se iniciará ningún cobro.';
 });
 window.MECAnalytics?.start();
-fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];const term=new URLSearchParams(location.search).get('buscar');if(term&&!selectedProductSlug){document.getElementById('catalogSearch').value=term;location.hash='#catalogo'}if(selectedProductSlug)location.hash='#catalogo';renderProducts();setHeroProduct();if(selectedProductSlug){const viewed=products.find(p=>String(p.slug)===selectedProductSlug);if(viewed)registerProductView(viewed)}}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
+window.addEventListener('storage',e=>{
+ if(e.key!==STORE_CART_KEY)return;
+ cart=readSavedCart();
+ if(products.length)reconcileStoreCart();
+ renderCart();
+});
+renderCart();
+fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];reconcileStoreCart();renderCart();const term=new URLSearchParams(location.search).get('buscar');if(term&&!selectedProductSlug){document.getElementById('catalogSearch').value=term;location.hash='#catalogo'}if(selectedProductSlug)location.hash='#catalogo';renderProducts();setHeroProduct();if(selectedProductSlug){const viewed=products.find(p=>String(p.slug)===selectedProductSlug);if(viewed)registerProductView(viewed)}}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
 </script>
 </body>
 </html>

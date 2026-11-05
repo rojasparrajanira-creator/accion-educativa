@@ -749,10 +749,11 @@ function renderCart(){
   if(mobileCount)mobileCount.textContent=String(count);
   const list=document.getElementById('cartList');
   if(!cart.length)list.innerHTML='<li class="empty">Sin productos</li>';
+  else if(!products.length)list.innerHTML='<li class="empty">Recuperando los materiales guardados…</li>';
   else list.innerHTML=cart.map((x,i)=>'<li class="cart-item"><span>'+esc(x.title)+' × '+x.quantity+'</span><button type="button" data-remove="'+i+'" aria-label="Quitar material del carrito">Quitar ×</button></li>').join('');
   const total=cart.reduce((sum,x)=>sum+Number(x.price_clp||0)*Number(x.quantity||1),0);
-  document.getElementById('cartTotal').textContent=money(total);
-  const mobileTotal=document.getElementById('mobileCartTotal');if(mobileTotal)mobileTotal.textContent=money(total);
+  document.getElementById('cartTotal').textContent=cart.length&&!products.length?'Calculando…':money(total);
+  const mobileTotal=document.getElementById('mobileCartTotal');if(mobileTotal)mobileTotal.textContent=cart.length&&!products.length?'…':money(total);
   document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady;
 }
 function addCart(id){

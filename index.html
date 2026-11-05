@@ -10,6 +10,7 @@
 <link rel="alternate icon" type="image/svg+xml" href="/favicon.svg?v=20261029b">
 <link rel="apple-touch-icon" href="/assets/material-educativo/logo-oficial.jpg?v=20261029">
 <link rel="canonical" href="https://materialeducativochile.cl/">
+<link rel="preconnect" href="https://convivencia-escolar-api.onrender.com" crossorigin>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Material Educativo Chile">
 <meta property="og:locale" content="es_CL">
@@ -1452,10 +1453,13 @@ body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner [data-me
  overflow:hidden;border-radius:14px;background:#fff;
 }
 .mec-rice-promo-image img{
- display:block;width:100%;height:auto;
+ display:block;width:100%;height:auto;opacity:0;transition:opacity .15s ease;
  max-height:min(350px,calc(100dvh - 150px));
  object-fit:contain;object-position:center;
 }
+.mec-rice-promo-image img.is-loaded{opacity:1}
+.mec-rice-promo-image:not(:has(img.is-loaded)){min-height:180px;background:linear-gradient(115deg,#eef5ff 15%,#fff 48%,#eaf4ff 80%);background-size:240% 100%;animation:mecRiceCoverLoading 1.5s ease-in-out infinite}
+@keyframes mecRiceCoverLoading{to{background-position-x:-240%}}
 .mec-rice-promo-buy{
  display:flex;justify-content:center;align-items:center;gap:10px;
  width:100%;min-height:48px;padding:12px 16px;
@@ -1483,6 +1487,12 @@ body:has(.mec-home-main) .mec-home-action-row .mec-home-community-inner [data-me
 </style></head>
 <body>
 <div id="app" class="app"></div><div id="modal-root"></div><div id="toast-root"></div>
+<button class="mec-rice-promo-backdrop" id="mecRicePromoBackdrop" type="button" aria-label="Cerrar anuncio" onclick="dismissMecRicePromo()"></button>
+<aside class="mec-rice-promo" id="mecRicePromo" role="dialog" aria-modal="true" aria-label="Reglamento Interno de Convivencia Escolar 2027">
+<button class="mec-rice-promo-close" type="button" aria-label="Cerrar promoción" onclick="dismissMecRicePromo()">×</button>
+<div class="mec-rice-promo-image"><img id="mecRicePromoCover"  alt="Portada del Reglamento Interno de Convivencia Escolar 2027" loading="eager" decoding="async"></div>
+<a class="mec-rice-promo-buy" href="https://materialeducativochile.cl/tienda.html?producto=reglamento-interno-de-convivencia-educativa-2027#catalogo">Comprar ahora <span aria-hidden="true">→</span></a>
+</aside>
 <script src="/assets/material-educativo/site-analytics.js"></script>
 <script>
 'use strict';
@@ -1534,6 +1544,21 @@ let mecRicePromoDismissed=(()=>{try{return sessionStorage.getItem('mec-rice-prom
 async function hydrateRicePromoImage(){
  const cover=document.getElementById('mecRicePromoCover');
  if(!cover)return;
+ const applyCover=url=>{
+  const next=String(url||'');
+  if(!/^https:\/\//i.test(next)&&!next.startsWith('/api/'))return;
+  const src=portalImageUrl(next);
+  if(cover.dataset.coverUrl===src)return;
+  cover.dataset.coverUrl=src;
+  cover.classList.remove('is-loaded');
+  cover.onload=()=>cover.classList.add('is-loaded');
+  cover.onerror=()=>{cover.classList.remove('is-loaded');cover.removeAttribute('src');cover.dataset.coverUrl=''};
+  cover.src=src;
+ };
+ try{
+  const cached=localStorage.getItem('mec_rice_cover_url_v1');
+  if(cached)applyCover(cached);
+ }catch(e){}
  try{
   const products=portalProducts.length?portalProducts:(await (async()=>{
    const response=await fetch(PORTAL_API+'/api/store/products',{cache:'no-store'});
@@ -1544,17 +1569,13 @@ async function hydrateRicePromoImage(){
   const product=products.find(p=>String(p.slug||'').toLowerCase()==='reglamento-interno-de-convivencia-educativa-2027')||
    products.find(p=>/reglamento interno.*2027/i.test(String(p.title||'')));
   if(!product?.image_url)return;
-  const liveCover=document.getElementById('mecRicePromoCover');
-  if(liveCover)liveCover.src=portalImageUrl(product.image_url);
+  const url=portalImageUrl(product.image_url);
+  try{localStorage.setItem('mec_rice_cover_url_v1',url)}catch(e){}
+  applyCover(url);
  }catch(e){console.warn('Portada de promoción no disponible:',e.message)}
 }
 function dismissMecRicePromo(){mecRicePromoDismissed=true;try{sessionStorage.setItem('mec-rice-promo-closed','1')}catch(e){}document.getElementById('mecRicePromo')?.remove();document.getElementById('mecRicePromoBackdrop')?.remove()}
-function footer(){return `<footer class="footer"><div class="container footer-row"><div class="footer-brand"><img src="/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile" style="width:52px;height:52px;object-fit:contain;border-radius:50%"><div><b>Material Educativo Chile</b><div>Recursos educativos que transforman.</div></div></div><div class="footer-links"><a href="#/contacto">Contacto</a><a href="#/blog">Blog</a><a href="#/privacidad">Política de privacidad y protección de datos</a><a href="https://www.instagram.com/materialeducativo.chile/" target="_blank" rel="noopener">Instagram</a><small>© ${new Date().getFullYear()} · @materialeducativo.chile</small><a class="footer-admin" href="https://convivencia-escolar-material-educativo.onrender.com/ingreso.html?next=admin-centro.html" rel="noopener">Acceso Superadministrador</a></div></div></footer>${mecRicePromoDismissed?'':`<button class="mec-rice-promo-backdrop" id="mecRicePromoBackdrop" type="button" aria-label="Cerrar anuncio" onclick="dismissMecRicePromo()"></button>
-<aside class="mec-rice-promo" id="mecRicePromo" role="dialog" aria-modal="true" aria-label="Reglamento Interno de Convivencia Escolar 2027">
-<button class="mec-rice-promo-close" type="button" aria-label="Cerrar promoción" onclick="dismissMecRicePromo()">×</button>
-<div class="mec-rice-promo-image"><img id="mecRicePromoCover" src="/assets/material-educativo/logo-oficial.jpg" alt="Portada del Reglamento Interno de Convivencia Escolar 2027" loading="eager" decoding="async" onerror="this.onerror=null;this.src='/assets/material-educativo/logo-oficial.jpg'"></div>
-<a class="mec-rice-promo-buy" href="https://materialeducativochile.cl/tienda.html?producto=reglamento-interno-de-convivencia-educativa-2027#catalogo">Comprar ahora <span aria-hidden="true">→</span></a>
-</aside>`}`}
+function footer(){return `<footer class="footer"><div class="container footer-row"><div class="footer-brand"><img src="/assets/material-educativo/logo-oficial.jpg" alt="Material Educativo Chile" style="width:52px;height:52px;object-fit:contain;border-radius:50%"><div><b>Material Educativo Chile</b><div>Recursos educativos que transforman.</div></div></div><div class="footer-links"><a href="#/contacto">Contacto</a><a href="#/blog">Blog</a><a href="#/privacidad">Política de privacidad y protección de datos</a><a href="https://www.instagram.com/materialeducativo.chile/" target="_blank" rel="noopener">Instagram</a><small>© ${new Date().getFullYear()} · @materialeducativo.chile</small><a class="footer-admin" href="https://convivencia-escolar-material-educativo.onrender.com/ingreso.html?next=admin-centro.html" rel="noopener">Acceso Superadministrador</a></div></div></footer>`}
 function privacyPolicy(){return `${header('Privacidad')}<main class="mec-privacy-page"><div class="container"><h1>Política de privacidad y protección de datos personales</h1><p><strong>Material Educativo Chile</strong> reconoce la importancia de proteger la privacidad de quienes visitan el sitio y utilizan sus plataformas educativas.</p><h2>Información y finalidades</h2><p>Según el servicio utilizado, se podrán tratar datos de contacto, identificación y acceso, información de uso de la plataforma y datos educativos necesarios para la gestión autorizada por cada establecimiento. Los datos deben utilizarse únicamente para fines determinados, legítimos y comunicados a sus titulares.</p><h2>Información de estudiantes y menores de edad</h2><p>Los antecedentes escolares, socioemocionales y de convivencia requieren especial resguardo. Su acceso debe limitarse a personas autorizadas, conforme a sus funciones, y evitarse su publicación o divulgación indebida. Los establecimientos y demás responsables del tratamiento deben determinar y documentar la base jurídica correspondiente, incluidas las autorizaciones que procedan.</p><h2>Estadísticas anónimas de navegación</h2><p>Para mostrar actividad y mejorar nuestros materiales contabilizamos visitas al sitio y aperturas de fichas de productos mediante identificadores técnicos aleatorios guardados en el navegador, transformados en valores hash antes de almacenarlos en el servidor. Este registro no incluye nombres, correos ni direcciones IP en las tablas de estadísticas; las cifras representan navegadores aproximados, no personas identificadas. Puedes borrar esos identificadores eliminando los datos del sitio en tu navegador.</p><h2>Derechos y solicitudes</h2><p>Las personas pueden solicitar información sobre el tratamiento de sus datos y ejercer los derechos que correspondan según la legislación vigente, incluyendo acceso, rectificación y cancelación o supresión cuando proceda. Para consultas iniciales escribe a <a href="mailto:materialeducativochile1@gmail.com">materialeducativochile1@gmail.com</a>. Cuando un establecimiento sea el responsable de los datos escolares, las solicitudes deberán dirigirse también a dicho establecimiento.</p><h2>Seguridad y conservación</h2><p>El tratamiento de información debe incorporar controles de acceso, medidas de seguridad adecuadas y plazos de conservación vinculados con la finalidad y las obligaciones legales aplicables. Nunca deben compartirse contraseñas ni antecedentes de estudiantes mediante canales no autorizados.</p><h2>Marco normativo</h2><p>Esta información considera la Ley N.º 19.628 sobre protección de la vida privada y la Ley N.º 21.719, que entra en vigencia el 1 de diciembre de 2026. La preparación para esta nueva ley no reemplaza el cumplimiento de las obligaciones actualmente vigentes.</p><p>Textos legales: <a href="https://www.bcn.cl/leychile/navegar?idNorma=141599" target="_blank" rel="noopener">Ley N.º 19.628</a> y <a href="https://www.bcn.cl/leychile/navegar?idNorma=1209272" target="_blank" rel="noopener">Ley N.º 21.719</a>.</p><p><strong>Nota:</strong> esta página constituye información general de privacidad. Los detalles sobre responsables, proveedores, transferencias, conservación y bases jurídicas deben documentarse y verificarse para cada servicio antes de considerarla una política definitiva de cumplimiento.</p><p><a href="#/">← Volver al inicio</a></p></div></main>${footer()}`}
 function toggleMenu(){$('#main-nav')?.classList.toggle('open')}
 function openSearch(){location.href=STORE_URL}function goSearch(){const q=$('#modal-search')?.value||'';closeModal();location.hash='#/catalogo?q='+encodeURIComponent(q)}
@@ -1880,14 +1901,20 @@ async function hydrateTeamImage(){
 }
 async function loadData(){state.categories=[];state.products=[];state.apiOnline=false}
 async function render(){const app=$('#app'),raw=location.hash||'#/',path=raw.split('?')[0],parts=path.replace(/^#\//,'').split('/').filter(Boolean);window.scrollTo(0,0);pauseMecCarousel();const storeRoutes=new Set(['catalogo','categorias','categoria','material','carrito','checkout','compra-confirmada','correo-enviado','biblioteca']);if(storeRoutes.has(parts[0])){location.replace(STORE_URL);return}if(parts[0]==='biblioteca'){app.innerHTML='<div class="empty">Cargando biblioteca...</div>';app.innerHTML=await library(parts[1]);return}if(parts[0]==='admin'||parts[0]==='superadministrador'){app.innerHTML='<div class="empty">Redirigiendo al acceso seguro…</div>';location.replace('https://convivencia-escolar-material-educativo.onrender.com/ingreso.html?next=admin-tienda.html');return}if(path==='#/'||path==='#')app.innerHTML=home();else if(parts[0]==='plataformas')app.innerHTML=platforms();else if(parts[0]==='orientacion-vocacional')app.innerHTML=platformDetail('voc');else if(parts[0]==='convivencia-escolar'){location.replace('/convivencia-escolar/ingreso.html');return;}else if(parts[0]==='privacidad')app.innerHTML=privacyPolicy();else if(parts[0]==='tienda')app.innerHTML=home();else if(parts[0]==='quienes-somos')app.innerHTML=about();else if(parts[0]==='mision-vision')app.innerHTML=mission();else if(parts[0]==='blog')app.innerHTML=blog();else if(parts[0]==='contacto')app.innerHTML=contact();else if(parts[0]==='catalogo')app.innerHTML=catalog();else if(parts[0]==='categorias')app.innerHTML=categoriesPage();else if(parts[0]==='categoria')app.innerHTML=categoryPage(parts[1]);else if(parts[0]==='material')app.innerHTML=detail(parts[1]);else if(parts[0]==='carrito')app.innerHTML=cartPage();else if(parts[0]==='checkout')app.innerHTML=checkout();else if(parts[0]==='compra-confirmada')app.innerHTML=confirmation();else if(parts[0]==='correo-enviado')app.innerHTML=emailSentPage();else app.innerHTML=notFound();updateCartCount();if(path==='#/'||path==='#'||parts[0]==='tienda'){hydratePortal();goMecCarousel(0);resumeMecCarousel();window.MECAnalytics?.refreshStats()}if(parts[0]==='blog')hydrateBlog();if(parts[0]==='tienda')requestAnimationFrame(()=>document.getElementById('tienda')?.scrollIntoView({block:'start'}))}
-window.addEventListener('hashchange',()=>{render().then(hydrateRicePromoImage).catch(showPortalLoadError)});
+window.addEventListener('hashchange',()=>{render().catch(showPortalLoadError)});
 function showPortalLoadError(err){
  console.error('Error al mostrar portada:',err);
  const root=document.getElementById('app');
  if(root)root.innerHTML='<main style="min-height:80vh;background:#fff;color:#10449a;padding:35px 20px;font-family:Arial,sans-serif"><h1>Material Educativo Chile</h1><p>No se pudo cargar esta vista. Puedes volver a intentar o entrar directamente a la tienda.</p><p><a href="/" style="color:#0755bb;font-weight:bold">Volver a inicio</a> · <a href="/tienda.html" style="color:#0755bb;font-weight:bold">Abrir catálogo</a></p></main>';
 }
+if(mecRicePromoDismissed){
+ document.getElementById('mecRicePromo')?.remove();
+ document.getElementById('mecRicePromoBackdrop')?.remove();
+}else{
+ hydrateRicePromoImage();
+}
 window.addEventListener('DOMContentLoaded',async()=>{
- try{await loadData();await render();hydrateRicePromoImage();try{window.MECAnalytics?.start()}catch(e){console.warn('Estadísticas no disponibles:',e)}}
+ try{await loadData();await render();try{window.MECAnalytics?.start()}catch(e){console.warn('Estadísticas no disponibles:',e)}}
  catch(e){showPortalLoadError(e)}
 });
 </script>

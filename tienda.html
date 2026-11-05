@@ -875,6 +875,7 @@ async function paymentResult(){
       const data=await response.json();
       if(response.ok&&data.ok&&data.order?.status==='paid'){
         n.textContent='¡Pago confirmado! Pedido '+order+'. Tus materiales se enviarán al correo indicado.';
+        cart=[];saveStoreCart();renderCart();
         return;
       }
     }catch{}

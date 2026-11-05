@@ -275,16 +275,16 @@ async function loadStoreOrders(){
       ?'Cuenta técnica de Google Drive configurada. Cada carpeta que quieras vender debe estar compartida PRIVADAMENTE con '+privateDrive.service_account_email+' como Editor. Los compradores solo recibirán permiso Lector después del pago confirmado.'
       :'Permisos privados automáticos: CONFIGURACIÓN PENDIENTE. Google puede dejar seleccionar una carpeta, pero su permiso limitado no autoriza compartir archivos que ya contiene (appNotAuthorizedToChild). No autorices más carpetas ni actives cobros reales hasta conectar una cuenta técnica dedicada. El acceso general debe seguir en Restringido.';
     const orders=data.orders||[];
-    const alerts=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||!/^[^\\s@]+@gmail\\.com$/i.test(String(o.buyer_email||''))));
+    const alerts=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||!/^[^\s@]+@gmail\.com$/i.test(String(o.buyer_email||''))));
     const alertPanel=$('orderDeliveryAlerts');
     alertPanel.hidden=!alerts.length;
     alertPanel.textContent=alerts.length?'Atención: '+alerts.length+' pedido(s) pagado(s) requieren revisión. Hay entregas que el sistema no registra como completadas o correos de compra que no son Gmail. Verifica cada caso antes de reintentar el envío.':'';
     if(!orders.length){$('storeOrdersList').textContent='Aún no hay pedidos registrados.';return}
-    const priorityOrders=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||!/^[^\\s@]+@gmail\\.com$/i.test(String(o.buyer_email||''))));
+    const priorityOrders=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||!/^[^\s@]+@gmail\.com$/i.test(String(o.buyer_email||''))));
     const displayOrders=[...new Map([...priorityOrders,...orders.slice(0,35)].map(o=>[Number(o.id),o])).values()];
     $('storeOrdersList').innerHTML=displayOrders.map(o=>{
       const paid=o.status==='paid',sent=o.delivery_status==='sent',retry=paid&&!sent&&config.email_ready;
-      const wrongEmail=paid&&!/^[^\\s@]+@gmail\\.com$/i.test(String(o.buyer_email||''));
+      const wrongEmail=paid&&!/^[^\s@]+@gmail\.com$/i.test(String(o.buyer_email||''));
       const failedDelivery=paid&&['failed','not_queued'].includes(o.delivery_status);
       const payment=paid?'Pago aprobado':o.status==='payment_initialized'?'En proceso de pago':o.status==='cancelled'?'Cancelado':o.status==='failed'?'Pago fallido':esc(o.status);
       const delivery=paid?(deliveryLabels[o.delivery_status]||esc(o.delivery_status)):'Sin entrega (sin pago)';

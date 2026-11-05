@@ -1874,8 +1874,13 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
   const client=await pool.connect();
   let order=null,committed=false;
   try{
-    const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
-    if(name.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
+    const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),emailConfirmation=String(b.buyer_email_confirmation||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
+    if(name.length<2||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
+    // Solo Gmail: evita dominios mal escritos (gmail.con, gmail.co, gmai.com, etc.) antes de iniciar un cobro.
+    const gmailLocal=email.split('@')[0]||'';
+    const validGmail=/^[a-z0-9](?:[a-z0-9.+-]{0,62}[a-z0-9])?@gmail\.com$/.test(email)&&!gmailLocal.includes('..')&&!gmailLocal.startsWith('.')&&!gmailLocal.endsWith('.');
+    if(!validGmail)return res.status(400).json({ok:false,error:'gmail_required',message:'Ingresa un correo válido terminado exactamente en @gmail.com.'});
+    if(email!==emailConfirmation)return res.status(400).json({ok:false,error:'email_confirmation_mismatch',message:'Los dos correos Gmail deben coincidir antes de pagar.'});
     // El comprador elige el DOCUMENTO, no determina si la operación está afecta o exenta de IVA.
     const requestedDocument=String(b.requested_document||'unspecified').trim().toLowerCase();
     if(!['unspecified','boleta','factura'].includes(requestedDocument))return res.status(400).json({ok:false,error:'invalid_requested_document'});

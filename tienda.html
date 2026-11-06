@@ -529,12 +529,12 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
       <div class="cart-total"><span>Total</span><span id="cartTotal">$0</span></div>
       <label for="buyerName">Nombre y apellido</label>
       <input id="buyerName" autocomplete="name" placeholder="Tu nombre">
-      <label for="buyerEmail">Correo de entrega</label>
-      <input id="buyerEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="100" placeholder="tunombre@gmail.com" aria-describedby="gmailDeliveryTip buyerEmailStatus" required>
-      <label for="buyerEmailConfirm">Confirma tu correo Gmail *</label>
+      <label for="buyerEmail">Correo electrónico de entrega *</label>
+      <input id="buyerEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="100" placeholder="tunombre@correo.com" aria-describedby="gmailDeliveryTip buyerEmailStatus" required>
+      <label for="buyerEmailConfirm">Confirma tu correo electrónico *</label>
       <input id="buyerEmailConfirm" type="email" inputmode="email" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="100" placeholder="Escríbelo nuevamente" aria-describedby="buyerEmailStatus" required>
-      <p id="buyerEmailStatus" class="email-validation" role="status" aria-live="polite">Escribe dos veces tu Gmail para confirmar la dirección de entrega.</p>
-      <p class="gmail-delivery-tip" id="gmailDeliveryTip" role="note"><strong>Correo Gmail obligatorio:</strong> solo aceptamos direcciones que terminen exactamente en <strong>@gmail.com</strong>. Revisa cada letra antes de pagar: los materiales se entregarán a esa dirección mediante Google Drive.</p>
+      <p id="buyerEmailStatus" class="email-validation" role="status" aria-live="polite">Escribe tu correo dos veces para evitar errores de entrega.</p>
+      <p class="gmail-delivery-tip" id="gmailDeliveryTip" role="note"><strong>Revisa tu correo antes de pagar:</strong> aceptamos Gmail, Hotmail, Outlook y otros proveedores. Los materiales se entregan a la dirección que confirmes mediante Google Drive.</p>
       <label for="buyerDocument">¿Qué documento necesitas?</label>
       <select id="buyerDocument" class="mec-doc-select" aria-describedby="buyerDocumentInfo" required>
         <option value="" selected>Selecciona boleta o factura</option>
@@ -761,7 +761,7 @@ function renderCart(){
   const total=cart.reduce((sum,x)=>sum+Number(x.price_clp||0)*Number(x.quantity||1),0);
   document.getElementById('cartTotal').textContent=cart.length&&!products.length?'Calculando…':money(total);
   const mobileTotal=document.getElementById('mobileCartTotal');if(mobileTotal)mobileTotal.textContent=cart.length&&!products.length?'…':money(total);
-  document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady||!isGmailConfirmed();
+  document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady||!isEmailConfirmed();
 }
 function addCart(id){
   const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
@@ -830,35 +830,46 @@ document.addEventListener('click',e=>{
   const rem=e.target.closest('[data-remove]');if(rem)removeCart(Number(rem.dataset.remove));
 });
 
-function validDeliveryGmail(value){
+function deliveryEmailIssue(value){
  const email=String(value||'').trim().toLowerCase();
- const local=email.split('@')[0]||'';
- return /^[a-z0-9](?:[a-z0-9.+-]{0,62}[a-z0-9])?@gmail\.com$/.test(email)&&!local.includes('..')&&!local.startsWith('.')&&!local.endsWith('.');
+ if(!email)return 'Ingresa tu correo electrónico.';
+ if(email.length>254||!(/^[^\s@]{1,64}@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(email))||email.includes('..'))return 'Revisa el formato del correo (ejemplo: nombre@correo.com).';
+ const [local,domain]=email.split('@');
+ if(local.startsWith('.')||local.endsWith('.')||domain.split('.').some(part=>part.startsWith('-')||part.endsWith('-')))return 'Revisa el formato del correo electrónico.';
+ const tld=domain.split('.').at(-1);
+ if(tld.length<2||tld.length>24||!/^[a-z]+$/.test(tld))return 'Revisa la terminación del correo electrónico.';
+ const typoDomains={
+  'gmail.con':'gmail.com','gmail.co':'gmail.com','gmail.comm':'gmail.com','gmail.cmo':'gmail.com','gmail.comn':'gmail.com',
+  'gmai.com':'gmail.com','gmial.com':'gmail.com','gmal.com':'gmail.com','gamil.com':'gmail.com','gmail.cl':'gmail.com',
+  'hotmail.con':'hotmail.com','hotmail.co':'hotmail.com','hotmai.com':'hotmail.com','hotmial.com':'hotmail.com',
+  'outlook.con':'outlook.com','outlook.co':'outlook.com','outlok.com':'outlook.com'
+ };
+ if(typoDomains[domain])return '¿Quisiste escribir '+local+'@'+typoDomains[domain]+'? Corrige el correo antes de pagar.';
+ return '';
 }
-function isGmailConfirmed(){
+function isEmailConfirmed(){
  const email=document.getElementById('buyerEmail').value.trim().toLowerCase();
- const confirmEmail=document.getElementById('buyerEmailConfirm').value.trim().toLowerCase();
- return validDeliveryGmail(email)&&email===confirmEmail;
+ const confirmation=document.getElementById('buyerEmailConfirm').value.trim().toLowerCase();
+ return !deliveryEmailIssue(email)&&email===confirmation;
 }
 function updateEmailValidation(){
  const first=document.getElementById('buyerEmail'),second=document.getElementById('buyerEmailConfirm');
  const email=first.value.trim(),confirmation=second.value.trim(),status=document.getElementById('buyerEmailStatus');
  status.classList.remove('is-error','is-ok');
- let message='Escribe dos veces tu Gmail para confirmar la dirección de entrega.';
- if(email&&!validDeliveryGmail(email)){
-  message='Revisa el correo: debe terminar exactamente en @gmail.com (no .co, .con ni otros dominios).';
-  status.classList.add('is-error');
- }else if(email&&confirmation&&email.toLowerCase()!==confirmation.toLowerCase()){
+ let message='Escribe tu correo dos veces para evitar errores de entrega.';
+ const issue=email?deliveryEmailIssue(email):'';
+ if(issue){message=issue;status.classList.add('is-error');}
+ else if(email&&confirmation&&email.toLowerCase()!==confirmation.toLowerCase()){
   message='Los correos no coinciden. Revisa que estén escritos exactamente igual.';
   status.classList.add('is-error');
- }else if(email&&confirmation&&isGmailConfirmed()){
-  message='Correo Gmail confirmado: '+email.toLowerCase()+'. Verifica que sea tu dirección real.';
+ }else if(email&&confirmation&&isEmailConfirmed()){
+  message='Correo confirmado: '+email.toLowerCase()+'. Comprueba que sea tu dirección real.';
   status.classList.add('is-ok');
  }
  status.textContent=message;
- first.setAttribute('aria-invalid',String(!!email&&!validDeliveryGmail(email)));
+ first.setAttribute('aria-invalid',String(!!issue));
  second.setAttribute('aria-invalid',String(!!confirmation&&email.toLowerCase()!==confirmation.toLowerCase()));
- document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady||!isGmailConfirmed();
+ document.getElementById('orderBtn').disabled=!cart.length||!checkoutReady||!isEmailConfirmed();
 }
 ['buyerEmail','buyerEmailConfirm'].forEach(id=>{
  const field=document.getElementById(id);
@@ -872,8 +883,8 @@ async function createOrder(){
   const buyerName=document.getElementById('buyerName').value.trim(),buyerEmail=document.getElementById('buyerEmail').value.trim().toLowerCase(),buyerEmailConfirmation=document.getElementById('buyerEmailConfirm').value.trim().toLowerCase();
   if(!cart.length){msg.textContent='Agrega al menos un material.';return}
   if(buyerName.length<2){msg.textContent='Completa tu nombre y apellido.';return}
-  if(!validDeliveryGmail(buyerEmail)||buyerEmail!==buyerEmailConfirmation){
-   msg.textContent='Antes de pagar, escribe y confirma correctamente tu correo @gmail.com.';
+  if(deliveryEmailIssue(buyerEmail)||buyerEmail!==buyerEmailConfirmation){
+   msg.textContent=deliveryEmailIssue(buyerEmail)||'Antes de pagar, escribe y confirma correctamente tu correo electrónico.';
    updateEmailValidation();document.getElementById('buyerEmail').focus();return;
   }
   const requestedDocument=document.getElementById('buyerDocument').value;

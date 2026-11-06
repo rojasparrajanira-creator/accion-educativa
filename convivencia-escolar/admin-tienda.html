@@ -264,6 +264,14 @@ load();
 
 const deliveryLabels={not_queued:'Sin envío programado',pending:'En espera de correo',failed:'Envío pendiente de revisión',sent:'Correo enviado'};
 const taxLabels={pending:'Documento tributario pendiente',issued:'Boleta electrónica emitida',voucher_validated:'Voucher tributario validado',failed:'Documento tributario en revisión'};
+function orderEmailNeedsReview(value){
+ const email=String(value||'').trim().toLowerCase();
+ const parts=email.split('@'),domain=parts[1]||'',local=parts[0]||'';
+ if(email.length>254||!(/^[^\s@]{1,64}@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(email))||email.includes('..')||
+  local.startsWith('.')||local.endsWith('.')||domain.split('.').some(label=>label.startsWith('-')||label.endsWith('-'))||
+  !/^[a-z]{2,24}$/.test(domain.split('.').at(-1)||''))return true;
+ return ['gmail.con','gmail.co','gmail.comm','gmail.cmo','gmail.comn','gmai.com','gmial.com','gmal.com','gamil.com','gmail.cl','hotmail.con','hotmail.co','hotmai.com','hotmial.com','outlook.con','outlook.co','outlok.com'].includes(domain);
+}
 async function loadStoreOrders(){
   try{
     const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
@@ -275,16 +283,16 @@ async function loadStoreOrders(){
       ?'Cuenta técnica de Google Drive configurada. Cada carpeta que quieras vender debe estar compartida PRIVADAMENTE con '+privateDrive.service_account_email+' como Editor. Los compradores solo recibirán permiso Lector después del pago confirmado.'
       :'Permisos privados automáticos: CONFIGURACIÓN PENDIENTE. Google puede dejar seleccionar una carpeta, pero su permiso limitado no autoriza compartir archivos que ya contiene (appNotAuthorizedToChild). No autorices más carpetas ni actives cobros reales hasta conectar una cuenta técnica dedicada. El acceso general debe seguir en Restringido.';
     const orders=data.orders||[];
-    const alerts=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||!/^[^\s@]+@gmail\.com$/i.test(String(o.buyer_email||''))));
+    const alerts=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||orderEmailNeedsReview(o.buyer_email)));
     const alertPanel=$('orderDeliveryAlerts');
     alertPanel.hidden=!alerts.length;
-    alertPanel.textContent=alerts.length?'Atención: '+alerts.length+' pedido(s) pagado(s) requieren revisión. Hay entregas que el sistema no registra como completadas o correos de compra que no son Gmail. Verifica cada caso antes de reintentar el envío.':'';
+    alertPanel.textContent=alerts.length?'Atención: '+alerts.length+' pedido(s) pagado(s) requieren revisión. Hay entregas que el sistema no registra como completadas o direcciones con errores evidentes. Verifica cada caso antes de reintentar el envío.':'';
     if(!orders.length){$('storeOrdersList').textContent='Aún no hay pedidos registrados.';return}
-    const priorityOrders=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||!/^[^\s@]+@gmail\.com$/i.test(String(o.buyer_email||''))));
+    const priorityOrders=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||orderEmailNeedsReview(o.buyer_email)));
     const displayOrders=[...new Map([...priorityOrders,...orders.slice(0,35)].map(o=>[Number(o.id),o])).values()];
     $('storeOrdersList').innerHTML=displayOrders.map(o=>{
       const paid=o.status==='paid',sent=o.delivery_status==='sent',retry=paid&&!sent&&config.email_ready;
-      const wrongEmail=paid&&!/^[^\s@]+@gmail\.com$/i.test(String(o.buyer_email||''));
+      const wrongEmail=paid&&orderEmailNeedsReview(o.buyer_email);
       const failedDelivery=paid&&['failed','not_queued'].includes(o.delivery_status);
       const payment=paid?'Pago aprobado':o.status==='payment_initialized'?'En proceso de pago':o.status==='cancelled'?'Cancelado':o.status==='failed'?'Pago fallido':esc(o.status);
       const delivery=paid?(deliveryLabels[o.delivery_status]||esc(o.delivery_status)):'Sin entrega (sin pago)';
@@ -293,7 +301,7 @@ async function loadStoreOrders(){
       return '<div class="product" style="grid-template-columns:minmax(0,1fr) auto">'+
         '<div><strong>Pedido N.º '+Number(o.id)+'</strong> · Código '+esc(o.order_code)+' · '+money(o.total_clp)+'<div class="muted">'+esc(o.buyer_email||'')+'</div>'+
         '<div class="muted">'+payment+' · '+delivery+'</div>'+
-        (wrongEmail?'<div class="order-warning">⚠ Correo de compra no es Gmail. Revisar antes de enviar.</div>':'')+
+        (wrongEmail?'<div class="order-warning">⚠ Correo con posible error de escritura. Confirma la dirección con el comprador antes de reenviar.</div>':'')+
         (failedDelivery?'<div class="order-warning">⚠ Entrega no completada por el sistema. Requiere revisión.</div>':'')+
         '<div class="muted">'+requested+' · '+fiscal+'</div></div>'+
         (paid?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Comprobar / conceder acceso al comprador</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div><p data-drive-feedback role="status" aria-live="polite" style="display:none;max-width:390px;margin:0;padding:10px 12px;border:1px solid #cbd9ef;border-radius:10px;background:#f5f9ff;color:#203353;font-size:13px;line-height:1.45;overflow-wrap:anywhere"></p></div>':'')+'</div>';

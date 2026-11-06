@@ -1876,11 +1876,22 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
   try{
     const b=req.body||{},name=String(b.buyer_name||'').trim(),email=String(b.buyer_email||'').trim().toLowerCase(),emailConfirmation=String(b.buyer_email_confirmation||'').trim().toLowerCase(),raw=Array.isArray(b.items)?b.items:[];
     if(name.length<2||!raw.length||raw.length>30)return res.status(400).json({ok:false,error:'invalid_order'});
-    // Solo Gmail: evita dominios mal escritos (gmail.con, gmail.co, gmai.com, etc.) antes de iniciar un cobro.
-    const gmailLocal=email.split('@')[0]||'';
-    const validGmail=/^[a-z0-9](?:[a-z0-9.+-]{0,62}[a-z0-9])?@gmail\.com$/.test(email)&&!gmailLocal.includes('..')&&!gmailLocal.startsWith('.')&&!gmailLocal.endsWith('.');
-    if(!validGmail)return res.status(400).json({ok:false,error:'gmail_required',message:'Ingresa un correo válido terminado exactamente en @gmail.com.'});
-    if(email!==emailConfirmation)return res.status(400).json({ok:false,error:'email_confirmation_mismatch',message:'Los dos correos Gmail deben coincidir antes de pagar.'});
+    // Acepta correos de cualquier proveedor. La doble confirmación previene errores de escritura.
+    const emailParts=email.split('@'),domain=emailParts[1]||'',local=emailParts[0]||'';
+    const domainLabels=domain.split('.');
+    const validEmail=email.length<=254&&/^[^\s@]{1,64}@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(email)&&
+      !email.includes('..')&&!local.startsWith('.')&&!local.endsWith('.')&&
+      domainLabels.every(label=>!label.startsWith('-')&&!label.endsWith('-'))&&
+      /^[a-z]{2,24}$/.test(domainLabels.at(-1)||'');
+    if(!validEmail)return res.status(400).json({ok:false,error:'invalid_buyer_email',message:'Ingresa un correo electrónico válido (Gmail, Hotmail, Outlook u otro proveedor).'});
+    const typoDomains={
+      'gmail.con':'gmail.com','gmail.co':'gmail.com','gmail.comm':'gmail.com','gmail.cmo':'gmail.com','gmail.comn':'gmail.com',
+      'gmai.com':'gmail.com','gmial.com':'gmail.com','gmal.com':'gmail.com','gamil.com':'gmail.com','gmail.cl':'gmail.com',
+      'hotmail.con':'hotmail.com','hotmail.co':'hotmail.com','hotmai.com':'hotmail.com','hotmial.com':'hotmail.com',
+      'outlook.con':'outlook.com','outlook.co':'outlook.com','outlok.com':'outlook.com'
+    };
+    if(typoDomains[domain])return res.status(400).json({ok:false,error:'buyer_email_typo',message:'¿Quisiste escribir '+local+'@'+typoDomains[domain]+'? Corrige la dirección antes de pagar.'});
+    if(email!==emailConfirmation)return res.status(400).json({ok:false,error:'email_confirmation_mismatch',message:'Los dos correos electrónicos deben coincidir antes de pagar.'});
     // El comprador elige el DOCUMENTO, no determina si la operación está afecta o exenta de IVA.
     const requestedDocument=String(b.requested_document||'unspecified').trim().toLowerCase();
     if(!['unspecified','boleta','factura'].includes(requestedDocument))return res.status(400).json({ok:false,error:'invalid_requested_document'});

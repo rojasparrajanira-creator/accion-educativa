@@ -883,7 +883,7 @@ async function createOrder(){
   }:null;
   if(invoice&&Object.values(invoice).some(v=>!v)){msg.textContent='Completa todos los datos de la empresa para solicitar factura.';return}
   // Confirmación explícita al hacer clic, sin obligar a escribir dos veces.
-  const confirmed=window.confirm('¿Tu correo electrónico está correcto?\\n\\n'+buyerEmail+'\\n\\nAquí recibirás el acceso a tus materiales por Google Drive.\\n\\nPulsa Aceptar para continuar o Cancelar para corregirlo.');
+  const confirmed=window.confirm('¿Tu correo electrónico está correcto?\n\n'+buyerEmail+'\n\nAquí recibirás el acceso a tus materiales por Google Drive.\n\nPulsa Aceptar para continuar o Cancelar para corregirlo.');
   if(!confirmed){msg.textContent='Revisa tu correo electrónico y vuelve a presionar «Pagar con Mercado Pago».';document.getElementById('buyerEmail').focus();return;}
   btn.disabled=true;msg.textContent='Conectando con el medio de pago…';
   try{

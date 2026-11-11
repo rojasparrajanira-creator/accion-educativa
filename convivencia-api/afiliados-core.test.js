@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {normalizedSellerCode,validAttribution,commissionCLP,pickLastEligibleReferral,recordPaidOrderCommissions}=require('./afiliados-core');
 test('códigos de vendedores',()=>{
  assert.equal(normalizedSellerCode(' ven001 '),'VEN001');
- assert.equal(normalizedSellerCode('A'),'null'==='null'?null:undefined);
+ assert.equal(normalizedSellerCode('A'),null);
  assert.equal(normalizedSellerCode('bad&code'),null);
 });
 test('ventana de 30 días y fecha futura',()=>{

@@ -323,7 +323,7 @@ function renderMecInvoices(){
  }).join('');
 }
 function mecSafeCsvCell(value){
- let v=String(value??'').replace(/\\r?\\n/g,' ').trim();
+ let v=String(value??'').replace(/\r?\n/g,' ').trim();
  if(/^[=+@-]/.test(v))v="'"+v;
  return '"'+v.replace(/"/g,'""')+'"';
 }
@@ -335,7 +335,7 @@ function downloadMecInvoices(){
   o.id,o.order_code,mecInvoiceDate(o.created_at),o.status,mecInvoiceDate(o.paid_at),o.requested_document,
   o.buyer_name,o.buyer_email,o.total_clp,o.invoice_rut,o.invoice_legal_name,o.invoice_business_activity,o.invoice_address,o.invoice_commune,o.tax_document_status
  ]);
- const csv='\\uFEFF'+[heads,...data].map(row=>row.map(mecSafeCsvCell).join(';')).join('\\r\\n');
+ const csv='\uFEFF'+[heads,...data].map(row=>row.map(mecSafeCsvCell).join(';')).join('\r\n');
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob);
  const link=document.createElement('a');link.href=url;link.download='Material_Educativo_Chile_Datos_Tributarios_'+$('mecInvoiceFilter').value+'.csv';
  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);

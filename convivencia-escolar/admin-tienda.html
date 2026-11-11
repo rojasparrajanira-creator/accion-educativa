@@ -82,6 +82,17 @@ button.danger:hover,button.danger:focus-visible{background:#ffe4e6}
 <p id="allFolderAuditStatus" class="muted" role="status" aria-live="polite">Pendiente de verificación integral.</p>
 <div id="allFolderAuditResults" class="muted" style="margin-top:8px;max-height:450px;overflow:auto"></div>
 </section>
+<section class="card" id="mecInvoicePanel" aria-labelledby="mecInvoiceTitle">
+<h2 id="mecInvoiceTitle">Datos para emitir boletas y facturas</h2>
+<p class="muted">Información privada ingresada por los compradores. Solo pedidos con pago confirmado pueden considerarse para emisión. La tienda no emite automáticamente el documento tributario.</p>
+<div class="actions">
+ <label style="min-width:185px">Mostrar documento<select id="mecInvoiceFilter"><option value="factura">Facturas solicitadas</option><option value="boleta">Boletas solicitadas</option><option value="todos">Todos los documentos</option></select></label>
+ <button type="button" class="secondary" id="mecInvoiceExport">Descargar CSV para Excel</button>
+</div>
+<p class="muted" id="mecInvoiceSummary" role="status" aria-live="polite">Cargando pedidos de facturación…</p>
+<div id="mecInvoiceRows" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
+<p class="muted">El listado utiliza los últimos 250 pedidos disponibles en administración. Antes de emitir, revisa el pago, los datos tributarios, la emisión previa y las instrucciones de tu contadora para evitar documentos duplicados.</p>
+</section>
 <section class="card"><h2>Pedidos y entregas</h2><p class="muted">Revisa los pagos y el envío digital de los materiales. Las carpetas de Google Drive deben estar en <strong>Restringido</strong>: después de confirmar el pago, la plataforma autoriza exclusivamente el correo del comprador como <strong>Lector</strong>. Si Google no permite otorgar ese acceso, el correo queda pendiente, nunca se hace público el material. En integración, el mensaje de prueba llega a la casilla de pruebas, pero Drive autoriza al comprador registrado.</p>
 <p id="orderDeliveryAlerts" role="status" aria-live="polite" class="delivery-alerts" hidden></p>
 <p class="muted" id="deliveryConfigStatus">Comprobando la configuración…</p>
@@ -272,6 +283,65 @@ function orderEmailNeedsReview(value){
   !/^[a-z]{2,24}$/.test(domain.split('.').at(-1)||''))return true;
  return ['gmail.con','gmail.co','gmail.comm','gmail.cmo','gmail.comn','gmai.com','gmial.com','gmal.com','gamil.com','gmail.cl','hotmail.con','hotmail.co','hotmai.com','hotmial.com','outlook.con','outlook.co','outlok.com'].includes(domain);
 }
+// Vista tributaria de solo lectura. No emite documentos ni modifica pedidos.
+let mecInvoiceOrders=[];
+function mecInvoiceText(value){return String(value??'').trim()}
+function mecInvoiceRowsFiltered(){
+ const filter=$('mecInvoiceFilter').value;
+ return mecInvoiceOrders.filter(o=>filter==='todos'||o.requested_document===filter);
+}
+function mecInvoiceDate(value){
+ if(!value)return '';
+ const date=new Date(value);
+ return Number.isNaN(date.getTime())?'':date.toLocaleString('es-CL',{timeZone:'America/Santiago',dateStyle:'short',timeStyle:'short'});
+}
+function mecInvoiceCell(label,value){return '<div style="margin-top:4px"><strong>'+esc(label)+':</strong> '+esc(value||'No informado')+'</div>'}
+function renderMecInvoices(){
+ const items=mecInvoiceRowsFiltered(),container=$('mecInvoiceRows');
+ const paid=items.filter(o=>o.status==='paid');
+ $('mecInvoiceSummary').textContent=items.length+' pedidos en esta vista · '+paid.length+' con pago confirmado. Los pendientes y rechazados NO deben facturarse como pagados.';
+ if(!items.length){container.textContent='No hay solicitudes de este tipo en los pedidos consultados.';return}
+ container.innerHTML=items.map(o=>{
+  const paid=o.status==='paid',invoice=o.requested_document==='factura';
+  const fields=invoice?[
+   ['RUT',o.invoice_rut],['Razón social',o.invoice_legal_name],['Giro',o.invoice_business_activity],
+   ['Dirección',o.invoice_address],['Comuna',o.invoice_commune]
+  ]:[];
+  const missing=invoice&&fields.some(x=>!mecInvoiceText(x[1]));
+  const tax=o.tax_document_status==='issued'?'Documento registrado como emitido':
+    o.tax_document_status==='voucher_validated'?'Voucher registrado como validado':
+    o.tax_document_status==='failed'?'Documento en revisión':'Documento pendiente en sistema';
+  return '<article style="padding:13px 0;border-top:1px solid #e1e8f0;font-size:13px;line-height:1.55">'+
+   '<strong>Pedido N.º '+Number(o.id)+' · '+esc(o.order_code)+' · '+money(o.total_clp)+'</strong>'+
+   '<div>'+esc(mecInvoiceDate(o.created_at))+' · <strong>'+(paid?'Pago confirmado':'SIN PAGO CONFIRMADO')+'</strong> · '+esc(invoice?'Factura':'Boleta')+'</div>'+
+   mecInvoiceCell('Comprador',o.buyer_name)+mecInvoiceCell('Correo',o.buyer_email)+
+   fields.map(([k,v])=>mecInvoiceCell(k,v)).join('')+
+   '<div><strong>Estado tributario:</strong> '+esc(tax)+'</div>'+
+   (missing?'<div class="order-warning">Faltan datos de facturación: verificar antes de emitir.</div>':'')+
+   (!paid?'<div class="order-warning">No emitir como venta pagada hasta confirmar el pago.</div>':'')+
+   '</article>';
+ }).join('');
+}
+function mecSafeCsvCell(value){
+ let v=String(value??'').replace(/\\r?\\n/g,' ').trim();
+ if(/^[=+@-]/.test(v))v="'"+v;
+ return '"'+v.replace(/"/g,'""')+'"';
+}
+function downloadMecInvoices(){
+ const rows=mecInvoiceRowsFiltered();
+ if(!rows.length){$('mecInvoiceSummary').textContent='No hay registros para descargar con este filtro.';return}
+ const heads=['Pedido','Código','Fecha','Estado de pago','Fecha de pago','Tipo solicitado','Nombre comprador','Correo','Monto CLP','RUT','Razón social','Giro','Dirección tributaria','Comuna','Estado documento tributario'];
+ const data=rows.map(o=>[
+  o.id,o.order_code,mecInvoiceDate(o.created_at),o.status,mecInvoiceDate(o.paid_at),o.requested_document,
+  o.buyer_name,o.buyer_email,o.total_clp,o.invoice_rut,o.invoice_legal_name,o.invoice_business_activity,o.invoice_address,o.invoice_commune,o.tax_document_status
+ ]);
+ const csv='\\uFEFF'+[heads,...data].map(row=>row.map(mecSafeCsvCell).join(';')).join('\\r\\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob);
+ const link=document.createElement('a');link.href=url;link.download='Material_Educativo_Chile_Datos_Tributarios_'+$('mecInvoiceFilter').value+'.csv';
+ document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+$('mecInvoiceFilter').addEventListener('change',renderMecInvoices);
+$('mecInvoiceExport').addEventListener('click',downloadMecInvoices);
 async function loadStoreOrders(){
   try{
     const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
@@ -283,6 +353,7 @@ async function loadStoreOrders(){
       ?'Cuenta técnica de Google Drive configurada. Cada carpeta que quieras vender debe estar compartida PRIVADAMENTE con '+privateDrive.service_account_email+' como Editor. Los compradores solo recibirán permiso Lector después del pago confirmado.'
       :'Permisos privados automáticos: CONFIGURACIÓN PENDIENTE. Google puede dejar seleccionar una carpeta, pero su permiso limitado no autoriza compartir archivos que ya contiene (appNotAuthorizedToChild). No autorices más carpetas ni actives cobros reales hasta conectar una cuenta técnica dedicada. El acceso general debe seguir en Restringido.';
     const orders=data.orders||[];
+    mecInvoiceOrders=orders;renderMecInvoices();
     const alerts=orders.filter(o=>o.status==='paid'&&(o.delivery_status==='failed'||o.delivery_status==='not_queued'||orderEmailNeedsReview(o.buyer_email)));
     const alertPanel=$('orderDeliveryAlerts');
     alertPanel.hidden=!alerts.length;
@@ -306,7 +377,7 @@ async function loadStoreOrders(){
         '<div class="muted">'+requested+' · '+fiscal+'</div></div>'+
         (paid?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Comprobar / conceder acceso al comprador</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div><p data-drive-feedback role="status" aria-live="polite" style="display:none;max-width:390px;margin:0;padding:10px 12px;border:1px solid #cbd9ef;border-radius:10px;background:#f5f9ff;color:#203353;font-size:13px;line-height:1.45;overflow-wrap:anywhere"></p></div>':'')+'</div>';
     }).join('');
-  }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message}
+  }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message;$('mecInvoiceSummary').textContent='No fue posible cargar los datos tributarios: '+e.message}
 }
 $('refreshStoreOrders').addEventListener('click',loadStoreOrders);
 $('storeOrdersList').addEventListener('click',async e=>{

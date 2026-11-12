@@ -536,6 +536,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
       <label for="mecSellerCode">Código de vendedor (opcional)</label>
       <input id="mecSellerCode" maxlength="24" autocomplete="off" autocapitalize="characters" placeholder="Ej.: VANESA01" aria-describedby="mecSellerHelp">
       <p id="mecSellerHelp" class="cart-help">Si alguien te recomendó nuestros materiales, escribe aquí su código. No modifica el precio de tu compra.</p>
+      <p id="mecSellerStatus" class="email-validation" role="status" aria-live="polite"></p>
       <label for="buyerDocument">¿Qué documento necesitas?</label>
       <select id="buyerDocument" class="mec-doc-select" aria-describedby="buyerDocumentInfo" required>
         <option value="" selected>Selecciona boleta o factura</option>
@@ -980,6 +981,17 @@ function mecReferralRead(){
   if(/^[A-Z0-9_-]{4,24}$/.test(code))localStorage.setItem(mecReferralKey,JSON.stringify({code,seen_at:new Date().toISOString()}));
  }catch(_){}
 })();
+document.getElementById('mecSellerCode')?.addEventListener('blur',async()=>{
+ const code=String(document.getElementById('mecSellerCode')?.value||'').trim().toUpperCase();
+ const label=document.getElementById('mecSellerStatus');
+ if(!label)return;
+ if(!code){label.textContent='';return;}
+ if(!/^[A-Z0-9_-]{4,24}$/.test(code)){label.textContent='Revisa el código del vendedor.';return;}
+ try{
+  const response=await fetch(API+'/api/store/affiliates/referral/'+encodeURIComponent(code));
+  label.textContent=response.ok?'Código de vendedor reconocido.':'El código no está activo o no existe. Revisa con quien te lo compartió.';
+ }catch(_){label.textContent='No se pudo verificar ahora; puedes continuar comprando.'}
+});
 function mecReferralPayload(){
  const manual=document.getElementById('mecSellerCode');
  const code=String(manual?.value||'').trim().toUpperCase();

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vendedores y comisiones · Material Educativo Chile</title>
+<script src="js/auth-professional.js"></script><script>MECAuth.guard({roles:['platform_admin'],bindEstablishment:false,forbiddenToLogin:true});</script>
+<style>
+html:not([data-auth="ok"]) body{visibility:hidden}
+:root{--blue:#003898;--turquoise:#13c4d9;--yellow:#ffd200;--muted:#637085}
+*{box-sizing:border-box}body{margin:0;color:#15223a;background:#f1f7fd;font:15px/1.5 system-ui,Arial,sans-serif}
+header{padding:20px 24px;background:#fff;border-bottom:3px solid var(--turquoise);display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+main{max-width:1100px;margin:auto;padding:22px 14px}h1,h2,h3{color:var(--blue);margin:0 0 12px}
+.card{background:#fff;border:1px solid #e0e7f1;border-radius:16px;padding:22px;margin:0 0 18px;box-shadow:0 7px 24px #0038980d}
+button,.btn{border:0;border-radius:10px;background:var(--blue);color:#fff;padding:11px 17px;font-weight:750;cursor:pointer}
+.btn-light{background:#e9f4ff;color:var(--blue)}button:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.summary{background:#f4f8ff;padding:18px;border-radius:12px}.summary strong{display:block;font-size:26px;color:var(--blue)}
+input,select{width:100%;padding:11px;border-radius:9px;border:1px solid #cbd5e1;font:inherit}
+label{display:block;font-weight:700;font-size:13px;margin:10px 0 5px}.muted{color:var(--muted)}
+table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:left;border-bottom:1px solid #e7edf5;padding:10px}th{color:var(--blue)}.scroll{overflow:auto}.hidden{display:none!important}
+.msg{font-weight:700;color:#144f87;min-height:20px}.status-paid{color:#176d39}.status-pending{color:#976900}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.card{padding:17px}}
+</style></head>
+<body>
+<header><strong>Material Educativo Chile · Vendedores y comisiones</strong><a class="btn btn-light" href="admin-centro.html">Volver al superadministrador</a></header>
+<main><section class="card"><h1>Vendedores y comisiones</h1><p class="muted">Gestiona vendedoras, ventas reales y transferencias quincenales. La tienda oficial cobra mediante Mercado Pago.</p>
+<div class="grid"><div class="summary">Vendedores activos<strong id="active">—</strong></div>
+<div class="summary">Ventas atribuidas<strong id="sales">—</strong></div><div class="summary">Comisiones pendientes<strong id="pending">—</strong></div></div>
+<p class="msg" id="message" role="status"></p></section>
+<section class="card"><h2>Agregar vendedor</h2><form id="createSeller"><div class="grid">
+<div><label>Nombre completo</label><input name="name" required minlength="3"></div>
+<div><label>Correo electrónico</label><input name="email" type="email" required></div>
+<div><label>Ciudad</label><input name="city" required></div>
+<div><label>País</label><input name="country" value="Chile" required></div>
+<div><label>Código único</label><input name="code" placeholder="VANESA01" pattern="[A-Za-z0-9_-]{4,24}" required></div>
+<div><label>Clave inicial (mínimo 12 caracteres)</label><input name="temporary_password" type="password" minlength="12" autocomplete="new-password" required></div></div>
+<p class="muted">La clave inicial se comunica por un canal privado. El código identifica ventas; no proporciona descuentos.</p><button type="submit">Registrar vendedor</button></form></section>
+<section class="card"><h2>Equipo de ventas</h2><div class="scroll"><table><thead><tr><th>Vendedor</th><th>Ciudad / país</th><th>Ventas ($)</th><th>Pendiente</th><th>Estado</th><th>Gestión</th></tr></thead><tbody id="sellers"></tbody></table></div></section>
+<section class="card hidden" id="detail"><h2 id="sellerTitle">Detalle</h2><div id="sellerInfo" class="muted"></div><h3>Comisiones de productos</h3><div class="scroll"><table><thead><tr><th>Pedido</th><th>Material</th><th>Venta</th><th>Comisión</th><th>Estado</th></tr></thead><tbody id="commissions"></tbody></table></div>
+<h3 style="margin-top:25px">Pagos quincenales</h3><div class="scroll"><table><thead><tr><th>Período</th><th>Monto</th><th>Fecha</th><th>Respaldo</th></tr></thead><tbody id="payouts"></tbody></table></div>
+<form id="payoutForm"><h3 style="margin-top:24px">Registrar transferencia realizada</h3><p class="muted">Solo registra una transferencia efectivamente realizada. El importe se calcula automáticamente desde comisiones pendientes.</p>
+<div class="grid"><div><label>Desde</label><input name="period_start" type="date" required></div><div><label>Hasta</label><input name="period_end" type="date" required></div>
+<div><label>Referencia bancaria</label><input name="transfer_reference" required minlength="4"></div><div><label>Comprobante PDF/JPG/PNG (máx. 1 MB)</label><input name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" required></div></div>
+<button type="submit" style="margin-top:12px">Registrar pago y comprobante</button></form><p class="msg" id="detailMsg" role="status"></p></section>
+</main><script>
+'use strict';
+const API='https://convivencia-escolar-api.onrender.com';
+const el=id=>document.getElementById(id);
+const money=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(n||0));
+const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let selected=null;
+async function api(path,options={}){
+ const response=await fetch(API+path,{credentials:'include',headers:{'Content-Type':'application/json'},...options});
+ const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'error');return data;
+}
+async function load(){
+ try{
+  const data=await api('/api/store/admin/affiliates');const list=data.sellers||[];
+  el('active').textContent=list.filter(x=>x.active).length;
+  el('sales').textContent=money(list.reduce((a,x)=>a+Number(x.sales_clp||0),0));
+  el('pending').textContent=money(list.reduce((a,x)=>a+Number(x.pending_clp||0),0));
+  el('sellers').replaceChildren();
+  for(const s of list){
+   const tr=document.createElement('tr');
+   const values=[s.display_name+' ('+s.code+')',s.city+', '+s.country,money(s.sales_clp),money(s.pending_clp),s.active?'Activo':'Desactivado'];
+   for(const v of values){const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}
+   const actions=document.createElement('td'),open=document.createElement('button');open.textContent='Ver';open.className='btn-light';
+   open.onclick=()=>show(s.id);actions.appendChild(open);
+   const toggle=document.createElement('button');toggle.textContent=s.active?'Desactivar':'Activar';toggle.className='btn-light';toggle.style.marginLeft='5px';
+   toggle.onclick=async()=>{if(!confirm('¿Cambiar estado de '+s.display_name+'?'))return;try{await api('/api/store/admin/affiliates/'+s.id+'/status',{method:'POST',body:JSON.stringify({active:!s.active})});await load()}catch(e){el('message').textContent=e.message}};
+   actions.appendChild(toggle);tr.appendChild(actions);el('sellers').appendChild(tr);
+  }
+ }catch(e){el('message').textContent='No fue posible consultar vendedores: '+e.message}
+}
+async function show(id){
+ selected=id;
+ try{
+  const d=await api('/api/store/admin/affiliates/'+id);el('detail').classList.remove('hidden');el('sellerTitle').textContent=d.seller.display_name;
+  el('sellerInfo').textContent=d.seller.city+', '+d.seller.country+' · '+d.seller.contact_email+' · Código '+d.seller.code;
+  el('commissions').replaceChildren();
+  for(const c of d.commissions){
+   const tr=document.createElement('tr');for(const v of ['#'+c.order_id,c.item_title,money(c.sale_amount_clp),money(c.commission_clp),c.status==='paid'?'Pagada':c.status==='reversed'?'Reversada':'Pendiente']){
+    const td=document.createElement('td');td.textContent=v;tr.appendChild(td)
+   }el('commissions').appendChild(tr);
+  }
+  el('payouts').replaceChildren();
+  for(const p of d.payouts){
+   const tr=document.createElement('tr');for(const v of [p.period_start?.slice(0,10)+' a '+p.period_end?.slice(0,10),money(p.total_clp),p.paid_at?new Date(p.paid_at).toLocaleDateString('es-CL'):'Pendiente']){
+    const td=document.createElement('td');td.textContent=v;tr.appendChild(td)
+   }
+   const td=document.createElement('td'),a=document.createElement('a');a.href=API+'/api/store/admin/affiliates/payouts/'+p.id+'/receipt';a.textContent='Comprobante';a.target='_blank';a.rel='noopener';
+   // Descargar con sesión autenticada; evitar enlaces que omitan cookies cuando el navegador no las envía.
+   a.onclick=async e=>{e.preventDefault();try{const r=await fetch(a.href,{credentials:'include'});if(!r.ok)throw Error('No disponible');const blob=await r.blob();const u=URL.createObjectURL(blob);const link=document.createElement('a');link.href=u;link.download='comprobante-'+p.id+'.'+(blob.type==='application/pdf'?'pdf':blob.type==='image/png'?'png':'jpg');link.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}catch(err){el('detailMsg').textContent=err.message}};
+   td.appendChild(a);tr.appendChild(td);el('payouts').appendChild(tr);
+  }
+  el('detail').scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(e){el('message').textContent='No se pudo abrir el detalle: '+e.message}
+}
+el('createSeller').onsubmit=async event=>{
+ event.preventDefault();const form=event.target,b=Object.fromEntries(new FormData(form));b.code=String(b.code||'').toUpperCase();
+ try{await api('/api/store/admin/affiliates',{method:'POST',body:JSON.stringify(b)});form.reset();el('message').textContent='Vendedor registrado';await load()}catch(e){el('message').textContent=e.message}
+};
+el('payoutForm').onsubmit=async event=>{
+ event.preventDefault();if(!selected)return;
+ const form=event.target,f=new FormData(form),file=f.get('receipt');if(!file||file.size>1000000){el('detailMsg').textContent='El archivo debe pesar menos de 1 MB';return}
+ if(!confirm('Confirma que YA realizaste la transferencia bancaria. ¿Registrar la liquidación?'))return;
+ const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file)});
+ try{
+  await api('/api/store/admin/affiliates/'+selected+'/payouts',{method:'POST',body:JSON.stringify({period_start:f.get('period_start'),period_end:f.get('period_end'),transfer_reference:f.get('transfer_reference'),receipt_filename:file.name,receipt_base64:base64})});
+  el('detailMsg').textContent='Pago registrado correctamente';form.reset();await show(selected);await load();
+ }catch(e){el('detailMsg').textContent=e.message}
+};
+load();
+</script></body></html>

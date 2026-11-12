@@ -513,7 +513,7 @@ function surveyLevelForCourse(name){
 const pilotAccess=require('./pilot-access');
 const {createSubscriptions}=require('./subscriptions');
 const subscriptions=createSubscriptions({app,pool,requireAuth,requireRole,rateLimit:publicRateLimit,makePassword,validRut,normalizeRut});
-registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword});
+registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword,loginRateLimit:publicRateLimit({windowMs:15*60*1000,max:8})});
 app.use('/api',async(req,res,next)=>{
   try{
     // Los enlaces de estudiantes de establecimientos suscritos respetan la vigencia.

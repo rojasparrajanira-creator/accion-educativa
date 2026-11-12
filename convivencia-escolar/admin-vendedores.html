@@ -36,7 +36,7 @@ table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:left;
 <div><label>Clave inicial (mínimo 12 caracteres)</label><input name="temporary_password" type="password" minlength="12" autocomplete="new-password" required></div></div>
 <p class="muted">La clave inicial se comunica por un canal privado. El código identifica ventas; no proporciona descuentos.</p><button type="submit">Registrar vendedor</button></form></section>
 <section class="card"><h2>Equipo de ventas</h2><div class="scroll"><table><thead><tr><th>Vendedor</th><th>Ciudad / país</th><th>Ventas ($)</th><th>Pendiente</th><th>Estado</th><th>Gestión</th></tr></thead><tbody id="sellers"></tbody></table></div></section>
-<section class="card hidden" id="detail"><h2 id="sellerTitle">Detalle</h2><div id="sellerInfo" class="muted"></div><h3>Comisiones de productos</h3><div class="scroll"><table><thead><tr><th>Pedido</th><th>Material</th><th>Venta</th><th>Comisión</th><th>Estado</th></tr></thead><tbody id="commissions"></tbody></table></div>
+<section class="card hidden" id="detail"><h2 id="sellerTitle">Detalle</h2><div id="sellerInfo" class="muted"></div><h3>Resumen por mes</h3><div class="scroll"><table><thead><tr><th>Mes</th><th>Pedidos</th><th>Productos</th><th>Ventas</th><th>Por pagar</th><th>Pagado</th></tr></thead><tbody id="monthly"></tbody></table></div><h3 style="margin-top:22px">Comisiones de productos</h3><div class="scroll"><table><thead><tr><th>Pedido</th><th>Material</th><th>Venta</th><th>Comisión</th><th>Estado</th></tr></thead><tbody id="commissions"></tbody></table></div>
 <h3 style="margin-top:25px">Pagos quincenales</h3><div class="scroll"><table><thead><tr><th>Período</th><th>Monto</th><th>Fecha</th><th>Respaldo</th></tr></thead><tbody id="payouts"></tbody></table></div>
 <form id="payoutForm"><h3 style="margin-top:24px">Registrar transferencia realizada</h3><p class="muted">Solo registra una transferencia efectivamente realizada. El importe se calcula automáticamente desde comisiones pendientes.</p>
 <div class="grid"><div><label>Desde</label><input name="period_start" type="date" required></div><div><label>Hasta</label><input name="period_end" type="date" required></div>
@@ -77,6 +77,14 @@ async function show(id){
  try{
   const d=await api('/api/store/admin/affiliates/'+id);el('detail').classList.remove('hidden');el('sellerTitle').textContent=d.seller.display_name;
   el('sellerInfo').textContent=d.seller.city+', '+d.seller.country+' · '+d.seller.contact_email+' · Código '+d.seller.code;
+  const months=await api('/api/store/admin/affiliates/'+id+'/monthly');
+  el('monthly').replaceChildren();
+  for(const m of months.months){
+   const tr=document.createElement('tr');
+   for(const v of [m.month,m.orders,m.products_sold,money(m.sales_clp),money(m.pending_clp),money(m.paid_clp)]){
+    const td=document.createElement('td');td.textContent=v;tr.appendChild(td);
+   }el('monthly').appendChild(tr);
+  }
   el('commissions').replaceChildren();
   for(const c of d.commissions){
    const tr=document.createElement('tr');for(const v of ['#'+c.order_id,c.item_title,money(c.sale_amount_clp),money(c.commission_clp),c.status==='paid'?'Pagada':c.status==='reversed'?'Reversada':'Pendiente']){

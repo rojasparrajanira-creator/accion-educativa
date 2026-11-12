@@ -891,7 +891,7 @@ async function createOrder(){
   if(!confirmed){msg.textContent='Revisa tu correo electrónico y vuelve a presionar «Pagar con Mercado Pago».';document.getElementById('buyerEmail').focus();return;}
   btn.disabled=true;msg.textContent='Conectando con el medio de pago…';
   try{
-    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,buyer_email_confirmation:buyerEmail,requested_document:requestedDocument,invoice,...mecReferralPayload(),items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
+    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,buyer_email_confirmation:buyerEmail,requested_document:requestedDocument,invoice,...await mecReferralPayload(),items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.message||d.error||'No fue posible iniciar el pago');
     if(!d.payment_ready||!d.payment?.url)throw new Error(d.message||'Pago no disponible');
@@ -992,10 +992,17 @@ document.getElementById('mecSellerCode')?.addEventListener('blur',async()=>{
   label.textContent=response.ok?'Código de vendedor reconocido.':'El código no está activo o no existe. Revisa con quien te lo compartió.';
  }catch(_){label.textContent='No se pudo verificar ahora; puedes continuar comprando.'}
 });
-function mecReferralPayload(){
+async function mecReferralPayload(){
  const manual=document.getElementById('mecSellerCode');
  const code=String(manual?.value||'').trim().toUpperCase();
- if(/^[A-Z0-9_-]{4,24}$/.test(code))return {referral_code:code,referral_seen_at:new Date().toISOString()};
+ if(/^[A-Z0-9_-]{4,24}$/.test(code)){
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),2500);
+  try{
+   const response=await fetch(API+'/api/store/affiliates/referral/'+encodeURIComponent(code),{signal:controller.signal});
+   if(response.ok)return {referral_code:code,referral_seen_at:new Date().toISOString()};
+  }catch(_){}
+  finally{clearTimeout(timeout)}
+ }
  const tracked=mecReferralRead();
  return tracked?{referral_code:tracked.code,referral_seen_at:tracked.seen_at}:{};
 }

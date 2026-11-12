@@ -4,7 +4,7 @@ const crypto=require('crypto');
 const {normalizedSellerCode,validAttribution}=require('./afiliados-core');
 const hash=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const validId=id=>Number.isSafeInteger(Number(id))&&Number(id)>0;
-function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword}){
+function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword,loginRateLimit}){
   const admin=requireRole('platform_admin');
   async function seller(req,res,next){
     try{
@@ -17,7 +17,7 @@ function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword}
       req.seller=q.rows[0];next();
     }catch(e){res.status(503).json({ok:false,error:'seller_auth_unavailable'})}
   }
-  app.post('/api/store/affiliates/login',async(req,res)=>{
+  app.post('/api/store/affiliates/login',loginRateLimit,async(req,res)=>{
     try{
       const email=String(req.body?.email||'').trim().toLowerCase();
       const pw=String(req.body?.password||'');
@@ -49,6 +49,35 @@ function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword}
         from store_affiliate_payouts where seller_id=$1 order by period_end desc limit 48`,[req.seller.id]);
       res.json({ok:true,seller:req.seller,summary:q.rows[0],payouts:p.rows,referral_url:'https://www.materialeducativochile.cl/tienda.html?ref='+encodeURIComponent(req.seller.code)});
     }catch(e){res.status(503).json({ok:false,error:'seller_dashboard_unavailable'})}
+  });
+  // El vendedor puede descargar solamente sus propios comprobantes.
+  app.get('/api/store/affiliates/payouts/:id/receipt',seller,async(req,res)=>{
+    try{
+      if(!validId(req.params.id))return res.sendStatus(400);
+      const q=await pool.query(
+        'select receipt_mime,receipt_data from store_affiliate_payouts where id=$1 and seller_id=$2 and paid_at is not null',
+        [req.params.id,req.seller.id]
+      );
+      if(!q.rowCount||!q.rows[0].receipt_data)return res.sendStatus(404);
+      const mime=q.rows[0].receipt_mime;
+      if(!['application/pdf','image/png','image/jpeg'].includes(mime))return res.sendStatus(404);
+      res.setHeader('Content-Type',mime);
+      res.setHeader('Cache-Control','private, no-store');
+      res.setHeader('Content-Disposition','attachment; filename="comprobante-'+req.params.id+'.'+(mime==='application/pdf'?'pdf':mime==='image/png'?'png':'jpg')+'"');
+      res.send(q.rows[0].receipt_data);
+    }catch(e){res.sendStatus(503)}
+  });
+  app.get('/api/store/affiliates/me/monthly',seller,async(req,res)=>{
+    try{
+      const q=await pool.query(`select to_char(o.paid_at at time zone 'America/Santiago','YYYY-MM') as month,
+        count(distinct o.id)::int paid_orders,
+        coalesce(sum(c.sale_amount_clp),0)::bigint sales_clp,
+        coalesce(sum(c.commission_clp) filter(where c.status<>'reversed'),0)::bigint eligible_commissions_clp
+        from store_affiliate_commissions c join store_orders o on o.id=c.order_id
+        where c.seller_id=$1 and o.status='paid' and o.paid_at is not null
+        group by 1 order by 1 desc limit 24`,[req.seller.id]);
+      res.json({ok:true,months:q.rows});
+    }catch(e){res.status(503).json({ok:false,error:'seller_monthly_unavailable'})}
   });
   app.get('/api/store/affiliates/referral/:code',async(req,res)=>{
     try{

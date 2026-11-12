@@ -121,6 +121,20 @@ function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword,
       res.json({ok:true,seller:q.rows[0]});
     }catch(e){res.status(503).json({ok:false,error:'seller_status_failed'})}
   });
+  app.post('/api/store/admin/affiliates/:id/reset-password',...admin,async(req,res)=>{
+    try{
+      if(!validId(req.params.id))return res.status(400).json({ok:false,error:'invalid_seller_id'});
+      const password=String(req.body?.temporary_password||'');
+      if(password.length<12||password.length>128||!/[0-9]/.test(password)||!/[A-Za-z]/.test(password))
+        return res.status(400).json({ok:false,error:'weak_temporary_password'});
+      const credential=await makePassword(password);
+      const q=await pool.query('update store_affiliate_sellers set password_hash=$1,password_salt=$2,updated_at=now() where id=$3 returning id',
+        [credential.hash,credential.salt,req.params.id]);
+      if(!q.rowCount)return res.status(404).json({ok:false,error:'seller_not_found'});
+      await pool.query('delete from store_affiliate_sessions where seller_id=$1',[req.params.id]);
+      res.json({ok:true,password_reset:true});
+    }catch(e){res.status(503).json({ok:false,error:'seller_password_reset_failed'})}
+  });
   app.get('/api/store/admin/affiliates/:id',...admin,async(req,res)=>{
     try{
       if(!validId(req.params.id))return res.status(400).json({ok:false,error:'invalid_seller_id'});

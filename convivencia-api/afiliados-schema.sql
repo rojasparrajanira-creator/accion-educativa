@@ -5,6 +5,10 @@ CREATE TABLE IF NOT EXISTS store_affiliate_sellers (
   code TEXT UNIQUE NOT NULL CHECK(code ~ '^[A-Z0-9_-]{4,24}$'),
   display_name TEXT NOT NULL,
   contact_email TEXT NOT NULL,
+  city TEXT NOT NULL DEFAULT '',
+  country TEXT NOT NULL DEFAULT 'Chile',
+  password_hash TEXT,
+  password_salt TEXT,
   commission_bps INT NOT NULL DEFAULT 1000 CHECK(commission_bps BETWEEN 0 AND 10000),
   active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -52,6 +56,9 @@ CREATE TABLE IF NOT EXISTS store_affiliate_payouts (
   paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by BIGINT REFERENCES users(id),
+  receipt_filename TEXT,
+  receipt_mime TEXT,
+  receipt_data BYTEA,
   CHECK(period_end >= period_start)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_affiliate_payout_period ON store_affiliate_payouts(seller_id,period_start,period_end);
@@ -60,3 +67,11 @@ CREATE TABLE IF NOT EXISTS store_affiliate_payout_lines (
   commission_id BIGINT NOT NULL UNIQUE REFERENCES store_affiliate_commissions(id) ON DELETE RESTRICT,
   PRIMARY KEY (payout_id,commission_id)
 );
+
+CREATE TABLE IF NOT EXISTS store_affiliate_sessions (
+  token_hash TEXT PRIMARY KEY,
+  seller_id BIGINT NOT NULL REFERENCES store_affiliate_sellers(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_store_affiliate_sessions_seller ON store_affiliate_sessions(seller_id);

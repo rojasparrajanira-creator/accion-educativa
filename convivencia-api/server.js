@@ -2091,9 +2091,17 @@ async function confirmMercadoPagoPayment(paymentId){
         );
       }
     }
-    // El pago fue verificado por Mercado Pago; registrar comisiones en la MISMA transacción.
-    // Reintentos de webhook quedan protegidos por UNIQUE(order_item_id).
-    if(approved)await recordPaidOrderCommissions(client,order.id);
+    // Una falla de comisiones NO puede impedir confirmar el pago ni entregar el material.
+    // Usamos savepoint para aislar los errores del módulo comercial.
+    if(approved){
+      await client.query('SAVEPOINT affiliates_only');
+      try{
+        await recordPaidOrderCommissions(client,order.id);
+      }catch(e){
+        await client.query('ROLLBACK TO SAVEPOINT affiliates_only');
+        console.error('Affiliate commission deferred; reconciliable order:',order.id);
+      }
+    }
     await client.query('commit');
   }catch(e){
     await client.query('rollback').catch(()=>{});

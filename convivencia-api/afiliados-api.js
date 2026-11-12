@@ -1,7 +1,7 @@
 'use strict';
 // Módulo aislado. Se registra desde server.js solo en el entorno de desarrollo.
 const crypto=require('crypto');
-const {normalizedSellerCode,validAttribution}=require('./afiliados-core');
+const {normalizedSellerCode,recordPaidOrderCommissions}=require('./afiliados-core');
 const hash=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const validId=id=>Number.isSafeInteger(Number(id))&&Number(id)>0;
 function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword,loginRateLimit}){
@@ -132,6 +132,35 @@ function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword,
       res.json({ok:true,seller:s.rows[0],commissions:c.rows,payouts:p.rows});
     }catch(e){res.status(503).json({ok:false,error:'seller_detail_failed'})}
   });
+  // Conciliación manual de pagos confirmados para recuperarse de un fallo temporal del módulo.
+  app.post('/api/store/admin/affiliates/reconcile',...admin,async(req,res)=>{
+    try{
+      const q=await pool.query(`select distinct a.order_id
+        from store_affiliate_attributions a
+        join store_orders o on o.id=a.order_id and o.status='paid'
+        join store_order_items i on i.order_id=o.id
+        left join store_affiliate_commissions c on c.order_item_id=i.id
+        where c.id is null order by a.order_id limit 200`);
+      let recovered=0,failed=0;
+      for(const {order_id} of q.rows){
+        const client=await pool.connect();
+        try{await client.query('begin');const result=await recordPaidOrderCommissions(client,Number(order_id));
+          recovered+=result.recorded;await client.query('commit');
+        }catch(e){failed++;await client.query('rollback').catch(()=>{})}
+        finally{client.release()}
+      }
+      // Las devoluciones anteriores al pago de comisión se anulan automáticamente.
+      const reversed=await pool.query(`update store_affiliate_commissions c
+        set status='reversed',reversed_at=now(),reversal_reason='order_refunded'
+        from store_orders o where c.order_id=o.id and o.status='refunded' and c.status='pending'
+        returning c.id`);
+      // Las devoluciones de una comisión ya transferida requieren revisión humana.
+      const postpaid=await pool.query(`select count(*)::int as total from store_affiliate_commissions c
+        join store_orders o on o.id=c.order_id where o.status='refunded' and c.status='paid'`);
+      res.json({ok:true,recovered_commissions:recovered,failed_orders:failed,reversed_pending:reversed.rowCount,
+        refunded_after_payout:postpaid.rows[0].total,review_required:Number(postpaid.rows[0].total)>0});
+    }catch(e){res.status(503).json({ok:false,error:'affiliate_reconciliation_failed'})}
+  });
   // Nunca acepta importes indicados por el cliente: liquida comisiones reales pendientes.
   app.post('/api/store/admin/affiliates/:id/payouts',...admin,async(req,res)=>{
     const client=await pool.connect();
@@ -148,9 +177,10 @@ function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword,
       await client.query('begin');
       const s=await client.query('select id from store_affiliate_sellers where id=$1 for update',[sellerId]);
       if(!s.rowCount){await client.query('rollback');return res.status(404).json({ok:false,error:'seller_not_found'})}
-      const c=await client.query(`select id,commission_clp from store_affiliate_commissions
-       where seller_id=$1 and status='pending' and (created_at at time zone 'America/Santiago')::date between $2::date and $3::date
-       order by id for update`,[sellerId,start,end]);
+      const c=await client.query(`select c.id,c.commission_clp from store_affiliate_commissions c
+       join store_orders o on o.id=c.order_id and o.status='paid'
+       where c.seller_id=$1 and c.status='pending' and (c.created_at at time zone 'America/Santiago')::date between $2::date and $3::date
+       order by c.id for update of c`,[sellerId,start,end]);
       if(!c.rowCount){await client.query('rollback');return res.status(409).json({ok:false,error:'no_pending_commissions'})}
       const total=c.rows.reduce((sum,x)=>sum+Number(x.commission_clp),0);
       const p=await client.query(`insert into store_affiliate_payouts

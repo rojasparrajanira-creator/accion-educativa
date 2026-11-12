@@ -25,8 +25,8 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:11px;bor
 <label>Mi enlace para compartir</label><input id="link" readonly>
 <button id="copy" style="margin-top:8px">Copiar enlace</button>
 <p class="muted">Comparte tu enlace por redes sociales o WhatsApp. Tu código también puede escribirse en el carrito. No necesitas recibir pagos ni entregar los materiales.</p>
-<h2 style="margin-top:25px">Mis pagos quincenales</h2>
-<div class="scroll"><table><thead><tr><th>Período</th><th>Monto</th><th>Estado</th><th>Referencia de transferencia</th></tr></thead><tbody id="payouts"></tbody></table></div>
+<h2 style="margin-top:25px">Ventas por mes</h2><div class="scroll"><table><thead><tr><th>Mes</th><th>Pedidos</th><th>Ventas</th><th>Comisiones válidas</th></tr></thead><tbody id="months"></tbody></table></div><h2 style="margin-top:25px">Mis pagos quincenales</h2>
+<div class="scroll"><table><thead><tr><th>Período</th><th>Monto</th><th>Estado</th><th>Referencia de transferencia</th><th>Comprobante</th></tr></thead><tbody id="payouts"></tbody></table></div>
 <p id="status" class="message"></p>
 </section></main><script>
 'use strict';
@@ -46,12 +46,30 @@ async function refresh(){
  el('pending').textContent=currency(d.summary.pending_clp);
  el('paid').textContent=currency(d.summary.paid_clp);
  el('link').value=d.referral_url;
+ const m=await request('/api/store/affiliates/me/monthly');
+ el('months').replaceChildren();
+ for(const month of m.months){
+  const tr=document.createElement('tr');
+  for(const v of [month.month,month.paid_orders,currency(month.sales_clp),currency(month.eligible_commissions_clp)]){
+   const td=document.createElement('td');td.textContent=v;tr.appendChild(td)
+  }el('months').appendChild(tr);
+ }
  el('payouts').replaceChildren();
  for(const p of d.payouts){
   const tr=document.createElement('tr');
   for(const v of [String(p.period_start).slice(0,10)+' a '+String(p.period_end).slice(0,10),currency(p.total_clp),p.paid_at?'Pagado':'Pendiente',p.transfer_reference||'—']){
    const td=document.createElement('td');td.textContent=v;tr.appendChild(td)
-  }el('payouts').appendChild(tr);
+  }const td=document.createElement('td');
+  if(p.paid_at){
+   const btn=document.createElement('button');btn.textContent='Descargar';btn.onclick=async()=>{
+    try{const response=await fetch(API+'/api/store/affiliates/payouts/'+p.id+'/receipt',{headers:{Authorization:'Bearer '+sessionToken}});
+      if(!response.ok)throw Error('No disponible');const blob=await response.blob();const url=URL.createObjectURL(blob);const link=document.createElement('a');
+      link.href=url;link.download='comprobante-'+p.id+'.'+(blob.type==='application/pdf'?'pdf':blob.type==='image/png'?'png':'jpg');link.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }catch(e){el('status').textContent='No fue posible descargar el comprobante'}
+   };td.appendChild(btn);
+  }else td.textContent='—';
+  tr.appendChild(td);el('payouts').appendChild(tr);
  }
 }
 el('loginForm').onsubmit=async e=>{

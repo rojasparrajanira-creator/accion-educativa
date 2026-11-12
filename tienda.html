@@ -887,7 +887,7 @@ async function createOrder(){
   if(!confirmed){msg.textContent='Revisa tu correo electrónico y vuelve a presionar «Pagar con Mercado Pago».';document.getElementById('buyerEmail').focus();return;}
   btn.disabled=true;msg.textContent='Conectando con el medio de pago…';
   try{
-    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,buyer_email_confirmation:buyerEmail,requested_document:requestedDocument,invoice,items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
+    const r=await fetch(API+'/api/store/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({buyer_name:buyerName,buyer_email:buyerEmail,buyer_email_confirmation:buyerEmail,requested_document:requestedDocument,invoice,...mecReferralPayload(),items:cart.map(x=>({product_id:x.product_id,quantity:x.quantity}))})});
     const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.message||d.error||'No fue posible iniciar el pago');
     if(!d.payment_ready||!d.payment?.url)throw new Error(d.message||'Pago no disponible');
@@ -961,6 +961,29 @@ window.addEventListener('storage',e=>{
 });
 renderCart();
 fetch(API+'/api/store/products').then(r=>r.json()).then(d=>{products=d.products||[];reconcileStoreCart();renderCart();const term=new URLSearchParams(location.search).get('buscar');if(term&&!selectedProductSlug){document.getElementById('catalogSearch').value=term;location.hash='#catalogo'}if(selectedProductSlug)location.hash='#catalogo';renderProducts();setHeroProduct();if(selectedProductSlug){const viewed=products.find(p=>String(p.slug)===selectedProductSlug);if(viewed)registerProductView(viewed)}}).catch(()=>{document.getElementById('grid').innerHTML='<p class="empty">No fue posible cargar el catálogo.</p>'});
+</script>
+<script>
+// Atribución comercial (sin descuentos). El enlace registra al último vendedor visto por 30 días.
+// Un código escrito en el checkout prevalece sobre el enlace, y el servidor valida su existencia.
+const mecReferralKey='mec_referral_v1',mecReferralMs=30*24*60*60*1000;
+function mecReferralRead(){
+ try{const x=JSON.parse(localStorage.getItem(mecReferralKey)||'null');
+  if(!x||typeof x.code!=='string'||!Number.isFinite(Date.parse(x.seen_at))||Date.now()-Date.parse(x.seen_at)>mecReferralMs||Date.parse(x.seen_at)>Date.now())return null;
+  return x;
+ }catch(_){return null}
+}
+(function mecReferralCapture(){
+ try{const code=String(new URLSearchParams(location.search).get('ref')||'').trim().toUpperCase();
+  if(/^[A-Z0-9_-]{4,24}$/.test(code))localStorage.setItem(mecReferralKey,JSON.stringify({code,seen_at:new Date().toISOString()}));
+ }catch(_){}
+})();
+function mecReferralPayload(){
+ const manual=document.getElementById('mecSellerCode');
+ const code=String(manual?.value||'').trim().toUpperCase();
+ if(/^[A-Z0-9_-]{4,24}$/.test(code))return {referral_code:code,referral_seen_at:new Date().toISOString()};
+ const tracked=mecReferralRead();
+ return tracked?{referral_code:tracked.code,referral_seen_at:tracked.seen_at}:{};
+}
 </script>
 </body>
 </html>

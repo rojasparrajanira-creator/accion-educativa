@@ -533,6 +533,9 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-se
       <input id="buyerEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="100" placeholder="tunombre@correo.com" aria-describedby="gmailDeliveryTip buyerEmailStatus" required>
       <p id="buyerEmailStatus" class="email-validation" role="status" aria-live="polite">Antes de pagar te pediremos confirmar que tu correo esté bien escrito.</p>
       <p class="gmail-delivery-tip" id="gmailDeliveryTip" role="note"><strong>Recomendamos utilizar Gmail (@gmail.com)</strong> para facilitar el acceso a la carpeta de Google Drive. También puedes comprar con Hotmail, Outlook u otro correo electrónico válido.</p>
+      <label for="mecSellerCode">Código de vendedor (opcional)</label>
+      <input id="mecSellerCode" maxlength="24" autocomplete="off" autocapitalize="characters" placeholder="Ej.: VANESA01" aria-describedby="mecSellerHelp">
+      <p id="mecSellerHelp" class="cart-help">Si alguien te recomendó nuestros materiales, escribe aquí su código. No modifica el precio de tu compra.</p>
       <label for="buyerDocument">¿Qué documento necesitas?</label>
       <select id="buyerDocument" class="mec-doc-select" aria-describedby="buyerDocumentInfo" required>
         <option value="" selected>Selecciona boleta o factura</option>

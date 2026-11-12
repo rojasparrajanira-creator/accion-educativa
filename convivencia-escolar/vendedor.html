@@ -1,0 +1,68 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mis ventas · Material Educativo Chile</title><style>
+:root{--blue:#003898;--cyan:#13c4d9;--yellow:#ffd200}*{box-sizing:border-box}
+body{margin:0;background:#f0f7ff;color:#182237;font:15px/1.5 system-ui,Arial,sans-serif}
+header{background:#fff;border-bottom:4px solid var(--cyan);padding:20px;text-align:center;color:var(--blue)}
+main{max-width:850px;margin:auto;padding:20px 14px}.card{background:#fff;border-radius:17px;padding:24px;margin-bottom:18px;border:1px solid #e4eaf3;box-shadow:0 8px 20px #0038980d}
+h1,h2{color:var(--blue);margin:0 0 13px}label{display:block;font-weight:700;margin:12px 0 5px}
+input{font:inherit;width:100%;border:1px solid #c9d6e7;border-radius:10px;padding:12px}
+button{background:var(--blue);border:0;border-radius:10px;color:white;font:inherit;font-weight:750;padding:12px 19px;cursor:pointer}
+button:disabled{opacity:.6}.hidden{display:none!important}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.stat{background:#f0f8ff;border-radius:12px;padding:17px}.stat strong{display:block;color:var(--blue);font-size:25px}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:11px;border-bottom:1px solid #e5ebf3}.scroll{overflow:auto}
+.muted{color:#65758e}.message{font-weight:750;color:#a13030}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.card{padding:18px}}
+</style></head><body><header><strong>MATERIAL EDUCATIVO CHILE</strong><h1>Portal de vendedores</h1></header>
+<main><section class="card" id="loginCard"><h2>Ingresar a mi cuenta</h2>
+<form id="loginForm"><label>Correo electrónico</label><input name="email" type="email" autocomplete="username" required>
+<label>Contraseña</label><input name="password" type="password" autocomplete="current-password" required>
+<button type="submit" style="margin-top:17px">Iniciar sesión</button></form><p class="message" id="loginMsg"></p></section>
+<section class="card hidden" id="dashboard"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 id="welcome">Mis ventas</h2><button id="logout">Cerrar sesión</button></div>
+<p class="muted" id="sellerPlace"></p>
+<div class="grid"><div class="stat">Pedidos pagados<strong id="paidOrders">—</strong></div>
+<div class="stat">Comisiones pendientes<strong id="pending">—</strong></div>
+<div class="stat">Comisiones pagadas<strong id="paid">—</strong></div></div>
+<label>Mi enlace para compartir</label><input id="link" readonly>
+<button id="copy" style="margin-top:8px">Copiar enlace</button>
+<p class="muted">Comparte tu enlace por redes sociales o WhatsApp. Tu código también puede escribirse en el carrito. No necesitas recibir pagos ni entregar los materiales.</p>
+<h2 style="margin-top:25px">Mis pagos quincenales</h2>
+<div class="scroll"><table><thead><tr><th>Período</th><th>Monto</th><th>Estado</th><th>Referencia de transferencia</th></tr></thead><tbody id="payouts"></tbody></table></div>
+<p id="status" class="message"></p>
+</section></main><script>
+'use strict';
+const API='https://convivencia-escolar-api.onrender.com',el=id=>document.getElementById(id);
+const currency=n=>new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(Number(n||0));
+let sessionToken=''; // Sólo en memoria: al cerrar la pestaña hay que ingresar nuevamente.
+async function request(path,options={}){
+ const response=await fetch(API+path,{...options,headers:{'Content-Type':'application/json',...(sessionToken?{Authorization:'Bearer '+sessionToken}:{})}});
+ const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'No disponible');return data;
+}
+async function refresh(){
+ const d=await request('/api/store/affiliates/me');
+ el('loginCard').classList.add('hidden');el('dashboard').classList.remove('hidden');
+ el('welcome').textContent='Hola, '+d.seller.display_name;
+ el('sellerPlace').textContent=d.seller.city+', '+d.seller.country+' · Código '+d.seller.code;
+ el('paidOrders').textContent=d.summary.paid_orders;
+ el('pending').textContent=currency(d.summary.pending_clp);
+ el('paid').textContent=currency(d.summary.paid_clp);
+ el('link').value=d.referral_url;
+ el('payouts').replaceChildren();
+ for(const p of d.payouts){
+  const tr=document.createElement('tr');
+  for(const v of [String(p.period_start).slice(0,10)+' a '+String(p.period_end).slice(0,10),currency(p.total_clp),p.paid_at?'Pagado':'Pendiente',p.transfer_reference||'—']){
+   const td=document.createElement('td');td.textContent=v;tr.appendChild(td)
+  }el('payouts').appendChild(tr);
+ }
+}
+el('loginForm').onsubmit=async e=>{
+ e.preventDefault();el('loginMsg').textContent='Ingresando…';
+ const f=new FormData(e.target);
+ try{const d=await request('/api/store/affiliates/login',{method:'POST',body:JSON.stringify({email:f.get('email'),password:f.get('password')})});
+  sessionToken=d.token;await refresh();el('loginMsg').textContent='';
+ }catch(err){sessionToken='';el('loginMsg').textContent='No se pudo iniciar sesión. Revisa tu correo y contraseña.'}
+};
+el('logout').onclick=async()=>{try{await request('/api/store/affiliates/logout',{method:'POST'})}catch(_){}sessionToken='';el('dashboard').classList.add('hidden');el('loginCard').classList.remove('hidden')};
+el('copy').onclick=async()=>{
+ try{await navigator.clipboard.writeText(el('link').value);el('status').textContent='Enlace copiado'}catch(e){el('link').select();el('status').textContent='Selecciona y copia tu enlace'}
+};
+</script></body></html>

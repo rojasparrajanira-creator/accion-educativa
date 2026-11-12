@@ -23,7 +23,10 @@ table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:left;
 <main><section class="card"><h1>Vendedores y comisiones</h1><p class="muted">Gestiona vendedoras, ventas reales y transferencias quincenales. La tienda oficial cobra mediante Mercado Pago.</p>
 <div class="grid"><div class="summary">Vendedores activos<strong id="active">—</strong></div>
 <div class="summary">Ventas atribuidas<strong id="sales">—</strong></div><div class="summary">Comisiones pendientes<strong id="pending">—</strong></div></div>
-<p class="msg" id="message" role="status"></p></section>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px">
+ <button id="reconcile" type="button" class="btn-light">Conciliar ventas y devoluciones</button>
+ <span class="muted">Revisa pagos confirmados sin comisión y reembolsos pendientes de ajuste.</span>
+ </div><p class="msg" id="message" role="status"></p></section>
 <section class="card"><h2>Agregar vendedor</h2><form id="createSeller"><div class="grid">
 <div><label>Nombre completo</label><input name="name" required minlength="3"></div>
 <div><label>Correo electrónico</label><input name="email" type="email" required></div>
@@ -106,6 +109,15 @@ el('payoutForm').onsubmit=async event=>{
   await api('/api/store/admin/affiliates/'+selected+'/payouts',{method:'POST',body:JSON.stringify({period_start:f.get('period_start'),period_end:f.get('period_end'),transfer_reference:f.get('transfer_reference'),receipt_filename:file.name,receipt_base64:base64})});
   el('detailMsg').textContent='Pago registrado correctamente';form.reset();await show(selected);await load();
  }catch(e){el('detailMsg').textContent=e.message}
+};
+el('reconcile').onclick=async()=>{
+ el('reconcile').disabled=true;
+ try{const d=await api('/api/store/admin/affiliates/reconcile',{method:'POST',body:'{}'});
+  el('message').textContent='Conciliación: '+d.recovered_commissions+' comisiones recuperadas, '+d.reversed_pending+' anuladas, '+d.failed_orders+' pedidos con error.'+
+  (d.review_required?' ATENCIÓN: '+d.refunded_after_payout+' comisiones ya pagadas pertenecen a pedidos reembolsados. Requieren revisión contable.':'');
+  await load();
+ }catch(e){el('message').textContent='No se pudo conciliar: '+e.message}
+ finally{el('reconcile').disabled=false}
 };
 load();
 </script></body></html>

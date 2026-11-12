@@ -126,11 +126,31 @@ function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword,
       if(!validId(req.params.id))return res.status(400).json({ok:false,error:'invalid_seller_id'});
       const s=await pool.query('select id,code,display_name,contact_email,city,country,active from store_affiliate_sellers where id=$1',[req.params.id]);
       if(!s.rowCount)return res.status(404).json({ok:false,error:'seller_not_found'});
-      const c=await pool.query(`select c.id,c.order_id,c.item_title,c.sale_amount_clp,c.commission_clp,c.status,c.created_at
-        from store_affiliate_commissions c where c.seller_id=$1 order by c.created_at desc limit 500`,[req.params.id]);
+      const c=await pool.query(`select c.id,c.order_id,c.item_title,c.sale_amount_clp,c.commission_clp,c.status,c.created_at,
+        o.paid_at,o.status as order_status,i.quantity
+        from store_affiliate_commissions c join store_orders o on o.id=c.order_id
+        join store_order_items i on i.id=c.order_item_id
+        where c.seller_id=$1 order by c.created_at desc limit 1000`,[req.params.id]);
       const p=await pool.query('select id,period_start,period_end,total_clp,paid_at,transfer_reference,receipt_filename from store_affiliate_payouts where seller_id=$1 order by period_end desc',[req.params.id]);
       res.json({ok:true,seller:s.rows[0],commissions:c.rows,payouts:p.rows});
     }catch(e){res.status(503).json({ok:false,error:'seller_detail_failed'})}
+  });
+  app.get('/api/store/admin/affiliates/:id/monthly',...admin,async(req,res)=>{
+    try{
+      if(!validId(req.params.id))return res.status(400).json({ok:false,error:'invalid_seller_id'});
+      const q=await pool.query(`select to_char(o.paid_at at time zone 'America/Santiago','YYYY-MM') as month,
+        count(distinct o.id)::int as orders,
+        coalesce(sum(i.quantity),0)::int as products_sold,
+        coalesce(sum(c.sale_amount_clp) filter(where c.status<>'reversed'),0)::bigint as sales_clp,
+        coalesce(sum(c.commission_clp) filter(where c.status='pending'),0)::bigint as pending_clp,
+        coalesce(sum(c.commission_clp) filter(where c.status='paid'),0)::bigint as paid_clp
+        from store_affiliate_commissions c
+        join store_orders o on o.id=c.order_id and o.status='paid'
+        join store_order_items i on i.id=c.order_item_id
+        where c.seller_id=$1 and o.paid_at is not null
+        group by 1 order by 1 desc limit 36`,[req.params.id]);
+      res.json({ok:true,months:q.rows});
+    }catch(e){res.status(503).json({ok:false,error:'affiliate_monthly_failed'})}
   });
   // Conciliación manual de pagos confirmados para recuperarse de un fallo temporal del módulo.
   app.post('/api/store/admin/affiliates/reconcile',...admin,async(req,res)=>{

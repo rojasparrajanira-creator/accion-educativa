@@ -11,6 +11,8 @@ const {createStoreDelivery}=require('./store-delivery');
 const {createMercadoPagoStore,approvedForOrder}=require('./mercadopago-store');
 const {createStoreDriveAccess,driveItemId}=require('./store-drive-access');
 const {createStoreServiceAccountDriveAccess}=require('./store-drive-service-account');
+const {registerAffiliateApi}=require('./afiliados-api');
+const {normalizedSellerCode,validAttribution,recordPaidOrderCommissions}=require('./afiliados-core');
 const app=express();
 app.use(express.json({limit:'5mb'}));
 app.use(express.urlencoded({extended:false,limit:'64kb'}));
@@ -137,6 +139,7 @@ async function initDatabase(){
   if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL no configurada');
   await pool.query(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));
   await pool.query(fs.readFileSync(path.join(__dirname,'subscriptions.sql'),'utf8'));
+  await pool.query(fs.readFileSync(path.join(__dirname,'afiliados-schema.sql'),'utf8'));
   await pool.query("delete from auth_sessions where expires_at<=now()");
   await pool.query(`delete from response_drafts d using survey_applications a,measurement_settings ms
     where d.application_id=a.id and ms.measurement_id=a.measurement_id
@@ -510,6 +513,7 @@ function surveyLevelForCourse(name){
 const pilotAccess=require('./pilot-access');
 const {createSubscriptions}=require('./subscriptions');
 const subscriptions=createSubscriptions({app,pool,requireAuth,requireRole,rateLimit:publicRateLimit,makePassword,validRut,normalizeRut});
+registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword});
 app.use('/api',async(req,res,next)=>{
   try{
     // Los enlaces de estudiantes de establecimientos suscritos respetan la vigencia.
@@ -1937,6 +1941,15 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
     order=oq.rows[0];
     for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[order.id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);
     await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[order.id,email]);
+    // La atribución es opcional: si el código es inexistente, vencido o inactivo no se genera comisión.
+    const referralCode=normalizedSellerCode(b.referral_code);
+    const referralSeenAt=String(b.referral_seen_at||'');
+    if(referralCode&&validAttribution({seenAt:referralSeenAt})){
+      const seller=await client.query('select id,code,commission_bps from store_affiliate_sellers where code=$1 and active=true',[referralCode]);
+      if(seller.rowCount)await client.query(`insert into store_affiliate_attributions
+        (order_id,seller_id,seller_code_snapshot,commission_bps_snapshot,referral_seen_at)
+        values($1,$2,$3,$4,$5)`,[order.id,seller.rows[0].id,seller.rows[0].code,seller.rows[0].commission_bps,referralSeenAt]);
+    }
     await client.query('commit');
     committed=true;
 
@@ -2078,6 +2091,9 @@ async function confirmMercadoPagoPayment(paymentId){
         );
       }
     }
+    // El pago fue verificado por Mercado Pago; registrar comisiones en la MISMA transacción.
+    // Reintentos de webhook quedan protegidos por UNIQUE(order_item_id).
+    if(approved)await recordPaidOrderCommissions(client,order.id);
     await client.query('commit');
   }catch(e){
     await client.query('rollback').catch(()=>{});

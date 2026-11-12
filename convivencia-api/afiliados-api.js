@@ -45,7 +45,7 @@ function registerAffiliateApi({app,pool,requireRole,verifyPassword,makePassword,
         coalesce(sum(c.commission_clp) filter(where c.status='paid'),0)::bigint as paid_clp
         from store_affiliate_commissions c join store_affiliate_attributions a on a.order_id=c.order_id
         where c.seller_id=$1 and c.status<>'reversed'`,[req.seller.id]);
-      const p=await pool.query(`select period_start,period_end,total_clp,paid_at,transfer_reference
+      const p=await pool.query(`select id,period_start,period_end,total_clp,paid_at,transfer_reference
         from store_affiliate_payouts where seller_id=$1 order by period_end desc limit 48`,[req.seller.id]);
       res.json({ok:true,seller:req.seller,summary:q.rows[0],payouts:p.rows,referral_url:'https://www.materialeducativochile.cl/tienda.html?ref='+encodeURIComponent(req.seller.code)});
     }catch(e){res.status(503).json({ok:false,error:'seller_dashboard_unavailable'})}

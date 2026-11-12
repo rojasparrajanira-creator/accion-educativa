@@ -1941,14 +1941,20 @@ app.post('/api/store/orders',storeOrderRateLimit,async(req,res)=>{
     order=oq.rows[0];
     for(const p of pq.rows)await client.query("insert into store_order_items(order_id,product_id,product_title,unit_price_clp,quantity,delivery_url_snapshot,drive_account_id_snapshot) values($1,$2,$3,$4,$5,$6,$7)",[order.id,p.id,p.title,p.price_clp,qty.get(Number(p.id)),p.drive_delivery_url,p.drive_account_id]);
     await client.query("insert into store_delivery_events(order_id,status,buyer_email,detail) values($1,'pending',$2,'Entrega bloqueada hasta confirmación de pago')",[order.id,email]);
-    // La atribución es opcional: si el código es inexistente, vencido o inactivo no se genera comisión.
-    const referralCode=normalizedSellerCode(b.referral_code);
-    const referralSeenAt=String(b.referral_seen_at||'');
-    if(referralCode&&validAttribution({seenAt:referralSeenAt})){
-      const seller=await client.query('select id,code,commission_bps from store_affiliate_sellers where code=$1 and active=true',[referralCode]);
-      if(seller.rowCount)await client.query(`insert into store_affiliate_attributions
-        (order_id,seller_id,seller_code_snapshot,commission_bps_snapshot,referral_seen_at)
-        values($1,$2,$3,$4,$5)`,[order.id,seller.rows[0].id,seller.rows[0].code,seller.rows[0].commission_bps,referralSeenAt]);
+    // El seguimiento de vendedores es opcional y nunca puede bloquear una compra real.
+    await client.query('SAVEPOINT referral_only');
+    try{
+      const referralCode=normalizedSellerCode(b.referral_code);
+      const referralSeenAt=String(b.referral_seen_at||'');
+      if(referralCode&&validAttribution({seenAt:referralSeenAt})){
+        const seller=await client.query('select id,code,commission_bps from store_affiliate_sellers where code=$1 and active=true',[referralCode]);
+        if(seller.rowCount)await client.query(`insert into store_affiliate_attributions
+          (order_id,seller_id,seller_code_snapshot,commission_bps_snapshot,referral_seen_at)
+          values($1,$2,$3,$4,$5)`,[order.id,seller.rows[0].id,seller.rows[0].code,seller.rows[0].commission_bps,referralSeenAt]);
+      }
+    }catch(e){
+      await client.query('ROLLBACK TO SAVEPOINT referral_only');
+      console.error('Affiliate attribution unavailable; order preserved:',order.id);
     }
     await client.query('commit');
     committed=true;

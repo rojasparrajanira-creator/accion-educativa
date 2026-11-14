@@ -2200,134 +2200,77 @@ app.post('/api/store/admin/orders/:id/delivery/retry',...requireRole('platform_a
 app.get('/api/store/admin/invoices/export.xlsx',requireAuth,async(req,res)=>{
  try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
-  const yearRaw=String(req.query.year||''),monthRaw=String(req.query.month||'');
-  const year=Number(yearRaw),month=monthRaw?Number(monthRaw):null;
-  if(!/^\d{4}$/.test(yearRaw)||year<2020||year>2100||
-     (monthRaw!==''&&(!/^(?:[1-9]|1[0-2])$/.test(monthRaw)||!Number.isInteger(month))))
-   return res.status(400).json({ok:false,error:'invalid_invoice_export_period'});
-  const periodStart=yearRaw+'-'+String(month||1).padStart(2,'0')+'-01';
-  const periodEnd=month?month===12?(year+1)+'-01-01':year+'-'+String(month+1).padStart(2,'0')+'-01':(year+1)+'-01-01';
-  // Excel debe representar registros reales, no incluir pendientes como ingresos.
-  // Filtro temporal por paid_at local Chile, evitando UTC desplazado al cierre de mes.
-  const query=`select o.id,o.order_code,o.buyer_name,o.buyer_email,o.requested_document,
-    o.invoice_rut,o.invoice_legal_name,o.invoice_business_activity,o.invoice_address,o.invoice_commune,
-    o.status,o.total_clp,o.payment_provider,o.payment_id,o.payment_preference_id,o.created_at,o.paid_at,
-    coalesce(t.status,'pending') tax_status,t.document_type,t.document_number,t.issued_at,
-    coalesce(j.status,'not_queued') delivery_status
-    from store_orders o
-    left join store_tax_documents t on t.order_id=o.id
-    left join store_delivery_jobs j on j.order_id=o.id
-    where o.requested_document='factura'
-      and (o.created_at at time zone 'America/Santiago') >= $1::timestamp
-      and (o.created_at at time zone 'America/Santiago') < $2::timestamp
-    order by o.created_at,o.id limit 20001`;
-  const qr=await pool.query(query,[periodStart,periodEnd]);
-  if(qr.rows.length>20000)return res.status(413).json({ok:false,error:'invoice_export_too_many_orders'});
-  const orders=qr.rows,ids=orders.map(o=>o.id);
-  const itemResult=ids.length?await pool.query(
-   'select order_id,product_id,product_title,unit_price_clp,quantity,(unit_price_clp * quantity)::bigint line_total_clp from store_order_items where order_id=any($1::bigint[]) order by order_id,id',
-   [ids]):{rows:[]};
-  const itemMap=new Map();
-  for(const item of itemResult.rows){const id=String(item.order_id);if(!itemMap.has(id))itemMap.set(id,[]);itemMap.get(id).push(item)}
+  const yearText=String(req.query.year||''),monthText=String(req.query.month||'');
+  const year=Number(yearText),month=monthText?Number(monthText):null,scope=String(req.query.scope||'all');
+  if(!/^\d{4}$/.test(yearText)||year<2020||year>2100||
+    (monthText&&!/^(?:[1-9]|1[0-2])$/.test(monthText))||
+    !['all','factura'].includes(scope))
+    return res.status(400).json({ok:false,error:'invalid_invoice_export_period'});
+  const start=year+'-'+String(month||1).padStart(2,'0')+'-01';
+  const finish=month?(month===12?year+1:year)+'-'+String(month===12?1:month+1).padStart(2,'0')+'-01':(year+1)+'-01-01';
+  // Las compras anteriores pueden no tener tipo de documento. No asumir que son facturas.
+  const q=await pool.query(
+    "select o.id,o.order_code,o.created_at,o.status,o.total_clp,o.buyer_name,o.buyer_email,o.invoice_rut,o.invoice_legal_name,o.invoice_business_activity,o.invoice_address,o.invoice_commune,o.requested_document,o.payment_provider,o.payment_id,t.status as tax_status,t.document_type,t.document_number,i.product_title,i.quantity,i.unit_price_clp,(i.quantity*i.unit_price_clp)::bigint line_total from store_orders o left join store_tax_documents t on t.order_id=o.id left join store_order_items i on i.order_id=o.id where o.status='paid' and (o.created_at at time zone 'America/Santiago') >= $1::timestamp and (o.created_at at time zone 'America/Santiago') < $2::timestamp and ($3::text='all' or o.requested_document='factura') order by o.created_at,o.id,i.id limit 50001",
+    [start,finish,scope]);
+  if(q.rows.length>50000)return res.status(413).json({ok:false,error:'invoice_export_too_many_rows'});
   const wb=new ExcelJS.Workbook();
-  wb.creator='Material Educativo Chile';wb.subject='Solicitudes de factura de compras pagadas';
-  wb.created=new Date();wb.modified=new Date();
-  const headerStyle=sheet=>{
-   sheet.views=[{state:'frozen',ySplit:1}];sheet.autoFilter={from:{row:1,column:1},to:{row:1,column:sheet.columnCount}};
-   const header=sheet.getRow(1);header.height=29;
-   header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'},size:11};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF003898'}};cell.alignment={vertical:'middle',wrapText:true}});
-  };
-  const clean=(value)=>{
-   const str=String(value??'');
-   // Mantener fórmulas inertes si un cliente ingresó caracteres especiales.
-   return /^[=+@\\-\\t\\r]/.test(str)?("'"+str):str;
-  };
-  const localDate=value=>value?new Date(value).toLocaleString('es-CL',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'';
-  const paid=orders.filter(o=>o.status==='paid');
-  const sumOrders=paid.reduce((n,o)=>n+Number(o.total_clp||0),0);
-  const itemsSum=paid.reduce((total,o)=>total+(itemMap.get(String(o.id))||[]).reduce((n,i)=>n+Number(i.line_total_clp||0),0),0);
-  const resumen=wb.addWorksheet('Resumen',{properties:{defaultRowHeight:20}});
-  resumen.columns=[{width:38},{width:25}];
-  [
-    ['MATERIAL EDUCATIVO CHILE · REPORTE CONTABLE',''],
-    ['Período',month?String(month).padStart(2,'0')+'/'+year:String(year)+' (anual)'],
-    ['Criterio','Fecha de creación del pedido en Chile'],
-    ['Solicitudes de factura (todos los estados)',orders.length],
-    ['Solicitudes de factura pagadas',paid.length],
-    ['Solicitudes sin pago confirmado',orders.length-paid.length],
-    ['Monto total de esos pedidos (CLP)',sumOrders],
-    ['Subtotal acumulado de materiales (CLP)',itemsSum],
-    ['Pedidos pagados con discrepancia detalle/total',paid.filter(o=>(itemMap.get(String(o.id))||[]).reduce((n,i)=>n+Number(i.line_total_clp||0),0)!==Number(o.total_clp)).length],
-    ['Documentos registrados como emitidos',paid.filter(o=>o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_')).length],
-    ['Solicitudes pagadas sin factura registrada',paid.filter(o=>!(o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_'))).length],
-    ['Importante','Solicitar factura no acredita que el SII la haya emitido.'],
-    ['Importante','Revisar voucher Mercado Pago (código 48) para evitar doble registro.'],
-    ['Importante','Valores totales de venta; no se calculan IVA ni comisiones.'],
-    ['Importante','El total se cuenta una sola vez por pedido; no sumar la columna Total pedido de la hoja Materiales.'],
-    ['Seguridad','Archivo con datos personales y tributarios: compartir solo con la contadora por canal seguro.']
-  ].forEach(row=>resumen.addRow(row));
-  resumen.getRow(1).font={bold:true,color:{argb:'FF003898'},size:14};resumen.getColumn(2).alignment={wrapText:true};
-  for(const n of [7,8])resumen.getCell(n,2).numFmt='#,##0';
-  resumen.getColumn(2).width=75;
-  const pedidos=wb.addWorksheet('Pedidos');
-  pedidos.columns=[
-   ['N° pedido','id',14],['Código pedido','code',34],['Creación (Chile)','created',22],['Pago (Chile)','paid',22],
-   ['Estado pago','status',18],['Medio de pago','provider',20],['ID pago Mercado Pago','payment',27],['ID preferencia','preference',28],
-   ['Documento solicitado','requested',20],['Estado documento registrado','taxstatus',29],['Tipo DTE registrado','taxtype',23],
-   ['Folio DTE registrado','taxnum',24],['Fecha emisión registrada (Chile)','taxdate',27],
-   ['Comprador','buyer',34],['Correo comprador','email',38],['RUT facturación','rut',22],['Razón social','legal',44],
-   ['Giro','giro',40],['Dirección tributaria','address',42],['Comuna','comuna',27],
-   ['Cantidad materiales','items',18],['Unidades totales','qty',18],['Total pedido CLP','total',22],
-   ['Suma detalle CLP','detailsum',22],['Diferencia CLP','diff',19],['Estado entrega','delivery',23]
+  wb.creator='Material Educativo Chile';wb.subject='Resumen contable de compras y materiales';
+  const sheet=wb.addWorksheet('Ventas y materiales');
+  sheet.columns=[
+   ['Fecha','date',18],['N° pedido','order',32],['Documento solicitado','document',24],
+   ['Estado factura','tax',32],['Folio factura registrado','folio',25],
+   ['Comprador','buyer',30],['RUT','rut',20],['Razón social','legal',40],
+   ['Giro','activity',35],['Dirección','address',40],['Comuna','commune',22],
+   ['Correo','email',36],['Material comprado','material',58],['Cantidad','qty',13],
+   ['Valor unitario CLP','unit',23],['Subtotal CLP','subtotal',20],
+   ['Total pedido CLP (referencia)','total',30],['Medio de pago','provider',20],
+   ['ID Mercado Pago','payment',29]
   ].map(([header,key,width])=>({header,key,width}));
-  for(const o of orders){
-   const its=itemMap.get(String(o.id))||[],sub=its.reduce((n,i)=>n+Number(i.line_total_clp||0),0);
-   pedidos.addRow({id:Number(o.id),code:clean(o.order_code),created:localDate(o.created_at),paid:localDate(o.paid_at),
-    status:clean(o.status),provider:clean(o.payment_provider),payment:clean(o.payment_id),preference:clean(o.payment_preference_id),
-    requested:clean(o.requested_document),taxstatus:clean(o.tax_status),taxtype:clean(o.document_type),taxnum:clean(o.document_number),
-    taxdate:localDate(o.issued_at),buyer:clean(o.buyer_name),email:clean(o.buyer_email),rut:clean(o.invoice_rut),
-    legal:clean(o.invoice_legal_name),giro:clean(o.invoice_business_activity),address:clean(o.invoice_address),
-    comuna:clean(o.invoice_commune),items:its.length,qty:its.reduce((n,i)=>n+Number(i.quantity),0),
-    total:Number(o.total_clp),detailsum:sub,diff:Number(o.total_clp)-sub,delivery:clean(o.delivery_status)});
+  const safe=v=>{const t=String(v??'').trim();return /^[=+@-]/.test(t)?"'"+t:t};
+  const date=v=>v?new Date(v).toLocaleDateString('es-CL',{timeZone:'America/Santiago'}):'';
+  const labels={factura:'Factura solicitada',boleta:'Boleta solicitada',unspecified:'Sin indicar - revisar'};
+  const ids=new Set();let amount=0;
+  for(const o of q.rows){
+   if(!ids.has(String(o.id))){ids.add(String(o.id));amount+=Number(o.total_clp||0)}
+   const issued=o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_');
+   const row=sheet.addRow({
+    date:date(o.created_at),order:safe(o.order_code),document:labels[o.requested_document]||'Sin indicar - revisar',
+    tax:issued?'Factura registrada':'No confirmada en plataforma',folio:issued?safe(o.document_number):'',
+    buyer:safe(o.buyer_name),rut:safe(o.invoice_rut),legal:safe(o.invoice_legal_name),
+    activity:safe(o.invoice_business_activity),address:safe(o.invoice_address),commune:safe(o.invoice_commune),
+    email:safe(o.buyer_email),material:safe(o.product_title)||'Sin detalle',qty:o.quantity==null?'':Number(o.quantity),
+    unit:o.unit_price_clp==null?'':Number(o.unit_price_clp),
+    subtotal:o.line_total==null?'':Number(o.line_total),total:Number(o.total_clp),
+    provider:safe(o.payment_provider),payment:safe(o.payment_id)
+   });
+   if(o.requested_document==='unspecified')row.getCell('document').font={bold:true,color:{argb:'FF9C6012'}};
   }
-  headerStyle(pedidos);
-  ['W','X','Y'].forEach(c=>pedidos.getColumn(c).numFmt='#,##0');
-  const detalles=wb.addWorksheet('Materiales');
-  detalles.columns=[
-   ['Código pedido','code',34],['N° pedido','id',14],['Fecha pago (Chile)','paid',23],['RUT facturación','rut',22],
-   ['Razón social','legal',44],['Comprador','buyer',32],['Correo','email',38],['ID producto','product',17],
-   ['Material comprado','title',62],['Cantidad','qty',14],['Precio unitario CLP','price',24],['Subtotal CLP','line',24],
-   ['Total pedido CLP (referencia)','total',26],['ID pago Mercado Pago','payment',29],
-   ['Estado documento registrado','taxstatus',28],['Folio DTE registrado','taxnum',25]
-  ].map(([header,key,width])=>({header,key,width}));
-  for(const o of orders)for(const i of itemMap.get(String(o.id))||[]){
-   detalles.addRow({code:clean(o.order_code),id:Number(o.id),paid:localDate(o.paid_at),rut:clean(o.invoice_rut),
-    legal:clean(o.invoice_legal_name),buyer:clean(o.buyer_name),email:clean(o.buyer_email),product:Number(i.product_id),
-    title:clean(i.product_title),qty:Number(i.quantity),price:Number(i.unit_price_clp),line:Number(i.line_total_clp),
-    total:Number(o.total_clp),payment:clean(o.payment_id),taxstatus:clean(o.tax_status),taxnum:clean(o.document_number)});
-  }
-  headerStyle(detalles);
-  ['K','L','M'].forEach(c=>detalles.getColumn(c).numFmt='#,##0');
-  const notes=wb.addWorksheet('Alcance');
-  notes.getColumn(1).width=110;
+  const header=sheet.getRow(1);header.height=30;
+  header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF003898'}};cell.alignment={vertical:'middle',wrapText:true}});
+  sheet.views=[{state:'frozen',ySplit:1}];
+  sheet.autoFilter={from:{row:1,column:1},to:{row:1,column:sheet.columnCount}};
+  for(const c of ['O','P','Q'])sheet.getColumn(c).numFmt='#,##0';
+  const summary=wb.addWorksheet('Resumen');
+  summary.columns=[{width:40},{width:76}];
   [
-   'Informe de solicitudes de FACTURA con estado de pago visible. Solo se suman pagos confirmados.',
-   'No es un registro certificado de facturas emitidas por el SII.',
-   'Una solicitud pendiente no implica emisión; los campos de DTE muestran únicamente lo registrado en esta plataforma.',
-   'Se filtra por fecha local de CREACIÓN de compra en Chile, no por fecha de pago ni emisión tributaria.',
-   'Incluye solicitudes de factura de todos los estados para revisión; solo los pedidos pagados se suman como ingresos.',
-   'Concilie por identificador de Mercado Pago, folio DTE, monto y RUT para prevenir duplicidades en el SII.',
-   'No se deduce IVA, comisión Mercado Pago ni otros cargos; se informan los precios finales guardados al comprar.',
-   'La hoja Pedidos contiene totales únicos por compra; Materiales ofrece la desagregación por producto.',
-   'El archivo puede contener datos personales sujetos a resguardo.'
-  ].forEach(v=>notes.addRow([v]));
+   ['MATERIAL EDUCATIVO CHILE - INFORME CONTABLE',''],
+   ['Período',month?String(month).padStart(2,'0')+'/'+year:String(year)+' anual'],
+   ['Tipo',scope==='factura'?'Solo compras que solicitaron factura':'Todas las compras pagadas'],
+   ['Cantidad de compras pagadas',ids.size],['Total de compras CLP',amount],
+   ['Filas de materiales',q.rows.length],
+   ['Importante','Cada material ocupa una fila; no sumar la columna Total pedido repetida.'],
+   ['Importante','Factura solicitada no acredita emisión ante el SII.'],
+   ['Importante','Pedidos sin tipo indicado requieren revisión de la contadora.'],
+   ['Importante','Comparar ID Mercado Pago, RUT, montos y DTE con el SII.'],
+   ['Importante','Período calculado por fecha de creación del pedido en Chile.']
+  ].forEach(row=>summary.addRow(row));
+  summary.getRow(1).font={bold:true,color:{argb:'FF003898'},size:13};
+  summary.getCell('B5').numFmt='#,##0';
   const buffer=await wb.xlsx.writeBuffer();
-  const period=month?year+'-'+String(month).padStart(2,'0'):String(year);
   res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition','attachment; filename="MEC_Facturas_Solicitadas_'+period+'.xlsx"');
-  res.setHeader('Cache-Control','no-store, private');
-  res.send(Buffer.from(buffer));
- }catch(e){console.error('Store invoice export failed:',e.message);if(!res.headersSent)res.status(503).json({ok:false,error:'invoice_export_failed'})}
+  res.setHeader('Content-Disposition','attachment; filename="MEC_Ventas_Contadora_'+year+(month?'-'+String(month).padStart(2,'0'):'')+'.xlsx"');
+  res.setHeader('Cache-Control','no-store, private');res.send(Buffer.from(buffer));
+ }catch(e){console.error('Accountant Excel failed:',e.message);if(!res.headersSent)res.status(503).json({ok:false,error:'invoice_export_failed'})}
 });
 
 app.get('/api/store/admin/orders',requireAuth,async(req,res)=>{try{

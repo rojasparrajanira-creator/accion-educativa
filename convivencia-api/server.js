@@ -2240,7 +2240,7 @@ app.get('/api/store/admin/invoices/export.xlsx',requireAuth,async(req,res)=>{
   const tableHead=()=>{
    const r=sheet.addRow(['Material comprado','', '', '', 'Cantidad','Precio unitario','Subtotal']);
    sheet.mergeCells(r.number,1,r.number,4);
-   for(const c of r.cells){c.font={bold:true,color:{argb:'FF003898'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:light}};c.alignment={vertical:'middle'}}
+   r.eachCell({includeEmpty:true},c=>{c.font={bold:true,color:{argb:'FF003898'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:light}};c.alignment={vertical:'middle'}})
    r.height=25;
   };
   titleRow('MATERIAL EDUCATIVO CHILE - COMPRAS PARA CONTABILIDAD');

@@ -75,16 +75,17 @@ main section[id]{scroll-margin-top:85px}
  <button type="button" class="secondary" id="mecInvoiceExport">Descargar CSV para Excel</button>
 </div>
 <div class="mec-admin-export" style="padding:16px;margin:15px 0;border:1px solid #c4dced;border-radius:15px;background:#f5fbff">
- <h3 style="margin:0 0 6px;color:#003898">Excel para la contadora · mensual o anual</h3>
- <p class="muted" style="margin:0 0 12px">Descarga todas las compras pagadas que solicitaron factura durante el período elegido, con RUT, razón social, giro, dirección, pagos y detalle de los materiales. La descarga no se limita a los 250 pedidos de esta pantalla.</p>
+ <h3 style="margin:0 0 6px;color:#003898">Excel simple para la contadora</h3>
+ <p class="muted" style="margin:0 0 12px">Un Excel con dos hojas: ventas y materiales (una fila por material comprado) y un resumen. Incluye RUT, comprador, giro, datos de factura y valores. No se limita a los pedidos visibles.</p>
  <div class="actions" style="align-items:flex-end">
+  <label>Compras que necesitas<select id="mecAccountantScope"><option value="all">Todas las compras pagadas</option><option value="factura">Solo las que solicitaron factura</option></select></label>
   <label>Período<select id="mecAccountantPeriod"><option value="monthly">Mensual</option><option value="annual">Anual</option></select></label>
   <label id="mecAccountantMonthLabel">Mes<select id="mecAccountantMonth"><option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option><option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option><option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option><option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option></select></label>
   <label>Año<select id="mecAccountantYear"></select></label>
   <button type="button" id="mecAccountantDownload">Descargar Excel (.xlsx)</button>
  </div>
- <p id="mecAccountantStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0">Se descarga un archivo privado con hojas de resumen, pedidos y materiales.</p>
- <p class="muted" style="margin:8px 0 0"><strong>Atención:</strong> son solicitudes de factura de pedidos pagados; no reemplaza el Registro de Ventas del SII ni acredita que una factura se haya emitido. Conciliar con los comprobantes de Mercado Pago.</p>
+ <p id="mecAccountantStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0">Un archivo sencillo: una hoja con cada material y otra con el total general.</p>
+ <p class="muted" style="margin:8px 0 0"><strong>Atención:</strong> el reporte incluye compras pagadas. Las compras antiguas pueden aparecer sin tipo de documento; la contadora debe contrastarlas con las facturas y los vouchers del SII.</p>
 </div>
 <p class="muted" id="mecInvoiceSummary" role="status" aria-live="polite">Cargando pedidos de facturación…</p>
 <div id="mecInvoiceRows" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
@@ -396,17 +397,18 @@ updateMecAccountantPeriod();
 $('mecAccountantDownload').addEventListener('click',async()=>{
  const button=$('mecAccountantDownload'),status=$('mecAccountantStatus'),year=accountantYear.value;
  const month=$('mecAccountantPeriod').value==='monthly'?accountantMonth.value:'';
+ const scope=$('mecAccountantScope').value;
  if(!year){status.textContent='Selecciona un año.';return}
  button.disabled=true;status.textContent='Preparando Excel contable. Espera a que termine la descarga…';
  try{
-  const url=API+'/api/store/admin/invoices/export.xlsx?year='+encodeURIComponent(year)+(month?'&month='+encodeURIComponent(month):'');
+  const url=API+'/api/store/admin/invoices/export.xlsx?year='+encodeURIComponent(year)+(month?'&month='+encodeURIComponent(month):'')+'&scope='+encodeURIComponent(scope);
   const response=await fetch(url,{credentials:'include',cache:'no-store'});
   if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.error||'Error al generar Excel')}
   const blob=await response.blob(),objectUrl=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=objectUrl;a.download='MEC_Facturas_Solicitadas_'+year+(month?'-'+month.padStart(2,'0'):'')+'.xlsx';
+  a.href=objectUrl;a.download='MEC_Ventas_Contadora_'+year+(month?'-'+month.padStart(2,'0'):'')+'.xlsx';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);
-  status.textContent='Archivo Excel generado. Contiene compras pagadas con factura solicitada en el período indicado.';
+  status.textContent='Excel descargado. Incluye las compras pagadas y el detalle individual de materiales.';
  }catch(e){status.textContent='No se pudo generar el Excel: '+e.message}
  finally{button.disabled=false}
 });

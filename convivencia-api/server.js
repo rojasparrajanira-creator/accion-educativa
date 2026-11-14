@@ -2217,10 +2217,10 @@ app.get('/api/store/admin/invoices/export.xlsx',requireAuth,async(req,res)=>{
     from store_orders o
     left join store_tax_documents t on t.order_id=o.id
     left join store_delivery_jobs j on j.order_id=o.id
-    where o.requested_document='factura' and o.status='paid'
-      and (o.paid_at at time zone 'America/Santiago') >= $1::timestamp
-      and (o.paid_at at time zone 'America/Santiago') < $2::timestamp
-    order by o.paid_at,o.id limit 20001`;
+    where o.requested_document='factura'
+      and (o.created_at at time zone 'America/Santiago') >= $1::timestamp
+      and (o.created_at at time zone 'America/Santiago') < $2::timestamp
+    order by o.created_at,o.id limit 20001`;
   const qr=await pool.query(query,[periodStart,periodEnd]);
   if(qr.rows.length>20000)return res.status(413).json({ok:false,error:'invoice_export_too_many_orders'});
   const orders=qr.rows,ids=orders.map(o=>o.id);
@@ -2243,21 +2243,23 @@ app.get('/api/store/admin/invoices/export.xlsx',requireAuth,async(req,res)=>{
    return /^[=+@\\-\\t\\r]/.test(str)?("'"+str):str;
   };
   const localDate=value=>value?new Date(value).toLocaleString('es-CL',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'';
-  const sumOrders=orders.reduce((n,o)=>n+Number(o.total_clp||0),0);
-  const paidOrderIds=new Set(orders.map(o=>String(o.id)));
-  const itemsSum=itemResult.rows.reduce((n,i)=>n+Number(i.line_total_clp||0),0);
+  const paid=orders.filter(o=>o.status==='paid');
+  const sumOrders=paid.reduce((n,o)=>n+Number(o.total_clp||0),0);
+  const itemsSum=paid.reduce((total,o)=>total+(itemMap.get(String(o.id))||[]).reduce((n,i)=>n+Number(i.line_total_clp||0),0),0);
   const resumen=wb.addWorksheet('Resumen',{properties:{defaultRowHeight:20}});
   resumen.columns=[{width:38},{width:25}];
   [
     ['MATERIAL EDUCATIVO CHILE · REPORTE CONTABLE',''],
     ['Período',month?String(month).padStart(2,'0')+'/'+year:String(year)+' (anual)'],
-    ['Criterio','Fecha de pago en Chile'],
-    ['Pedidos pagados con factura solicitada',orders.length],
+    ['Criterio','Fecha de creación del pedido en Chile'],
+    ['Solicitudes de factura (todos los estados)',orders.length],
+    ['Solicitudes de factura pagadas',paid.length],
+    ['Solicitudes sin pago confirmado',orders.length-paid.length],
     ['Monto total de esos pedidos (CLP)',sumOrders],
     ['Subtotal acumulado de materiales (CLP)',itemsSum],
-    ['Pedidos con discrepancia detalle/total',orders.filter(o=>(itemMap.get(String(o.id))||[]).reduce((n,i)=>n+Number(i.line_total_clp||0),0)!==Number(o.total_clp)).length],
-    ['Documentos registrados como emitidos',orders.filter(o=>o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_')).length],
-    ['Solicitudes sin factura registrada',orders.filter(o=>!(o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_'))).length],
+    ['Pedidos pagados con discrepancia detalle/total',paid.filter(o=>(itemMap.get(String(o.id))||[]).reduce((n,i)=>n+Number(i.line_total_clp||0),0)!==Number(o.total_clp)).length],
+    ['Documentos registrados como emitidos',paid.filter(o=>o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_')).length],
+    ['Solicitudes pagadas sin factura registrada',paid.filter(o=>!(o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_'))).length],
     ['Importante','Solicitar factura no acredita que el SII la haya emitido.'],
     ['Importante','Revisar voucher Mercado Pago (código 48) para evitar doble registro.'],
     ['Importante','Valores totales de venta; no se calculan IVA ni comisiones.'],
@@ -2265,7 +2267,7 @@ app.get('/api/store/admin/invoices/export.xlsx',requireAuth,async(req,res)=>{
     ['Seguridad','Archivo con datos personales y tributarios: compartir solo con la contadora por canal seguro.']
   ].forEach(row=>resumen.addRow(row));
   resumen.getRow(1).font={bold:true,color:{argb:'FF003898'},size:14};resumen.getColumn(2).alignment={wrapText:true};
-  for(const n of [5,6])resumen.getCell(n,2).numFmt='#,##0';
+  for(const n of [7,8])resumen.getCell(n,2).numFmt='#,##0';
   resumen.getColumn(2).width=75;
   const pedidos=wb.addWorksheet('Pedidos');
   pedidos.columns=[
@@ -2309,11 +2311,11 @@ app.get('/api/store/admin/invoices/export.xlsx',requireAuth,async(req,res)=>{
   const notes=wb.addWorksheet('Alcance');
   notes.getColumn(1).width=110;
   [
-   'Informe de pedidos pagados que solicitaron FACTURA en el checkout.',
+   'Informe de solicitudes de FACTURA con estado de pago visible. Solo se suman pagos confirmados.',
    'No es un registro certificado de facturas emitidas por el SII.',
    'Una solicitud pendiente no implica emisión; los campos de DTE muestran únicamente lo registrado en esta plataforma.',
-   'Se filtra por fecha local de PAGO en Chile, no por fecha de emisión tributaria.',
-   'No incluye boletas, pagos pendientes, anulados ni reembolsados.',
+   'Se filtra por fecha local de CREACIÓN de compra en Chile, no por fecha de pago ni emisión tributaria.',
+   'Incluye solicitudes de factura de todos los estados para revisión; solo los pedidos pagados se suman como ingresos.',
    'Concilie por identificador de Mercado Pago, folio DTE, monto y RUT para prevenir duplicidades en el SII.',
    'No se deduce IVA, comisión Mercado Pago ni otros cargos; se informan los precios finales guardados al comprar.',
    'La hoja Pedidos contiene totales únicos por compra; Materiales ofrece la desagregación por producto.',

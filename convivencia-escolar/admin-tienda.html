@@ -76,7 +76,7 @@ main section[id]{scroll-margin-top:85px}
 </div>
 <div class="mec-admin-export" style="padding:16px;margin:15px 0;border:1px solid #c4dced;border-radius:15px;background:#f5fbff">
  <h3 style="margin:0 0 6px;color:#003898">Excel simple para la contadora</h3>
- <p class="muted" style="margin:0 0 12px">Un Excel con dos hojas: ventas y materiales (una fila por material comprado) y un resumen. Incluye RUT, comprador, giro, datos de factura y valores. No se limita a los pedidos visibles.</p>
+ <p class="muted" style="margin:0 0 12px">Cada compra aparece una sola vez, en su propio cuadro: datos del comprador, datos de facturación y tabla de materiales con cantidades, precios y total. Descarga mensual o anual.</p>
  <div class="actions" style="align-items:flex-end">
   <label>Compras que necesitas<select id="mecAccountantScope"><option value="all">Todas las compras pagadas</option><option value="factura">Solo las que solicitaron factura</option></select></label>
   <label>Período<select id="mecAccountantPeriod"><option value="monthly">Mensual</option><option value="annual">Anual</option></select></label>
@@ -84,7 +84,7 @@ main section[id]{scroll-margin-top:85px}
   <label>Año<select id="mecAccountantYear"></select></label>
   <button type="button" id="mecAccountantDownload">Descargar Excel (.xlsx)</button>
  </div>
- <p id="mecAccountantStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0">Un archivo sencillo: una hoja con cada material y otra con el total general.</p>
+ <p id="mecAccountantStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0">Excel ordenado por compras: un cuadro de facturación y otro de materiales por pedido, sin repetir los datos del comprador.</p>
  <p class="muted" style="margin:8px 0 0"><strong>Atención:</strong> el reporte incluye compras pagadas. Las compras antiguas pueden aparecer sin tipo de documento; la contadora debe contrastarlas con las facturas y los vouchers del SII.</p>
 </div>
 <p class="muted" id="mecInvoiceSummary" role="status" aria-live="polite">Cargando pedidos de facturación…</p>
@@ -408,7 +408,7 @@ $('mecAccountantDownload').addEventListener('click',async()=>{
   const a=document.createElement('a');
   a.href=objectUrl;a.download='MEC_Ventas_Contadora_'+year+(month?'-'+month.padStart(2,'0'):'')+'.xlsx';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),60000);
-  status.textContent='Excel descargado. Incluye las compras pagadas y el detalle individual de materiales.';
+  status.textContent='Excel descargado. Cada compra está agrupada con sus datos de facturación y su detalle de materiales.';
  }catch(e){status.textContent='No se pudo generar el Excel: '+e.message}
  finally{button.disabled=false}
 });

@@ -2228,7 +2228,22 @@ app.post('/api/store/admin/orders/:id/delivery/retry',...requireRole('platform_a
 app.get('/api/store/admin/orders',requireAuth,async(req,res)=>{try{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
   const q=await pool.query("select o.id,o.order_code,o.buyer_name,o.buyer_email,o.requested_document,o.invoice_rut,o.invoice_legal_name,o.invoice_business_activity,o.invoice_address,o.invoice_commune,o.status,o.total_clp,o.payment_provider,o.paid_at,o.created_at,count(i.id)::int item_count,coalesce(j.status,'not_queued') delivery_status,j.attempts delivery_attempts,j.last_error delivery_last_error,coalesce(t.status,'pending') tax_document_status,t.document_type from store_orders o left join store_order_items i on i.order_id=o.id left join store_delivery_jobs j on j.order_id=o.id left join store_tax_documents t on t.order_id=o.id group by o.id,j.status,j.attempts,j.last_error,t.status,t.document_type order by o.created_at desc limit 250");
-  ok(res,{orders:q.rows});
+  // Los materiales se obtienen de la instantánea registrada al comprar:
+  // no utilizar precios o títulos actuales del catálogo para pedidos anteriores.
+  const ids=q.rows.map(row=>row.id);
+  let itemsByOrder=new Map();
+  if(ids.length){
+    const details=await pool.query("select order_id,product_id,product_title,unit_price_clp,quantity,(unit_price_clp * quantity)::int as line_total_clp from store_order_items where order_id=any($1::bigint[]) order by order_id,id",[ids]);
+    for(const item of details.rows){
+      const key=String(item.order_id);
+      if(!itemsByOrder.has(key))itemsByOrder.set(key,[]);
+      itemsByOrder.get(key).push({
+        product_id:item.product_id,product_title:item.product_title,
+        unit_price_clp:item.unit_price_clp,quantity:item.quantity,line_total_clp:item.line_total_clp
+      });
+    }
+  }
+  ok(res,{orders:q.rows.map(order=>({...order,items:itemsByOrder.get(String(order.id))||[]}))});
 }catch(e){res.status(400).json({ok:false,error:'store_orders_failed'})}});
 
 

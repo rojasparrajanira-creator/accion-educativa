@@ -296,6 +296,19 @@ function mecInvoiceDate(value){
  return Number.isNaN(date.getTime())?'':date.toLocaleString('es-CL',{timeZone:'America/Santiago',dateStyle:'short',timeStyle:'short'});
 }
 function mecInvoiceCell(label,value){return '<div style="margin-top:4px"><strong>'+esc(label)+':</strong> '+esc(value||'No informado')+'</div>'}
+// Desglose de materiales con valores históricos del pedido.
+function mecOrderItemsHtml(o){
+ const items=Array.isArray(o.items)?o.items:[];
+ if(!items.length)return '<div class="order-warning">Detalle de materiales no disponible para este pedido. Revisar antes de facturar.</div>';
+ const sum=items.reduce((total,i)=>total+Number(i.line_total_clp||0),0);
+ return '<div style="margin-top:9px"><strong>Materiales comprados:</strong>'+
+ '<div style="overflow-x:auto;margin-top:5px"><table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">'+
+ '<thead><tr><th style="padding:5px;border-bottom:1px solid #d6e1ed">Material</th><th style="padding:5px;border-bottom:1px solid #d6e1ed">Cantidad</th><th style="padding:5px;border-bottom:1px solid #d6e1ed">Valor unitario</th><th style="padding:5px;border-bottom:1px solid #d6e1ed">Subtotal</th></tr></thead><tbody>'+
+ items.map(i=>'<tr><td style="padding:5px;border-bottom:1px solid #edf1f6">'+esc(i.product_title||'Sin nombre')+'</td><td style="padding:5px;border-bottom:1px solid #edf1f6">'+Number(i.quantity||0)+'</td><td style="padding:5px;border-bottom:1px solid #edf1f6;white-space:nowrap">'+money(i.unit_price_clp)+'</td><td style="padding:5px;border-bottom:1px solid #edf1f6;white-space:nowrap">'+money(i.line_total_clp)+'</td></tr>').join('')+
+ '</tbody></table></div><div style="margin-top:5px"><strong>Total de materiales: '+money(sum)+'</strong></div>'+
+ (sum!==Number(o.total_clp)?'<div class="order-warning">El detalle no coincide con el total del pedido. Revisar antes de emitir el documento.</div>':'')+
+ '</div>';
+}
 function renderMecInvoices(){
  const items=mecInvoiceRowsFiltered(),container=$('mecInvoiceRows');
  const paid=items.filter(o=>o.status==='paid');
@@ -316,6 +329,7 @@ function renderMecInvoices(){
    '<div>'+esc(mecInvoiceDate(o.created_at))+' · <strong>'+(paid?'Pago confirmado':'SIN PAGO CONFIRMADO')+'</strong> · '+esc(invoice?'Factura':'Boleta')+'</div>'+
    mecInvoiceCell('Comprador',o.buyer_name)+mecInvoiceCell('Correo',o.buyer_email)+
    fields.map(([k,v])=>mecInvoiceCell(k,v)).join('')+
+   mecOrderItemsHtml(o)+
    '<div><strong>Estado tributario:</strong> '+esc(tax)+'</div>'+
    (missing?'<div class="order-warning">Faltan datos de facturación: verificar antes de emitir.</div>':'')+
    (!paid?'<div class="order-warning">No emitir como venta pagada hasta confirmar el pago.</div>':'')+
@@ -330,11 +344,15 @@ function mecSafeCsvCell(value){
 function downloadMecInvoices(){
  const rows=mecInvoiceRowsFiltered();
  if(!rows.length){$('mecInvoiceSummary').textContent='No hay registros para descargar con este filtro.';return}
- const heads=['Pedido','Código','Fecha','Estado de pago','Fecha de pago','Tipo solicitado','Nombre comprador','Correo','Monto CLP','RUT','Razón social','Giro','Dirección tributaria','Comuna','Estado documento tributario'];
- const data=rows.map(o=>[
-  o.id,o.order_code,mecInvoiceDate(o.created_at),o.status,mecInvoiceDate(o.paid_at),o.requested_document,
-  o.buyer_name,o.buyer_email,o.total_clp,o.invoice_rut,o.invoice_legal_name,o.invoice_business_activity,o.invoice_address,o.invoice_commune,o.tax_document_status
- ]);
+ const heads=['Pedido','Código','Fecha','Estado de pago','Fecha de pago','Tipo solicitado','Nombre comprador','Correo','Monto total pedido CLP','Material comprado','Cantidad','Valor unitario CLP','Subtotal material CLP','RUT','Razón social','Giro','Dirección tributaria','Comuna','Estado documento tributario'];
+ const data=rows.flatMap(o=>{
+  const items=Array.isArray(o.items)&&o.items.length?o.items:[null];
+  return items.map(i=>[
+   o.id,o.order_code,mecInvoiceDate(o.created_at),o.status,mecInvoiceDate(o.paid_at),o.requested_document,
+   o.buyer_name,o.buyer_email,o.total_clp,i?.product_title||'',i?.quantity??'',i?.unit_price_clp??'',i?.line_total_clp??'',
+   o.invoice_rut,o.invoice_legal_name,o.invoice_business_activity,o.invoice_address,o.invoice_commune,o.tax_document_status
+  ]);
+ });
  const csv='\uFEFF'+[heads,...data].map(row=>row.map(mecSafeCsvCell).join(';')).join('\r\n');
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob);
  const link=document.createElement('a');link.href=url;link.download='Material_Educativo_Chile_Datos_Tributarios_'+$('mecInvoiceFilter').value+'.csv';
@@ -374,7 +392,7 @@ async function loadStoreOrders(){
         '<div class="muted">'+payment+' · '+delivery+'</div>'+
         (wrongEmail?'<div class="order-warning">⚠ Correo con posible error de escritura. Confirma la dirección con el comprador antes de reenviar.</div>':'')+
         (failedDelivery?'<div class="order-warning">⚠ Entrega no completada por el sistema. Requiere revisión.</div>':'')+
-        '<div class="muted">'+requested+' · '+fiscal+'</div></div>'+
+        '<div class="muted">'+requested+' · '+fiscal+'</div>'+mecOrderItemsHtml(o)+'</div>'+
         (paid?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Comprobar / conceder acceso al comprador</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div><p data-drive-feedback role="status" aria-live="polite" style="display:none;max-width:390px;margin:0;padding:10px 12px;border:1px solid #cbd9ef;border-radius:10px;background:#f5f9ff;color:#203353;font-size:13px;line-height:1.45;overflow-wrap:anywhere"></p></div>':'')+'</div>';
     }).join('');
   }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message;$('mecInvoiceSummary').textContent='No fue posible cargar los datos tributarios: '+e.message}

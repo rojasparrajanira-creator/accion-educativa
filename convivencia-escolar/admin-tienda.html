@@ -30,10 +30,55 @@ button.danger:hover,button.danger:focus-visible{background:#ffe4e6}
 .mec-admin-popular-row strong{font-size:13px;white-space:nowrap;color:#6c35a5}
 @media(max-width:770px){.mec-admin-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:380px){.mec-admin-stat-grid{grid-template-columns:minmax(0,1fr)}}
+/* Navegación y orden visual del superadministrador de la tienda. */
+html{scroll-behavior:smooth}
+.mec-admin-heading{margin:0 0 16px;padding:21px 23px;border-radius:17px;background:linear-gradient(115deg,#073a8c,#0758a5);color:#fff}
+.mec-admin-heading h1{margin:6px 0 6px;color:#fff;font-size:clamp(23px,3.5vw,31px)}
+.mec-admin-heading p{margin:0;color:#e2f4ff;font-size:14px;line-height:1.55}
+.mec-admin-kicker{font-size:10px;font-weight:900;letter-spacing:.11em;color:#a8f0f8}
+.mec-admin-nav{display:flex;gap:8px;overflow-x:auto;padding:12px 4px 14px;margin:0 0 20px;scrollbar-width:thin;position:sticky;top:0;z-index:20;background:rgba(244,251,255,.97);backdrop-filter:blur(8px);border-bottom:1px solid #e3eaf5}
+.mec-admin-nav a{white-space:nowrap;text-decoration:none;font-size:12px;font-weight:800;padding:9px 13px;border-radius:999px;border:1px solid #c9d8ec;background:#fff;color:#003898}
+.mec-admin-nav a:hover,.mec-admin-nav a:focus-visible{background:#eaf6ff;outline:2px solid #13c4d9;outline-offset:1px}
+.mec-admin-group{margin:28px 2px 13px;border-bottom:1px solid #dce6f4;padding-bottom:11px}
+.mec-admin-group span{font-size:12px;letter-spacing:.075em;color:#003898;font-weight:900}
+.mec-admin-group p{margin:5px 0 0;color:#64748b;font-size:13px}
+main section[id]{scroll-margin-top:85px}
+@media(max-width:720px){.mec-admin-heading{padding:17px}.mec-admin-nav{margin:0 -4px 14px}.mec-admin-group{margin-top:22px}}
 </style><link rel="stylesheet" href="css/portal-footer.css">
 </head>
 <body><header><strong>Material Educativo Chile · Superadministrador · Tienda</strong><div style="display:flex;gap:9px;flex-wrap:wrap"><button class="secondary" onclick="location.href='admin-centro.html'">Centro de administración</button><button class="secondary" onclick="location.href='https://material-educativo-chile-portal.onrender.com'">Volver al portal</button></div></header>
-<main><section class="card mec-admin-analytics" aria-labelledby="adminAnalyticsTitle">
+<main><div class="mec-admin-heading"><div><span class="mec-admin-kicker">GESTIÓN DE LA TIENDA</span><h1>Panel de superadministración</h1><p>Consulta las compras, prepara facturas y administra los materiales desde un solo lugar.</p></div></div>
+<nav class="mec-admin-nav" aria-label="Accesos rápidos a la tienda">
+<a href="#mecOrders">Pedidos y entregas</a>
+<a href="#mecInvoicePanel">Facturas y boletas</a>
+<a href="#mecAnalytics">Estadísticas</a>
+<a href="#mecProducts">Materiales cargados</a>
+<a href="#mecProductEditor">Agregar o editar</a>
+<a href="#mecDriveAudit">Verificar carpetas</a>
+<a href="#mecBulkDrive">Permisos Drive</a>
+<a href="#mecDriveAccounts">Cuentas Drive</a>
+</nav>
+<div class="mec-admin-group"><span>VENTAS Y FACTURACIÓN</span><p>Pedidos, montos, productos comprados y documentos tributarios.</p></div>
+<section id="mecOrders" class="card"><h2>Pedidos y entregas</h2><p class="muted">Revisa los pagos y el envío digital de los materiales. Las carpetas de Google Drive deben estar en <strong>Restringido</strong>: después de confirmar el pago, la plataforma autoriza exclusivamente el correo del comprador como <strong>Lector</strong>. Si Google no permite otorgar ese acceso, el correo queda pendiente, nunca se hace público el material. En integración, el mensaje de prueba llega a la casilla de pruebas, pero Drive autoriza al comprador registrado.</p>
+<p id="orderDeliveryAlerts" role="status" aria-live="polite" class="delivery-alerts" hidden></p>
+<p class="muted" id="deliveryConfigStatus">Comprobando la configuración…</p>
+<p class="muted" id="privateDriveAutomationStatus" role="status" style="margin:10px 0;padding:12px 15px;background:#f3f8fe;border:1px solid #cbd9ef;border-radius:12px">Comprobando autorización automática de carpetas privadas…</p>
+<p id="mecOrderDetailVersion" class="muted" style="font-weight:800;color:#0756a0">Detalle por material y valores · versión 2026-11-13. Si no ves los materiales, revisa el mensaje de carga que aparece debajo.</p>
+<div class="actions"><button class="secondary" type="button" id="refreshStoreOrders">Actualizar pedidos</button></div>
+<div id="storeOrdersList" class="muted" style="margin-top:12px">Cargando pedidos…</div>
+<p id="storeOrdersMessage" class="muted" role="status" aria-live="polite"></p></section>
+<section class="card" id="mecInvoicePanel" aria-labelledby="mecInvoiceTitle">
+<h2 id="mecInvoiceTitle">Datos para emitir boletas y facturas</h2>
+<p class="muted">Información privada ingresada por los compradores. Solo pedidos con pago confirmado pueden considerarse para emisión. La tienda no emite automáticamente el documento tributario.</p>
+<div class="actions">
+ <label style="min-width:185px">Mostrar documento<select id="mecInvoiceFilter"><option value="factura">Facturas solicitadas</option><option value="boleta">Boletas solicitadas</option><option value="todos">Todos los documentos</option></select></label>
+ <button type="button" class="secondary" id="mecInvoiceExport">Descargar CSV para Excel</button>
+</div>
+<p class="muted" id="mecInvoiceSummary" role="status" aria-live="polite">Cargando pedidos de facturación…</p>
+<div id="mecInvoiceRows" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
+<p class="muted">El listado utiliza los últimos 250 pedidos disponibles en administración. Antes de emitir, revisa el pago, los datos tributarios, la emisión previa y las instrucciones de tu contadora para evitar documentos duplicados.</p>
+</section><div class="mec-admin-group"><span>CATÁLOGO Y ESTADÍSTICAS</span><p>Revisa el rendimiento y gestiona los materiales publicados.</p></div>
+<section id="mecAnalytics" class="card mec-admin-analytics" aria-labelledby="adminAnalyticsTitle">
 <div class="mec-admin-analytics-top"><div><span class="mec-admin-analytics-tag">SOLO SÚPER ADMINISTRADOR</span><h1 id="adminAnalyticsTitle">Estadísticas de la tienda</h1><p class="muted">Indicadores privados, no visibles para los compradores.</p></div><button type="button" class="secondary" id="refreshAdminAnalytics">Actualizar cifras</button></div>
 <div class="mec-admin-stat-grid">
 <div class="mec-admin-stat"><strong data-admin-stat="visitors">—</strong><span>Visitantes del sitio</span></div>
@@ -42,7 +87,13 @@ button.danger:hover,button.danger:focus-visible{background:#ffe4e6}
 <div class="mec-admin-stat"><strong data-admin-stat="online">—</strong><span>Visitantes activos</span></div></div>
 <p class="muted" id="adminAnalyticsStatus" role="status" aria-live="polite">Cargando estadísticas…</p>
 <div class="mec-admin-popular"><h2>Materiales más visualizados</h2><p class="muted">Visualizaciones acumuladas desde la activación del registro.</p><div id="adminPopularMaterials" class="mec-admin-popular-list">Cargando materiales…</div></div>
-</section><section class="card"><h1>Cuentas de Google Drive</h1><p class="muted">Conecta de forma segura las cuentas donde alojas tus materiales. La contraseña de Google nunca se entrega ni se almacena en esta plataforma.</p><div id="oauthHelp" class="muted" style="margin:10px 0 16px"></div><div class="grid"><div><label>Nombre para identificar la cuenta</label><input id="driveLabel" placeholder="Ej.: Materiales cuenta 1"></div><div><label>Correo Google</label><input id="driveEmail" type="email" placeholder="correo@gmail.com"></div></div><div class="actions"><button type="button" id="saveDrive">Registrar cuenta Drive</button></div><div id="driveList" class="muted"></div><p id="driveMsg" class="muted"></p></section><section class="card"><h1>Administrar productos</h1><p class="muted">Tú eliges qué materiales publicar. El enlace de Drive se guarda para la entrega posterior al pago y no aparece en el catálogo público.</p>
+</section>
+<section id="mecProducts" class="card"><h2>Productos cargados</h2>
+<p class="muted">Puedes editar o eliminar un material duplicado. Al eliminarlo, desaparece del catálogo público y se conserva archivado por seguridad.</p>
+<label class="archive-toggle"><input id="showArchivedProducts" type="checkbox"> Mostrar materiales eliminados / archivados</label>
+<p id="productsMsg" class="muted" role="status" aria-live="polite"></p>
+<div id="products" class="muted">Cargando…</div></section>
+<section id="mecProductEditor" class="card"><h1>Administrar productos</h1><p class="muted">Tú eliges qué materiales publicar. El enlace de Drive se guarda para la entrega posterior al pago y no aparece en el catálogo público.</p>
 <form id="form"><input type="hidden" id="id"><div class="grid">
 <div><label>Nombre del material *</label><input id="title" required></div>
 <div><label>Destinatarios / niveles</label><input id="audience" placeholder="Ej.: 7°–8° básico"></div>
@@ -54,13 +105,15 @@ button.danger:hover,button.danger:focus-visible{background:#ffe4e6}
 <div><label>Precio CLP *</label><input id="price" type="number" min="0" step="1" required></div>
 <div><label>Precio normal (opcional, para mostrar oferta)</label><input id="compare" type="number" min="0" step="1"></div>
 <div><label>Estado</label><select id="status"><option value="draft">Borrador</option><option value="published">Publicado</option><option value="archived">Archivado</option></select></div>
-</div><div class="actions"><button type="submit">Guardar producto</button><button type="button" class="secondary" onclick="clearForm()">Nuevo / limpiar</button></div><p id="msg" class="muted"></p></form></section>
-<section class="card"><h2>Productos cargados</h2>
-<p class="muted">Puedes editar o eliminar un material duplicado. Al eliminarlo, desaparece del catálogo público y se conserva archivado por seguridad.</p>
-<label class="archive-toggle"><input id="showArchivedProducts" type="checkbox"> Mostrar materiales eliminados / archivados</label>
-<p id="productsMsg" class="muted" role="status" aria-live="polite"></p>
-<div id="products" class="muted">Cargando…</div></section>
-<section class="card" aria-labelledby="bulkDriveSetupTitle">
+</div><div class="actions"><button type="submit">Guardar producto</button><button type="button" class="secondary" onclick="clearForm()">Nuevo / limpiar</button></div><p id="msg" class="muted"></p></form></section><div class="mec-admin-group"><span>GOOGLE DRIVE Y CONFIGURACIÓN</span><p>Herramientas técnicas de acceso y verificación de carpetas privadas.</p></div>
+<section id="mecDriveAudit" class="card" aria-labelledby="allFolderAuditTitle">
+<h2 id="allFolderAuditTitle">Verificación de todas las carpetas de venta</h2>
+<p class="muted">Revisión privada para la administración. Comprueba cada producto registrado sin crear compras ni abrir sus carpetas al público. El cliente nunca ve este diagnóstico.</p>
+<div class="actions"><button id="checkAllFolderAccess" type="button">Verificar todas las carpetas</button></div>
+<p id="allFolderAuditStatus" class="muted" role="status" aria-live="polite">Pendiente de verificación integral.</p>
+<div id="allFolderAuditResults" class="muted" style="margin-top:8px;max-height:450px;overflow:auto"></div>
+</section>
+<section id="mecBulkDrive" class="card" aria-labelledby="bulkDriveSetupTitle">
 <h2 id="bulkDriveSetupTitle">Preparar permisos de todas las carpetas de la tienda</h2>
 <p class="muted">Esta preparación es solo para la administración. Se genera un script limitado a las carpetas asociadas a los productos registrados, sin abrir materiales al público ni autorizar compradores antes de pagar.</p>
 <div class="actions"><button type="button" id="generateDriveSetup">Preparar autorización masiva</button></div>
@@ -75,32 +128,7 @@ button.danger:hover,button.danger:focus-visible{background:#ffe4e6}
   <p class="muted">En Google Apps Script, pega el código, elige la función <strong>autorizarCarpetasMaterialEducativo</strong> y ejecuta con la cuenta <strong>materialeducativochile1@gmail.com</strong>. Revisa los permisos solicitados por Google y el registro de ejecución. Después pulsa «Verificar todas las carpetas» en esta página. No pegues aquí la clave JSON.</p>
 </div>
 </section>
-<section class="card" aria-labelledby="allFolderAuditTitle">
-<h2 id="allFolderAuditTitle">Verificación de todas las carpetas de venta</h2>
-<p class="muted">Revisión privada para la administración. Comprueba cada producto registrado sin crear compras ni abrir sus carpetas al público. El cliente nunca ve este diagnóstico.</p>
-<div class="actions"><button id="checkAllFolderAccess" type="button">Verificar todas las carpetas</button></div>
-<p id="allFolderAuditStatus" class="muted" role="status" aria-live="polite">Pendiente de verificación integral.</p>
-<div id="allFolderAuditResults" class="muted" style="margin-top:8px;max-height:450px;overflow:auto"></div>
-</section>
-<section class="card" id="mecInvoicePanel" aria-labelledby="mecInvoiceTitle">
-<h2 id="mecInvoiceTitle">Datos para emitir boletas y facturas</h2>
-<p class="muted">Información privada ingresada por los compradores. Solo pedidos con pago confirmado pueden considerarse para emisión. La tienda no emite automáticamente el documento tributario.</p>
-<div class="actions">
- <label style="min-width:185px">Mostrar documento<select id="mecInvoiceFilter"><option value="factura">Facturas solicitadas</option><option value="boleta">Boletas solicitadas</option><option value="todos">Todos los documentos</option></select></label>
- <button type="button" class="secondary" id="mecInvoiceExport">Descargar CSV para Excel</button>
-</div>
-<p class="muted" id="mecInvoiceSummary" role="status" aria-live="polite">Cargando pedidos de facturación…</p>
-<div id="mecInvoiceRows" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
-<p class="muted">El listado utiliza los últimos 250 pedidos disponibles en administración. Antes de emitir, revisa el pago, los datos tributarios, la emisión previa y las instrucciones de tu contadora para evitar documentos duplicados.</p>
-</section>
-<section class="card"><h2>Pedidos y entregas</h2><p class="muted">Revisa los pagos y el envío digital de los materiales. Las carpetas de Google Drive deben estar en <strong>Restringido</strong>: después de confirmar el pago, la plataforma autoriza exclusivamente el correo del comprador como <strong>Lector</strong>. Si Google no permite otorgar ese acceso, el correo queda pendiente, nunca se hace público el material. En integración, el mensaje de prueba llega a la casilla de pruebas, pero Drive autoriza al comprador registrado.</p>
-<p id="orderDeliveryAlerts" role="status" aria-live="polite" class="delivery-alerts" hidden></p>
-<p class="muted" id="deliveryConfigStatus">Comprobando la configuración…</p>
-<p class="muted" id="privateDriveAutomationStatus" role="status" style="margin:10px 0;padding:12px 15px;background:#f3f8fe;border:1px solid #cbd9ef;border-radius:12px">Comprobando autorización automática de carpetas privadas…</p>
-<p id="mecOrderDetailVersion" class="muted" style="font-weight:800;color:#0756a0">Detalle por material y valores · versión 2026-11-13. Si no ves los materiales, revisa el mensaje de carga que aparece debajo.</p>
-<div class="actions"><button class="secondary" type="button" id="refreshStoreOrders">Actualizar pedidos</button></div>
-<div id="storeOrdersList" class="muted" style="margin-top:12px">Cargando pedidos…</div>
-<p id="storeOrdersMessage" class="muted" role="status" aria-live="polite"></p></section></main>
+<section id="mecDriveAccounts" class="card"><h1>Cuentas de Google Drive</h1><p class="muted">Conecta de forma segura las cuentas donde alojas tus materiales. La contraseña de Google nunca se entrega ni se almacena en esta plataforma.</p><div id="oauthHelp" class="muted" style="margin:10px 0 16px"></div><div class="grid"><div><label>Nombre para identificar la cuenta</label><input id="driveLabel" placeholder="Ej.: Materiales cuenta 1"></div><div><label>Correo Google</label><input id="driveEmail" type="email" placeholder="correo@gmail.com"></div></div><div class="actions"><button type="button" id="saveDrive">Registrar cuenta Drive</button></div><div id="driveList" class="muted"></div><p id="driveMsg" class="muted"></p></section></main>
 <script>
 const API='https://convivencia-escolar-api.onrender.com';let rows=[],driveAccounts=[],driveOAuthConfigured=false,driveOAuthRedirect='';
 const $=id=>document.getElementById(id);

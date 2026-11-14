@@ -2214,58 +2214,93 @@ app.get('/api/store/admin/invoices/export.xlsx',requireAuth,async(req,res)=>{
     [start,finish,scope]);
   if(q.rows.length>50000)return res.status(413).json({ok:false,error:'invoice_export_too_many_rows'});
   const wb=new ExcelJS.Workbook();
-  wb.creator='Material Educativo Chile';wb.subject='Resumen contable de compras y materiales';
-  const sheet=wb.addWorksheet('Ventas y materiales');
-  sheet.columns=[
-   ['Fecha','date',18],['N° pedido','order',32],['Documento solicitado','document',24],
-   ['Estado factura','tax',32],['Folio factura registrado','folio',25],
-   ['Comprador','buyer',30],['RUT','rut',20],['Razón social','legal',40],
-   ['Giro','activity',35],['Dirección','address',40],['Comuna','commune',22],
-   ['Correo','email',36],['Material comprado','material',58],['Cantidad','qty',13],
-   ['Valor unitario CLP','unit',23],['Subtotal CLP','subtotal',20],
-   ['Total pedido CLP (referencia)','total',30],['Medio de pago','provider',20],
-   ['ID Mercado Pago','payment',29]
-  ].map(([header,key,width])=>({header,key,width}));
+  wb.creator='Material Educativo Chile';wb.subject='Compras agrupadas para contabilidad';
+  const sheet=wb.addWorksheet('Compras detalladas');
+  sheet.columns=[{width:17},{width:36},{width:28},{width:24},{width:23},{width:25},{width:24}];
+  sheet.views=[{state:'frozen',ySplit:3}];
+  sheet.pageSetup={orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0};
   const safe=v=>{const t=String(v??'').trim();return /^[=+@-]/.test(t)?"'"+t:t};
-  const date=v=>v?new Date(v).toLocaleDateString('es-CL',{timeZone:'America/Santiago'}):'';
-  const labels={factura:'Factura solicitada',boleta:'Boleta solicitada',unspecified:'Sin indicar - revisar'};
-  const ids=new Set();let amount=0;
-  for(const o of q.rows){
-   if(!ids.has(String(o.id))){ids.add(String(o.id));amount+=Number(o.total_clp||0)}
-   const issued=o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_');
-   const row=sheet.addRow({
-    date:date(o.created_at),order:safe(o.order_code),document:labels[o.requested_document]||'Sin indicar - revisar',
-    tax:issued?'Factura registrada':'No confirmada en plataforma',folio:issued?safe(o.document_number):'',
-    buyer:safe(o.buyer_name),rut:safe(o.invoice_rut),legal:safe(o.invoice_legal_name),
-    activity:safe(o.invoice_business_activity),address:safe(o.invoice_address),commune:safe(o.invoice_commune),
-    email:safe(o.buyer_email),material:safe(o.product_title)||'Sin detalle',qty:o.quantity==null?'':Number(o.quantity),
-    unit:o.unit_price_clp==null?'':Number(o.unit_price_clp),
-    subtotal:o.line_total==null?'':Number(o.line_total),total:Number(o.total_clp),
-    provider:safe(o.payment_provider),payment:safe(o.payment_id)
-   });
-   if(o.requested_document==='unspecified')row.getCell('document').font={bold:true,color:{argb:'FF9C6012'}};
+  const date=v=>v?new Date(v).toLocaleString('es-CL',{timeZone:'America/Santiago',dateStyle:'short',timeStyle:'short'}):'';
+  const fmt='#,##0';
+  const dark='FF003898',light='FFE9F4FB',line='FFD2DDED';
+  const titleRow=(label,background=dark)=>{
+   const n=sheet.rowCount+1;sheet.mergeCells(n,1,n,7);
+   const cell=sheet.getCell(n,1);cell.value=label;
+   cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:background}};
+   cell.font={bold:true,color:{argb:background===dark?'FFFFFFFF':'FF003898'},size:11};
+   cell.alignment={vertical:'middle',indent:1};
+   sheet.getRow(n).height=26;
+  };
+  const field=(label,value,label2,value2)=>{
+   const r=sheet.addRow([label,safe(value),label2||'',safe(value2)]);
+   for(const n of [1,3]){const c=r.getCell(n);c.font={bold:true,color:{argb:'FF26415F'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:light}}}
+   r.eachCell({includeEmpty:true},(c,n)=>{if(n<=4){c.border={bottom:{style:'hair',color:{argb:line}}};c.alignment={vertical:'middle',wrapText:true}}});
+   r.height=26;
+  };
+  const tableHead=()=>{
+   const r=sheet.addRow(['Material comprado','', '', '', 'Cantidad','Precio unitario','Subtotal']);
+   sheet.mergeCells(r.number,1,r.number,4);
+   for(const c of r.cells){c.font={bold:true,color:{argb:'FF003898'}};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:light}};c.alignment={vertical:'middle'}}
+   r.height=25;
+  };
+  titleRow('MATERIAL EDUCATIVO CHILE - COMPRAS PARA CONTABILIDAD');
+  titleRow('Período: '+(month?String(month).padStart(2,'0')+'/'+year:'Año '+year)+'  |  '+(scope==='factura'?'Solo solicitudes de factura':'Todas las compras pagadas'),light);
+  sheet.addRow([]);
+  let orders=0,total=0;
+  const groups=new Map();
+  for(const row of q.rows){
+   const id=String(row.id);
+   if(!groups.has(id))groups.set(id,[]);
+   groups.get(id).push(row);
   }
-  const header=sheet.getRow(1);header.height=30;
-  header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF003898'}};cell.alignment={vertical:'middle',wrapText:true}});
-  sheet.views=[{state:'frozen',ySplit:1}];
-  sheet.autoFilter={from:{row:1,column:1},to:{row:1,column:sheet.columnCount}};
-  for(const c of ['O','P','Q'])sheet.getColumn(c).numFmt='#,##0';
-  const summary=wb.addWorksheet('Resumen');
-  summary.columns=[{width:40},{width:76}];
-  [
-   ['MATERIAL EDUCATIVO CHILE - INFORME CONTABLE',''],
-   ['Período',month?String(month).padStart(2,'0')+'/'+year:String(year)+' anual'],
-   ['Tipo',scope==='factura'?'Solo compras que solicitaron factura':'Todas las compras pagadas'],
-   ['Cantidad de compras pagadas',ids.size],['Total de compras CLP',amount],
-   ['Filas de materiales',q.rows.length],
-   ['Importante','Cada material ocupa una fila; no sumar la columna Total pedido repetida.'],
-   ['Importante','Factura solicitada no acredita emisión ante el SII.'],
-   ['Importante','Pedidos sin tipo indicado requieren revisión de la contadora.'],
-   ['Importante','Comparar ID Mercado Pago, RUT, montos y DTE con el SII.'],
-   ['Importante','Período calculado por fecha de creación del pedido en Chile.']
-  ].forEach(row=>summary.addRow(row));
-  summary.getRow(1).font={bold:true,color:{argb:'FF003898'},size:13};
-  summary.getCell('B5').numFmt='#,##0';
+  for(const items of groups.values()){
+   const o=items[0];orders++;total+=Number(o.total_clp||0);
+   const doc={factura:'Factura solicitada',boleta:'Boleta solicitada',unspecified:'Sin tipo registrado: revisar'}[o.requested_document]||'Revisar';
+   const issued=o.tax_status==='issued'&&String(o.document_type||'').startsWith('factura_');
+   titleRow('COMPRA N° '+safe(o.id)+'  |  '+safe(o.order_code));
+   field('Fecha',date(o.created_at),'Pago','Confirmado');
+   field('Comprador',o.buyer_name,'Correo',o.buyer_email);
+   field('Documento',doc,'Mercado Pago ID',o.payment_id);
+   titleRow('DATOS PARA FACTURACIÓN',light);
+   field('RUT',o.invoice_rut,'Razón social',o.invoice_legal_name);
+   field('Giro',o.invoice_business_activity,'Dirección',o.invoice_address);
+   field('Comuna',o.invoice_commune,'Factura en sistema',issued?'Registrada como emitida':'No confirmada');
+   field('Folio',issued?o.document_number:'','Medio de pago',o.payment_provider);
+   titleRow('DETALLE DE MATERIALES',light);
+   tableHead();
+   let itemTotal=0;
+   for(const i of items){
+    const n=sheet.rowCount+1;
+    sheet.mergeCells(n,1,n,4);
+    const rr=sheet.getRow(n);
+    rr.getCell(1).value=safe(i.product_title)||'Detalle no disponible';
+    rr.getCell(5).value=i.quantity==null?'':Number(i.quantity);
+    rr.getCell(6).value=i.unit_price_clp==null?'':Number(i.unit_price_clp);
+    rr.getCell(7).value=i.line_total==null?'':Number(i.line_total);
+    for(const col of [6,7])rr.getCell(col).numFmt=fmt;
+    rr.eachCell({includeEmpty:true},cell=>{cell.alignment={vertical:'middle',wrapText:true};cell.border={bottom:{style:'hair',color:{argb:line}}}});
+    rr.height=36;
+    itemTotal+=Number(i.line_total||0);
+   }
+   const sum=sheet.addRow(['TOTAL DE LA COMPRA','','','','','',Number(o.total_clp||0)]);
+   sheet.mergeCells(sum.number,1,sum.number,6);
+   sum.getCell(1).font={bold:true,color:{argb:dark}};
+   sum.getCell(7).font={bold:true,color:{argb:dark}};
+   sum.getCell(7).numFmt=fmt;
+   sum.getCell(7).fill={type:'pattern',pattern:'solid',fgColor:{argb:light}};
+   sum.height=28;
+   if(itemTotal!==Number(o.total_clp||0)){
+    const warn=sheet.addRow(['ATENCIÓN: los subtotales no coinciden con el total del pedido. Revisar.']);
+    sheet.mergeCells(warn.number,1,warn.number,7);
+    warn.getCell(1).font={bold:true,color:{argb:'FF9F1239'}};
+   }
+   sheet.addRow([]);sheet.addRow([]);
+  }
+  titleRow('RESUMEN DEL PERÍODO',light);
+  field('Compras pagadas',orders,'Total en CLP',total.toLocaleString('es-CL'));
+  field('Verificación','Una compra aparece una vez; sus materiales están debajo.','','');
+  field('Importante','La solicitud de factura no acredita emisión en el SII. Revisar vouchers y DTE.','','');
+  sheet.printOptions={horizontalCentered:true};
   const buffer=await wb.xlsx.writeBuffer();
   res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition','attachment; filename="MEC_Ventas_Contadora_'+year+(month?'-'+String(month).padStart(2,'0'):'')+'.xlsx"');

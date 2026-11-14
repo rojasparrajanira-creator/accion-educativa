@@ -97,6 +97,7 @@ button.danger:hover,button.danger:focus-visible{background:#ffe4e6}
 <p id="orderDeliveryAlerts" role="status" aria-live="polite" class="delivery-alerts" hidden></p>
 <p class="muted" id="deliveryConfigStatus">Comprobando la configuración…</p>
 <p class="muted" id="privateDriveAutomationStatus" role="status" style="margin:10px 0;padding:12px 15px;background:#f3f8fe;border:1px solid #cbd9ef;border-radius:12px">Comprobando autorización automática de carpetas privadas…</p>
+<p id="mecOrderDetailVersion" class="muted" style="font-weight:800;color:#0756a0">Detalle por material y valores · versión 2026-11-13. Si no ves los materiales, revisa el mensaje de carga que aparece debajo.</p>
 <div class="actions"><button class="secondary" type="button" id="refreshStoreOrders">Actualizar pedidos</button></div>
 <div id="storeOrdersList" class="muted" style="margin-top:12px">Cargando pedidos…</div>
 <p id="storeOrdersMessage" class="muted" role="status" aria-live="polite"></p></section></main>
@@ -362,7 +363,9 @@ $('mecInvoiceFilter').addEventListener('change',renderMecInvoices);
 $('mecInvoiceExport').addEventListener('click',downloadMecInvoices);
 async function loadStoreOrders(){
   try{
-    const [data,config]=await Promise.all([api('/api/store/admin/orders'),api('/api/store/admin/delivery/config')]);
+    $('mecOrderDetailVersion').textContent='Consultando materiales y valores de cada pedido…';
+    const [data,config]=await Promise.all([api('/api/store/admin/orders?detalle=materiales-v2&nocache='+Date.now(),{cache:'no-store'}),api('/api/store/admin/delivery/config')]);
+    $('mecOrderDetailVersion').textContent='Detalle por material y valores · versión 2026-11-13 · '+(data.orders||[]).length+' pedidos consultados';
     $('deliveryConfigStatus').textContent=config.email_ready
       ?(config.test_mode?'Correo de prueba habilitado. Drive autoriza solo al comprador; el mensaje se envía a la casilla de pruebas una vez concedido el acceso.':'Envío privado después del pago, únicamente cuando Drive conceda acceso al comprador. Los documentos tributarios se registran por separado.')
       :('Envío aún no habilitado. Resend: '+(config.provider_configured?'clave configurada':'falta clave')+'; remitente: '+(config.sender_configured?'configurado':'falta verificar y configurar')+'; correo de prueba: '+(config.test_recipient_configured?'configurado':'falta configurar')+'; entrega: '+(config.enabled?'habilitada':'deshabilitada')+'. No ingresar contraseñas en este panel.');
@@ -395,7 +398,7 @@ async function loadStoreOrders(){
         '<div class="muted">'+requested+' · '+fiscal+'</div>'+mecOrderItemsHtml(o)+'</div>'+
         (paid?'<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="secondary" data-drive-authorize="'+Number(o.id)+'">Comprobar / conceder acceso al comprador</button>'+(retry?'<button type="button" class="secondary" data-delivery-retry="'+Number(o.id)+'">Reintentar envío</button>':'')+'</div><p data-drive-feedback role="status" aria-live="polite" style="display:none;max-width:390px;margin:0;padding:10px 12px;border:1px solid #cbd9ef;border-radius:10px;background:#f5f9ff;color:#203353;font-size:13px;line-height:1.45;overflow-wrap:anywhere"></p></div>':'')+'</div>';
     }).join('');
-  }catch(e){$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message;$('mecInvoiceSummary').textContent='No fue posible cargar los datos tributarios: '+e.message}
+  }catch(e){$('mecOrderDetailVersion').textContent='No se pudo cargar el detalle. Error: '+e.message;$('storeOrdersList').textContent='No fue posible consultar los pedidos: '+e.message;$('mecInvoiceSummary').textContent='No fue posible cargar los datos tributarios: '+e.message}
 }
 $('refreshStoreOrders').addEventListener('click',loadStoreOrders);
 $('storeOrdersList').addEventListener('click',async e=>{

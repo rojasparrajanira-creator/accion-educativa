@@ -2202,7 +2202,7 @@ app.get('/api/store/admin/invoices/export.xlsx',requireAuth,async(req,res)=>{
   if(canonicalRole(req.auth.role,req.auth.rbd)!=='platform_admin')return res.status(403).json({ok:false,error:'role_forbidden'});
   const yearRaw=String(req.query.year||''),monthRaw=String(req.query.month||'');
   const year=Number(yearRaw),month=monthRaw?Number(monthRaw):null;
-  if(!/^\\d{4}$/.test(yearRaw)||year<2020||year>2100||
+  if(!/^\d{4}$/.test(yearRaw)||year<2020||year>2100||
      (monthRaw!==''&&(!/^(?:[1-9]|1[0-2])$/.test(monthRaw)||!Number.isInteger(month))))
    return res.status(400).json({ok:false,error:'invalid_invoice_export_period'});
   const periodStart=yearRaw+'-'+String(month||1).padStart(2,'0')+'-01';

@@ -379,12 +379,12 @@ function courseKey(v){
  // Enseñanza media: 1° medio C, 1M C, I Medio C y 3° EM.
  m=n.match(/^(iv|iii|ii|i)\s*°?\s*(?:medio|media|em|m)?(?:\s+([a-z]))?(?:\s|$)/);
  if(m)return 'm'+({i:1,ii:2,iii:3,iv:4}[m[1]])+(m[2]||'');
- m=n.match(/^([1-4])\s*°?\s*(?:medio|media|em|m)(?:\s+([a-z]))?(?:\s|$)/);
+ m=n.match(/^([1-4])\s*°?\s*(?:medio|media|em|m)(?:\s+(?:tp|hc|tecnico\s+profesional|humanista\s+cientifico))?(?:\s+([a-z]))?(?:\s|$)/);
  if(m)return 'm'+Number(m[1])+(m[2]||'');
  m=n.match(/^([1-8])\s*°?\s*(?:(?:basico|basica|eb)\s*)?([a-z])?(?:\s|$)/);
  if(m)return 'b'+Number(m[1])+(m[2]||'');
  // Códigos SIGE de educación especial: conservar código y curso sin asumir equivalencia.
- if(/^especial\b|^escuela\s+especial\b/.test(n))return 'especial-'+n.replace(/[^a-z0-9]+/g,'-');
+ if(/^(?:educacion\s+especial|especial|escuela\s+especial)\b/.test(n))return 'especial-'+n.replace(/[^a-z0-9]+/g,'-');
  return '';
 }
 function composeCourse(m){

@@ -301,7 +301,7 @@ function setSessionCookie(res,token,maxAge=28800){
 async function sessionUser(req){
   const token=cookieValue(req,'mec_session');
   if(!token)return null;
-  const q=await pool.query(`select u.id,u.establishment_id,u.email,u.rut,u.name,u.role,u.active,u.must_change_password,u.temporary_password_expires_at,e.name establishment,e.rbd
+  const q=await pool.query(`select u.id,u.establishment_id,u.email,u.rut,u.name,u.role,u.active,u.must_change_password,u.temporary_password_expires_at,e.name establishment,e.rbd,e.free_institutional_access
     from auth_sessions s join users u on u.id=s.user_id join establishments e on e.id=u.establishment_id
     where s.token_hash=$1 and s.expires_at>now() and u.active=true and e.archived_at is null limit 1`,[sha256(token)]);
   return q.rows[0]||null;
@@ -313,7 +313,7 @@ async function requireAuth(req,res,next){
     req.auth=user;
     const safe=['/api/auth/me','/api/auth/logout','/api/auth/change-password','/api/subscriptions/me','/api/subscriptions/cancel'];
     if(user.must_change_password&&!safe.includes(req.path))return res.status(403).json({ok:false,error:'password_change_required'});
-    if(user.role!=='platform_admin'&&!safe.includes(req.path)&&!(await subscriptions.accessStatus(user.establishment_id)))return res.status(403).json({ok:false,error:'subscription_expired'});
+    if(user.role!=='platform_admin'&&!user.free_institutional_access&&!safe.includes(req.path)&&!(await subscriptions.accessStatus(user.establishment_id)))return res.status(403).json({ok:false,error:'subscription_expired'});
     next();
   }catch(e){res.status(401).json({ok:false,error:'authentication_required'})}
 }
@@ -518,7 +518,7 @@ app.use('/api',async(req,res,next)=>{
     if(match){const q=await pool.query('select s.establishment_id from survey_applications a join students s on s.id=a.student_id where a.id=$1',[match[1]]);establishmentId=q.rows[0]?.establishment_id;}
     if(req.path==='/student-access/login'&&Number.isSafeInteger(Number(req.body?.establishment_id))&&Number(req.body.establishment_id)>0)establishmentId=Number(req.body.establishment_id);
     if(req.path==='/student-access/set-pin'&&Number.isSafeInteger(Number(req.body?.application_id))&&Number(req.body.application_id)>0){const q=await pool.query('select s.establishment_id from survey_applications a join students s on s.id=a.student_id where a.id=$1',[req.body.application_id]);establishmentId=q.rows[0]?.establishment_id;}
-    if(establishmentId&&!(await subscriptions.accessStatus(establishmentId)))return res.status(403).json({ok:false,error:'subscription_expired'});
+    if(establishmentId){const access=await pool.query('select free_institutional_access from establishments where id=$1 and archived_at is null',[establishmentId]);if(!access.rowCount||(!access.rows[0].free_institutional_access&&!(await subscriptions.accessStatus(establishmentId))))return res.status(403).json({ok:false,error:'subscription_expired'});}
     next();
   }catch(e){res.status(503).json({ok:false,error:'access_unavailable'});}
 });
@@ -528,7 +528,7 @@ app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
   if(!identifier||!password)return res.status(400).json({ok:false,error:'credentials_required'});
   let candidates;
   if(identifier.includes('@')){
-    candidates=await pool.query("select u.*,e.name establishment,e.rbd from users u join establishments e on e.id=u.establishment_id where lower(u.email)=lower($1) and u.active=true and e.archived_at is null",[identifier]);
+    candidates=await pool.query("select u.*,e.name establishment,e.rbd,e.free_institutional_access from users u join establishments e on e.id=u.establishment_id where lower(u.email)=lower($1) and u.active=true and e.archived_at is null",[identifier]);
   }else{
     const compact=identifier.toUpperCase().replace(/[^0-9K]/g,'');
     candidates=await pool.query("select u.*,e.name establishment,e.rbd from users u join establishments e on e.id=u.establishment_id where regexp_replace(upper(coalesce(u.rut,'')),'[^0-9K]','','g')=$1 and u.active=true and e.archived_at is null",[compact]);
@@ -561,7 +561,7 @@ app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
   await pool.query("update users set last_login_at=now(),failed_login_count=0,locked_until=null where id=$1",[user.id]);
   try{await pool.query("insert into security_events(user_id,event_type,ip_hash,user_agent_hash,metadata) values($1,'login_success',$2,$3,$4::jsonb)",[user.id,sha256(String(req.headers['x-forwarded-for']||req.ip||'')),sha256(String(req.headers['user-agent']||'')),JSON.stringify({role:user.role})])}catch(_){}
   setSessionCookie(res,token);
-  ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,subscription_active:await subscriptions.accessStatus(user.establishment_id),establishment:user.establishment,rbd:user.rbd}});
+  ok(res,{user:{id:user.id,establishment_id:user.establishment_id,email:user.email,rut:user.rut,name:user.name,role:user.role,must_change_password:user.must_change_password,subscription_active:!!user.free_institutional_access||await subscriptions.accessStatus(user.establishment_id),establishment:user.establishment,rbd:user.rbd}});
 }catch(e){res.status(400).json({ok:false,error:'login_failed'})}});
 
 app.post('/api/auth/mfa/verify',mfaVerifyRateLimit,async(req,res)=>{try{
@@ -628,7 +628,7 @@ app.post('/api/auth/mfa/confirm',...requireRole('platform_admin'),async(req,res)
   ok(res,{mfa_enabled:true,recovery_codes:recoveryCodes});
 }catch(e){res.status(400).json({ok:false,error:e.message})}});
 
-app.get('/api/auth/me',async(req,res)=>{try{const user=await sessionUser(req);if(!user)return res.status(401).json({ok:false,error:'authentication_required'});if(subscriptions.temporaryExpired(user))return res.status(401).json({ok:false,error:'temporary_password_expired'});user.subscription_active=user.role==='platform_admin'||await subscriptions.accessStatus(user.establishment_id);ok(res,{user})}catch(e){res.status(401).json({ok:false,error:'authentication_required'})}});
+app.get('/api/auth/me',async(req,res)=>{try{const user=await sessionUser(req);if(!user)return res.status(401).json({ok:false,error:'authentication_required'});if(subscriptions.temporaryExpired(user))return res.status(401).json({ok:false,error:'temporary_password_expired'});user.subscription_active=user.role==='platform_admin'||!!user.free_institutional_access||await subscriptions.accessStatus(user.establishment_id);ok(res,{user})}catch(e){res.status(401).json({ok:false,error:'authentication_required'})}});
 app.post('/api/auth/logout',async(req,res)=>{try{const token=cookieValue(req,'mec_session');if(token)await pool.query("delete from auth_sessions where token_hash=$1",[sha256(token)]);setSessionCookie(res,'',0);ok(res,{logged_out:true})}catch(e){setSessionCookie(res,'',0);ok(res,{logged_out:true})}});
 app.post('/api/auth/change-password',requireAuth,async(req,res)=>{try{
   const current=String((req.body||{}).current_password||''),next=String((req.body||{}).new_password||'');
@@ -721,7 +721,7 @@ app.get('/api/platform/readiness',...requireRole('platform_admin'),(req,res)=>{
   }});
 });
 app.get('/api/platform/establishments',...requireRole('platform_admin'),async(req,res)=>{try{
-  const q=await pool.query(`select e.id,e.name,e.rbd,e.created_at,e.archived_at,
+  const q=await pool.query(`select e.id,e.name,e.rbd,e.created_at,e.archived_at,e.free_institutional_access,
     count(u.id) filter(where u.active=true)::int active_users,
     count(u.id) filter(where u.active=true and u.role='coordinador_convivencia')::int active_coordinators
     from establishments e left join users u on u.establishment_id=e.id
@@ -851,13 +851,14 @@ app.post('/api/platform/onboard',...requireRole('platform_admin'),async(req,res)
   const coordinatorName=String(b.coordinator_name||'').trim(),coordinatorEmail=String(b.coordinator_email||'').trim().toLowerCase();
   const coordinatorRut=String(b.coordinator_rut||'').trim()||null;
   const temporaryPassword=String(b.temporary_password||'');
+  const freeInstitutionalAccess=b.free_institutional_access===true;
   if(!name||!rbd||!coordinatorName||!coordinatorEmail||!coordinatorEmail.includes('@')||!Number.isInteger(schoolYear)||schoolYear<2020||schoolYear>2100)return res.status(400).json({ok:false,error:'required_fields'});
   if(temporaryPassword.length<10||!/[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(temporaryPassword)||!/[0-9]/.test(temporaryPassword))return res.status(400).json({ok:false,error:'weak_temporary_password'});
   const existing=await client.query("select id,archived_at from establishments where rbd=$1",[rbd]);
   if(existing.rowCount)return res.status(409).json({ok:false,error:existing.rows[0].archived_at?'rbd_archived_restore_required':'rbd_exists',establishment_id:existing.rows[0].id});
 
   await client.query('begin');
-  const est=await client.query("insert into establishments(name,rbd) values($1,$2) returning id,name,rbd,created_at",[name,rbd]);
+  const est=await client.query("insert into establishments(name,rbd,free_institutional_access) values($1,$2,$3) returning id,name,rbd,created_at,free_institutional_access",[name,rbd,freeInstitutionalAccess]);
   const cred=await makePassword(temporaryPassword);
   const user=await client.query(`insert into users(establishment_id,email,rut,name,role,password_hash,password_salt,must_change_password,active)
     values($1,$2,$3,$4,'coordinador_convivencia',$5,$6,true,true)

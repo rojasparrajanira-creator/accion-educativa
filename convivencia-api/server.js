@@ -778,8 +778,8 @@ app.post('/api/platform/onboard',...requireRole('platform_admin'),async(req,res)
   const temporaryPassword=String(b.temporary_password||'');
   if(!name||!rbd||!coordinatorName||!coordinatorEmail||!coordinatorEmail.includes('@')||!Number.isInteger(schoolYear)||schoolYear<2020||schoolYear>2100)return res.status(400).json({ok:false,error:'required_fields'});
   if(temporaryPassword.length<10||!/[A-Za-zÁÉÍÓÚÑáéíóúñ]/.test(temporaryPassword)||!/[0-9]/.test(temporaryPassword))return res.status(400).json({ok:false,error:'weak_temporary_password'});
-  const existing=await client.query("select id from establishments where rbd=$1",[rbd]);
-  if(existing.rowCount)return res.status(409).json({ok:false,error:'rbd_exists'});
+  const existing=await client.query("select id,archived_at from establishments where rbd=$1",[rbd]);
+  if(existing.rowCount)return res.status(409).json({ok:false,error:existing.rows[0].archived_at?'rbd_archived_restore_required':'rbd_exists',establishment_id:existing.rows[0].id});
 
   await client.query('begin');
   const est=await client.query("insert into establishments(name,rbd) values($1,$2) returning id,name,rbd,created_at",[name,rbd]);

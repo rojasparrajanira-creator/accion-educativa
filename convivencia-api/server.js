@@ -492,7 +492,7 @@ async function parseEnrollmentFile(file){
 function parseStudentRow(row,file,rowNumber){
   const m=rowMap(row);
   const rawRut=firstValue(m,['run','rut','run alumno','rut alumno','run estudiante','rut estudiante']);
-  const dv=firstValue(m,['dv','digito verificador','dígito verificador']);
+  const dv=firstValue(m,['dv','digito ver.','dígito ver.','digito verificador','dígito verificador']);
   let rut=String(rawRut??'').trim();
   if(rut&&dv&&!/[kK0-9]\s*$/.test(rut.split('-')[1]||''))rut=rut+'-'+String(dv).trim();
   else if(rut&&dv&&!rut.includes('-')&&String(rut).replace(/\D/g,'').length<=8)rut=rut+'-'+String(dv).trim();

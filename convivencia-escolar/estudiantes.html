@@ -203,9 +203,11 @@ function pill(text){
 }
 function rowState(x){
   if(!x.importable)return {label:'Error',detail:(x.errors||[]).map(errorLabel).join(', ')};
-  if((x.warnings||[]).includes('estudiante_existente'))return {label:'Actualizar',detail:'Estudiante existente'};
-  if((x.warnings||[]).includes('curso_nuevo'))return {label:'Importable',detail:'Creará curso'};
-  return {label:'Importable',detail:'Nuevo estudiante'};
+  const warnings=x.warnings||[];
+  const noSurvey=warnings.includes('curso_sin_encuesta_compatible');
+  if(warnings.includes('estudiante_existente'))return {label:'Actualizar',detail:'Estudiante existente'+(noSurvey?' · Sin encuesta disponible para su nivel':'')};
+  if(warnings.includes('curso_nuevo'))return {label:'Importable',detail:'Creará curso'+(noSurvey?' · Sin encuesta disponible para su nivel':'')};
+  return {label:'Importable',detail:noSurvey?'Curso reconocido · Sin encuesta disponible para su nivel':'Nuevo estudiante'};
 }
 function errorLabel(x){
   return ({
@@ -242,9 +244,11 @@ function renderBulkPreview(data){
   });
   const fileErrors=(data.files||[]).filter(f=>f.error);
   const withdrawn=(data.rows||[]).filter(x=>(x.errors||[]).includes('estudiante_retirado_sige')).length;
+  const coursesWithoutSurvey=[...new Set((data.rows||[]).filter(x=>(x.warnings||[]).includes('curso_sin_encuesta_compatible')).map(x=>x.course_name||x.course))].filter(Boolean);
   const notes=[];
   if(fileErrors.length)notes.push(fileErrors.map(f=>f.file+': '+(f.error==='xls_binario_no_compatible'?'XLS binario no compatible. Exporta el archivo en XLSX.':f.error)).join(' | '));
   if(withdrawn)notes.push(withdrawn+' estudiante(s) con fecha real de retiro en SIGE: no se importarán como activos.');
+  if(coursesWithoutSurvey.length)notes.push('Cursos válidos sin encuesta disponible para ese nivel: '+coursesWithoutSurvey.join(', ')+'. Se importarán a la matrícula, pero no se habilitará una medición automáticamente.');
   if((data.files||[]).some(f=>f.sheet==='SIGE XLS'))notes.push('Archivo SIGE original reconocido; revisa la vista previa antes de confirmar.');
   bulkStatus.textContent=notes.join(' ');
   document.getElementById('bulk-commit').disabled=!bulkRows.length;

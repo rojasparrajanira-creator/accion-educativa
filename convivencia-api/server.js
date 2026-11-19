@@ -303,7 +303,7 @@ async function sessionUser(req){
   if(!token)return null;
   const q=await pool.query(`select u.id,u.establishment_id,u.email,u.rut,u.name,u.role,u.active,u.must_change_password,u.temporary_password_expires_at,e.name establishment,e.rbd
     from auth_sessions s join users u on u.id=s.user_id join establishments e on e.id=u.establishment_id
-    where s.token_hash=$1 and s.expires_at>now() and u.active=true limit 1`,[sha256(token)]);
+    where s.token_hash=$1 and s.expires_at>now() and u.active=true and e.archived_at is null limit 1`,[sha256(token)]);
   return q.rows[0]||null;
 }
 async function requireAuth(req,res,next){
@@ -528,10 +528,10 @@ app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
   if(!identifier||!password)return res.status(400).json({ok:false,error:'credentials_required'});
   let candidates;
   if(identifier.includes('@')){
-    candidates=await pool.query("select u.*,e.name establishment,e.rbd from users u join establishments e on e.id=u.establishment_id where lower(u.email)=lower($1) and u.active=true",[identifier]);
+    candidates=await pool.query("select u.*,e.name establishment,e.rbd from users u join establishments e on e.id=u.establishment_id where lower(u.email)=lower($1) and u.active=true and e.archived_at is null",[identifier]);
   }else{
     const compact=identifier.toUpperCase().replace(/[^0-9K]/g,'');
-    candidates=await pool.query("select u.*,e.name establishment,e.rbd from users u join establishments e on e.id=u.establishment_id where regexp_replace(upper(coalesce(u.rut,'')),'[^0-9K]','','g')=$1 and u.active=true",[compact]);
+    candidates=await pool.query("select u.*,e.name establishment,e.rbd from users u join establishments e on e.id=u.establishment_id where regexp_replace(upper(coalesce(u.rut,'')),'[^0-9K]','','g')=$1 and u.active=true and e.archived_at is null",[compact]);
   }
   let user=null,matchedIdentity=null;
   for(const candidate of candidates.rows){
@@ -721,14 +721,53 @@ app.get('/api/platform/readiness',...requireRole('platform_admin'),(req,res)=>{
   }});
 });
 app.get('/api/platform/establishments',...requireRole('platform_admin'),async(req,res)=>{try{
-  const q=await pool.query(`select e.id,e.name,e.rbd,e.created_at,
+  const q=await pool.query(`select e.id,e.name,e.rbd,e.created_at,e.archived_at,
     count(u.id) filter(where u.active=true)::int active_users,
     count(u.id) filter(where u.active=true and u.role='coordinador_convivencia')::int active_coordinators
     from establishments e left join users u on u.establishment_id=e.id
     where e.rbd is distinct from 'MEC-PLATFORM'
-    group by e.id order by e.name`);
+    group by e.id order by e.archived_at is not null,e.name`);
   ok(res,{establishments:q.rows});
 }catch(e){res.status(400).json({ok:false,error:'platform_establishments_failed'})}});
+
+// Superadministración: retirar del listado sin destruir información educacional.
+app.post('/api/platform/establishments/:id/archive',...requireRole('platform_admin'),async(req,res)=>{
+ const client=await pool.connect();
+ try{
+  const id=Number(req.params.id),confirmation=String(req.body?.confirm_rbd||'').trim();
+  if(!Number.isSafeInteger(id)||id<=0||!confirmation)return res.status(400).json({ok:false,error:'archive_confirmation_required'});
+  await client.query('begin');
+  const q=await client.query('select id,name,rbd,archived_at from establishments where id=$1 for update',[id]);
+  if(!q.rowCount){await client.query('rollback');return res.status(404).json({ok:false,error:'establishment_not_found'})}
+  const est=q.rows[0];
+  if(est.rbd==='MEC-PLATFORM'||est.id===Number(req.auth.establishment_id)){await client.query('rollback');return res.status(403).json({ok:false,error:'protected_establishment'})}
+  if(est.rbd!==confirmation){await client.query('rollback');return res.status(400).json({ok:false,error:'rbd_confirmation_mismatch'})}
+  if(est.archived_at){await client.query('rollback');return res.status(409).json({ok:false,error:'already_archived'})}
+  await client.query('update establishments set archived_at=now() where id=$1',[id]);
+  // Invalidar sesiones, sin deshabilitar cuentas ni borrar registros.
+  await client.query('delete from auth_sessions where user_id in (select id from users where establishment_id=$1)',[id]);
+  await client.query("insert into professional_audit_events(establishment_id,user_id,action,entity_type,entity_id,metadata) values($1,$2,'establishment_archived','establishment',$3,$4::jsonb)",[id,req.auth.id,String(id),JSON.stringify({rbd:est.rbd,name:est.name})]);
+  await client.query('commit');ok(res,{archived:true});
+ }catch(e){try{await client.query('rollback')}catch(_){}console.error('Establishment archival failed',e.message);res.status(503).json({ok:false,error:'establishment_archive_failed'})}
+ finally{client.release()}
+});
+app.post('/api/platform/establishments/:id/restore',...requireRole('platform_admin'),async(req,res)=>{
+ const client=await pool.connect();
+ try{
+  const id=Number(req.params.id),confirmation=String(req.body?.confirm_rbd||'').trim();
+  if(!Number.isSafeInteger(id)||id<=0||!confirmation)return res.status(400).json({ok:false,error:'restore_confirmation_required'});
+  await client.query('begin');
+  const q=await client.query('select id,name,rbd,archived_at from establishments where id=$1 for update',[id]);
+  if(!q.rowCount){await client.query('rollback');return res.status(404).json({ok:false,error:'establishment_not_found'})}
+  const est=q.rows[0];
+  if(est.rbd==='MEC-PLATFORM'||est.rbd!==confirmation){await client.query('rollback');return res.status(400).json({ok:false,error:'rbd_confirmation_mismatch'})}
+  if(!est.archived_at){await client.query('rollback');return res.status(409).json({ok:false,error:'not_archived'})}
+  await client.query('update establishments set archived_at=null where id=$1',[id]);
+  await client.query("insert into professional_audit_events(establishment_id,user_id,action,entity_type,entity_id,metadata) values($1,$2,'establishment_restored','establishment',$3,$4::jsonb)",[id,req.auth.id,String(id),JSON.stringify({rbd:est.rbd,name:est.name})]);
+  await client.query('commit');ok(res,{restored:true});
+ }catch(e){try{await client.query('rollback')}catch(_){}console.error('Establishment restoration failed',e.message);res.status(503).json({ok:false,error:'establishment_restore_failed'})}
+ finally{client.release()}
+});
 
 app.post('/api/platform/onboard',...requireRole('platform_admin'),async(req,res)=>{const client=await pool.connect();try{
   const b=req.body||{};

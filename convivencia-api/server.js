@@ -372,16 +372,16 @@ function courseKey(v){
  }
  m=n.match(/^(?:educacion\s+parvularia\s+)?(?:medio\s+menor|medio\s+mayor|sala\s+cuna(?:\s+menor|\s+mayor)?)(?:\b|$)/);
  if(m)return 'parv-'+n.replace(/\s+/g,'-');
+ // Cursos EPJA por ciclo o nivel, distinguiéndolos de cursos de enseñanza regular.
+ if(/\b(epja|adultos?|vespertin[oa]|tercer[a]?\s+jornada|educacion\s+de\s+adultos)\b/.test(n)){
+  return 'epja-'+n.replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+ }
  // Enseñanza media: 1° medio C, 1M C, I Medio C y 3° EM.
  m=n.match(/^(iv|iii|ii|i)\s*°?\s*(?:medio|media|em|m)?(?:\s+([a-z]))?(?:\s|$)/);
  if(m)return 'm'+({i:1,ii:2,iii:3,iv:4}[m[1]])+(m[2]||'');
  m=n.match(/^([1-4])\s*°?\s*(?:medio|media|em|m)(?:\s+([a-z]))?(?:\s|$)/);
  if(m)return 'm'+Number(m[1])+(m[2]||'');
- // Cursos EPJA por ciclo o nivel, distinguiéndolos de cursos de enseñanza regular.
- if(/\b(epja|adultos?|vespertin[oa]|tercer[a]?\s+jornada|educacion\s+de\s+adultos)\b/.test(n)){
-  return 'epja-'+n.replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
- }
- m=n.match(/^([1-8])\s*°?\s*(?:basico|basica|eb|b)?(?:\s+([a-z]))?(?:\s|$)/);
+ m=n.match(/^([1-8])\s*°?\s*(?:(?:basico|basica|eb)\s*)?([a-z])?(?:\s|$)/);
  if(m)return 'b'+Number(m[1])+(m[2]||'');
  // Códigos SIGE de educación especial: conservar código y curso sin asumir equivalencia.
  if(/^especial\b|^escuela\s+especial\b/.test(n))return 'especial-'+n.replace(/[^a-z0-9]+/g,'-');

@@ -1,4 +1,7 @@
 CREATE TABLE IF NOT EXISTS establishments(id BIGSERIAL PRIMARY KEY,name TEXT NOT NULL,rbd TEXT UNIQUE,created_at TIMESTAMPTZ DEFAULT now());
+-- Retiro reversible desde superadministración: mantiene datos educativos y RBD para auditoría.
+ALTER TABLE establishments ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS users(id BIGSERIAL PRIMARY KEY,establishment_id BIGINT REFERENCES establishments(id),email TEXT NOT NULL,rut TEXT,name TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'professional',active BOOLEAN NOT NULL DEFAULT true,created_at TIMESTAMPTZ DEFAULT now(),UNIQUE(establishment_id,email));
 CREATE TABLE IF NOT EXISTS courses(id BIGSERIAL PRIMARY KEY,establishment_id BIGINT NOT NULL REFERENCES establishments(id),name TEXT NOT NULL,school_year INT NOT NULL,UNIQUE(establishment_id,name,school_year));
 CREATE TABLE IF NOT EXISTS students(id BIGSERIAL PRIMARY KEY,establishment_id BIGINT NOT NULL REFERENCES establishments(id),course_id BIGINT REFERENCES courses(id),rut TEXT,name TEXT NOT NULL,active BOOLEAN NOT NULL DEFAULT true,created_at TIMESTAMPTZ DEFAULT now(),UNIQUE(establishment_id,rut));

@@ -1452,6 +1452,8 @@ app.post('/api/students/import/commit',...requireRole('coordinador_convivencia',
 
   for(const raw of rows){
     const rut=normalizeRut(raw.rut),name=String(raw.name||'').trim(),courseName=String(raw.course_name||raw.course||'').trim(),key=courseKey(courseName);
+    // No activar estudiantes retirados aunque se envíen filas manipuladas después de la vista previa.
+    if(raw.retired_in_sige===true||(Array.isArray(raw.errors)&&raw.errors.includes('estudiante_retirado_sige'))){skipped++;continue}
     if(!rut||!validRut(rut)||!name||!key||!surveyLevelForCourse(courseName)||seen.has(rut)){skipped++;continue}
     seen.add(rut);
     let course=courseMap.get(key);

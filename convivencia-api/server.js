@@ -363,29 +363,45 @@ function firstValue(m,aliases){
   return '';
 }
 function courseKey(v){
-  const n=plain(v).replace(/º/g,'°').replace(/[._-]+/g,' ').replace(/\s+/g,' ').trim();
-  let m=n.match(/^(i|ii|iii|iv)\s*°?\s*(?:medio|media)?\s*([a-z])?\b/);
-  if(m){const num={i:1,ii:2,iii:3,iv:4}[m[1]];return 'm'+num+(m[2]||'')}
-  const compact=n.replace(/\s+/g,'');
-  m=compact.match(/^([1-4])°?(m|em)([a-z])?/);
-  if(m)return 'm'+Number(m[1])+(m[3]||'');
-  m=n.match(/^([1-8])\s*°?\s*(basico|medio|media|m|em)?\s*([a-z])?\b/);
-  if(!m)return '';
-  const grade=Number(m[1]),type=m[2]||'',letter=m[3]||'';
-  const medio=/medio|media|m|em/.test(type);
-  return (medio?'m':'b')+grade+letter;
+ const n=plain(v).replace(/[ºª]/g,'°').replace(/[\u00a0._-]+/g,' ').replace(/\s+/g,' ').trim();
+ if(!n)return '';
+ let m=n.match(/^(?:nt\s*([12])|transicion\s*([12])|pre\s*kinder|prekinder|pre\s*kindergarten|kinder|kindergarten)(?:\b|$)/);
+ if(m){
+  const level=m[1]||m[2]||(n.startsWith('pre')?'1':'2');
+  const suffix=n.match(/\b([a-z])\s*$/);return 'nt'+level+(suffix?suffix[1]:'');
+ }
+ m=n.match(/^(?:educacion\s+parvularia\s+)?(?:medio\s+menor|medio\s+mayor|sala\s+cuna(?:\s+menor|\s+mayor)?)(?:\b|$)/);
+ if(m)return 'parv-'+n.replace(/\s+/g,'-');
+ // Enseñanza media: 1° medio C, 1M C, I Medio C y 3° EM.
+ m=n.match(/^(iv|iii|ii|i)\s*°?\s*(?:medio|media|em|m)?(?:\s+([a-z]))?(?:\s|$)/);
+ if(m)return 'm'+({i:1,ii:2,iii:3,iv:4}[m[1]])+(m[2]||'');
+ m=n.match(/^([1-4])\s*°?\s*(?:medio|media|em|m)(?:\s+([a-z]))?(?:\s|$)/);
+ if(m)return 'm'+Number(m[1])+(m[2]||'');
+ // Cursos EPJA por ciclo o nivel, distinguiéndolos de cursos de enseñanza regular.
+ if(/\b(epja|adultos?|vespertin[oa]|tercer[a]?\s+jornada|educacion\s+de\s+adultos)\b/.test(n)){
+  return 'epja-'+n.replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+ }
+ m=n.match(/^([1-8])\s*°?\s*(?:basico|basica|eb|b)?(?:\s+([a-z]))?(?:\s|$)/);
+ if(m)return 'b'+Number(m[1])+(m[2]||'');
+ // Códigos SIGE de educación especial: conservar código y curso sin asumir equivalencia.
+ if(/^especial\b|^escuela\s+especial\b/.test(n))return 'especial-'+n.replace(/[^a-z0-9]+/g,'-');
+ return '';
 }
 function composeCourse(m){
-  const direct=firstValue(m,['curso','nombre curso','curso completo','curso actual']);
-  if(String(direct).trim())return String(direct).trim();
-  const grade=String(firstValue(m,['desc grado','descripcion grado','descripción grado','grado','nivel','grado curso','nivel curso'])).trim();
-  const letter=String(firstValue(m,['letra','letra curso'])).trim().toUpperCase();
-  const teaching=plain(firstValue(m,['ensenanza','enseñanza','tipo ensenanza','tipo enseñanza','modalidad','nivel ensenanza']));
-  if(!grade)return '';
-  const normalizedGrade=grade.replace(/º/g,'°').replace(/\s+/g,' ').trim();
-  if(/(?:medio|media|basico|básico)/i.test(normalizedGrade))return normalizedGrade+(letter?' '+letter:'');
-  const medio=/medio|media|humanista|cientifico|científico|tecnico|técnico|tp|hc/.test(teaching)||/^([1-4])$/.test(normalizedGrade)&&/^\s*(310|410|510|610|710|810)\s*$/.test(String(firstValue(m,['cod tipo enseñanza','cod tipo ensenanza'])));
-  return normalizedGrade.replace(/\s+/g,'')+(normalizedGrade.includes('°')?'':'°')+(medio?' Medio':'')+(letter?' '+letter:'');
+ const direct=firstValue(m,['curso','nombre curso','curso completo','curso actual']);
+ if(String(direct).trim())return String(direct).trim();
+ const grade=String(firstValue(m,['desc grado','descripcion grado','descripción grado','grado','nivel','grado curso','nivel curso'])).trim();
+ const letter=String(firstValue(m,['letra','letra curso'])).trim().toUpperCase();
+ const teaching=plain(firstValue(m,['ensenanza','enseñanza','tipo ensenanza','tipo enseñanza','modalidad','nivel ensenanza']));
+ const code=String(firstValue(m,['cod tipo enseñanza','cod tipo ensenanza'])).trim();
+ if(!grade)return '';
+ const n=grade.replace(/[ºª]/g,'°').replace(/\s+/g,' ').trim();
+ if(/(medio|media|basico|básico|nt[12]|transici[oó]n|kinder|kínder|especial|epja|adultos)/i.test(n))return n+(letter?' '+letter:'');
+ if(/^\d+$/.test(n)){
+  const medio=/medio|media|humanista|cientifico|tecnico|\btp\b|\bhc\b/.test(teaching)||/^(310|410|510|610|710|810)$/.test(code);
+  return n+'° '+(medio?'Medio':'Básico')+(letter?' '+letter:'');
+ }
+ return n+(letter?' '+letter:'');
 }
 function cellText(v){
   if(v===null||v===undefined)return '';
@@ -1411,7 +1427,8 @@ app.post('/api/students/import/preview',...requireRole('coordinador_convivencia'
       if(!p.rut||!validRut(p.rut))errors.push('run_invalido');
       if(!p.name)errors.push('nombre_faltante');
       const key=courseKey(p.course);
-      if(!key||!surveyLevelForCourse(p.course))errors.push('curso_no_reconocido');
+      if(!key)errors.push('curso_no_reconocido');
+      else if(!surveyLevelForCourse(p.course))warnings.push('curso_sin_encuesta_compatible');
       if(p.rut&&seen.has(p.rut))errors.push('duplicado_en_archivos');
       if(p.rut)seen.add(p.rut);
 
@@ -1454,7 +1471,7 @@ app.post('/api/students/import/commit',...requireRole('coordinador_convivencia',
     const rut=normalizeRut(raw.rut),name=String(raw.name||'').trim(),courseName=String(raw.course_name||raw.course||'').trim(),key=courseKey(courseName);
     // No activar estudiantes retirados aunque se envíen filas manipuladas después de la vista previa.
     if(raw.retired_in_sige===true||(Array.isArray(raw.errors)&&raw.errors.includes('estudiante_retirado_sige'))){skipped++;continue}
-    if(!rut||!validRut(rut)||!name||!key||!surveyLevelForCourse(courseName)||seen.has(rut)){skipped++;continue}
+    if(!rut||!validRut(rut)||!name||!key||seen.has(rut)){skipped++;continue}
     seen.add(rut);
     let course=courseMap.get(key);
     if(!course){

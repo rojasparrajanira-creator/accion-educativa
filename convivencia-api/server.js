@@ -769,6 +769,81 @@ app.post('/api/platform/establishments/:id/restore',...requireRole('platform_adm
  finally{client.release()}
 });
 
+// Borrado definitivo de un alta de prueba vacía, sin tocar antecedentes escolares ni ventas.
+// La vista previa y el borrado comprueban relaciones reales en PostgreSQL, también de migraciones nuevas.
+const establishmentDeleteAllowedTables=new Set(['auth_sessions','mfa_login_challenges','mfa_recovery_codes','professional_audit_events']);
+function safeSqlRef(value){return String(value).split('.').map(part=>'"'+part.replace(/"/g,'""')+'"').join('.')}
+async function inspectEstablishmentDeletion(client,id){
+ const school=await client.query("select id,name,rbd,archived_at from establishments where id=$1",[id]);
+ if(!school.rowCount)return null;
+ const e=school.rows[0];
+ const users=await client.query("select id from users where establishment_id=$1",[id]);
+ const measurementQ=await client.query("select id,code,status from measurements where establishment_id=$1",[id]);
+ const userIds=users.rows.map(x=>String(x.id)),measurementIds=measurementQ.rows.map(x=>String(x.id));
+ const links=await client.query(
+  "select c.conrelid::regclass::text as table_name,a.attname as column_name,c.confrelid::regclass::text as parent_table from pg_constraint c join pg_attribute a on a.attrelid=c.conrelid and a.attnum=c.conkey[1] where c.contype='f' and cardinality(c.conkey)=1 and c.confrelid in ('establishments'::regclass,'users'::regclass,'measurements'::regclass)"
+ );
+ const blockers=[],counts=[];
+ for(const link of links.rows){
+  const table=String(link.table_name).split('.').pop().replace(/"/g,'');
+  const parent=String(link.parent_table).split('.').pop().replace(/"/g,'');
+  let ids=parent==='establishments'?[String(id)]:parent==='users'?userIds:measurementIds;
+  if(!ids.length)continue;
+  const sql='select count(*)::int as total from '+safeSqlRef(link.table_name)+' where '+safeSqlRef(link.column_name)+'=any($1::bigint[])';
+  const q=await client.query(sql,[ids]);const count=Number(q.rows[0].total);
+  if(!count)continue;
+  counts.push({table,records:count});
+  const allowed=(parent==='establishments'&&['users','measurements','professional_audit_events'].includes(table))||
+   (parent==='users'&&establishmentDeleteAllowedTables.has(table));
+  if(!allowed)blockers.push({table,records:count});
+ }
+ if(measurementQ.rows.some(x=>x.status!=='draft'||!['M1','M2','M3'].includes(x.code)))blockers.push({table:'mediciones_habilitadas',records:1});
+ const audit=await client.query("select count(*)::int as total from professional_audit_events where (establishment_id=$1 or user_id=any($2::bigint[])) and action not in ('establishment_onboarded','establishment_archived','establishment_restored')",[id,userIds]);
+ if(Number(audit.rows[0].total)>0)blockers.push({table:'auditoria_institucional',records:Number(audit.rows[0].total)});
+ return {school:e,users:userIds,measurements:measurementIds,counts,blockers,can_delete:blockers.length===0&&e.rbd!=='MEC-PLATFORM'};
+}
+app.get('/api/platform/establishments/:id/delete-preview',...requireRole('platform_admin'),async(req,res)=>{
+ try{
+  const id=Number(req.params.id);
+  if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({ok:false,error:'invalid_establishment_id'});
+  const inspection=await inspectEstablishmentDeletion(pool,id);
+  if(!inspection)return res.status(404).json({ok:false,error:'establishment_not_found'});
+  if(Number(req.auth.establishment_id)===id)return res.status(403).json({ok:false,error:'protected_establishment'});
+  ok(res,{establishment:{id:inspection.school.id,name:inspection.school.name,rbd:inspection.school.rbd},
+   can_delete:inspection.can_delete,users:inspection.users.length,measurements:inspection.measurements.length,blockers:inspection.blockers});
+ }catch(e){console.error('Establishment deletion preview failed',e.message);res.status(503).json({ok:false,error:'delete_preview_failed'})}
+});
+app.post('/api/platform/establishments/:id/delete-permanently',...requireRole('platform_admin'),async(req,res)=>{
+ const client=await pool.connect();
+ try{
+  const id=Number(req.params.id),rbd=String(req.body?.confirm_rbd||'').trim(),phrase=String(req.body?.confirm_phrase||'').trim();
+  if(!Number.isSafeInteger(id)||id<1||!rbd||phrase!=='ELIMINAR DEFINITIVAMENTE')
+   return res.status(400).json({ok:false,error:'permanent_delete_confirmation_required'});
+  if(Number(req.auth.establishment_id)===id)return res.status(403).json({ok:false,error:'protected_establishment'});
+  await client.query('begin');
+  await client.query('select id from establishments where id=$1 for update',[id]);
+  const inspection=await inspectEstablishmentDeletion(client,id);
+  if(!inspection){await client.query('rollback');return res.status(404).json({ok:false,error:'establishment_not_found'})}
+  if(inspection.school.rbd!==rbd||inspection.school.rbd==='MEC-PLATFORM'){
+   await client.query('rollback');return res.status(403).json({ok:false,error:'rbd_confirmation_mismatch'});
+  }
+  if(!inspection.can_delete){
+   await client.query('rollback');return res.status(409).json({ok:false,error:'institutional_records_block_deletion',blockers:inspection.blockers});
+  }
+  // No se eliminan cursos, estudiantes, casos, suscripciones ni información que dependa de ellos.
+  // Solo se retiran cuentas de alta inicial sin actividad, sus sesiones y borradores vacíos.
+  await client.query('delete from auth_sessions where user_id=any($1::bigint[])',[inspection.users]);
+  await client.query('delete from mfa_login_challenges where user_id=any($1::bigint[])',[inspection.users]);
+  await client.query('delete from mfa_recovery_codes where user_id=any($1::bigint[])',[inspection.users]);
+  await client.query('delete from professional_audit_events where establishment_id=$1 or user_id=any($2::bigint[])',[id,inspection.users]);
+  await client.query('delete from measurements where establishment_id=$1',[id]);
+  await client.query('delete from users where establishment_id=$1',[id]);
+  await client.query('delete from establishments where id=$1',[id]);
+  await client.query('commit');ok(res,{deleted:true,rbd});
+ }catch(e){try{await client.query('rollback')}catch(_){}console.error('Permanent school deletion failed',e.message);res.status(503).json({ok:false,error:'permanent_deletion_failed'})}
+ finally{client.release()}
+});
+
 app.post('/api/platform/onboard',...requireRole('platform_admin'),async(req,res)=>{const client=await pool.connect();try{
   const b=req.body||{};
   const schoolYear=Number(b.school_year);

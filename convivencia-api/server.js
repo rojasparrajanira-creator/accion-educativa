@@ -531,7 +531,7 @@ app.post('/api/auth/login',authLoginRateLimit,async(req,res)=>{try{
     candidates=await pool.query("select u.*,e.name establishment,e.rbd,e.free_institutional_access from users u join establishments e on e.id=u.establishment_id where lower(u.email)=lower($1) and u.active=true and e.archived_at is null",[identifier]);
   }else{
     const compact=identifier.toUpperCase().replace(/[^0-9K]/g,'');
-    candidates=await pool.query("select u.*,e.name establishment,e.rbd from users u join establishments e on e.id=u.establishment_id where regexp_replace(upper(coalesce(u.rut,'')),'[^0-9K]','','g')=$1 and u.active=true and e.archived_at is null",[compact]);
+    candidates=await pool.query("select u.*,e.name establishment,e.rbd,e.free_institutional_access from users u join establishments e on e.id=u.establishment_id where regexp_replace(upper(coalesce(u.rut,'')),'[^0-9K]','','g')=$1 and u.active=true and e.archived_at is null",[compact]);
   }
   let user=null,matchedIdentity=null;
   for(const candidate of candidates.rows){

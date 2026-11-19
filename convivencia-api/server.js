@@ -771,7 +771,7 @@ app.post('/api/platform/establishments/:id/restore',...requireRole('platform_adm
 
 // Borrado definitivo de un alta de prueba vacía, sin tocar antecedentes escolares ni ventas.
 // La vista previa y el borrado comprueban relaciones reales en PostgreSQL, también de migraciones nuevas.
-const establishmentDeleteAllowedTables=new Set(['auth_sessions','mfa_login_challenges','mfa_recovery_codes','professional_audit_events']);
+const establishmentDeleteAllowedTables=new Set(['auth_sessions','mfa_login_challenges','mfa_recovery_codes','professional_audit_events','security_events']);
 function safeSqlRef(value){return String(value).split('.').map(part=>'"'+part.replace(/"/g,'""')+'"').join('.')}
 async function inspectEstablishmentDeletion(client,id){
  const school=await client.query("select id,name,rbd,archived_at from establishments where id=$1",[id]);

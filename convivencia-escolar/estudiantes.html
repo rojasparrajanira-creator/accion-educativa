@@ -53,10 +53,10 @@ table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padd
 <section class="card"><div class="row" style="justify-content:space-between"><div class="row"><input id="buscar-estudiante" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px" placeholder="Buscar por nombre o RUN"><select id="filtro-curso" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los cursos</option></select><select id="filtro-estado" style="padding:10px;border:1px solid #DCE6E0;border-radius:11px"><option value="">Todos los estados</option><option value="active">Activos</option><option value="inactive">Retirados</option></select></div><button class="btn primary" id="show-add-student" type="button">+ Agregar estudiante</button></div><div style="overflow:auto;margin-top:16px"><table><tr><th>Estudiante</th><th>RUN</th><th>Curso</th><th>Estado</th><th>Acción</th></tr><tr><td colspan="5">Cargando estudiantes registrados…</td></tr></table></div></section>
 <section class="card" style="margin-top:16px">
 <h3>Carga masiva desde SIGE / Excel</h3>
-<p style="font-size:12px;color:#718078">Selecciona hasta 20 archivos .xlsx o .csv. Primero se realizará una revisión; ningún estudiante se guardará hasta que confirmes la importación.</p>
+<p style="font-size:12px;color:#718078">Selecciona hasta 20 archivos .xlsx, .csv o .xls exportados desde SIGE (formato HTML). Primero se realizará una revisión; ningún estudiante se guardará hasta que confirmes la importación.</p>
 <div class="row" style="align-items:end;flex-wrap:wrap">
   <label style="flex:2;min-width:260px">Archivos de matrícula
-    <input id="bulk-files" type="file" accept=".xlsx,.csv" multiple style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px;background:#fff">
+    <input id="bulk-files" type="file" accept=".xlsx,.csv,.xls" multiple style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px;background:#fff">
   </label>
   <label style="min-width:150px">Año escolar
     <input id="bulk-year" type="number" min="2020" max="2100" style="display:block;width:100%;padding:10px;margin-top:6px;border:1px solid #DCE6E0;border-radius:11px">
@@ -212,7 +212,8 @@ function errorLabel(x){
     run_invalido:'RUN inválido',
     nombre_faltante:'Nombre faltante',
     curso_no_reconocido:'Curso no reconocido',
-    duplicado_en_archivos:'RUN duplicado en archivos'
+    duplicado_en_archivos:'RUN duplicado en archivos',
+    estudiante_retirado_sige:'SIGE informa fecha de retiro real: revisar antes de incorporar como estudiante activo'
   })[x]||x;
 }
 function renderBulkPreview(data){
@@ -239,6 +240,13 @@ function renderBulkPreview(data){
     if(state.detail){const small=document.createElement('div');small.style.fontSize='11px';small.style.color='#718078';small.textContent=state.detail;td.appendChild(small)}
     tr.appendChild(td);bulkTable.appendChild(tr);
   });
+  const fileErrors=(data.files||[]).filter(f=>f.error);
+  const withdrawn=(data.rows||[]).filter(x=>(x.errors||[]).includes('estudiante_retirado_sige')).length;
+  const notes=[];
+  if(fileErrors.length)notes.push(fileErrors.map(f=>f.file+': '+(f.error==='xls_binario_no_compatible'?'XLS binario no compatible. Exporta el archivo en XLSX.':f.error)).join(' | '));
+  if(withdrawn)notes.push(withdrawn+' estudiante(s) con fecha real de retiro en SIGE: no se importarán como activos.');
+  if((data.files||[]).some(f=>f.sheet==='SIGE XLS'))notes.push('Archivo SIGE original reconocido; revisa la vista previa antes de confirmar.');
+  bulkStatus.textContent=notes.join(' ');
   document.getElementById('bulk-commit').disabled=!bulkRows.length;
   bulkReview.style.display='block';
 }
@@ -304,7 +312,7 @@ document.getElementById('bulk-preview').addEventListener('click',async()=>{
     bulkStatus.textContent='Revisión completada. Confirma solo si el resumen es correcto.';
     renderBulkPreview(d);
   }catch(e){
-    bulkStatus.textContent='No fue posible revisar los archivos. Verifica que sean archivos .xlsx o .csv válidos.';
+    bulkStatus.textContent='No fue posible revisar los archivos. Verifica que sean archivos .xlsx, .csv o .xls de SIGE válidos.';
   }
 });
 document.getElementById('bulk-commit').addEventListener('click',async()=>{

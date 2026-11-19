@@ -86,7 +86,10 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 
 <section class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0;font-size:18px">Establecimientos registrados</h2><button class="soft" id="refresh" type="button">Actualizar</button></div>
-<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Establecimiento</th><th>RBD</th><th>Usuarios activos</th><th>Coordinadores activos</th><th>Alta</th></tr></thead><tbody id="rows"><tr><td colspan="5">Cargando…</td></tr></tbody></table></div>
+<p class="note">«Eliminar del listado» desactiva el acceso del establecimiento sin borrar usuarios, estudiantes, evaluaciones ni otros antecedentes. Puedes restaurarlo después. Para confirmar, deberás escribir su RBD.</p>
+<label style="display:flex;gap:9px;align-items:center;font-size:13px;margin-top:12px"><input type="checkbox" id="show-archived" style="width:18px;height:18px"> Mostrar establecimientos retirados</label>
+<p class="status" id="establishments-message" role="status" aria-live="polite"></p>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Establecimiento</th><th>RBD</th><th>Usuarios activos</th><th>Coordinadores activos</th><th>Alta</th><th>Acciones</th></tr></thead><tbody id="rows"><tr><td colspan="6">Cargando…</td></tr></tbody></table></div>
 </section>
 </main>
 <script>
@@ -95,19 +98,56 @@ document.getElementById('year').value=new Date().getFullYear();
 const td=t=>{const x=document.createElement('td');x.textContent=t??'—';return x};
 const date=v=>v?new Date(v).toLocaleDateString('es-CL'):'—';
 
+let schoolRows=[];
+const showArchived=document.getElementById('show-archived');
+const schoolMessage=document.getElementById('establishments-message');
+function renderSchools(){
+ rows.replaceChildren();
+ const visible=schoolRows.filter(e=>!e.archived_at||showArchived.checked);
+ if(!visible.length){
+  const tr=document.createElement('tr'),x=td('No hay establecimientos en esta vista.');
+  x.colSpan=6;tr.appendChild(x);rows.appendChild(tr);return;
+ }
+ for(const e of visible){
+  const tr=document.createElement('tr');
+  tr.appendChild(td(e.name));tr.appendChild(td(e.rbd));
+  tr.appendChild(td(e.active_users));tr.appendChild(td(e.active_coordinators));tr.appendChild(td(date(e.created_at)));
+  const actions=document.createElement('td');
+  if(e.archived_at){
+   const tag=document.createElement('span');tag.className='badge';tag.textContent='Retirado';actions.appendChild(tag);
+   const button=document.createElement('button');button.type='button';button.className='soft';button.textContent='Restaurar';button.style.marginLeft='8px';
+   button.addEventListener('click',()=>changeSchoolArchive(e,false,button));actions.appendChild(button);
+  }else{
+   const button=document.createElement('button');button.type='button';button.className='soft';button.textContent='Eliminar del listado';
+   button.style.color='#9f1239';button.addEventListener('click',()=>changeSchoolArchive(e,true,button));actions.appendChild(button);
+  }
+  tr.appendChild(actions);rows.appendChild(tr);
+ }
+}
+async function changeSchoolArchive(e,archive,button){
+ const label=archive?'retirar del listado':'restaurar';
+ const typed=window.prompt('Para '+label+' el establecimiento «'+e.name+'» debes escribir exactamente su RBD: '+e.rbd+'. No se borrarán registros escolares.');
+ if(typed===null)return;
+ if(typed.trim()!==String(e.rbd)){schoolMessage.textContent='No se aplicaron cambios: el RBD de confirmación no coincide.';return}
+ button.disabled=true;schoolMessage.textContent='Procesando solicitud de '+label+'…';
+ try{
+  const resp=await fetch(API+'/api/platform/establishments/'+encodeURIComponent(e.id)+'/'+(archive?'archive':'restore'),{
+   method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm_rbd:typed.trim()})
+  });
+  const data=await resp.json().catch(()=>({}));
+  if(!resp.ok||!data.ok)throw new Error(data.error||'Error al actualizar el establecimiento');
+  schoolMessage.textContent='Establecimiento '+(archive?'retirado del listado':'restaurado')+'. Los registros escolares se conservaron.';
+  await load();
+ }catch(err){schoolMessage.textContent='No se pudo '+label+': '+err.message}
+ finally{button.disabled=false}
+}
+showArchived.addEventListener('change',renderSchools);
 async function load(){
  try{
   const r=await fetch(API+'/api/platform/establishments',{credentials:'include',cache:'no-store'}),d=await r.json();
-  if(!r.ok||!d.ok)throw new Error('load_failed');
-  rows.replaceChildren();
-  if(!(d.establishments||[]).length){const tr=document.createElement('tr'),x=td('Aún no existen establecimientos dados de alta.');x.colSpan=5;tr.appendChild(x);rows.appendChild(tr);return}
-  for(const e of d.establishments){
-    const tr=document.createElement('tr');
-    tr.appendChild(td(e.name));tr.appendChild(td(e.rbd));
-    tr.appendChild(td(e.active_users));tr.appendChild(td(e.active_coordinators));tr.appendChild(td(date(e.created_at)));
-    rows.appendChild(tr);
-  }
- }catch(e){rows.innerHTML='<tr><td colspan="5">No fue posible cargar los establecimientos.</td></tr>'}
+  if(!r.ok||!d.ok)throw new Error(d.error||'load_failed');
+  schoolRows=d.establishments||[];renderSchools();
+ }catch(e){schoolMessage.textContent='No fue posible cargar los establecimientos: '+e.message;rows.replaceChildren()}
 }
 document.getElementById('refresh').onclick=load;
 document.getElementById('create').onclick=async()=>{

@@ -61,10 +61,11 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
   <div class="field"><label>Correo institucional</label><input id="coord-email" type="email" autocomplete="email"></div>
   <div class="field"><label>RUT Coordinador/a (opcional)</label><input id="coord-rut" placeholder="12.345.678-9"></div>
   <div class="field"><label>Clave temporal</label><input id="temp" type="password" minlength="10" autocomplete="new-password"></div>
+  <div class="field" style="grid-column:1/-1"><label style="font-size:13px;display:flex;align-items:center;gap:10px"><input id="free-institutional-access" type="checkbox" style="width:18px;height:18px"> Acceso institucional gratuito, sin suscripción ni cobros automáticos (autorizado por Superadministración)</label></div>
 </div>
 <div class="actions"><button class="primary" id="create" type="button">Crear establecimiento y Coordinación</button></div>
 <p id="form-status" class="status" role="status" aria-live="polite"></p>
-<div class="note">La cuenta creada debe reemplazar la clave temporal al primer ingreso. El sistema prepara M1, M2 y M3 en estado borrador; ninguna medición queda habilitada automáticamente.</div>
+<div class="note">La cuenta creada debe reemplazar la clave temporal al primer ingreso. El sistema prepara M1, M2 y M3 en estado borrador; ninguna medición queda habilitada automáticamente. Para una cuenta oficial sin pago, marca «Acceso institucional gratuito» antes de crearla.</div>
 </section>
 
 <section class="card" id="security-card">
@@ -89,7 +90,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 <p class="note">Para crear una cuenta nueva con el mismo RBD, utiliza «Eliminar definitivamente» únicamente si el establecimiento anterior es de prueba y no contiene antecedentes escolares. El sistema revisará sus relaciones antes de permitirlo. «Eliminar del listado» solo desactiva el acceso y NO libera el RBD.</p>
 <label style="display:flex;gap:9px;align-items:center;font-size:13px;margin-top:12px"><input type="checkbox" id="show-archived" style="width:18px;height:18px"> Mostrar establecimientos retirados</label>
 <p class="status" id="establishments-message" role="status" aria-live="polite"></p>
-<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Establecimiento</th><th>RBD</th><th>Usuarios activos</th><th>Coordinadores activos</th><th>Alta</th><th>Acciones</th></tr></thead><tbody id="rows"><tr><td colspan="6">Cargando…</td></tr></tbody></table></div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Establecimiento</th><th>RBD</th><th>Usuarios activos</th><th>Coordinadores activos</th><th>Acceso</th><th>Alta</th><th>Acciones</th></tr></thead><tbody id="rows"><tr><td colspan="7">Cargando…</td></tr></tbody></table></div>
 </section>
 </main>
 <script>
@@ -106,12 +107,12 @@ function renderSchools(){
  const visible=schoolRows.filter(e=>!e.archived_at||showArchived.checked);
  if(!visible.length){
   const tr=document.createElement('tr'),x=td('No hay establecimientos en esta vista.');
-  x.colSpan=6;tr.appendChild(x);rows.appendChild(tr);return;
+  x.colSpan=7;tr.appendChild(x);rows.appendChild(tr);return;
  }
  for(const e of visible){
   const tr=document.createElement('tr');
   tr.appendChild(td(e.name));tr.appendChild(td(e.rbd));
-  tr.appendChild(td(e.active_users));tr.appendChild(td(e.active_coordinators));tr.appendChild(td(date(e.created_at)));
+  tr.appendChild(td(e.active_users));tr.appendChild(td(e.active_coordinators));tr.appendChild(td(e.free_institutional_access?'Gratuito institucional':'Con suscripción'));tr.appendChild(td(date(e.created_at)));
   const actions=document.createElement('td');
   if(e.archived_at){
    const tag=document.createElement('span');tag.className='badge';tag.textContent='Retirado';actions.appendChild(tag);
@@ -190,7 +191,8 @@ document.getElementById('create').onclick=async()=>{
   coordinator_name:document.getElementById('coord-name').value.trim(),
   coordinator_email:document.getElementById('coord-email').value.trim(),
   coordinator_rut:document.getElementById('coord-rut').value.trim(),
-  temporary_password:document.getElementById('temp').value
+  temporary_password:document.getElementById('temp').value,
+  free_institutional_access:document.getElementById('free-institutional-access').checked
  };
  if(!payload.name||!payload.rbd||!payload.coordinator_name||!payload.coordinator_email||payload.temporary_password.length<10){
   status.textContent='Completa establecimiento, RBD, Coordinador/a, correo y una clave temporal de al menos 10 caracteres.';return
@@ -224,6 +226,7 @@ document.getElementById('create').onclick=async()=>{
   status.textContent='Establecimiento creado correctamente. Se prepararon M1, M2 y M3 en borrador y la Coordinación deberá cambiar su clave temporal.';
   ['name','rbd','coord-name','coord-email','coord-rut','temp'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('year').value=new Date().getFullYear();
+  document.getElementById('free-institutional-access').checked=false;
   await load();
  }catch(e){status.textContent=e.message}finally{b.disabled=false}
 };

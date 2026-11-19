@@ -97,7 +97,7 @@ const date=v=>v?new Date(v).toLocaleDateString('es-CL'):'—';
 
 async function load(){
  try{
-  const r=await fetch(API+'/api/platform/establishments'),d=await r.json();
+  const r=await fetch(API+'/api/platform/establishments',{credentials:'include',cache:'no-store'}),d=await r.json();
   if(!r.ok||!d.ok)throw new Error('load_failed');
   rows.replaceChildren();
   if(!(d.establishments||[]).length){const tr=document.createElement('tr'),x=td('Aún no existen establecimientos dados de alta.');x.colSpan=5;tr.appendChild(x);rows.appendChild(tr);return}
@@ -128,10 +128,14 @@ document.getElementById('create').onclick=async()=>{
  }
  const b=document.getElementById('create');b.disabled=true;status.textContent='Creando establecimiento…';
  try{
-  const r=await fetch(API+'/api/platform/onboard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
+  const r=await fetch(API+'/api/platform/onboard',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),d=await r.json();
   if(!r.ok||!d.ok){
-    if(d.error==='rbd_exists')throw new Error('Ya existe un establecimiento con ese RBD.');
-    throw new Error('No fue posible crear el establecimiento.');
+    if(d.error==='rbd_exists')throw new Error('Ya existe un establecimiento con ese RBD. Revisa el listado antes de repetir el registro.');
+    if(r.status===401)throw new Error('Tu sesión expiró. Ingresa nuevamente como Superadministrador.');
+    if(r.status===403)throw new Error('La sesión actual no tiene permiso de Superadministrador.');
+    if(d.error==='weak_temporary_password')throw new Error('La clave temporal no cumple los requisitos: mínimo 10 caracteres, con letras y números.');
+    if(d.error==='required_fields')throw new Error('Revisa los datos obligatorios del establecimiento y coordinación.');
+    throw new Error('No fue posible crear el establecimiento. Código: '+String(d.error||r.status)+'.');
   }
   status.textContent='Establecimiento creado correctamente. Se prepararon M1, M2 y M3 en borrador y la Coordinación deberá cambiar su clave temporal.';
   ['name','rbd','coord-name','coord-email','coord-rut','temp'].forEach(id=>document.getElementById(id).value='');

@@ -86,7 +86,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;back
 
 <section class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 style="margin:0;font-size:18px">Establecimientos registrados</h2><button class="soft" id="refresh" type="button">Actualizar</button></div>
-<p class="note">«Eliminar del listado» solo desactiva el establecimiento: NO libera su RBD ni borra usuarios, estudiantes o evaluaciones. Para volver a utilizar el mismo RBD, marca «Mostrar establecimientos retirados» y selecciona «Restaurar».</p>
+<p class="note">Para crear una cuenta nueva con el mismo RBD, utiliza «Eliminar definitivamente» únicamente si el establecimiento anterior es de prueba y no contiene antecedentes escolares. El sistema revisará sus relaciones antes de permitirlo. «Eliminar del listado» solo desactiva el acceso y NO libera el RBD.</p>
 <label style="display:flex;gap:9px;align-items:center;font-size:13px;margin-top:12px"><input type="checkbox" id="show-archived" style="width:18px;height:18px"> Mostrar establecimientos retirados</label>
 <p class="status" id="establishments-message" role="status" aria-live="polite"></p>
 <div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>Establecimiento</th><th>RBD</th><th>Usuarios activos</th><th>Coordinadores activos</th><th>Alta</th><th>Acciones</th></tr></thead><tbody id="rows"><tr><td colspan="6">Cargando…</td></tr></tbody></table></div>
@@ -121,8 +121,40 @@ function renderSchools(){
    const button=document.createElement('button');button.type='button';button.className='soft';button.textContent='Eliminar del listado';
    button.style.color='#9f1239';button.addEventListener('click',()=>changeSchoolArchive(e,true,button));actions.appendChild(button);
   }
+  const erase=document.createElement('button');erase.type='button';erase.className='soft';
+  erase.textContent='Eliminar definitivamente';erase.style.marginLeft='8px';erase.style.color='#991b1b';
+  erase.addEventListener('click',()=>deleteSchoolPermanently(e,erase));actions.appendChild(erase);
   tr.appendChild(actions);rows.appendChild(tr);
  }
+}
+async function deleteSchoolPermanently(e,button){
+ schoolMessage.textContent='Comprobando que no existan datos escolares que deban conservarse…';
+ button.disabled=true;
+ try{
+  const previewResp=await fetch(API+'/api/platform/establishments/'+encodeURIComponent(e.id)+'/delete-preview',{credentials:'include',cache:'no-store'});
+  const preview=await previewResp.json();
+  if(!previewResp.ok||!preview.ok)throw new Error('No se pudo verificar el establecimiento: '+(preview.error||previewResp.status));
+  if(!preview.can_delete){
+   const details=(preview.blockers||[]).map(x=>x.table+': '+x.records).join('; ');
+   throw new Error('El borrado definitivo fue bloqueado porque hay datos relacionados ('+(details||'registros protegidos')+'). Deben revisarse antes de cualquier eliminación.');
+  }
+  const confirmRbd=window.prompt('Borrado IRREVERSIBLE de «'+e.name+'». Se eliminarán la cuenta de prueba, usuarios iniciales y mediciones M1/M2/M3 en borrador. Para continuar, escribe el RBD exacto: '+e.rbd);
+  if(confirmRbd===null){schoolMessage.textContent='Borrado cancelado. No se modificaron datos.';return}
+  if(confirmRbd.trim()!==String(e.rbd))throw new Error('RBD de confirmación incorrecto. No se eliminó nada.');
+  const phrase=window.prompt('ÚLTIMA CONFIRMACIÓN: se eliminará permanentemente el establecimiento anterior y se liberará el RBD. Escribe exactamente ELIMINAR DEFINITIVAMENTE');
+  if(phrase===null){schoolMessage.textContent='Borrado cancelado. No se modificaron datos.';return}
+  if(phrase.trim()!=='ELIMINAR DEFINITIVAMENTE')throw new Error('Frase de confirmación incorrecta. No se eliminó nada.');
+  const response=await fetch(API+'/api/platform/establishments/'+encodeURIComponent(e.id)+'/delete-permanently',{
+   method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({confirm_rbd:confirmRbd.trim(),confirm_phrase:phrase.trim()})
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||!result.ok)throw new Error(result.error==='institutional_records_block_deletion'?
+   'La eliminación fue bloqueada por nuevos registros asociados. No se eliminó nada.':(result.error||response.status));
+  schoolMessage.textContent='Registro anterior eliminado definitivamente. El RBD '+e.rbd+' quedó disponible para crear una cuenta institucional nueva.';
+  await load();
+ }catch(err){schoolMessage.textContent=err.message}
+ finally{button.disabled=false}
 }
 async function changeSchoolArchive(e,archive,button){
  const label=archive?'retirar del listado':'restaurar';

@@ -130,7 +130,7 @@ const matrículaUpload=multer({
   limits:{files:20,fileSize:10*1024*1024},
   fileFilter:(req,file,cb)=>{
     const n=String(file.originalname||'').toLowerCase();
-    cb(null,/\.(xlsx|csv)$/.test(n));
+    cb(null,/\.(xlsx|xls|csv)$/.test(n));
   }
 });
 async function initDatabase(){
@@ -378,12 +378,14 @@ function courseKey(v){
 function composeCourse(m){
   const direct=firstValue(m,['curso','nombre curso','curso completo','curso actual']);
   if(String(direct).trim())return String(direct).trim();
-  const grade=String(firstValue(m,['grado','nivel','grado curso','nivel curso'])).trim();
+  const grade=String(firstValue(m,['desc grado','descripcion grado','descripción grado','grado','nivel','grado curso','nivel curso'])).trim();
   const letter=String(firstValue(m,['letra','letra curso'])).trim().toUpperCase();
   const teaching=plain(firstValue(m,['ensenanza','enseñanza','tipo ensenanza','tipo enseñanza','modalidad','nivel ensenanza']));
   if(!grade)return '';
-  const medio=/medio|media|humanista|cientifico|científico|tecnico|técnico|tp|hc/.test(teaching);
-  return grade.replace(/º/g,'°').replace(/\s+/g,'')+(grade.includes('°')?'':'°')+(medio?' Medio':'')+(letter?' '+letter:'');
+  const normalizedGrade=grade.replace(/º/g,'°').replace(/\s+/g,' ').trim();
+  if(/(?:medio|media|basico|básico)/i.test(normalizedGrade))return normalizedGrade+(letter?' '+letter:'');
+  const medio=/medio|media|humanista|cientifico|científico|tecnico|técnico|tp|hc/.test(teaching)||/^([1-4])$/.test(normalizedGrade)&&/^\s*(310|410|510|610|710|810)\s*$/.test(String(firstValue(m,['cod tipo enseñanza','cod tipo ensenanza'])));
+  return normalizedGrade.replace(/\s+/g,'')+(normalizedGrade.includes('°')?'':'°')+(medio?' Medio':'')+(letter?' '+letter:'');
 }
 function cellText(v){
   if(v===null||v===undefined)return '';
@@ -442,11 +444,37 @@ function parseCsvMatrix(text){
   row.push(cell);if(row.some(v=>String(v).trim()!==''))rows.push(row);
   return rows;
 }
+function decodeLegacyHtmlText(raw){
+ return String(raw||'').replace(/<[^>]*>/g,'').replace(/&(#x[0-9a-f]+|#[0-9]+|amp|lt|gt|quot|apos|nbsp|aacute|eacute|iacute|oacute|uacute|ntilde|Aacute|Eacute|Iacute|Oacute|Uacute|Ntilde|deg);/gi,(_,entity)=>{
+  const e=entity.toLowerCase();
+  if(e[0]==='#'){const num=e[1]==='x'?parseInt(e.slice(2),16):Number(e.slice(1));return Number.isInteger(num)&&num>0&&num<=0x10ffff?String.fromCodePoint(num):''}
+  return {amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',aacute:'á',eacute:'é',iacute:'í',oacute:'ó',uacute:'ú',ntilde:'ñ',deg:'°'}[e]||'';
+ }).replace(/\s+/g,' ').trim();
+}
+function parseSigeHtmlMatrix(html){
+ const src=String(html||'');
+ if(!/<table\b/i.test(src)||!/<tr\b/i.test(src)||!/<t[dh]\b/i.test(src))throw new Error('invalid_sige_html');
+ const out=[];const rows=src.match(/<tr\b[^>]*>[\s\S]*?<\/tr\s*>/gi)||[];
+ for(const row of rows){
+  const cells=[];const re=/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]\s*>/gi;
+  let m;while((m=re.exec(row))!==null)cells.push(decodeLegacyHtmlText(m[1]));
+  if(cells.some(x=>x!==''))out.push(cells);
+ }
+ return out;
+}
 async function parseEnrollmentFile(file){
   const name=String(file.originalname||'').toLowerCase();
   if(name.endsWith('.csv')){
     const objects=matrixToObjects(parseCsvMatrix(file.buffer.toString('utf8')));
     return {sheet:'CSV',rows:objects};
+  }
+  if(name.endsWith('.xls')){
+    const bytes=file.buffer;
+    const header=bytes.subarray(0,400).toString('latin1');
+    if(!/^\s*(?:<!doctype\s+html|<html|<\?xml)/i.test(header))throw new Error('unsupported_binary_xls');
+    const html=bytes.toString(/charset\s*=\s*["']?utf-8/i.test(header)?'utf8':'latin1');
+    const objects=matrixToObjects(parseSigeHtmlMatrix(html));
+    return {sheet:'SIGE XLS',rows:objects};
   }
   const wb=new ExcelJS.Workbook();
   await wb.xlsx.load(file.buffer);
@@ -478,7 +506,9 @@ function parseStudentRow(row,file,rowNumber){
     name=[nombres,ap,am].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
   }
   const course=composeCourse(m);
-  return {file,row:rowNumber,rut,name,course};
+  const retiro=String(firstValue(m,['fecha retiro','fecha de retiro'])).trim();
+  const hasRetirement=!!retiro&&!/^1900-01-01(?:[t\s]|$)/.test(retiro)&&retiro!=='0';
+  return {file,row:rowNumber,rut,name,course,retired_in_sige:hasRetirement};
 }
 function surveyLevelForCourse(name){
   const n=plain(String(name||'').replace(/º/g,'°')).replace(/\s+/g,' ').trim();
@@ -1369,7 +1399,7 @@ app.post('/api/students/import/preview',...requireRole('coordinador_convivencia'
 
   for(const file of files){
     let parsed;
-    try{parsed=await parseEnrollmentFile(file)}catch(e){fileSummaries.push({file:file.originalname,error:'file_unreadable'});continue}
+    try{parsed=await parseEnrollmentFile(file)}catch(e){fileSummaries.push({file:file.originalname,error:e.message==='unsupported_binary_xls'?'xls_binario_no_compatible':'file_unreadable'});continue}
     const sheet=parsed.rows||[],sheetName=parsed.sheet||'';
     if(!sheet.length){fileSummaries.push({file:file.originalname,error:'file_empty_or_headers_unrecognized'});continue}
     const limited=sheet.slice(0,5000);
@@ -1389,6 +1419,7 @@ app.post('/api/students/import/preview',...requireRole('coordinador_convivencia'
       if(key&&!course)warnings.push('curso_nuevo');
       const existing=p.rut?existingStudents.get(p.rut):null;
       if(existing)warnings.push('estudiante_existente');
+      if(p.retired_in_sige)errors.push('estudiante_retirado_sige');
 
       rows.push({...p,course_key:key,course_id:course?Number(course.id):null,course_name:course?course.name:p.course,existing_student_id:existing?Number(existing.id):null,errors,warnings,importable:errors.length===0});
     }
